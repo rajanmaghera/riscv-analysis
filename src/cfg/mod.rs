@@ -4,6 +4,7 @@ use crate::parser::token::{Token, WithToken};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
+use uuid::Uuid;
 
 // This module handles grouping of basic blocks along with conversion into Rc types,
 // and the beginning of the CFG.
@@ -13,23 +14,34 @@ use std::str::FromStr;
 //
 // TODO handle jumps to labels
 
-#[derive(Debug, PartialEq)]
-pub struct BasicBlock(pub Vec<Rc<WithToken<ASTNode>>>);
+#[derive(Debug)]
+pub struct BasicBlock(pub Vec<Rc<ASTNode>>, pub Uuid);
+impl PartialEq for BasicBlock {
+    fn eq(&self, other: &Self) -> bool {
+        self.1 == other.1
+    }
+}
+impl Eq for BasicBlock {}
+impl std::hash::Hash for BasicBlock {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.1.hash(state);
+    }
+}
 
 impl BasicBlock {
-    pub fn new(nodes: Vec<Rc<WithToken<ASTNode>>>) -> BasicBlock {
-        BasicBlock(nodes)
+    pub fn new(nodes: Vec<Rc<ASTNode>>) -> BasicBlock {
+        BasicBlock(nodes, Uuid::new_v4())
     }
 
-    pub fn from_nodes(nodes: Vec<WithToken<ASTNode>>) -> Rc<BasicBlock> {
+    pub fn from_nodes(nodes: Vec<ASTNode>) -> Rc<BasicBlock> {
         let mut rc_nodes = Vec::new();
         for node in nodes {
             rc_nodes.push(Rc::new(node));
         }
-        Rc::new(BasicBlock(rc_nodes))
+        Rc::new(BasicBlock(rc_nodes, Uuid::new_v4()))
     }
 
-    pub fn push(&mut self, node: Rc<WithToken<ASTNode>>) {
+    pub fn push(&mut self, node: Rc<ASTNode>) {
         self.0.push(node);
     }
 
@@ -39,7 +51,7 @@ impl BasicBlock {
 }
 
 impl IntoIterator for BasicBlock {
-    type Item = Rc<WithToken<ASTNode>>;
+    type Item = Rc<ASTNode>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -53,7 +65,7 @@ impl Default for BasicBlock {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CFG {
     pub blocks: Vec<Rc<BasicBlock>>,
     pub labels: HashMap<String, Rc<BasicBlock>>,
@@ -64,21 +76,20 @@ impl FromStr for CFG {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parser = Parser::new(s);
-        let ast = parser.collect::<Vec<WithToken<ASTNode>>>();
+        let ast = parser.collect::<Vec<ASTNode>>();
         CFG::new(ast)
     }
 }
 
 impl CFG {
-    pub fn new(nodes: Vec<WithToken<ASTNode>>) -> Result<CFG, ()> {
+    pub fn new(nodes: Vec<ASTNode>) -> Result<CFG, ()> {
         let mut labels = HashMap::new();
         let mut blocks = Vec::new();
         let mut current_block = BasicBlock::default();
         let mut last_labels: Vec<String> = Vec::new();
 
         for node in nodes {
-            dbg!(&node);
-            match node.data {
+            match node {
                 ASTNode::Label(s) => {
                     if current_block.len() > 0 {
                         let rc = Rc::new(current_block);
@@ -92,7 +103,7 @@ impl CFG {
                         let new_block = BasicBlock::default();
                         current_block = new_block;
                     }
-                    last_labels.push(s);
+                    last_labels.push(s.name.data);
                 }
                 _ => {
                     current_block.push(Rc::new(node));
