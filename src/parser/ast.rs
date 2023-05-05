@@ -327,6 +327,73 @@ impl ASTNode {
         EqNodeWrapper(self.clone())
     }
 }
+
+impl NodeData for ASTNode {
+    fn get_id(&self) -> Uuid {
+        match self {
+            ASTNode::RType(rtype) => rtype.key,
+            ASTNode::IType(itype) => itype.key,
+            ASTNode::Label(label) => label.key,
+            ASTNode::JumpType(jtype) => jtype.key,
+            ASTNode::BasicType(btype) => btype.key,
+            ASTNode::Directive(directive) => directive.key,
+        }
+    }
+}
+
+impl PartialEq for dyn NodeData {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_id() == other.get_id()
+    }
+}
+impl Eq for dyn NodeData {}
+impl Hash for dyn NodeData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_id().hash(state);
+    }
+}
+
+impl ASTNode {
+
+    // TODO derive AST new funcs using procedural macros
+
+    pub fn new_arith(
+        inst: WithToken<Arith>,
+        rd: WithToken<Register>,
+        rs1: WithToken<Register>,
+        rs2: WithToken<Register>,
+    ) -> ASTNode {
+        ASTNode::RType(RType {
+            inst,
+            rd,
+            rs1,
+            rs2,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_itype(
+        inst: WithToken<ITypeInst>,
+        rd: WithToken<Register>,
+        rs1: WithToken<Register>,
+        imm: WithToken<Imm>,
+    ) -> ASTNode {
+        ASTNode::IType(IType {
+            inst,
+            rd,
+            rs1,
+            imm,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_label(name: WithToken<String>) -> ASTNode {
+        ASTNode::Label(LabelData {
+            name,
+            key: Uuid::new_v4(),
+        })
+    }
+
     pub fn is_entry(&self) -> bool {
         match self {
             ASTNode::Label(_) => true,
@@ -336,15 +403,15 @@ impl ASTNode {
 
     pub fn is_exit(&self) -> bool {
         match self {
-            ASTNode::Branch(_) | ASTNode::Ret | ASTNode::Jmp(_) | ASTNode::Call(_) => true,
+            ASTNode::JumpType(_) => true,
             _ => false,
         }
     }
 
-    pub fn stores_to(&self) -> Option<Register> {
+    pub fn stores_to(&self) -> Option<WithToken<Register>> {
         match self {
-            ASTNode::Add(rtype) => Some(rtype.0.data.clone()),
-            ASTNode::Sub(rtype) => Some(rtype.0.data.clone()),
+            ASTNode::RType(rtype) => Some(rtype.rd.clone()),
+            ASTNode::IType(itype) => Some(itype.rd.clone()),
             _ => None,
         }
     }
@@ -354,12 +421,41 @@ impl LineDisplay for WithToken<ASTNode> {
     fn get_range(&self) -> Range {
         match &self.data {
             ASTNode::Label(s) => self.pos.clone(),
-            ASTNode::Add(rtype) => {
+            ASTNode::RType(rtype) => {
                 let mut range = self.pos.clone();
-                range.end = rtype.2.pos.end;
+                range.end = rtype.rs2.pos.end;
                 range
             }
-            _ => unimplemented!(),
+            ASTNode::IType(itype) => {
+                let mut range = self.pos.clone();
+                range.end = itype.imm.pos.end;
+                range
+            }
+            ASTNode::JumpType(jtype) => {
+                let mut range = self.pos.clone();
+                range.end = jtype.name.pos.end;
+                range
+            }
+            ASTNode::BasicType(_) => self.pos.clone(),
+            ASTNode::Directive(directive) => match &directive.dir.data {
+                DirectiveType::Data => self.pos.clone(),
+                DirectiveType::Text => self.pos.clone(),
+                DirectiveType::Include(incl) => {
+                    let mut range = self.pos.clone();
+                    range.end = incl.pos.end.clone();
+                    range
+                }
+                DirectiveType::Align(align) => {
+                    let mut range = self.pos.clone();
+                    range.end = align.pos.end.clone();
+                    range
+                },
+                DirectiveType::Space(item) => {
+                    let mut range = self.pos.clone();
+                    range.end = item.pos.end.clone();
+                    range
+                },
+            },
         }
     }
 }
@@ -369,7 +465,7 @@ pub enum ParseError {
     UnexpectedEOF,
 }
 
-impl TryFrom<&mut Peekable<Lexer>> for WithToken<ASTNode> {
+impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
     // TODO fix unwraps
 
     type Error = ParseError;
@@ -379,23 +475,36 @@ impl TryFrom<&mut Peekable<Lexer>> for WithToken<ASTNode> {
         let next_node = value.next().ok_or(UnexpectedEOF)?;
         match &next_node.token {
             Token::Symbol(s) => {
+                dbg!(s);
                 if let Ok(inst) = Inst::try_from(s) {
                     let node = match InstType::from(&inst) {
-                        InstType::RType => {
+                        InstType::RType(inst) => {
                             let rd: WithToken<Register> =
                                 WithToken::try_from(value.next().ok_or(UnexpectedToken)?).unwrap();
                             let rs1: WithToken<Register> =
                                 WithToken::try_from(value.next().ok_or(UnexpectedToken)?).unwrap();
                             let rs2: WithToken<Register> =
                                 WithToken::try_from(value.next().ok_or(UnexpectedToken)?).unwrap();
-                            let rtype = RType(rd, rs1, rs2);
-
-                            // TODO we should verify this at compile time that the instruction is valid
-                            match inst {
-                                Inst::Add => Ok(WithToken::new(ASTNode::Add(rtype), next_node)),
-                                Inst::Sub => Ok(WithToken::new(ASTNode::Sub(rtype), next_node)),
-                                _ => unimplemented!(),
-                            }
+                            Ok(ASTNode::new_rtype(
+                                WithToken::new(inst, next_node),
+                                rd,
+                                rs1,
+                                rs2,
+                            ))
+                        }
+                        InstType::IType(inst) => {
+                            let rd: WithToken<Register> =
+                                WithToken::try_from(value.next().ok_or(UnexpectedToken)?).unwrap();
+                            let rs1: WithToken<Register> =
+                                WithToken::try_from(value.next().ok_or(UnexpectedToken)?).unwrap();
+                            let imm: WithToken<Imm> =
+                                WithToken::try_from(value.next().ok_or(UnexpectedToken)?).unwrap();
+                            Ok(ASTNode::new_itype(
+                                WithToken::new(inst, next_node),
+                                rd,
+                                rs1,
+                                imm,
+                            ))
                         }
                         _ => Err(UnexpectedToken),
                     };
@@ -403,7 +512,7 @@ impl TryFrom<&mut Peekable<Lexer>> for WithToken<ASTNode> {
                 }
                 Err(UnexpectedToken)
             }
-            Token::Label(s) => Ok(WithToken::new(ASTNode::Label(s.to_owned()), next_node)),
+            Token::Label(s) => Ok(ASTNode::new_label(WithToken::new(s.clone(), next_node))),
             _ => Err(UnexpectedToken),
         }
     }
