@@ -76,31 +76,69 @@ impl Iterator for Lexer {
     type Item = TokenInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.skip_ws();
-        let token = match self.ch {
-            ':' => Some(TokenInfo {
-                token: Token::Colon,
-                pos: Range {
-                    start: Position {
-                        line: self.row,
-                        column: self.col,
+                self.skip_ws();
+                dbg!(self.ch);
+                let token = match self.ch {
+                    ':' => Some(TokenInfo {
+                        token: Token::Colon,
+                        pos: Range {
+                            start: Position {
+                                line: self.row,
+                                column: self.col,
+                            },
+                            end: Position {
+                                line: self.row,
+                                column: self.col,
+                            },
+                        },
+                    }),
+                    ',' => Some(TokenInfo {
+                        token: Token::Comma,
+                        pos: Range {
+                            start: Position {
+                                line: self.row,
+                                column: self.col,
+                            },
+                            end: Position {
+                                line: self.row,
+                                column: self.col,
+                            },
+                        },
+                    }),
+                    '.' => {
+                        // directive
+                        
+                        let start = Position {
+                            line: self.row,
+                            column: self.col,
+                        };
+                        self.next_char();
+
+                        let mut dir_str: String = "".to_owned();
+
+                        while self.is_symbol_item() {
+                            dir_str += &self.ch.to_string();
+                            self.next_char();
+                        }
+
+                        dbg!(&dir_str);
+
+                        let end = Position {
+                            line: self.row,
+                            column: self.col,
+                        };
+
+                        if dir_str == "" {
+                            // this is an error or end of line?
+                            return None;
+                        }
+
+                        Some(TokenInfo {
+                            token: Token::Directive(dir_str.to_owned()),
+                            pos: Range { start, end },
+                        })
+
                     },
-                    end: Position {
-                        line: self.row,
-                        column: self.col,
-                    },
-                },
-            }),
-            ',' => Some(TokenInfo {
-                token: Token::Comma,
-                pos: Range {
-                    start: Position {
-                        line: self.row,
-                        column: self.col,
-                    },
-                    end: Position {
-                        line: self.row,
-                        column: self.col,
                     '#' => {
                         // skip line till newline
                         while self.ch != '\n' {
