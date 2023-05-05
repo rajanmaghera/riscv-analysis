@@ -286,7 +286,47 @@ pub enum ASTNode {
     Ignore(Ignore),
 }
 
+#[derive(Debug, Clone)]
+pub struct EqNodeWrapper(pub ASTNode);
+
+impl PartialEq for EqNodeWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (ASTNode::Arith(a), ASTNode::Arith(b)) => {
+                a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
+            },
+            (ASTNode::IArith(a), ASTNode::IArith(b)) => {
+                a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
+            },
+            (ASTNode::Label(a), ASTNode::Label(b)) => a.name == b.name,
+            (ASTNode::JumpLink(a), ASTNode::JumpLink(b)) => a.inst == b.inst && a.name == b.name,
+            (ASTNode::JumpLinkR(a), ASTNode::JumpLinkR(b)) => a.inst == b.inst && a.name == b.name,
+            (ASTNode::Basic(a), ASTNode::Basic(b)) => a.inst == b.inst,
+            (ASTNode::Directive(a), ASTNode::Directive(b)) => a.dir == b.dir,
+            (ASTNode::Branch(a), ASTNode::Branch(b)) => {
+                a.inst == b.inst && a.rs1 == b.rs1 && a.rs2 == b.rs2 && a.name == b.name
+            },
+            (ASTNode::Store(a), ASTNode::Store(b)) => {
+                a.inst == b.inst && a.rs1 == b.rs1 && a.rs2 == b.rs2 && a.imm == b.imm
+            },
+            (ASTNode::Load(a), ASTNode::Load(b)) => {
+                a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
+            },
+            (ASTNode::CSR(a), ASTNode::CSR(b)) => {
+                a.inst == b.inst && a.rd == b.rd && a.csr == b.csr && a.rs1 == b.rs1
+            },
+            (ASTNode::Ignore(a), ASTNode::Ignore(b)) => a.inst == b.inst,
+            _ => false,
+        }
+    }
+}
+impl Eq for EqNodeWrapper {}
+
 impl ASTNode {
+    pub fn data(&self) -> EqNodeWrapper {
+        EqNodeWrapper(self.clone())
+    }
+}
     pub fn is_entry(&self) -> bool {
         match self {
             ASTNode::Label(_) => true,
