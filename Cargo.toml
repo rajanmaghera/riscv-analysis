@@ -12,3 +12,11 @@ wasm-bindgen = "0.2.84"
 lsp-types = "0.94.0"
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.4"
+
+[dependencies.uuid]
+version = "1.3.2"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+]
