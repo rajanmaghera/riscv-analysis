@@ -6,7 +6,9 @@
 
 // TODO use copy over clone
 
-use crate::Register;
+use std::fmt::Display;
+
+use crate::parser::register::Register;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Position {
@@ -35,7 +37,8 @@ pub enum Token {
     Comma,
     Label(String), // A label has to end with a : without any whitespace
     Symbol(SymbolData),
-    // TODO numbers
+    Directive(String),
+    String(String),
 }
 
 impl PartialEq<Token> for TokenInfo {
@@ -50,6 +53,47 @@ pub struct WithToken<T> {
     pub pos: Range,
     pub data: T,
 }
+
+impl Display for TokenInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.token)
+    }
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Token::Colon => write!(f, "(COLON) "),
+            Token::Comma => write!(f, "(COMMA) "),
+            Token::Label(s) => write!(f, "[label: {}]\n", s),
+            Token::Symbol(s) => write!(f, "<{}> ", s.0),
+            Token::Directive(s) => write!(f, "[directive: {}] ", s),
+            Token::String(s) => write!(f, "\"{}\"", s),
+        }
+    }
+}
+
+pub struct VecTokenDisplayWrapper<'a>(&'a Vec<TokenInfo>);
+impl<'a> Display for VecTokenDisplayWrapper<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for t in self.0 {
+            write!(f, "{}", t)?;
+        }
+        Ok(())
+    }
+}
+
+pub trait ToDisplayForVecToken {
+    fn to_display(&self) -> VecTokenDisplayWrapper;
+}
+
+impl ToDisplayForVecToken for Vec<TokenInfo> {
+    fn to_display(&self) -> VecTokenDisplayWrapper {
+        VecTokenDisplayWrapper(self)
+    }
+}
+
+
 
 pub trait LineDisplay {
     fn get_range(&self) -> Range;
@@ -87,6 +131,8 @@ where
         self.data == other.data
     }
 }
+
+impl<T> Eq for WithToken<T> where T: Eq {}
 
 impl<T> WithToken<T>
 where

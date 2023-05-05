@@ -1,5 +1,5 @@
 use crate::parser::token::{Position, Range, TokenInfo};
-use crate::{SymbolData, Token};
+use crate::parser::token::{SymbolData, Token};
 
 const EOF_CONST: char = 3 as char;
 
@@ -12,6 +12,10 @@ pub struct Lexer {
     row: usize,
     col: usize,
 }
+
+// While this is not necessary, it is used to skip directives that are
+// not text. We should eventually have data directives, but for now
+// we will just skip them.
 
 impl Lexer {
     pub fn new<S: Into<String>>(source: S) -> Lexer {
@@ -27,6 +31,7 @@ impl Lexer {
     }
 
     pub fn tokenize<S: Into<String>>(input: S) -> Vec<TokenInfo> {
+        dbg!("tokenize");
         Lexer::new(input).collect()
     }
 
@@ -55,11 +60,14 @@ impl Lexer {
 
     fn is_symbol_char(&self) -> bool {
         let c = self.ch;
-        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+        // TODO be careful, we may not want - to be a symbol character,
+        // This is done so number parsing is only done once we know what the instruction is
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '-'
     }
 
     fn is_symbol_item(&self) -> bool {
         let c = self.ch;
+        dbg!(c);
         self.is_symbol_char() || (c >= '0' && c <= '9')
     }
 
@@ -70,7 +78,7 @@ impl Lexer {
     }
 }
 
-// TODO switch to tokeninfo struct
+// TODO typestate for lexer?
 
 impl Iterator for Lexer {
     type Item = TokenInfo;

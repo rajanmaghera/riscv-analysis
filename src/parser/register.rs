@@ -1,5 +1,4 @@
-use crate::parser::token::{Position, Range, TokenInfo};
-use crate::{SymbolData, Token};
+use crate::parser::token::{SymbolData, Token, TokenInfo};
 use std::convert::TryFrom;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

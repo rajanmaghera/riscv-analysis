@@ -1,4 +1,5 @@
-use crate::{ASTNode, Lexer, WithToken};
+use crate::parser::ast::ASTNode;
+use crate::parser::lexer::Lexer;
 use std::iter::Peekable;
 
 pub struct Parser {
@@ -14,10 +15,10 @@ impl Parser {
 }
 
 impl Iterator for Parser {
-    type Item = WithToken<ASTNode>;
+    type Item = ASTNode;
 
     fn next(&mut self) -> Option<Self::Item> {
         // if next item is not a newline and astnode is not a label then error
-        WithToken::try_from(&mut self.lexer).ok()
+        ASTNode::try_from(&mut self.lexer).ok()
     }
 }
