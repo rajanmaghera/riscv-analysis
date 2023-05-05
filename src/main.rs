@@ -12,6 +12,30 @@ mod cfg;
 mod parser;
 mod passes;
 
+// to make prototyping easier, use the macro to create AST nodes
+// example macro usage rtype!(Add X0 X1 X2)
+macro_rules! rtype {
+    ($inst:ident $rd:ident $rs1:ident $rs2:ident) => {
+        ASTNode::new_rtype(
+            WithToken::blank(RTypeInst::$inst),
+            WithToken::blank(Register::$rd),
+            WithToken::blank(Register::$rs1),
+            WithToken::blank(Register::$rs2),
+        )
+    };
+}
+
+macro_rules! itype {
+    ($inst:ident $rd:ident $rs1:ident $imm:expr) => {
+        ASTNode::new_itype(
+            WithToken::blank(ITypeInst::$inst),
+            WithToken::blank(Register::$rd),
+            WithToken::blank(Register::$rs1),
+            WithToken::blank(Imm($imm)),
+        )
+    };
+}
+
 /* This project will start with RV32I exclusively.
  *
  */
@@ -125,61 +149,34 @@ mod tests {
 
     #[test]
     fn linear_block() {
-        let parser = Parser::new("my_block: add s0, s0, s2\nadd s0, s0, s2");
-        let ast = parser.collect::<Vec<WithToken<ASTNode>>>();
+        let parser = Parser::new("my_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1");
+        let ast = parser.collect::<Vec<ASTNode>>();
         let blocks = CFG::new(ast).expect("unable to create cfg");
-        assert_eq!(
-            blocks.blocks,
-            vec![BasicBlock::from_nodes(vec![
-                WithToken::blank(ASTNode::Add(RType(
-                    WithToken::blank(Register::X8),
-                    WithToken::blank(Register::X8),
-                    WithToken::blank(Register::X18)
-                ))),
-                WithToken::blank(ASTNode::Add(RType(
-                    WithToken::blank(Register::X8),
-                    WithToken::blank(Register::X8),
-                    WithToken::blank(Register::X18)
-                ))),
-            ])]
-        );
+        assert!(vec![BasicBlock::from_nodes(vec![
+            rtype!(Add X8 X8 X18),
+            rtype!(Add X8 X8 X18),
+            itype!(Addi X9 X9 1),
+        ])]
+        .node_eq(&blocks.blocks));
     }
 
     #[test]
     fn multiple_blocks() {
         let parser = Parser::new(
-            "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
+            "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1",
         );
-        let ast = parser.collect::<Vec<WithToken<ASTNode>>>();
-        dbg!(&ast);
+        let ast = parser.collect::<Vec<ASTNode>>();
         let blocks = CFG::new(ast).expect("unable to create cfg");
-        assert_eq!(
-            blocks.blocks,
-            vec![
-                BasicBlock::from_nodes(vec![WithToken::blank(ASTNode::Add(RType(
-                    WithToken::blank(Register::X2),
-                    WithToken::blank(Register::X2),
-                    WithToken::blank(Register::X3),
-                ))),]),
-                BasicBlock::from_nodes(vec![WithToken::blank(ASTNode::Sub(RType(
-                    WithToken::blank(Register::X10),
-                    WithToken::blank(Register::X10),
-                    WithToken::blank(Register::X11),
-                ))),]),
-                BasicBlock::from_nodes(vec![
-                    WithToken::blank(ASTNode::Add(RType(
-                        WithToken::blank(Register::X8),
-                        WithToken::blank(Register::X8),
-                        WithToken::blank(Register::X18)
-                    ))),
-                    WithToken::blank(ASTNode::Add(RType(
-                        WithToken::blank(Register::X8),
-                        WithToken::blank(Register::X8),
-                        WithToken::blank(Register::X18)
-                    ))),
-                ])
-            ]
-        );
+        assert!(vec![
+            BasicBlock::from_nodes(vec![rtype!(Add X2 X2 X3),]),
+            BasicBlock::from_nodes(vec![rtype!(Sub X10 X10 X11),]),
+            BasicBlock::from_nodes(vec![
+                rtype!(Add X8 X8 X18),
+                rtype!(Add X8 X8 X18),
+                itype!(Addi X9 X9 1),
+            ])
+        ]
+        .node_eq(&blocks.blocks));
     }
 
     #[test]
@@ -203,5 +200,25 @@ mod tests {
     fn duplicate_labels() {
         CFG::from_str("my_block: add s0, s0, s2\nmy_block: add s0, s0, s2")
             .expect_err("duplicate labels should fail");
+    }
+    #[test]
+    fn basic_imm() {
+        let blocks =
+            CFG::from_str("\nhello_world:\n    addi x0, x2 12").expect("unable to create cfg");
+        assert!(vec![BasicBlock::from_nodes(vec![itype!(Addi X0 X2 12),])].node_eq(&blocks.blocks));
+
+        PassManager::new().run(blocks).unwrap_err();
+    }
+
+    #[test]
+    fn pass_with_comments() {
+        let blocks = CFG::from_str("\nhello_world:\n    addi x1, x2 12 # yolo\nadd x1, x2 x3")
+            .expect("unable to create cfg");
+        assert!(vec![BasicBlock::from_nodes(vec![
+            itype!(Addi X1 X2 12),
+            rtype!(Add X1 X2 X3),
+        ])]
+        .node_eq(&blocks.blocks));
+        PassManager::new().run(blocks).unwrap();
     }
 }
