@@ -101,11 +101,19 @@ impl Iterator for Lexer {
                     end: Position {
                         line: self.row,
                         column: self.col,
+                    '#' => {
+                        // skip line till newline
+                        while self.ch != '\n' {
+                            self.next_char();
+                        }
+                        // TODO eventually we will return a comment token
+                        // for now we just skip it
+                        // Remember that recursive calls are bad
+                        return self.next();
                     },
                 },
             }),
             '.' => todo!("directives"),
-            '#' => todo!("comments"),
             _ => {
                 let start = Position {
                     line: self.row,
