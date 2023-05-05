@@ -149,47 +149,81 @@ impl Iterator for Lexer {
                         // Remember that recursive calls are bad
                         return self.next();
                     },
-                },
-            }),
-            '.' => todo!("directives"),
-            _ => {
-                let start = Position {
-                    line: self.row,
-                    column: self.col,
+
+                    '"' => {
+                        // string
+                        let start = Position {
+                            line: self.row,
+                            column: self.col,
+                        };
+
+                        let mut string_str: String = "".to_owned();
+
+                        self.next_char();
+
+                        while self.ch != '"' {
+                            string_str += &self.ch.to_string();
+                            self.next_char();
+                        }
+
+                        self.next_char();
+
+                        let end = Position {
+                            line: self.row,
+                            column: self.col,
+                        };
+
+                        Some(TokenInfo {
+                            token: Token::String(string_str.to_owned()),
+                            pos: Range { start, end },
+                        })
+                    }
+                    _ => {
+                        let start = Position {
+                            line: self.row,
+                            column: self.col - 1,
+                        };
+
+                        let mut symbol_str: String = "".to_owned();
+
+                        while self.is_symbol_item() {
+                            symbol_str += &self.ch.to_string();
+                            self.next_char();
+                        }
+
+                        if symbol_str == "" {
+                            // this is an error or end of line?
+                            return None;
+                        } else if self.ch == ':' {
+                            // this is a label
+                            self.next_char();
+                            let end = Position {
+                                line: start.line,
+                                column: self.col,
+                            };
+
+                            return Some(TokenInfo {
+                                token: Token::Label(symbol_str.to_owned()),
+                                pos: Range { start, end },
+                            });
+                        }
+
+                        let end = Position {
+                            line: start.line,
+                            column: self.col,
+                        };
+
+                        Some(TokenInfo {
+                            token: Token::Symbol(SymbolData(symbol_str.to_owned())),
+                            pos: Range { start, end },
+                        })
+                    }
                 };
 
-                let mut symbol_str: String = "".to_owned();
-
-                while self.is_symbol_item() {
-                    symbol_str += &self.ch.to_string();
+                if let Some(_) = token {
                     self.next_char();
                 }
 
-                if symbol_str == "" {
-                    return None;
-                } else if self.ch == ':' {
-                    // this is a label
-                    self.next_char();
-                    let end = Position {
-                        line: self.row,
-                        column: self.col,
-                    };
-                    return Some(TokenInfo {
-                        token: Token::Label(symbol_str.to_owned()),
-                        pos: Range { start, end },
-                    });
-                }
-                Some(TokenInfo {
-                    token: Token::Symbol(SymbolData(symbol_str.to_owned())),
-                    pos: Range { start, end: start },
-                })
+                token
             }
-        };
-
-        if let Some(_) = token {
-            self.next_char();
-        }
-
-        token
-    }
 }
