@@ -438,6 +438,105 @@ impl ASTNode {
     }
 }
 
+// -- PRETTY PRINTING --
+pub struct VecASTDisplayWrapper<'a>(&'a Vec<ASTNode>);
+pub trait ToDisplayForVecASTNode {
+    fn to_display(&self) -> VecASTDisplayWrapper;
+}
+impl ToDisplayForVecASTNode for Vec<ASTNode> {
+    fn to_display(&self) -> VecASTDisplayWrapper {
+        VecASTDisplayWrapper(self)
+    }
+}
+
+impl<'a> fmt::Display for VecASTDisplayWrapper<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut last = false;
+        for node in self.0 {
+            if last {
+                write!(f, "\n")?;
+            }
+            let out = match node {
+                ASTNode::Arith(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    let rd = x.rd.data.to_string();
+                    let rs1 = x.rs1.data.to_string();
+                    let rs2 = x.rs2.data.to_string();
+                    format!("{} {} <- {}, {}", inst, rd, rs1, rs2)
+                }
+                ASTNode::IArith(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    let rd = x.rd.data.to_string();
+                    let rs1 = x.rs1.data.to_string();
+                    let imm = x.imm.data.0.to_string();
+                    format!("{} {} <- {}, {}", inst, rd, rs1, imm)
+                }
+                ASTNode::Label(x) => format!("---[{}]---", x.name.data),
+                ASTNode::JumpLink(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    let name = x.name.data.to_string();
+                    let rd = x.rd.data.to_string();
+                    format!("{} [{}] | {} <- PC", inst, name, rd)
+                }
+                ASTNode::JumpLinkR(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    let rs1 = x.rs1.data.to_string();
+                    format!("{} [{}]", inst, rs1)
+                }
+                ASTNode::Basic(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    format!("{}", inst)
+                }
+                ASTNode::Directive(x) => {
+                    let dir = x.dir.data.to_string();
+                    format!("-<{}>-", dir)
+                }
+                ASTNode::Branch(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    let rs1 = x.rs1.data.to_string();
+                    let rs2 = x.rs2.data.to_string();
+                    let name = x.name.data.to_string();
+                    format!("{} {}--{}, [{}]", inst, rs1, rs2, name)
+                }
+                ASTNode::Store(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    let rs1 = x.rs1.data.to_string();
+                    let rs2 = x.rs2.data.to_string();
+                    let imm = x.imm.data.0.to_string();
+                    format!("{} {} -> {}({})", inst, rs2, imm, rs1)
+                }
+                ASTNode::Load(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    let rd = x.rd.data.to_string();
+                    let rs1 = x.rs1.data.to_string();
+                    let imm = x.imm.data.0.to_string();
+                    format!("{} {} <- {}({})", inst, rd, imm, rs1)
+                }
+                // TODO don't use the pseudo type here
+                ASTNode::LoadAddr(x) => {
+                    let inst = "la";
+                    let rd = x.rd.data.to_string();
+                    let name = x.name.data.to_string();
+                    format!("{} {} <- [{}]", inst, rd, name)
+                }
+                ASTNode::CSR(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    let rd = x.rd.data.to_string();
+                    let csr = x.csr.data.0.to_string();
+                    format!("{} {}, {}", inst, rd, csr)
+                }
+                ASTNode::Ignore(_) => {
+                    format!("<ignored>")
+                }
+            };
+            write!(f, "{}", out)?;
+            last = true;
+        }
+        Ok(())
+    }
+}
+
+// TODO this might differ based on how the nodes are made
 impl LineDisplay for WithToken<ASTNode> {
     fn get_range(&self) -> Range {
         match &self.data {
