@@ -1,10 +1,10 @@
 use crate::parser::ast::ASTNode;
+use crate::parser::ast::EqNodeDataVec;
 use crate::parser::parser::Parser;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
 use uuid::Uuid;
-use crate::parser::ast::EqNodeDataVec;
 
 // This module handles grouping of basic blocks along with conversion into Rc types,
 // and the beginning of the CFG.
@@ -34,7 +34,7 @@ impl std::hash::Hash for BasicBlock {
 pub struct BlockDataWrapper<'a>(pub &'a BasicBlock);
 impl PartialEq for BlockDataWrapper<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.0.data() == other.0.0.data()
+        self.0 .0.data() == other.0 .0.data()
     }
 }
 pub trait BlockWrapper {
@@ -52,7 +52,15 @@ impl BlockWrapper for BasicBlock {
 pub struct VecBlockDataWrapper<'a>(pub &'a Vec<Rc<BasicBlock>>);
 impl PartialEq for VecBlockDataWrapper<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.iter().map(|x| x.data()).collect::<Vec<BlockDataWrapper>>() == other.0.iter().map(|x| x.data()).collect::<Vec<BlockDataWrapper>>()
+        self.0
+            .iter()
+            .map(|x| x.data())
+            .collect::<Vec<BlockDataWrapper>>()
+            == other
+                .0
+                .iter()
+                .map(|x| x.data())
+                .collect::<Vec<BlockDataWrapper>>()
     }
 }
 pub trait VecBlockWrapper {
@@ -63,7 +71,6 @@ impl VecBlockWrapper for Vec<Rc<BasicBlock>> {
         VecBlockDataWrapper(self)
     }
 }
-
 
 // -- BASIC BLOCK IMPLEMENTATION --
 

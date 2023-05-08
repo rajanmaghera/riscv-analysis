@@ -140,7 +140,7 @@ impl Iterator for Lexer {
                 }
 
                 if self.ch == EOF_CONST {
-                    return None
+                    return None;
                 }
 
                 // TODO switch to comment tokens

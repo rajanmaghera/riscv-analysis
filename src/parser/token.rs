@@ -95,8 +95,6 @@ impl ToDisplayForVecToken for Vec<TokenInfo> {
     }
 }
 
-
-
 pub trait LineDisplay {
     fn get_range(&self) -> Range;
     fn get_str(&self) -> String {
@@ -180,7 +178,6 @@ where
     }
 }
 
-
 impl TryFrom<TokenInfo> for String {
     type Error = String;
 
@@ -191,7 +188,6 @@ impl TryFrom<TokenInfo> for String {
         }
     }
 }
-
 
 impl<T> PartialEq<T> for WithToken<T>
 where

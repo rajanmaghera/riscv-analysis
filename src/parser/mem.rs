@@ -1,9 +1,8 @@
-
 use std::str::FromStr;
 
-use crate::parser::token::{TokenInfo, Token, SymbolData, WithToken, Position, Range};
 use crate::parser::imm::Imm;
 use crate::parser::register::Register;
+use crate::parser::token::{Position, Range, SymbolData, Token, TokenInfo, WithToken};
 // Used for parsing 0(t2) type expressions
 
 #[derive(Debug, PartialEq, Clone)]
@@ -67,5 +66,3 @@ impl TryFrom<TokenInfo> for Mem {
         }
     }
 }
-
-

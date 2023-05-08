@@ -1,10 +1,10 @@
 pub mod ast;
+pub mod imm;
 pub mod inst;
 pub mod lexer;
+pub mod mem;
 pub mod parser;
 pub mod register;
 pub mod token;
-pub mod imm;
-pub mod mem;
 
 // TODO add context to all levels

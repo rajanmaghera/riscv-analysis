@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::parser::token::{TokenInfo, Token, SymbolData};
+use crate::parser::token::{SymbolData, Token, TokenInfo};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Imm(pub i32);
@@ -37,7 +37,6 @@ impl FromStr for Imm {
             }
         }
     }
-
 }
 
 impl TryFrom<SymbolData> for Imm {
@@ -47,4 +46,3 @@ impl TryFrom<SymbolData> for Imm {
         Imm::from_str(&value.0)
     }
 }
-

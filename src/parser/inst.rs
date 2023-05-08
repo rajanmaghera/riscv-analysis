@@ -62,7 +62,7 @@ pub enum IArithType {
     Srli,
     Srliw,
     Xori,
-    Lui, // This is an outlier, but we are going to treat it as an IType
+    Lui,   // This is an outlier, but we are going to treat it as an IType
     Auipc, // Same as this
 }
 
@@ -281,7 +281,6 @@ impl Display for Inst {
     }
 }
 
-
 pub enum InstType {
     ArithType(ArithType),
     IArithType(IArithType),
@@ -313,10 +312,9 @@ pub enum PseudoType {
     Snez,
 }
 
-
 impl TryFrom<&SymbolData> for Inst {
     type Error = ();
-    
+
     // TODO figure out how to ensure every Inst is covered
     fn try_from(value: &SymbolData) -> Result<Self, Self::Error> {
         match value.0.to_lowercase().as_str() {
@@ -620,6 +618,3 @@ impl From<&BranchType> for Inst {
         }
     }
 }
-
-
-

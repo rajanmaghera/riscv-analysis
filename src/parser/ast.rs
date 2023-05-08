@@ -1,17 +1,16 @@
+use crate::parser::imm::*;
 use crate::parser::inst::Inst;
+use crate::parser::inst::*;
 use crate::parser::lexer::Lexer;
+use crate::parser::mem::*;
 use crate::parser::register::Register;
 use crate::parser::token::{LineDisplay, Range, Token, WithToken};
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
 use std::iter::Peekable;
-use crate::parser::inst::*;
-use crate::parser::imm::*;
-use crate::parser::mem::*;
-use uuid::Uuid;
 use std::rc::Rc;
-
+use uuid::Uuid;
 
 // TODO make a test case with every supported RARS instruction
 use super::inst::InstType;
@@ -29,8 +28,7 @@ pub enum DirectiveType {
     Align(WithToken<i32>),
     Space(WithToken<i32>),
     Text,
-    Data
-    // TODO include more
+    Data, // TODO include more
 }
 
 impl Display for DirectiveType {
@@ -157,8 +155,8 @@ pub enum ASTNode {
     Basic(Basic),
     Directive(Directive),
     Branch(Branch),
-    Store(Store), // Stores
-    Load(Load),  // Loads, are actually mostly ITypes
+    Store(Store),       // Stores
+    Load(Load),         // Loads, are actually mostly ITypes
     LoadAddr(LoadAddr), // Load address
     CSR(CSR),
     Ignore(Ignore),
@@ -172,29 +170,33 @@ impl PartialEq for EqNodeWrapper {
         match (&self.0, &other.0) {
             (ASTNode::Arith(a), ASTNode::Arith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
-            },
+            }
             (ASTNode::IArith(a), ASTNode::IArith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
-            },
+            }
             (ASTNode::Label(a), ASTNode::Label(b)) => a.name == b.name,
             (ASTNode::JumpLink(a), ASTNode::JumpLink(b)) => a.inst == b.inst && a.name == b.name,
-            (ASTNode::JumpLinkR(a), ASTNode::JumpLinkR(b)) => a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm,
+            (ASTNode::JumpLinkR(a), ASTNode::JumpLinkR(b)) => {
+                a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
+            }
             (ASTNode::Basic(a), ASTNode::Basic(b)) => a.inst == b.inst,
             (ASTNode::Directive(a), ASTNode::Directive(b)) => a.dir == b.dir,
             (ASTNode::Branch(a), ASTNode::Branch(b)) => {
                 a.inst == b.inst && a.rs1 == b.rs1 && a.rs2 == b.rs2 && a.name == b.name
-            },
+            }
             (ASTNode::Store(a), ASTNode::Store(b)) => {
                 a.inst == b.inst && a.rs1 == b.rs1 && a.rs2 == b.rs2 && a.imm == b.imm
-            },
+            }
             (ASTNode::Load(a), ASTNode::Load(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
-            },
+            }
             (ASTNode::CSR(a), ASTNode::CSR(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.csr == b.csr && a.rs1 == b.rs1
-            },
+            }
             (ASTNode::Ignore(a), ASTNode::Ignore(b)) => a.inst == b.inst,
-            (ASTNode::LoadAddr(a), ASTNode::LoadAddr(b)) => a.inst == b.inst && a.rd == b.rd && a.name == b.name,
+            (ASTNode::LoadAddr(a), ASTNode::LoadAddr(b)) => {
+                a.inst == b.inst && a.rd == b.rd && a.name == b.name
+            }
             _ => false,
         }
     }
@@ -260,7 +262,6 @@ impl Hash for dyn NodeData {
 }
 
 impl ASTNode {
-
     // TODO derive AST new funcs using procedural macros
 
     pub fn new_arith(
@@ -293,7 +294,11 @@ impl ASTNode {
         })
     }
 
-    pub fn new_jump_link(inst: WithToken<JumpLinkType>, rd: WithToken<Register>, name: WithToken<String>) -> ASTNode {
+    pub fn new_jump_link(
+        inst: WithToken<JumpLinkType>,
+        rd: WithToken<Register>,
+        name: WithToken<String>,
+    ) -> ASTNode {
         ASTNode::JumpLink(JumpLink {
             inst,
             rd,
@@ -302,7 +307,12 @@ impl ASTNode {
         })
     }
 
-    pub fn new_jump_link_r(inst: WithToken<JumpLinkRType>, rd: WithToken<Register>, rs1: WithToken<Register>, imm: WithToken<Imm>) -> ASTNode {
+    pub fn new_jump_link_r(
+        inst: WithToken<JumpLinkRType>,
+        rd: WithToken<Register>,
+        rs1: WithToken<Register>,
+        imm: WithToken<Imm>,
+    ) -> ASTNode {
         ASTNode::JumpLinkR(JumpLinkR {
             inst,
             rd,
@@ -428,7 +438,7 @@ impl ASTNode {
             _ => false,
         }
     }
-    
+
     // NOTE: This is in context to a register store, not a memory store
     pub fn stores_to(&self) -> Option<WithToken<Register>> {
         match self {
@@ -548,46 +558,46 @@ impl LineDisplay for WithToken<ASTNode> {
                 let mut range = self.pos.clone();
                 range.end = arith.rs2.pos.end.clone();
                 range
-            },
+            }
             ASTNode::IArith(iarith) => {
                 let mut range = self.pos.clone();
                 range.end = iarith.imm.pos.end.clone();
                 range
-            },
+            }
             ASTNode::JumpLink(jl) => {
                 let mut range = self.pos.clone();
                 range.end = jl.name.pos.end.clone();
                 range
-            },
+            }
             ASTNode::JumpLinkR(jlr) => {
                 let mut range = self.pos.clone();
                 range.end = jlr.inst.pos.end.clone();
                 range
-            },
+            }
             ASTNode::Branch(branch) => {
                 let mut range = self.pos.clone();
                 range.end = branch.name.pos.end.clone();
                 range
-            },
+            }
             ASTNode::Store(store) => {
                 let mut range = self.pos.clone();
                 range.end = store.imm.pos.end.clone();
                 range
-            },
+            }
             ASTNode::Load(load) => {
                 let mut range = self.pos.clone();
                 range.end = load.imm.pos.end.clone();
                 range
-            },
+            }
             ASTNode::CSR(csr) => {
                 let mut range = self.pos.clone();
                 range.end = csr.csr.pos.end.clone();
                 range
-            },
+            }
             ASTNode::Ignore(_) => self.pos.clone(),
             ASTNode::Basic(_) => self.pos.clone(),
             ASTNode::LoadAddr(_) => self.pos.clone(),
-           ASTNode::Directive(directive) => match &directive.dir.data {
+            ASTNode::Directive(directive) => match &directive.dir.data {
                 DirectiveType::Data => self.pos.clone(),
                 DirectiveType::Text => self.pos.clone(),
                 DirectiveType::Include(incl) => {
@@ -599,12 +609,12 @@ impl LineDisplay for WithToken<ASTNode> {
                     let mut range = self.pos.clone();
                     range.end = align.pos.end.clone();
                     range
-                },
+                }
                 DirectiveType::Space(item) => {
                     let mut range = self.pos.clone();
                     range.end = item.pos.end.clone();
                     range
-                },
+                }
             },
         }
     }
@@ -634,12 +644,18 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                 if let Ok(inst) = Inst::try_from(s) {
                     let node = match InstType::from(&inst) {
                         InstType::ArithType(inst) => {
-                            let rd =
-                                WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                            let rs1 =
-                                WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                            let rs2 =
-                                WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
+                            let rd = WithToken::<Register>::try_from(
+                                value.next().ok_or(UnexpectedToken)?,
+                            )
+                            .map_err(|_| ExpectedRegister)?;
+                            let rs1 = WithToken::<Register>::try_from(
+                                value.next().ok_or(UnexpectedToken)?,
+                            )
+                            .map_err(|_| ExpectedRegister)?;
+                            let rs2 = WithToken::<Register>::try_from(
+                                value.next().ok_or(UnexpectedToken)?,
+                            )
+                            .map_err(|_| ExpectedRegister)?;
                             Ok(ASTNode::new_arith(
                                 WithToken::new(inst, next_node),
                                 rd,
@@ -649,18 +665,21 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                         }
                         InstType::IArithType(inst) => {
                             let rd: WithToken<Register> =
-                                WithToken::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
+                                WithToken::try_from(value.next().ok_or(UnexpectedToken)?)
+                                    .map_err(|_| ExpectedRegister)?;
                             let rs1: WithToken<Register> =
-                                WithToken::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
+                                WithToken::try_from(value.next().ok_or(UnexpectedToken)?)
+                                    .map_err(|_| ExpectedRegister)?;
                             let imm: WithToken<Imm> =
-                                WithToken::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedImm)?;
+                                WithToken::try_from(value.next().ok_or(UnexpectedToken)?)
+                                    .map_err(|_| ExpectedImm)?;
                             Ok(ASTNode::new_iarith(
                                 WithToken::new(inst, next_node),
                                 rd,
                                 rs1,
                                 imm,
                             ))
-                        },
+                        }
 
                         // TODO ensure that symbol is not a register
                         // TODO how is error handling handled for non registers
@@ -670,40 +689,51 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                             let name_token = value.next().ok_or(UnexpectedToken)?;
                             if let Ok(reg) = WithToken::<Register>::try_from(name_token.clone()) {
                                 let next = value.next().ok_or(UnexpectedToken)?;
-                                let name: WithToken<String> = WithToken::new(next.token.to_string(), name_token);
+                                let name: WithToken<String> =
+                                    WithToken::new(next.token.to_string(), name_token);
                                 return Ok(ASTNode::new_jump_link(
                                     WithToken::new(inst, next_node),
                                     reg,
                                     name,
-                                    ));
+                                ));
                             }
-                            let name: WithToken<String> = WithToken::new(name_token.token.to_string(), name_token.clone());
+                            let name: WithToken<String> =
+                                WithToken::new(name_token.token.to_string(), name_token.clone());
                             Ok(ASTNode::new_jump_link(
                                 WithToken::new(inst, next_node),
                                 WithToken::new(Register::X1, name_token),
                                 name,
                             ))
-                        },
+                        }
                         InstType::JumpLinkRType(inst) => {
-                            let reg1 =
-                                WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                            return if let Ok(rs1) = WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?) {
+                            let reg1 = WithToken::<Register>::try_from(
+                                value.next().ok_or(UnexpectedToken)?,
+                            )
+                            .map_err(|_| ExpectedRegister)?;
+                            return if let Ok(rs1) = WithToken::<Register>::try_from(
+                                value.next().ok_or(UnexpectedToken)?,
+                            ) {
                                 let next = value.next().ok_or(UnexpectedToken)?;
-                                let imm = WithToken::<Imm>::try_from(next).map_err(|_| ExpectedImm)?;
+                                let imm =
+                                    WithToken::<Imm>::try_from(next).map_err(|_| ExpectedImm)?;
                                 Ok(ASTNode::new_jump_link_r(
                                     WithToken::new(inst, next_node),
                                     reg1,
                                     rs1,
                                     imm,
                                 ))
-                            } else if let Ok(mem) = WithToken::<Mem>::try_from(value.next().ok_or(UnexpectedToken)?) {
+                            } else if let Ok(mem) =
+                                WithToken::<Mem>::try_from(value.next().ok_or(UnexpectedToken)?)
+                            {
                                 Ok(ASTNode::new_jump_link_r(
                                     WithToken::new(inst, next_node),
                                     reg1,
                                     mem.data.reg,
                                     mem.data.offset,
                                 ))
-                            } else if let Ok(imm) = WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?) {
+                            } else if let Ok(imm) =
+                                WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?)
+                            {
                                 Ok(ASTNode::new_jump_link_r(
                                     WithToken::new(inst, next_node.clone()),
                                     WithToken::new(Register::X1, next_node),
@@ -717,78 +747,96 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     reg1,
                                     WithToken::new(Imm(0), next_node),
                                 ))
-                            }
-                        },
+                            };
+                        }
                         InstType::LoadType(inst) => {
-                            let rd =
-                                WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                            return if let Ok(mem) = WithToken::<Mem>::try_from(value.next().ok_or(UnexpectedToken)?) {
+                            let rd = WithToken::<Register>::try_from(
+                                value.next().ok_or(UnexpectedToken)?,
+                            )
+                            .map_err(|_| ExpectedRegister)?;
+                            return if let Ok(mem) =
+                                WithToken::<Mem>::try_from(value.next().ok_or(UnexpectedToken)?)
+                            {
                                 Ok(ASTNode::new_load(
                                     WithToken::new(inst, next_node),
                                     rd,
                                     mem.data.reg,
                                     mem.data.offset,
                                 ))
-                            } else if let Ok(imm) = WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?) {
+                            } else if let Ok(imm) =
+                                WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?)
+                            {
                                 Ok(ASTNode::new_load(
                                     WithToken::new(inst, next_node.clone()),
                                     rd,
                                     WithToken::new(Register::X0, next_node),
                                     imm,
                                 ))
-                            } else if let Ok(_) = WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?) {
+                            } else if let Ok(_) =
+                                WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?)
+                            {
                                 unimplemented!("Implement label loading, turning one instruction into two AST nodes")
                             } else {
                                 Err(UnexpectedToken)
-                            }
-                        },
+                            };
+                        }
                         InstType::StoreType(inst) => {
-                            let rs2 =
-                                WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                            return if let Ok(mem) = WithToken::<Mem>::try_from(value.next().ok_or(UnexpectedToken)?) {
+                            let rs2 = WithToken::<Register>::try_from(
+                                value.next().ok_or(UnexpectedToken)?,
+                            )
+                            .map_err(|_| ExpectedRegister)?;
+                            return if let Ok(mem) =
+                                WithToken::<Mem>::try_from(value.next().ok_or(UnexpectedToken)?)
+                            {
                                 Ok(ASTNode::new_store(
                                     WithToken::new(inst, next_node),
                                     rs2,
                                     mem.data.reg,
                                     mem.data.offset,
                                 ))
-                            } else if let Ok(imm) = WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?) {
+                            } else if let Ok(imm) =
+                                WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?)
+                            {
                                 Ok(ASTNode::new_store(
                                     WithToken::new(inst, next_node.clone()),
                                     rs2,
                                     WithToken::new(Register::X0, next_node),
                                     imm,
                                 ))
-                            } else if let Ok(_) = WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?) {
+                            } else if let Ok(_) =
+                                WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?)
+                            {
                                 unimplemented!("Implement label storing, turning one instruction into two AST nodes")
                             } else {
                                 Err(UnexpectedToken)
-                            }
-                        },
+                            };
+                        }
                         InstType::BranchType(inst) => {
-                            let rs1 =
-                                WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                            let rs2 =
-                                WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                            let label = WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedLabel)?;
+                            let rs1 = WithToken::<Register>::try_from(
+                                value.next().ok_or(UnexpectedToken)?,
+                            )
+                            .map_err(|_| ExpectedRegister)?;
+                            let rs2 = WithToken::<Register>::try_from(
+                                value.next().ok_or(UnexpectedToken)?,
+                            )
+                            .map_err(|_| ExpectedRegister)?;
+                            let label =
+                                WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?)
+                                    .map_err(|_| ExpectedLabel)?;
                             Ok(ASTNode::new_branch(
                                 WithToken::new(inst, next_node),
                                 rs1,
                                 rs2,
                                 label,
                             ))
-                        },
-                        InstType::IgnoreType(_) => {
-                            Err(Ignored)
-                        },
+                        }
+                        InstType::IgnoreType(_) => Err(Ignored),
                         InstType::BasicType(inst) => {
-                            Ok(ASTNode::new_basic(
-                                WithToken::new(inst, next_node),
-                            ))
-                        },
+                            Ok(ASTNode::new_basic(WithToken::new(inst, next_node)))
+                        }
                         InstType::CSRType(_) => {
                             unimplemented!("Implement CSR instructions")
-                        },
+                        }
                         InstType::PseudoType(inst) => {
                             dbg!(&inst);
                             match inst {
@@ -799,71 +847,80 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X1, next_node.clone()),
                                         WithToken::new(Imm(0), next_node.clone()),
                                     ))
-                                },
+                                }
                                 PseudoType::Mv => {
-                                    let rd =
-                                        WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                                    let rs1 =
-                                        WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
+                                    let rd = WithToken::<Register>::try_from(
+                                        value.next().ok_or(UnexpectedToken)?,
+                                    )
+                                    .map_err(|_| ExpectedRegister)?;
+                                    let rs1 = WithToken::<Register>::try_from(
+                                        value.next().ok_or(UnexpectedToken)?,
+                                    )
+                                    .map_err(|_| ExpectedRegister)?;
                                     return Ok(ASTNode::new_arith(
                                         WithToken::new(ArithType::Add, next_node.clone()),
                                         rd,
                                         rs1,
                                         WithToken::new(Register::X0, next_node.clone()),
-                                    ))
-                                },
+                                    ));
+                                }
                                 PseudoType::Li => {
-                                    let rd =
-                                        WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                                    let imm =
-                                        WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedImm)?;
+                                    let rd = WithToken::<Register>::try_from(
+                                        value.next().ok_or(UnexpectedToken)?,
+                                    )
+                                    .map_err(|_| ExpectedRegister)?;
+                                    let imm = WithToken::<Imm>::try_from(
+                                        value.next().ok_or(UnexpectedToken)?,
+                                    )
+                                    .map_err(|_| ExpectedImm)?;
                                     return Ok(ASTNode::new_iarith(
                                         WithToken::new(IArithType::Addi, next_node.clone()),
                                         rd,
                                         WithToken::new(Register::X0, next_node.clone()),
                                         imm,
-                                    ))
-                                },
+                                    ));
+                                }
                                 PseudoType::La => {
-                                    let rd =
-                                        WithToken::<Register>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedRegister)?;
-                                    let label =
-                                        WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedLabel)?;
+                                    let rd = WithToken::<Register>::try_from(
+                                        value.next().ok_or(UnexpectedToken)?,
+                                    )
+                                    .map_err(|_| ExpectedRegister)?;
+                                    let label = WithToken::<String>::try_from(
+                                        value.next().ok_or(UnexpectedToken)?,
+                                    )
+                                    .map_err(|_| ExpectedLabel)?;
                                     return Ok(ASTNode::new_load_addr(
                                         WithToken::new(PseudoType::La, next_node.clone()),
                                         rd,
                                         label,
-                                    ))
-                                },
+                                    ));
+                                }
                                 PseudoType::J => {
-                                    let label =
-                                        WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?).map_err(|_| ExpectedLabel)?;
+                                    let label = WithToken::<String>::try_from(
+                                        value.next().ok_or(UnexpectedToken)?,
+                                    )
+                                    .map_err(|_| ExpectedLabel)?;
 
                                     return Ok(ASTNode::new_jump_link(
                                         WithToken::new(JumpLinkType::Jal, next_node.clone()),
                                         WithToken::new(Register::X0, next_node.clone()),
                                         label,
-                                    ))
-
-                                },
+                                    ));
+                                }
                                 _ => {
                                     unimplemented!("Implement pseudo instructions")
                                 }
                             }
-                        },
+                        }
                     };
                     return node;
                 }
                 Err(UnexpectedToken)
             }
             Token::Label(s) => Ok(ASTNode::new_label(WithToken::new(s.clone(), next_node))),
-            Token::Directive(_) => {
-                Err(Ignored)
-            },
-            Token::Newline => {
-                Err(IsNewline)
-            },
-            _ => unimplemented!()        
+            Token::Directive(_) => Err(Ignored),
+            Token::Newline => Err(IsNewline),
+            _ => unimplemented!(),
         }
     }
 }
