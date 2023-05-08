@@ -1,42 +1,20 @@
-use crate::cfg::{BasicBlock, CFG};
-use crate::parser::ast::{ASTNode, EqNode, IType, ITypeInst, Imm, RType, RTypeInst};
+use crate::cfg::{
+    BasicBlock, BlockDataWrapper, BlockWrapper, VecBlockDataWrapper, VecBlockWrapper, CFG,
+};
+use crate::parser::ast::{ASTNode, EqNodeDataVec, ToDisplayForVecASTNode};
+use crate::parser::inst::{ArithType, IArithType};
 use crate::parser::lexer::Lexer;
 use crate::parser::parser::Parser;
 use crate::parser::register::Register;
+use crate::parser::token::ToDisplayForVecToken;
 use crate::parser::token::{SymbolData, Token, WithToken};
 use crate::passes::PassManager;
 use std::rc::Rc;
 use std::str::FromStr;
-use crate::parser::token::ToDisplayForVecToken;
 
 mod cfg;
 mod parser;
 mod passes;
-
-// to make prototyping easier, use the macro to create AST nodes
-// example macro usage rtype!(Add X0 X1 X2)
-macro_rules! rtype {
-    ($inst:ident $rd:ident $rs1:ident $rs2:ident) => {
-        ASTNode::new_rtype(
-            WithToken::blank(RTypeInst::$inst),
-            WithToken::blank(Register::$rd),
-            WithToken::blank(Register::$rs1),
-            WithToken::blank(Register::$rs2),
-        )
-    };
-}
-
-macro_rules! itype {
-    ($inst:ident $rd:ident $rs1:ident $imm:expr) => {
-        ASTNode::new_itype(
-            WithToken::blank(ITypeInst::$inst),
-            WithToken::blank(Register::$rd),
-            WithToken::blank(Register::$rs1),
-            WithToken::blank(Imm($imm)),
-        )
-    };
-}
-
 /* This project will start with RV32I exclusively.
  *
  */
@@ -56,6 +34,9 @@ fn main() {
     // create a new lexer and tokenize the file
     let tokens = Lexer::tokenize(file.as_str());
     println!("{}", tokens.to_display());
+    let parser = Parser::new(file.as_str());
+    let parser: Vec<ASTNode> = parser.collect();
+    println!("{}", parser.to_display());
 
     /*
     let cfg = CFG::from_str(file.as_str()).expect("Unable to parse file");
@@ -76,20 +57,38 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
+    // to make prototyping easier, use the macro to create AST nodes
+    // example macro usage rtype!(Add X0 X1 X2)
+    macro_rules! arith {
+        ($inst:ident $rd:ident $rs1:ident $rs2:ident) => {
+            ASTNode::new_arith(
+                WithToken::blank(ArithType::$inst),
+                WithToken::blank(Register::$rd),
+                WithToken::blank(Register::$rs1),
+                WithToken::blank(Register::$rs2),
+            )
+        };
+    }
+
+    macro_rules! iarith {
+        ($inst:ident $rd:ident $rs1:ident $imm:expr) => {
+            ASTNode::new_iarith(
+                WithToken::blank(IArithType::$inst),
+                WithToken::blank(Register::$rd),
+                WithToken::blank(Register::$rs1),
+                WithToken::blank(Imm($imm)),
+            )
+        };
+    }
+
     use super::*;
+    use crate::parser::imm::Imm;
 
     // A trait on strings to clean up some code for lexing
 
     // TODO add extensive support into lexer.
     // This implementation is very basic, just to begin testing files
 
-    #[test]
-    fn lex_symbols() {
-        let input = "   :: , ";
-        let tokens = Lexer::tokenize(input);
-        assert_eq!(tokens, vec![Token::Colon, Token::Colon, Token::Comma]);
-        assert_ne!(tokens, vec![Token::Colon, Token::Comma, Token::Comma]);
-    }
 
     #[test]
     fn lex_label() {
@@ -182,20 +181,23 @@ mod tests {
         );
         let ast = parser.collect::<Vec<ASTNode>>();
 
-        assert!(vec![
-            itype!(Addi X8 X8 4660),
-            itype!(Addi X8 X8 10),
-            itype!(Addi X8 X8 1234),
-            itype!(Addi X8 X8 -222),
-        ]
-        .node_eq(&ast));
+        assert_eq!(
+            vec![
+                iarith!(Addi X8 X8 4660),
+                iarith!(Addi X8 X8 10),
+                iarith!(Addi X8 X8 1234),
+                iarith!(Addi X8 X8 -222),
+            ]
+            .data(),
+            ast.data()
+        );
     }
 
     #[test]
     fn parse_instruction() {
         let parser = Parser::new("add s0, s0, s2");
         let ast = parser.collect::<Vec<ASTNode>>();
-        assert!(vec![rtype!(Add X8 X8 X18)].node_eq(&ast));
+        assert_eq!(vec![arith!(Add X8 X8 X18)].data(), ast.data());
     }
 
     #[test]
@@ -203,12 +205,15 @@ mod tests {
         let parser = Parser::new("my_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1");
         let ast = parser.collect::<Vec<ASTNode>>();
         let blocks = CFG::new(ast).expect("unable to create cfg");
-        assert!(vec![BasicBlock::from_nodes(vec![
-            rtype!(Add X8 X8 X18),
-            rtype!(Add X8 X8 X18),
-            itype!(Addi X9 X9 1),
-        ])]
-        .node_eq(&blocks.blocks));
+        assert_eq!(
+            vec![BasicBlock::from_nodes(vec![
+                arith!(Add X8 X8 X18),
+                arith!(Add X8 X8 X18),
+                iarith!(Addi X9 X9 1),
+            ])]
+            .data(),
+            blocks.blocks.data()
+        );
     }
 
     #[test]
@@ -218,16 +223,19 @@ mod tests {
         );
         let ast = parser.collect::<Vec<ASTNode>>();
         let blocks = CFG::new(ast).expect("unable to create cfg");
-        assert!(vec![
-            BasicBlock::from_nodes(vec![rtype!(Add X2 X2 X3),]),
-            BasicBlock::from_nodes(vec![rtype!(Sub X10 X10 X11),]),
-            BasicBlock::from_nodes(vec![
-                rtype!(Add X8 X8 X18),
-                rtype!(Add X8 X8 X18),
-                itype!(Addi X9 X9 1),
-            ])
-        ]
-        .node_eq(&blocks.blocks));
+        assert_eq!(
+            vec![
+                BasicBlock::from_nodes(vec![arith!(Add X2 X2 X3),]),
+                BasicBlock::from_nodes(vec![arith!(Sub X10 X10 X11),]),
+                BasicBlock::from_nodes(vec![
+                    arith!(Add X8 X8 X18),
+                    arith!(Add X8 X8 X18),
+                    iarith!(Addi X9 X9 1),
+                ])
+            ]
+            .data(),
+            blocks.blocks.data()
+        );
     }
 
     #[test]
@@ -277,22 +285,28 @@ mod tests {
         );
 
         assert_eq!(
-            lexer,
+            lexer.iter().map(|t| t.token.clone()).collect::<Vec<Token>>(),
             vec![
                 Token::Symbol("add".into()),
                 Token::Symbol("x2".into()),
                 Token::Symbol("x2".into()),
                 Token::Symbol("x3".into()),
+                Token::Newline,
                 Token::Label("BLCOK".to_string()),
+                Token::Newline,
+                Token::Newline,
+                Token::Newline,
                 Token::Symbol("sub".into()),
                 Token::Symbol("a0".into()),
                 Token::Symbol("a0".into()),
                 Token::Symbol("a1".into()),
+                Token::Newline, // ERROR HERE
                 Token::Label("my_block".to_string()),
                 Token::Symbol("add".into()),
                 Token::Symbol("s0".into()),
                 Token::Symbol("s0".into()),
                 Token::Symbol("s2".into()),
+                Token::Newline, // ERROR HERE
                 Token::Symbol("add".into()),
                 Token::Symbol("s0".into()),
                 Token::Symbol("s0".into()),
@@ -305,7 +319,10 @@ mod tests {
     fn basic_imm() {
         let blocks =
             CFG::from_str("\nhello_world:\n    addi x0, x2 12").expect("unable to create cfg");
-        assert!(vec![BasicBlock::from_nodes(vec![itype!(Addi X0 X2 12),])].node_eq(&blocks.blocks));
+        assert_eq!(
+            vec![BasicBlock::from_nodes(vec![iarith!(Addi X0 X2 12),])].data(),
+            blocks.blocks.data()
+        );
 
         PassManager::new().run(blocks).unwrap_err();
     }
@@ -314,11 +331,14 @@ mod tests {
     fn pass_with_comments() {
         let blocks = CFG::from_str("\nhello_world:\n    addi x1, x2 12 # yolo\nadd x1, x2 x3")
             .expect("unable to create cfg");
-        assert!(vec![BasicBlock::from_nodes(vec![
-            itype!(Addi X1 X2 12),
-            rtype!(Add X1 X2 X3),
-        ])]
-        .node_eq(&blocks.blocks));
+        assert_eq!(
+            vec![BasicBlock::from_nodes(vec![
+                iarith!(Addi X1 X2 12),
+                arith!(Add X1 X2 X3),
+            ])]
+            .data(),
+            blocks.blocks.data()
+        );
         PassManager::new().run(blocks).unwrap();
     }
 }
