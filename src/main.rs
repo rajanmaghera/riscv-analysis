@@ -89,7 +89,6 @@ mod tests {
     // TODO add extensive support into lexer.
     // This implementation is very basic, just to begin testing files
 
-
     #[test]
     fn lex_label() {
         let tokens = Lexer::tokenize("My_Label:");
@@ -285,7 +284,10 @@ mod tests {
         );
 
         assert_eq!(
-            lexer.iter().map(|t| t.token.clone()).collect::<Vec<Token>>(),
+            lexer
+                .iter()
+                .map(|t| t.token.clone())
+                .collect::<Vec<Token>>(),
             vec![
                 Token::Symbol("add".into()),
                 Token::Symbol("x2".into()),
