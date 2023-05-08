@@ -35,6 +35,7 @@ pub struct SymbolData(pub String);
 pub enum Token {
     Colon,
     Comma,
+    Newline,
     Label(String), // A label has to end with a : without any whitespace
     Symbol(SymbolData),
     Directive(String),
@@ -49,7 +50,7 @@ impl PartialEq<Token> for TokenInfo {
 
 #[derive(Debug, Clone)]
 pub struct WithToken<T> {
-    token: Token,
+    pub token: Token,
     pub pos: Range,
     pub data: T,
 }
@@ -69,6 +70,7 @@ impl Display for Token {
             Token::Symbol(s) => write!(f, "<{}> ", s.0),
             Token::Directive(s) => write!(f, "[directive: {}] ", s),
             Token::String(s) => write!(f, "\"{}\"", s),
+            Token::Newline => write!(f, "<NL>\n"),
         }
     }
 }
@@ -177,6 +179,19 @@ where
         })
     }
 }
+
+
+impl TryFrom<TokenInfo> for String {
+    type Error = String;
+
+    fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
+        match value.token {
+            Token::Symbol(s) => Ok(s.0),
+            _ => Err(format!("Expected symbol, got {:?}", value.token)),
+        }
+    }
+}
+
 
 impl<T> PartialEq<T> for WithToken<T>
 where
