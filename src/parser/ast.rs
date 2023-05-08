@@ -30,6 +30,18 @@ pub enum DirectiveType {
     // TODO include more
 }
 
+impl Display for DirectiveType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DirectiveType::Include(_) => write!(f, ".include"),
+            DirectiveType::Align(_) => write!(f, ".align"),
+            DirectiveType::Space(_) => write!(f, ".space"),
+            DirectiveType::Text => write!(f, ".text"),
+            DirectiveType::Data => write!(f, ".data"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Arith {
     pub inst: WithToken<ArithType>,
@@ -56,6 +68,7 @@ pub struct Label {
 #[derive(Debug, Clone)]
 pub struct JumpLink {
     pub inst: WithToken<JumpLinkType>,
+    pub rd: WithToken<Register>,
     pub name: WithToken<String>,
     pub key: Uuid,
 }
@@ -63,7 +76,9 @@ pub struct JumpLink {
 #[derive(Debug, Clone)]
 pub struct JumpLinkR {
     pub inst: WithToken<JumpLinkRType>,
-    pub name: WithToken<String>,
+    pub rd: WithToken<Register>,
+    pub rs1: WithToken<Register>,
+    pub imm: WithToken<Imm>,
     pub key: Uuid,
 }
 
@@ -110,7 +125,7 @@ pub struct Directive {
 pub struct CSR {
     pub inst: WithToken<CSRType>,
     pub rd: WithToken<Register>,
-    pub csr: WithToken<Register>,
+    pub csr: WithToken<Imm>,
     pub rs1: WithToken<Register>,
     pub key: Uuid,
 }
@@ -120,6 +135,15 @@ pub struct Ignore {
     pub inst: WithToken<IgnoreType>,
     pub key: Uuid,
 }
+
+#[derive(Debug, Clone)]
+pub struct LoadAddr {
+    pub inst: WithToken<PseudoType>,
+    pub rd: WithToken<Register>,
+    pub name: WithToken<String>,
+    pub key: Uuid,
+}
+
 #[derive(Debug, Clone)]
 pub enum ASTNode {
     Arith(Arith),
@@ -132,6 +156,7 @@ pub enum ASTNode {
     Branch(Branch),
     Store(Store), // Stores
     Load(Load),  // Loads, are actually mostly ITypes
+    LoadAddr(LoadAddr), // Load address
     CSR(CSR),
     Ignore(Ignore),
 }
@@ -150,7 +175,7 @@ impl PartialEq for EqNodeWrapper {
             },
             (ASTNode::Label(a), ASTNode::Label(b)) => a.name == b.name,
             (ASTNode::JumpLink(a), ASTNode::JumpLink(b)) => a.inst == b.inst && a.name == b.name,
-            (ASTNode::JumpLinkR(a), ASTNode::JumpLinkR(b)) => a.inst == b.inst && a.name == b.name,
+            (ASTNode::JumpLinkR(a), ASTNode::JumpLinkR(b)) => a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm,
             (ASTNode::Basic(a), ASTNode::Basic(b)) => a.inst == b.inst,
             (ASTNode::Directive(a), ASTNode::Directive(b)) => a.dir == b.dir,
             (ASTNode::Branch(a), ASTNode::Branch(b)) => {
@@ -166,27 +191,55 @@ impl PartialEq for EqNodeWrapper {
                 a.inst == b.inst && a.rd == b.rd && a.csr == b.csr && a.rs1 == b.rs1
             },
             (ASTNode::Ignore(a), ASTNode::Ignore(b)) => a.inst == b.inst,
+            (ASTNode::LoadAddr(a), ASTNode::LoadAddr(b)) => a.inst == b.inst && a.rd == b.rd && a.name == b.name,
             _ => false,
         }
     }
 }
 impl Eq for EqNodeWrapper {}
 
-impl ASTNode {
-    pub fn data(&self) -> EqNodeWrapper {
+pub trait EqNodeData {
+    fn data(&self) -> EqNodeWrapper;
+}
+
+pub trait EqNodeDataVec {
+    fn data(&self) -> Vec<EqNodeWrapper>;
+}
+
+impl EqNodeData for ASTNode {
+    fn data(&self) -> EqNodeWrapper {
         EqNodeWrapper(self.clone())
+    }
+}
+
+impl EqNodeDataVec for Vec<ASTNode> {
+    fn data(&self) -> Vec<EqNodeWrapper> {
+        self.iter().map(|x| x.data()).collect()
+    }
+}
+
+impl EqNodeDataVec for Vec<Rc<ASTNode>> {
+    fn data(&self) -> Vec<EqNodeWrapper> {
+        self.iter().map(|x| x.data()).collect()
     }
 }
 
 impl NodeData for ASTNode {
     fn get_id(&self) -> Uuid {
         match self {
-            ASTNode::RType(rtype) => rtype.key,
-            ASTNode::IType(itype) => itype.key,
-            ASTNode::Label(label) => label.key,
-            ASTNode::JumpType(jtype) => jtype.key,
-            ASTNode::BasicType(btype) => btype.key,
-            ASTNode::Directive(directive) => directive.key,
+            ASTNode::Arith(a) => a.key,
+            ASTNode::IArith(a) => a.key,
+            ASTNode::Label(a) => a.key,
+            ASTNode::JumpLink(a) => a.key,
+            ASTNode::JumpLinkR(a) => a.key,
+            ASTNode::Basic(a) => a.key,
+            ASTNode::Directive(a) => a.key,
+            ASTNode::Branch(a) => a.key,
+            ASTNode::Store(a) => a.key,
+            ASTNode::Load(a) => a.key,
+            ASTNode::CSR(a) => a.key,
+            ASTNode::Ignore(a) => a.key,
+            ASTNode::LoadAddr(a) => a.key,
         }
     }
 }
@@ -208,12 +261,12 @@ impl ASTNode {
     // TODO derive AST new funcs using procedural macros
 
     pub fn new_arith(
-        inst: WithToken<Arith>,
+        inst: WithToken<ArithType>,
         rd: WithToken<Register>,
         rs1: WithToken<Register>,
         rs2: WithToken<Register>,
     ) -> ASTNode {
-        ASTNode::RType(RType {
+        ASTNode::Arith(Arith {
             inst,
             rd,
             rs1,
@@ -222,13 +275,13 @@ impl ASTNode {
         })
     }
 
-    pub fn new_itype(
-        inst: WithToken<ITypeInst>,
+    pub fn new_iarith(
+        inst: WithToken<IArithType>,
         rd: WithToken<Register>,
         rs1: WithToken<Register>,
         imm: WithToken<Imm>,
     ) -> ASTNode {
-        ASTNode::IType(IType {
+        ASTNode::IArith(IArith {
             inst,
             rd,
             rs1,
@@ -237,8 +290,121 @@ impl ASTNode {
         })
     }
 
+    pub fn new_jump_link(inst: WithToken<JumpLinkType>, rd: WithToken<Register>, name: WithToken<String>) -> ASTNode {
+        ASTNode::JumpLink(JumpLink {
+            inst,
+            rd,
+            name,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_jump_link_r(inst: WithToken<JumpLinkRType>, rd: WithToken<Register>, rs1: WithToken<Register>, imm: WithToken<Imm>) -> ASTNode {
+        ASTNode::JumpLinkR(JumpLinkR {
+            inst,
+            rd,
+            rs1,
+            imm,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_basic(inst: WithToken<BasicType>) -> ASTNode {
+        ASTNode::Basic(Basic {
+            inst,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_directive(dir: WithToken<DirectiveType>) -> ASTNode {
+        ASTNode::Directive(Directive {
+            dir,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_branch(
+        inst: WithToken<BranchType>,
+        rs1: WithToken<Register>,
+        rs2: WithToken<Register>,
+        name: WithToken<String>,
+    ) -> ASTNode {
+        ASTNode::Branch(Branch {
+            inst,
+            rs1,
+            rs2,
+            name,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_store(
+        inst: WithToken<StoreType>,
+        rs1: WithToken<Register>,
+        rs2: WithToken<Register>,
+        imm: WithToken<Imm>,
+    ) -> ASTNode {
+        ASTNode::Store(Store {
+            inst,
+            rs1,
+            rs2,
+            imm,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_load(
+        inst: WithToken<LoadType>,
+        rd: WithToken<Register>,
+        rs1: WithToken<Register>,
+        imm: WithToken<Imm>,
+    ) -> ASTNode {
+        ASTNode::Load(Load {
+            inst,
+            rd,
+            rs1,
+            imm,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_csr(
+        inst: WithToken<CSRType>,
+        rd: WithToken<Register>,
+        csr: WithToken<Imm>,
+        rs1: WithToken<Register>,
+    ) -> ASTNode {
+        ASTNode::CSR(CSR {
+            inst,
+            rd,
+            rs1,
+            csr,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_ignore(inst: WithToken<IgnoreType>) -> ASTNode {
+        ASTNode::Ignore(Ignore {
+            inst,
+            key: Uuid::new_v4(),
+        })
+    }
+
     pub fn new_label(name: WithToken<String>) -> ASTNode {
-        ASTNode::Label(LabelData {
+        ASTNode::Label(Label {
+            name,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_load_addr(
+        inst: WithToken<PseudoType>,
+        rd: WithToken<Register>,
+        name: WithToken<String>,
+    ) -> ASTNode {
+        ASTNode::LoadAddr(LoadAddr {
+            inst,
+            rd,
             name,
             key: Uuid::new_v4(),
         })
@@ -253,15 +419,20 @@ impl ASTNode {
 
     pub fn is_exit(&self) -> bool {
         match self {
-            ASTNode::JumpType(_) => true,
+            ASTNode::JumpLink(_) => true,
+            ASTNode::JumpLinkR(_) => true,
+            ASTNode::Branch(_) => true,
             _ => false,
         }
     }
-
+    
+    // NOTE: This is in context to a register store, not a memory store
     pub fn stores_to(&self) -> Option<WithToken<Register>> {
         match self {
-            ASTNode::RType(rtype) => Some(rtype.rd.clone()),
-            ASTNode::IType(itype) => Some(itype.rd.clone()),
+            ASTNode::Load(load) => Some(load.rd.clone()),
+            ASTNode::Arith(arith) => Some(arith.rd.clone()),
+            ASTNode::IArith(iarith) => Some(iarith.rd.clone()),
+            ASTNode::CSR(csr) => Some(csr.rd.clone()),
             _ => None,
         }
     }
@@ -270,24 +441,51 @@ impl ASTNode {
 impl LineDisplay for WithToken<ASTNode> {
     fn get_range(&self) -> Range {
         match &self.data {
-            ASTNode::Label(s) => self.pos.clone(),
-            ASTNode::RType(rtype) => {
+            ASTNode::Label(_) => self.pos.clone(),
+            ASTNode::Arith(arith) => {
                 let mut range = self.pos.clone();
-                range.end = rtype.rs2.pos.end;
+                range.end = arith.rs2.pos.end.clone();
                 range
-            }
-            ASTNode::IType(itype) => {
+            },
+            ASTNode::IArith(iarith) => {
                 let mut range = self.pos.clone();
-                range.end = itype.imm.pos.end;
+                range.end = iarith.imm.pos.end.clone();
                 range
-            }
-            ASTNode::JumpType(jtype) => {
+            },
+            ASTNode::JumpLink(jl) => {
                 let mut range = self.pos.clone();
-                range.end = jtype.name.pos.end;
+                range.end = jl.name.pos.end.clone();
                 range
-            }
-            ASTNode::BasicType(_) => self.pos.clone(),
-            ASTNode::Directive(directive) => match &directive.dir.data {
+            },
+            ASTNode::JumpLinkR(jlr) => {
+                let mut range = self.pos.clone();
+                range.end = jlr.inst.pos.end.clone();
+                range
+            },
+            ASTNode::Branch(branch) => {
+                let mut range = self.pos.clone();
+                range.end = branch.name.pos.end.clone();
+                range
+            },
+            ASTNode::Store(store) => {
+                let mut range = self.pos.clone();
+                range.end = store.imm.pos.end.clone();
+                range
+            },
+            ASTNode::Load(load) => {
+                let mut range = self.pos.clone();
+                range.end = load.imm.pos.end.clone();
+                range
+            },
+            ASTNode::CSR(csr) => {
+                let mut range = self.pos.clone();
+                range.end = csr.csr.pos.end.clone();
+                range
+            },
+            ASTNode::Ignore(_) => self.pos.clone(),
+            ASTNode::Basic(_) => self.pos.clone(),
+            ASTNode::LoadAddr(_) => self.pos.clone(),
+           ASTNode::Directive(directive) => match &directive.dir.data {
                 DirectiveType::Data => self.pos.clone(),
                 DirectiveType::Text => self.pos.clone(),
                 DirectiveType::Include(incl) => {
@@ -309,14 +507,19 @@ impl LineDisplay for WithToken<ASTNode> {
         }
     }
 }
+#[derive(Debug, PartialEq, Clone)]
 pub enum ParseError {
     ExpectedRegister,
+    ExpectedImm,
+    ExpectedLabel,
+    IsNewline,
+    Ignored,
     UnexpectedToken,
     UnexpectedEOF,
 }
 
 impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
-    // TODO fix unwraps
+    // TODO errors are not robust
 
     type Error = ParseError;
 
