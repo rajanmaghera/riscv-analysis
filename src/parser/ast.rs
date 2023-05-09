@@ -710,8 +710,10 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                 value.next().ok_or(UnexpectedToken)?,
                             )
                             .map_err(|_| ExpectedRegister)?;
+
+                            let next = value.next().ok_or(UnexpectedToken)?;
                             return if let Ok(rs1) = WithToken::<Register>::try_from(
-                                value.next().ok_or(UnexpectedToken)?,
+                                next.clone(),
                             ) {
                                 let next = value.next().ok_or(UnexpectedToken)?;
                                 let imm =
@@ -723,7 +725,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     imm,
                                 ))
                             } else if let Ok(mem) =
-                                WithToken::<Mem>::try_from(value.next().ok_or(UnexpectedToken)?)
+                                WithToken::<Mem>::try_from(next.clone())
                             {
                                 Ok(ASTNode::new_jump_link_r(
                                     WithToken::new(inst, next_node),
@@ -732,7 +734,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     mem.data.offset,
                                 ))
                             } else if let Ok(imm) =
-                                WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?)
+                                WithToken::<Imm>::try_from(next.clone())
                             {
                                 Ok(ASTNode::new_jump_link_r(
                                     WithToken::new(inst, next_node.clone()),
@@ -754,8 +756,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                 value.next().ok_or(UnexpectedToken)?,
                             )
                             .map_err(|_| ExpectedRegister)?;
+                            let next = value.next().ok_or(UnexpectedToken)?;
                             return if let Ok(mem) =
-                                WithToken::<Mem>::try_from(value.next().ok_or(UnexpectedToken)?)
+                                WithToken::<Mem>::try_from(next.clone())
                             {
                                 Ok(ASTNode::new_load(
                                     WithToken::new(inst, next_node),
@@ -764,7 +767,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     mem.data.offset,
                                 ))
                             } else if let Ok(imm) =
-                                WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?)
+                                WithToken::<Imm>::try_from(next.clone())
                             {
                                 Ok(ASTNode::new_load(
                                     WithToken::new(inst, next_node.clone()),
@@ -772,9 +775,12 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     WithToken::new(Register::X0, next_node),
                                     imm,
                                 ))
-                            } else if let Ok(_) =
-                                WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?)
-                            {
+                                // TODO swtich label type to LabelType struct, to
+                                // disallow characters like ( or )
+                            } else if let Ok(label) =
+                                WithToken::<String>::try_from(next)
+                            {  
+                                dbg!(label);
                                 unimplemented!("Implement label loading, turning one instruction into two AST nodes")
                             } else {
                                 Err(UnexpectedToken)
@@ -785,8 +791,10 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                 value.next().ok_or(UnexpectedToken)?,
                             )
                             .map_err(|_| ExpectedRegister)?;
+
+                            let next = value.next().ok_or(UnexpectedToken)?;
                             return if let Ok(mem) =
-                                WithToken::<Mem>::try_from(value.next().ok_or(UnexpectedToken)?)
+                                WithToken::<Mem>::try_from(next.clone())
                             {
                                 Ok(ASTNode::new_store(
                                     WithToken::new(inst, next_node),
@@ -795,7 +803,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     mem.data.offset,
                                 ))
                             } else if let Ok(imm) =
-                                WithToken::<Imm>::try_from(value.next().ok_or(UnexpectedToken)?)
+                                WithToken::<Imm>::try_from(next.clone())
                             {
                                 Ok(ASTNode::new_store(
                                     WithToken::new(inst, next_node.clone()),
@@ -804,7 +812,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     imm,
                                 ))
                             } else if let Ok(_) =
-                                WithToken::<String>::try_from(value.next().ok_or(UnexpectedToken)?)
+                                WithToken::<String>::try_from(next)
                             {
                                 unimplemented!("Implement label storing, turning one instruction into two AST nodes")
                             } else {
