@@ -55,7 +55,7 @@ impl Lexer {
     }
 
     fn is_space(&self) -> bool {
-        self.ch == ' ' || self.ch == '\t'
+        self.ch == ' ' || self.ch == '\t' || self.ch == ','
     }
 
     fn is_symbol_char(&self) -> bool {
@@ -63,7 +63,7 @@ impl Lexer {
         // TODO be careful, we may not want - to be a symbol character,
         // This is done so number parsing is only done once we know what the instruction is
         // aka. to make our lives easier
-        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '-'
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '-' || c == '(' || c == ')'
     }
 
     fn is_symbol_item(&self) -> bool {
@@ -87,9 +87,10 @@ impl Iterator for Lexer {
     fn next(&mut self) -> Option<Self::Item> {
         self.skip_ws();
         let token = match self.ch {
-            '\n' => Some(TokenInfo {
-                token: Token::Newline,
-                pos: Range {
+            '\n' => {
+                
+                
+                let pos = Range {
                     start: Position {
                         line: self.row,
                         column: self.col,
@@ -98,8 +99,14 @@ impl Iterator for Lexer {
                         line: self.row,
                         column: self.col,
                     },
-                },
-            }),
+                };
+
+                self.next_char();
+                
+                Some(TokenInfo {
+                token: Token::Newline,
+                pos
+            })},
             '.' => {
                 // directive
 
@@ -142,6 +149,7 @@ impl Iterator for Lexer {
                 if self.ch == EOF_CONST {
                     return None;
                 }
+                self.next_char();
 
                 // TODO switch to comment tokens
                 // For now, we return the newline, as it ends
@@ -184,6 +192,8 @@ impl Iterator for Lexer {
                     column: self.col,
                 };
 
+                self.next_char();
+
                 Some(TokenInfo {
                     token: Token::String(string_str.to_owned()),
                     pos: Range { start, end },
@@ -224,16 +234,13 @@ impl Iterator for Lexer {
                     column: self.col,
                 };
 
+
                 Some(TokenInfo {
                     token: Token::Symbol(SymbolData(symbol_str.to_owned())),
                     pos: Range { start, end },
                 })
             }
         };
-
-        if let Some(_) = token {
-            self.next_char();
-        }
 
         token
     }
