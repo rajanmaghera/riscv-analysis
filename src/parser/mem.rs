@@ -70,3 +70,68 @@ impl TryFrom<TokenInfo> for Mem {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    // macro rules for testing
+    macro_rules! token {
+        ($x:expr) => {
+            TokenInfo {
+                token: Token::Symbol(SymbolData($x.to_owned())),
+                pos: Range {
+                    start: Position { line: 0, column: 0 },
+                    end: Position {
+                        line: 0,
+                        column: $x.len(),
+                    },
+                },
+            }
+        };
+    }
+
+    macro_rules! act {
+        ($x:expr) => {
+            Mem::try_from(token!($x)).unwrap()
+        };
+    }
+
+    macro_rules! exp {
+        ($a:expr, $b:ident) => {
+            Mem {
+                offset: WithToken::blank(Imm($a)),
+                reg: WithToken::blank(Register::$b),
+            }
+        };
+    }
+    use super::*;
+    use crate::parser::token::Position;
+
+    #[test]
+    fn basic_test() {
+        assert_eq!(exp!(0, X2), act!("0(sp)"));
+        assert_eq!(exp!(4, X8), act!("4(x8)"));
+        assert_eq!(exp!(-8, X0), act!("-8(zero)"));
+    }
+
+    #[test]
+    fn hex_imm() {
+        assert_eq!(exp!(0, X2), act!("0x00(x2)"));
+        assert_eq!(exp!(16, X8), act!("0x010(x8)"));
+        assert_eq!(exp!(-16, X0), act!("-0x0010(x0)"));
+    }
+
+    #[test]
+    fn bin_imm() {
+        assert_eq!(exp!(0, X2), act!("0b00(x2)"));
+        assert_eq!(exp!(16, X8), act!("0b010000(x8)"));
+        assert_eq!(exp!(-16, X0), act!("-0b0000000000010000(x0)"));
+    }
+
+    #[test]
+    fn missing_imm() {
+        assert_eq!(exp!(0, X2), act!("(x2)"));
+        assert_eq!(exp!(0, X0), act!("(zero)"));
+        assert_eq!(exp!(0, X0), act!("(x0)"));
+    }
+}
