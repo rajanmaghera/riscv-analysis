@@ -27,6 +27,11 @@ impl Parser {
     }
 }
 
+// TODO errors are alright, but they do not account for multiple paths
+// ie. when we use an if let Ok( ) =, we ignore the error the first time, but
+// we do not ignore it the second time. I want both errors to be caught and 
+// reported.
+
 impl Iterator for Parser {
     type Item = ASTNode;
 
@@ -36,15 +41,28 @@ impl Iterator for Parser {
             let mut item = ASTNode::try_from(&mut self.lexer);
 
             // if item is an ast parse error, then keep trying
-            while let Err(ParseError::IsNewline) = item {
+            while let Err(ParseError::IsNewline(_)) = item {
                 item = ASTNode::try_from(&mut self.lexer);
             }
+
+
+            // print debug info for errors
+            match &item {
+                Err(err) => {
+                    dbg!(err);
+                },
+                _ => {},
+            }
+            
 
             return match item {
                 Ok(ast) => Some(ast),
                 Err(err) => match err {
                     ParseError::UnexpectedEOF => None,
-                    ParseError::IsNewline => todo!(),
+                    ParseError::IsNewline(_) => {
+                        self.recover_from_parse_error();
+                        continue;
+                    }
                     _ => {
                         self.recover_from_parse_error();
                         continue;

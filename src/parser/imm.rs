@@ -20,27 +20,32 @@ impl FromStr for Imm {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-
         let neg = s.starts_with('-');
         let s = if neg { &s[1..] } else { s };
-        let mul = if neg {-1} else {1};
+        let mul = if neg { -1 } else { 1 };
 
         if s.starts_with("0x") {
-            if s[2..].starts_with('-') {return Err(());}
+            if s[2..].starts_with('-') {
+                return Err(());
+            }
             match i32::from_str_radix(&s[2..], 16) {
-                Ok(i) => return Ok(Imm(mul*i)),
+                Ok(i) => return Ok(Imm(mul * i)),
                 Err(_) => return Err(()),
             }
         } else if s.starts_with("0b") {
-            if s[2..].starts_with('-') {return Err(());}
+            if s[2..].starts_with('-') {
+                return Err(());
+            }
             match i32::from_str_radix(&s[2..], 2) {
-                Ok(i) => return Ok(Imm(mul*i)),
+                Ok(i) => return Ok(Imm(mul * i)),
                 Err(_) => return Err(()),
             }
         } else {
-            if s.starts_with('-') {return Err(());}
+            if s.starts_with('-') {
+                return Err(());
+            }
             match s.parse::<i32>() {
-                Ok(i) => Ok(Imm(mul*i)),
+                Ok(i) => Ok(Imm(mul * i)),
                 Err(_) => Err(()),
             }
         }
@@ -55,11 +60,10 @@ impl TryFrom<SymbolData> for Imm {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-        use std::str::FromStr;
-        use crate::parser::imm::Imm;
+    use crate::parser::imm::Imm;
+    use std::str::FromStr;
 
     #[test]
     fn basic_imm() {

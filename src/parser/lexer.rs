@@ -63,7 +63,12 @@ impl Lexer {
         // TODO be careful, we may not want - to be a symbol character,
         // This is done so number parsing is only done once we know what the instruction is
         // aka. to make our lives easier
-        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '-' || c == '(' || c == ')'
+        (c >= 'a' && c <= 'z')
+            || (c >= 'A' && c <= 'Z')
+            || c == '_'
+            || c == '-'
+            || c == '('
+            || c == ')'
     }
 
     fn is_symbol_item(&self) -> bool {
@@ -88,8 +93,6 @@ impl Iterator for Lexer {
         self.skip_ws();
         let token = match self.ch {
             '\n' => {
-                
-                
                 let pos = Range {
                     start: Position {
                         line: self.row,
@@ -102,11 +105,12 @@ impl Iterator for Lexer {
                 };
 
                 self.next_char();
-                
+
                 Some(TokenInfo {
-                token: Token::Newline,
-                pos
-            })},
+                    token: Token::Newline,
+                    pos,
+                })
+            }
             '.' => {
                 // directive
 
@@ -122,8 +126,6 @@ impl Iterator for Lexer {
                     dir_str += &self.ch.to_string();
                     self.next_char();
                 }
-
-                dbg!(&dir_str);
 
                 let end = Position {
                     line: self.row,
@@ -233,7 +235,6 @@ impl Iterator for Lexer {
                     line: start.line,
                     column: self.col,
                 };
-
 
                 Some(TokenInfo {
                     token: Token::Symbol(SymbolData(symbol_str.to_owned())),

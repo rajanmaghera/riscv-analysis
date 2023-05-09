@@ -62,7 +62,6 @@ pub enum IArithType {
     Srli,
     Srliw,
     Xori,
-    Lui,   // This is an outlier, but we are going to treat it as an IType
     Auipc, // Same as this
 }
 
@@ -293,6 +292,7 @@ pub enum InstType {
     IgnoreType(IgnoreType),
     BranchType(BranchType),
     PseudoType(PseudoType),
+    UpperArithType(UpperArithType),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -310,6 +310,11 @@ pub enum PseudoType {
     Ret,
     Seqz,
     Snez,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum UpperArithType {
+    Lui
 }
 
 impl TryFrom<&SymbolData> for Inst {
@@ -451,7 +456,7 @@ impl From<&Inst> for InstType {
             Inst::Srli => InstType::IArithType(IArithType::Srli),
             Inst::Srliw => InstType::IArithType(IArithType::Srliw),
             Inst::Xori => InstType::IArithType(IArithType::Xori),
-            Inst::Lui => InstType::IArithType(IArithType::Lui),
+            Inst::Lui => InstType::UpperArithType(UpperArithType::Lui),
             Inst::Lb => InstType::LoadType(LoadType::Lb),
             Inst::Lbu => InstType::LoadType(LoadType::Lbu),
             Inst::Lh => InstType::LoadType(LoadType::Lh),
@@ -539,7 +544,6 @@ impl From<&IArithType> for Inst {
             IArithType::Slli => Inst::Slli,
             IArithType::Srli => Inst::Srli,
             IArithType::Srai => Inst::Srai,
-            IArithType::Lui => Inst::Lui,
             IArithType::Auipc => Inst::Auipc,
         }
     }
@@ -615,6 +619,14 @@ impl From<&BranchType> for Inst {
             BranchType::Bge => Inst::Bge,
             BranchType::Bltu => Inst::Bltu,
             BranchType::Bgeu => Inst::Bgeu,
+        }
+    }
+}
+
+impl From<&UpperArithType> for Inst {
+    fn from(value: &UpperArithType) -> Self {
+        match value {
+            UpperArithType::Lui => Inst::Lui
         }
     }
 }
