@@ -12,8 +12,10 @@ use std::iter::Peekable;
 use std::rc::Rc;
 use uuid::Uuid;
 
+use super::imm;
 // TODO make a test case with every supported RARS instruction
-use super::inst::InstType;
+use super::inst::{self, InstType};
+use super::token::TokenInfo;
 
 // Since we use equality as a way to compare uuids of nodes, this trait is a
 // way to check that the contents of an ast node are equal. This is used in
@@ -146,6 +148,14 @@ pub struct LoadAddr {
 }
 
 #[derive(Debug, Clone)]
+pub struct UpperArith {
+    pub inst: WithToken<UpperArithType>,
+    pub rd: WithToken<Register>,
+    pub imm: WithToken<Imm>,
+    pub key: Uuid,
+}
+
+#[derive(Debug, Clone)]
 pub enum ASTNode {
     Arith(Arith),
     IArith(IArith),
@@ -234,6 +244,7 @@ impl NodeData for ASTNode {
         match self {
             ASTNode::Arith(a) => a.key,
             ASTNode::IArith(a) => a.key,
+            ASTNode::UpperArith(a) => a.key,
             ASTNode::Label(a) => a.key,
             ASTNode::JumpLink(a) => a.key,
             ASTNode::JumpLinkR(a) => a.key,
@@ -289,6 +300,19 @@ impl ASTNode {
             inst,
             rd,
             rs1,
+            imm,
+            key: Uuid::new_v4(),
+        })
+    }
+
+    pub fn new_upper_arith(
+        inst: WithToken<UpperArithType>,
+        rd: WithToken<Register>,
+        imm: WithToken<Imm>,
+    ) -> ASTNode {
+        ASTNode::UpperArith(UpperArith {
+            inst,
+            rd,
             imm,
             key: Uuid::new_v4(),
         })
@@ -470,6 +494,12 @@ impl<'a> fmt::Display for VecASTDisplayWrapper<'a> {
                 write!(f, "\n")?;
             }
             let out = match node {
+                ASTNode::UpperArith(x) => {
+                    let inst: Inst = Inst::from(&x.inst.data);
+                    let rd = x.rd.data.to_string();
+                    let imm = x.imm.data.0.to_string();
+                    format!("{} {} <- {}", inst, rd, imm)
+                }
                 ASTNode::Arith(x) => {
                     let inst: Inst = Inst::from(&x.inst.data);
                     let rd = x.rd.data.to_string();
@@ -553,6 +583,11 @@ impl<'a> fmt::Display for VecASTDisplayWrapper<'a> {
 impl LineDisplay for WithToken<ASTNode> {
     fn get_range(&self) -> Range {
         match &self.data {
+            ASTNode::UpperArith(x) => {
+                let mut range = self.pos.clone();
+                range.end = x.imm.pos.end.clone();
+                range
+            }
             ASTNode::Label(_) => self.pos.clone(),
             ASTNode::Arith(arith) => {
                 let mut range = self.pos.clone();
