@@ -22,13 +22,17 @@ impl TryFrom<TokenInfo> for Mem {
                 let reg = split.next().ok_or(())?;
                 let reg = reg.trim_end_matches(')');
                 let reg_raw = Register::from_str(reg)?;
-                let offset_raw = Imm::from_str(offset)?;
+
+                // if offset_raw is all whitespace, then it is 0
+                let offset_raw = if offset.trim() == "" {
+                    Imm(0)
+                } else {
+                    Imm::from_str(offset)?
+                };
 
                 // calculate positions of tokens
                 // TODO fix spacing issue ex. 0(t2) vs 0 ( t2 )
                 // TODO move to token as helper functions
-                // TODO test
-                // TODO MISSING IMMEDIATE NUMBER!!!
                 let offset_start = value.pos.start;
                 let offset_end = Position {
                     line: offset_start.line,
