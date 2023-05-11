@@ -1,7 +1,9 @@
 use crate::parser::ast::ASTNode;
 use crate::parser::ast::EqNodeDataVec;
+use crate::parser::ast::Label;
 use crate::parser::parser::Parser;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::rc::Rc;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -115,10 +117,11 @@ impl Default for BasicBlock {
 pub struct CFG {
     pub blocks: Vec<Rc<BasicBlock>>,
     pub labels: HashMap<String, Rc<BasicBlock>>,
+    pub labels_for_branch: Vec<Vec<String>>,
 }
 
 impl FromStr for CFG {
-    type Err = ();
+    type Err = CFGError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parser = Parser::new(s);
@@ -127,12 +130,35 @@ impl FromStr for CFG {
     }
 }
 
+#[derive(Debug)]
+pub enum CFGError {
+    LabelNotDefined,
+}
+
+impl Display for CFG {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        let mut labels = self.labels_for_branch.iter();
+
+        for block in self.blocks.iter() {
+            s.push_str("/---------\n");
+            s.push_str(&format!("| LABELS: {:?}\n", labels.next().unwrap()));
+            for node in block.0.iter() {
+                s.push_str(&format!("| {}\n", node));
+            }
+            s.push_str("\\--------\n");
+        }
+        write!(f, "{}", s)
+    }
+}
+
 impl CFG {
-    pub fn new(nodes: Vec<ASTNode>) -> Result<CFG, ()> {
+    pub fn new(nodes: Vec<ASTNode>) -> Result<CFG, CFGError> {
         let mut labels = HashMap::new();
         let mut blocks = Vec::new();
         let mut current_block = BasicBlock::default();
         let mut last_labels: Vec<String> = Vec::new();
+        let mut labels_for_branch: Vec<Vec<String>> = Vec::new();
 
         for node in nodes {
             match node {
@@ -141,15 +167,31 @@ impl CFG {
                         let rc = Rc::new(current_block);
                         for label in last_labels.iter() {
                             if labels.insert(label.to_owned(), rc.clone()) != None {
-                                return Err(());
+                                return Err(CFGError::LabelNotDefined);
                             }
                         }
+                        labels_for_branch.push(last_labels.clone());
                         last_labels.clear();
                         blocks.push(rc);
                         let new_block = BasicBlock::default();
                         current_block = new_block;
                     }
-                    last_labels.push(s.name.data);
+                    last_labels.push(s.name.data.0);
+                }
+                ASTNode::Branch(_) | ASTNode::JumpLink(_) | ASTNode::JumpLinkR(_) | ASTNode::Basic(_) => {
+                    current_block.push(Rc::new(node));
+                    // end block
+                    let rc = Rc::new(current_block);
+                    for label in last_labels.iter() {
+                        if labels.insert(label.to_owned(), rc.clone()) != None {
+                            return Err(CFGError::LabelNotDefined);
+                        }
+                    }
+                    labels_for_branch.push(last_labels.clone());
+                    last_labels.clear();
+                    blocks.push(rc);
+                    let new_block = BasicBlock::default();
+                    current_block = new_block;
                 }
                 _ => {
                     current_block.push(Rc::new(node));
@@ -161,12 +203,13 @@ impl CFG {
             let rc = Rc::new(current_block);
             for label in last_labels.iter() {
                 if labels.insert(label.to_owned(), rc.clone()) != None {
-                    return Err(());
+                    return Err(CFGError::LabelNotDefined);
                 }
             }
+            labels_for_branch.push(last_labels.clone());
             blocks.push(rc);
         }
 
-        Ok(CFG { blocks, labels })
+        Ok(CFG { blocks, labels, labels_for_branch })
     }
 }
