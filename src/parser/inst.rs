@@ -1,6 +1,4 @@
-use std::fmt::Display;
-
-use crate::parser::token::SymbolData;
+use std::{fmt::Display, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BasicType {
@@ -385,12 +383,12 @@ pub enum UpperArithType {
     Lui
 }
 
-impl TryFrom<&SymbolData> for Inst {
-    type Error = ();
+impl FromStr for Inst {
+    type Err = ();
 
     // TODO figure out how to ensure every Inst is covered
-    fn try_from(value: &SymbolData) -> Result<Self, Self::Error> {
-        match value.0.to_lowercase().as_str() {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
             "ret" => Ok(Inst::Ret),
             "ebreak" => Ok(Inst::Ebreak),
             "ecall" => Ok(Inst::Ecall),

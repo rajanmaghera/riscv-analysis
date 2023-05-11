@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::parser::imm::Imm;
 use crate::parser::register::Register;
-use crate::parser::token::{Position, Range, SymbolData, Token, TokenInfo, WithToken};
+use crate::parser::token::{Position, Range, Token, TokenInfo, WithToken};
 // Used for parsing 0(t2) type expressions
 
 #[derive(Debug, PartialEq, Clone)]
@@ -17,7 +17,7 @@ impl TryFrom<TokenInfo> for Mem {
     fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
         match value.token {
             Token::Symbol(s) => {
-                let mut split = s.0.split('(');
+                let mut split = s.split('(');
                 let offset = split.next().ok_or(())?;
                 let reg = split.next().ok_or(())?;
                 let reg = reg.trim().trim_end_matches(')');
@@ -48,7 +48,7 @@ impl TryFrom<TokenInfo> for Mem {
                 };
 
                 let offset = WithToken {
-                    token: Token::Symbol(SymbolData(offset.to_string())),
+                    token: Token::Symbol(offset.to_string()),
                     pos: Range {
                         start: offset_start,
                         end: offset_end,
@@ -56,7 +56,7 @@ impl TryFrom<TokenInfo> for Mem {
                     data: offset_raw,
                 };
                 let reg = WithToken {
-                    token: Token::Symbol(SymbolData(reg.to_string())),
+                    token: Token::Symbol(reg.to_string()),
                     pos: Range {
                         start: reg_start,
                         end: reg_end,
@@ -78,7 +78,7 @@ mod test {
     macro_rules! token {
         ($x:expr) => {
             TokenInfo {
-                token: Token::Symbol(SymbolData($x.to_owned())),
+                token: Token::Symbol($x.to_owned()),
                 pos: Range {
                     start: Position { line: 0, column: 0 },
                     end: Position {

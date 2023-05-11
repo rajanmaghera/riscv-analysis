@@ -1,15 +1,5 @@
-use crate::cfg::{
-    BasicBlock, BlockDataWrapper, BlockWrapper, VecBlockDataWrapper, VecBlockWrapper, CFG,
-};
-use crate::parser::ast::{ASTNode, EqNodeDataVec, ToDisplayForVecASTNode};
-use crate::parser::inst::{ArithType, IArithType};
-use crate::parser::lexer::Lexer;
-use crate::parser::parser::Parser;
-use crate::parser::register::Register;
-use crate::parser::token::ToDisplayForVecToken;
-use crate::parser::token::{SymbolData, Token, WithToken};
+use crate::cfg::CFG;
 use crate::passes::PassManager;
-use std::rc::Rc;
 use std::str::FromStr;
 
 mod cfg;
@@ -57,6 +47,17 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
+use std::rc::Rc;
+use crate::parser::ast::{ASTNode, EqNodeDataVec};
+use crate::parser::inst::{ArithType, IArithType, LoadType};
+use crate::parser::lexer::Lexer;
+use crate::parser::parser::Parser;
+use crate::parser::register::Register;
+use crate::parser::token::ToDisplayForVecToken;
+use crate::parser::token::{Token, WithToken};
+use crate::cfg::{
+    BasicBlock, BlockDataWrapper, BlockWrapper, VecBlockDataWrapper, VecBlockWrapper, CFG,
+};
     // to make prototyping easier, use the macro to create AST nodes
     // example macro usage rtype!(Add X0 X1 X2)
     macro_rules! arith {
@@ -112,10 +113,10 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Symbol(SymbolData("add".to_owned())),
-                Token::Symbol(SymbolData("s0".to_owned())),
-                Token::Symbol(SymbolData("s0".to_owned())),
-                Token::Symbol(SymbolData("s2".to_owned())),
+                Token::Symbol("add".to_owned()),
+                Token::Symbol("s0".to_owned()),
+                Token::Symbol("s0".to_owned()),
+                Token::Symbol("s2".to_owned()),
             ]
         );
     }
@@ -126,10 +127,10 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Symbol(SymbolData("0x1234".to_owned())),
-                Token::Symbol(SymbolData("0b1010".to_owned())),
-                Token::Symbol(SymbolData("1234".to_owned())),
-                Token::Symbol(SymbolData("-222".to_owned())),
+                Token::Symbol("0x1234".to_owned()),
+                Token::Symbol("0b1010".to_owned()),
+                Token::Symbol("1234".to_owned()),
+                Token::Symbol("-222".to_owned()),
             ]
         );
     }
@@ -173,19 +174,19 @@ mod tests {
     #[test]
     fn parse_int_from_symbol() {
         assert_eq!(
-            TryInto::<Imm>::try_into(SymbolData("1234".to_owned())).unwrap(),
+            Imm::from_str("1234").unwrap(),
             Imm(1234)
         );
         assert_eq!(
-            TryInto::<Imm>::try_into(SymbolData("-222".to_owned())).unwrap(),
+            Imm::from_str("-222").unwrap(),
             Imm(-222)
         );
         assert_eq!(
-            TryInto::<Imm>::try_into(SymbolData("0x1234".to_owned())).unwrap(),
+            Imm::from_str("0x1234").unwrap(),
             Imm(4660)
         );
         assert_eq!(
-            TryInto::<Imm>::try_into(SymbolData("0b1010".to_owned())).unwrap(),
+            Imm::from_str("0b1010").unwrap(),
             Imm(10)
         );
     }
@@ -336,17 +337,21 @@ mod tests {
 
     #[test]
     fn parse_bad_memory() {
-        let parser = Parser::new("lw x10, 0(x10)\n  lw  x10, 0  (  x10  )  \n lw x10, 0 (x10)\n lw x10, 0(  x10)\n lw x10, 0(x10 )");
+        let str = "lw x10, 10(x10)\n  lw  x10, 10  (  x10  )  \n lw x10, 10 (x10)\n lw x10, 10(  x10)\n lw x10, 10(x10 )";
+        let lexed = Lexer::tokenize(str);
+        dbg!(lexed.to_display().to_string());
+
+        let parser = Parser::new(str);
         let ast = parser.collect::<Vec<ASTNode>>();
 
         assert_eq!(
             ast.data(),
             vec![
-                load!(Lw X10 X10 0 ),
-                load!(Lw X10 X10 0 ),
-                load!(Lw X10 X10 0 ),
-                load!(Lw X10 X10 0 ),
-                load!(Lw X10 X10 0 ),
+                load!(Lw X10 X10 10),
+                load!(Lw X10 X10 10),
+                load!(Lw X10 X10 10),
+                load!(Lw X10 X10 10),
+                load!(Lw X10 X10 10),
             ].data()
         );
     }

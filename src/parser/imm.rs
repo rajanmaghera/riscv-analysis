@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::parser::token::{SymbolData, Token, TokenInfo};
+use crate::parser::token::{Token, TokenInfo};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Imm(pub i32);
@@ -10,7 +10,7 @@ impl TryFrom<TokenInfo> for Imm {
 
     fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) => Imm::try_from(s),
+            Token::Symbol(s) => Imm::from_str(&s),
             _ => Err(()),
         }
     }
@@ -24,7 +24,7 @@ impl TryFrom<TokenInfo> for CSRImm {
 
     fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) => CSRImm::try_from(s),
+            Token::Symbol(s) => CSRImm::from_str(&s),
             _ => Err(()),
         }
     }
@@ -65,6 +65,7 @@ impl FromStr for Imm {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.to_lowercase();
         let s = s.as_str();
+        let s = s.trim();
         let neg = s.starts_with('-');
         let s = if neg { &s[1..] } else { s };
         let mul = if neg { -1 } else { 1 };
@@ -98,22 +99,6 @@ impl FromStr for Imm {
                 Err(_) => Err(()),
             }
         }
-    }
-}
-
-impl TryFrom<SymbolData> for Imm {
-    type Error = ();
-
-    fn try_from(value: SymbolData) -> Result<Self, Self::Error> {
-        Imm::from_str(&value.0)
-    }
-}
-
-impl TryFrom<SymbolData> for CSRImm {
-    type Error = ();
-
-    fn try_from(value: SymbolData) -> Result<Self, Self::Error> {
-        CSRImm::from_str(&value.0)
     }
 }
 
@@ -165,10 +150,17 @@ mod test {
     }
 
     #[test]
-    fn no_spaces_allowed() {
-        assert_eq!(Imm::from_str(" 0"), Err(()));
-        assert_eq!(Imm::from_str("0 "), Err(()));
-        assert_eq!(Imm::from_str(" 0 "), Err(()));
+    fn trim_allowed() {
+        assert_eq!(Imm::from_str(" 120"), Ok(Imm(120)));
+        assert_eq!(Imm::from_str("203 "), Ok(Imm(203)));
+        assert_eq!(Imm::from_str(" 140 "), Ok(Imm(140)));
+    }
+
+    #[test]
+    fn no_spaces_between() {
+        assert_eq!(Imm::from_str("1 2"), Err(()));
+        assert_eq!(Imm::from_str("1 2 3"), Err(()));
+        assert_eq!(Imm::from_str("1 2 3 4"), Err(()));
     }
 
     #[test]

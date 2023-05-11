@@ -1,4 +1,4 @@
-use crate::parser::token::{SymbolData, Token, TokenInfo};
+use crate::parser::token::{ Token, TokenInfo};
 use std::{convert::TryFrom, str::FromStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,17 +42,9 @@ impl TryFrom<TokenInfo> for Register {
 
     fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) => Register::try_from(s),
+            Token::Symbol(s) => Register::from_str(&s),
             _ => Err(()),
         }
-    }
-}
-
-impl TryFrom<SymbolData> for Register {
-    type Error = ();
-
-    fn try_from(value: SymbolData) -> Result<Self, Self::Error> {
-        Register::from_str(&value.0)
     }
 }
 
