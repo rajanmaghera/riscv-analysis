@@ -29,7 +29,7 @@ impl Parser {
 
 // TODO errors are alright, but they do not account for multiple paths
 // ie. when we use an if let Ok( ) =, we ignore the error the first time, but
-// we do not ignore it the second time. I want both errors to be caught and 
+// we do not ignore it the second time. I want both errors to be caught and
 // reported.
 
 impl Iterator for Parser {
@@ -45,24 +45,30 @@ impl Iterator for Parser {
                 item = ASTNode::try_from(&mut self.lexer);
             }
 
-
             // print debug info for errors
             match &item {
-                Err(err) => {
-                    match err {
-                        ParseError::UnexpectedEOF => {},
-                        ParseError::IsNewline(_) => {},
-                        ParseError::ExpectedImm(x) => println!("line {}: Expected immediate value", x.pos.start.line),
-                        ParseError::ExpectedRegister(x) => println!("line {}: Expected register", x.pos.start.line),
-                        ParseError::ExpectedLabel(x) => println!("line {}: Expected label", x.pos.start.line),
-                        ParseError::ExpectedMem(x) => println!("line {}: Expected memory address", x.pos.start.line),
-                        ParseError::UnexpectedToken(x) => println!("line {}: Unexpected token {:?}", x.pos.start.line, x.token),
-                        _ => {},
+                Err(err) => match err {
+                    ParseError::UnexpectedEOF => {}
+                    ParseError::IsNewline(_) => {}
+                    ParseError::ExpectedImm(x) => {
+                        println!("line {}: Expected immediate value", x.pos.start.line)
                     }
+                    ParseError::ExpectedRegister(x) => {
+                        println!("line {}: Expected register", x.pos.start.line)
+                    }
+                    ParseError::ExpectedLabel(x) => {
+                        println!("line {}: Expected label", x.pos.start.line)
+                    }
+                    ParseError::ExpectedMem(x) => {
+                        println!("line {}: Expected memory address", x.pos.start.line)
+                    }
+                    ParseError::UnexpectedToken(x) => {
+                        println!("line {}: Unexpected token {:?}", x.pos.start.line, x.token)
+                    }
+                    _ => {}
                 },
-                _ => {},
+                _ => {}
             }
-            
 
             return match item {
                 Ok(ast) => Some(ast),

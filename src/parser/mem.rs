@@ -126,7 +126,6 @@ mod test {
         assert!(Mem::try_from(token!("0(s p)").to_owned()).is_err());
         assert!(Mem::try_from(token!("1 2 (sp)").to_owned()).is_err());
         assert!(Mem::try_from(token!("(x 0)").to_owned()).is_err());
-
     }
 
     #[test]

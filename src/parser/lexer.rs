@@ -1,5 +1,5 @@
+use crate::parser::token::Token;
 use crate::parser::token::{Position, Range, TokenInfo};
-use crate::parser::token::{Token};
 
 const EOF_CONST: char = 3 as char;
 
@@ -62,10 +62,7 @@ impl Lexer {
         // TODO be careful, we may not want - to be a symbol character,
         // This is done so number parsing is only done once we know what the instruction is
         // aka. to make our lives easier
-        (c >= 'a' && c <= 'z')
-            || (c >= 'A' && c <= 'Z')
-            || c == '_'
-            || c == '-'
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '-'
     }
 
     fn is_symbol_item(&self) -> bool {
@@ -106,7 +103,7 @@ impl Iterator for Lexer {
                     token: Token::Newline,
                     pos,
                 })
-            },
+            }
             '(' => {
                 let pos = Range {
                     start: Position {
@@ -125,7 +122,7 @@ impl Iterator for Lexer {
                     token: Token::LParen,
                     pos,
                 })
-            },
+            }
             ')' => {
                 let pos = Range {
                     start: Position {
@@ -144,7 +141,7 @@ impl Iterator for Lexer {
                     token: Token::RParen,
                     pos,
                 })
-            },            
+            }
             '.' => {
                 // directive
 

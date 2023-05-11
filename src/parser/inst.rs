@@ -214,7 +214,7 @@ pub enum Inst {
     Csrci,
     Csrsi,
     Csrwi,
-    Uret
+    Uret,
 }
 
 impl Display for Inst {
@@ -375,12 +375,12 @@ pub enum PseudoType {
     Csrw,
     Csrci,
     Csrsi,
-    Csrwi
+    Csrwi,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UpperArithType {
-    Lui
+    Lui,
 }
 
 impl FromStr for Inst {
@@ -470,7 +470,7 @@ impl FromStr for Inst {
             "seqz" => Ok(Inst::Seqz),
             "snez" => Ok(Inst::Snez),
             "sgtz" => Ok(Inst::Sgtz),
-            "sltz" => Ok(Inst::Sltz),    
+            "sltz" => Ok(Inst::Sltz),
             "b" => Ok(Inst::B),
             "bltz" => Ok(Inst::Bltz),
             "bgez" => Ok(Inst::Bgez),
@@ -742,7 +742,7 @@ impl From<&BranchType> for Inst {
 impl From<&UpperArithType> for Inst {
     fn from(value: &UpperArithType) -> Self {
         match value {
-            UpperArithType::Lui => Inst::Lui
+            UpperArithType::Lui => Inst::Lui,
         }
     }
 }

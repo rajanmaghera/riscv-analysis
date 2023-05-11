@@ -28,15 +28,15 @@ pub struct TokenInfo {
  * - LParen '('
  * - RParen ')'
  * - Newline '\n'
- * 
+ *
  * We also have the following tokens to encapsulate extra data:
  * - Label: text ending in ':'
  * - Directive: text starting with '.'
  * - String: text enclosed in double quotes
- * 
+ *
  * Finally, we have Symbol. This can include instructions, registers,
  * numbers, minus everything above. While parsing, we attempt to convert
- * these into the appropriate types, and based on those errors, we can 
+ * these into the appropriate types, and based on those errors, we can
  * determine what the symbol is.
  */
 

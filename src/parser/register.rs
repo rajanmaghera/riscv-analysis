@@ -1,4 +1,4 @@
-use crate::parser::token::{ Token, TokenInfo};
+use crate::parser::token::{Token, TokenInfo};
 use std::{convert::TryFrom, str::FromStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

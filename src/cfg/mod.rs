@@ -178,7 +178,10 @@ impl CFG {
                     }
                     last_labels.push(s.name.data.0);
                 }
-                ASTNode::Branch(_) | ASTNode::JumpLink(_) | ASTNode::JumpLinkR(_) | ASTNode::Basic(_) => {
+                ASTNode::Branch(_)
+                | ASTNode::JumpLink(_)
+                | ASTNode::JumpLinkR(_)
+                | ASTNode::Basic(_) => {
                     current_block.push(Rc::new(node));
                     // end block
                     let rc = Rc::new(current_block);
@@ -210,6 +213,10 @@ impl CFG {
             blocks.push(rc);
         }
 
-        Ok(CFG { blocks, labels, labels_for_branch })
+        Ok(CFG {
+            blocks,
+            labels,
+            labels_for_branch,
+        })
     }
 }

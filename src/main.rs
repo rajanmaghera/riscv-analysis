@@ -47,17 +47,17 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-use std::rc::Rc;
-use crate::parser::ast::{ASTNode, EqNodeDataVec};
-use crate::parser::inst::{ArithType, IArithType, LoadType};
-use crate::parser::lexer::Lexer;
-use crate::parser::parser::Parser;
-use crate::parser::register::Register;
-use crate::parser::token::ToDisplayForVecToken;
-use crate::parser::token::{Token, WithToken};
-use crate::cfg::{
-    BasicBlock, BlockDataWrapper, BlockWrapper, VecBlockDataWrapper, VecBlockWrapper, CFG,
-};
+    use crate::cfg::{
+        BasicBlock, BlockDataWrapper, BlockWrapper, VecBlockDataWrapper, VecBlockWrapper, CFG,
+    };
+    use crate::parser::ast::{ASTNode, EqNodeDataVec};
+    use crate::parser::inst::{ArithType, IArithType, LoadType};
+    use crate::parser::lexer::Lexer;
+    use crate::parser::parser::Parser;
+    use crate::parser::register::Register;
+    use crate::parser::token::ToDisplayForVecToken;
+    use crate::parser::token::{Token, WithToken};
+    use std::rc::Rc;
     // to make prototyping easier, use the macro to create AST nodes
     // example macro usage rtype!(Add X0 X1 X2)
     macro_rules! arith {
@@ -173,22 +173,10 @@ use crate::cfg::{
 
     #[test]
     fn parse_int_from_symbol() {
-        assert_eq!(
-            Imm::from_str("1234").unwrap(),
-            Imm(1234)
-        );
-        assert_eq!(
-            Imm::from_str("-222").unwrap(),
-            Imm(-222)
-        );
-        assert_eq!(
-            Imm::from_str("0x1234").unwrap(),
-            Imm(4660)
-        );
-        assert_eq!(
-            Imm::from_str("0b1010").unwrap(),
-            Imm(10)
-        );
+        assert_eq!(Imm::from_str("1234").unwrap(), Imm(1234));
+        assert_eq!(Imm::from_str("-222").unwrap(), Imm(-222));
+        assert_eq!(Imm::from_str("0x1234").unwrap(), Imm(4660));
+        assert_eq!(Imm::from_str("0b1010").unwrap(), Imm(10));
     }
 
     #[test]
@@ -352,7 +340,8 @@ use crate::cfg::{
                 load!(Lw X10 X10 10),
                 load!(Lw X10 X10 10),
                 load!(Lw X10 X10 10),
-            ].data()
+            ]
+            .data()
         );
     }
 

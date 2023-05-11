@@ -17,7 +17,7 @@ use uuid::Uuid;
 use super::imm;
 // TODO make a test case with every supported RARS instruction
 use super::inst::{self, InstType};
-use super::token::{TokenInfo};
+use super::token::TokenInfo;
 
 // Since we use equality as a way to compare uuids of nodes, this trait is a
 // way to check that the contents of an ast node are equal. This is used in
