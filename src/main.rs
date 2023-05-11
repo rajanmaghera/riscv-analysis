@@ -1,5 +1,4 @@
 use crate::cfg::CFG;
-use crate::passes::PassManager;
 use std::str::FromStr;
 
 mod cfg;
@@ -29,10 +28,10 @@ fn main() {
     // let parser: Vec<ASTNode> = parser.collect();
     // println!("{}", parser.to_display());
 
-    let cfg = CFG::from_str(file.as_str()).expect("Unable to parse file");
+    let _ = CFG::from_str(file.as_str()).expect("Unable to parse file");
     // println!("{}", cfg);
     // println!("{:#?}", cfg);
-    let res = PassManager::new().run(cfg);
+    // let res = PassManager::new().run(cfg);
 
     // if res.is_err() {
     //     println!("Errors found:");
@@ -47,17 +46,15 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use crate::cfg::{
-        BasicBlock, BlockDataWrapper, BlockWrapper, VecBlockDataWrapper, VecBlockWrapper, CFG,
-    };
+    use crate::cfg::{BasicBlock, VecBlockWrapper, CFG};
     use crate::parser::ast::{ASTNode, EqNodeDataVec};
-    use crate::parser::inst::{ArithType, IArithType, LoadType};
+    use crate::parser::inst::{ArithType, IArithType, LoadType, StoreType};
     use crate::parser::lexer::Lexer;
     use crate::parser::parser::Parser;
     use crate::parser::register::Register;
-    use crate::parser::token::ToDisplayForVecToken;
     use crate::parser::token::{Token, WithToken};
-    use std::rc::Rc;
+    use crate::passes::PassManager;
+
     // to make prototyping easier, use the macro to create AST nodes
     // example macro usage rtype!(Add X0 X1 X2)
     macro_rules! arith {
@@ -86,6 +83,17 @@ mod tests {
         ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
             ASTNode::new_load(
                 WithToken::blank(LoadType::$inst),
+                WithToken::blank(Register::$rd),
+                WithToken::blank(Register::$rs1),
+                WithToken::blank(Imm($imm)),
+            )
+        };
+    }
+
+    macro_rules! store {
+        ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
+            ASTNode::new_store(
+                WithToken::blank(StoreType::$inst),
                 WithToken::blank(Register::$rd),
                 WithToken::blank(Register::$rs1),
                 WithToken::blank(Imm($imm)),
@@ -326,8 +334,6 @@ mod tests {
     #[test]
     fn parse_bad_memory() {
         let str = "lw x10, 10(x10)\n  lw  x10, 10  (  x10  )  \n lw x10, 10 (x10)\n lw x10, 10(  x10)\n lw x10, 10(x10 )";
-        let lexed = Lexer::tokenize(str);
-        dbg!(lexed.to_display().to_string());
 
         let parser = Parser::new(str);
         let ast = parser.collect::<Vec<ASTNode>>();
@@ -370,5 +376,16 @@ mod tests {
             blocks.blocks.data()
         );
         PassManager::new().run(blocks).unwrap();
+    }
+
+    #[test]
+    fn no_imm_num() {
+        let str = "addi    sp, sp, -16 \nsw      ra, (sp)";
+        let ast = Parser::new(str).collect::<Vec<ASTNode>>();
+
+        assert_eq!(
+            ast.data(),
+            vec![iarith!(Addi X2 X2 -16), store!(Sw X1 X2 0),].data()
+        );
     }
 }

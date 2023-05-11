@@ -72,8 +72,13 @@ impl FromStr for LabelString {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // ensure labelstring cannot be a register
+        if Register::from_str(s).is_ok() {
+            return Err(());
+        }
+
         // ensure string only starts with a letter
-        if !s.chars().next().unwrap().is_alphabetic() {
+        if !s.chars().next().ok_or(())?.is_alphabetic() {
             return Err(());
         }
 
@@ -766,14 +771,11 @@ impl TryFrom<String> for LabelString {
     }
 }
 
-fn expect_lparen(value: Option<&TokenInfo>) -> Result<(), ParseError> {
+fn expect_lparen(value: Option<TokenInfo>) -> Result<(), ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     match v.token {
         Token::LParen => Ok(()),
-        _ => Err(ParseError::Expected(
-            vec![ExpectedType::LParen],
-            v.to_owned(),
-        )),
+        _ => Err(ParseError::Expected(vec![ExpectedType::LParen], v)),
     }
 }
 
@@ -781,10 +783,7 @@ fn expect_rparen(value: Option<TokenInfo>) -> Result<(), ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     match v.token {
         Token::RParen => Ok(()),
-        _ => Err(ParseError::Expected(
-            vec![ExpectedType::RParen],
-            v.to_owned(),
-        )),
+        _ => Err(ParseError::Expected(vec![ExpectedType::RParen], v)),
     }
 }
 
@@ -900,7 +899,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                             } else {
                                 Err(Expected(
                                     vec![ExpectedType::Register, ExpectedType::Label],
-                                    name_token.unwrap(),
+                                    name_token.ok_or(UnexpectedEOF)?,
                                 ))
                             };
                         }
@@ -915,8 +914,8 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     rs1,
                                     imm,
                                 ))
-                            } else if let Ok(imm) = get_imm(next) {
-                                if let Ok(()) = expect_lparen(value.peek()) {
+                            } else if let Ok(imm) = get_imm(next.clone()) {
+                                if let Ok(()) = expect_lparen(value.peek().cloned()) {
                                     value.next();
                                     let rs1 = get_reg(value.next())?;
                                     expect_rparen(value.next())?;
@@ -934,6 +933,15 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         imm,
                                     ))
                                 }
+                            } else if let Ok(()) = expect_lparen(next) {
+                                let rs1 = get_reg(value.next())?;
+                                expect_rparen(value.next())?;
+                                Ok(ASTNode::new_jump_link_r(
+                                    WithToken::new(inst, next_node.clone()),
+                                    reg1,
+                                    rs1,
+                                    WithToken::new(Imm(0), next_node),
+                                ))
                             } else {
                                 Ok(ASTNode::new_jump_link_r(
                                     WithToken::new(inst, next_node.clone()),
@@ -946,9 +954,8 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                         InstType::LoadType(inst) => {
                             let rd = get_reg(value.next())?;
                             let next = value.next();
-                            dbg!(next.clone());
                             return if let Ok(imm) = get_imm(next.clone()) {
-                                if let Ok(()) = expect_lparen(value.peek()) {
+                                if let Ok(()) = expect_lparen(value.peek().cloned()) {
                                     value.next();
                                     let rs1 = get_reg(value.next())?;
                                     expect_rparen(value.next())?;
@@ -980,10 +987,23 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Imm(0), next_node),
                                     ),
                                 ))
+                            } else if let Ok(()) = expect_lparen(next.clone()) {
+                                let rs1 = get_reg(value.next())?;
+                                expect_rparen(value.next())?;
+                                Ok(ASTNode::new_load(
+                                    WithToken::new(inst, next_node.clone()),
+                                    rd,
+                                    rs1,
+                                    WithToken::new(Imm(0), next_node),
+                                ))
                             } else {
                                 Err(Expected(
-                                    vec![ExpectedType::Label, ExpectedType::Imm],
-                                    next_node,
+                                    vec![
+                                        ExpectedType::Label,
+                                        ExpectedType::Imm,
+                                        ExpectedType::LParen,
+                                    ],
+                                    next.ok_or(UnexpectedEOF)?,
                                 ))
                             };
                         }
@@ -992,7 +1012,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                             let next = value.next();
 
                             return if let Ok(imm) = get_imm(next.clone()) {
-                                if let Ok(()) = expect_lparen(value.peek()) {
+                                if let Ok(()) = expect_lparen(value.peek().cloned()) {
                                     value.next();
                                     let rs1 = get_reg(value.next())?;
                                     expect_rparen(value.next())?;
@@ -1010,7 +1030,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         imm,
                                     ))
                                 }
-                            } else if let Ok(label) = get_label(next) {
+                            } else if let Ok(label) = get_label(next.clone()) {
                                 let temp_reg = get_reg(value.next())?;
                                 Err(NeedTwoNodes(
                                     ASTNode::new_load_addr(
@@ -1025,10 +1045,23 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Imm(0), next_node),
                                     ),
                                 ))
+                            } else if let Ok(()) = expect_lparen(next.clone()) {
+                                let rs1 = get_reg(value.next())?;
+                                expect_rparen(value.next())?;
+                                Ok(ASTNode::new_store(
+                                    WithToken::new(inst, next_node.clone()),
+                                    rs2,
+                                    rs1,
+                                    WithToken::new(Imm(0), next_node),
+                                ))
                             } else {
                                 Err(Expected(
-                                    vec![ExpectedType::Label, ExpectedType::Imm],
-                                    next_node,
+                                    vec![
+                                        ExpectedType::Label,
+                                        ExpectedType::Imm,
+                                        ExpectedType::LParen,
+                                    ],
+                                    next.ok_or(UnexpectedEOF)?,
                                 ))
                             };
                         }
