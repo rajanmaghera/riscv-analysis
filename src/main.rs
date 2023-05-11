@@ -2,6 +2,7 @@ use crate::cfg::CFG;
 use std::str::FromStr;
 
 mod cfg;
+mod helpers;
 mod parser;
 mod passes;
 /* This project will start with RV32I exclusively.
@@ -22,7 +23,7 @@ fn main() {
     let file = std::fs::read_to_string(filename).expect("Unable to read file");
 
     // create a new lexer and tokenize the file
-    // let tokens = Lexer::tokenize(file.as_str());
+    // let tokens = tokenize(file.as_str());
     // println!("{}", tokens.to_display());
     // let parser = Parser::new(file.as_str());
     // let parser: Vec<ASTNode> = parser.collect();
@@ -46,63 +47,16 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use crate::cfg::{BasicBlock, VecBlockWrapper, CFG};
+    use super::*;
+    use crate::cfg::{VecBlockWrapper, CFG};
+    use crate::helpers::*;
     use crate::parser::ast::{ASTNode, EqNodeDataVec};
+    use crate::parser::imm::Imm;
     use crate::parser::inst::{ArithType, IArithType, LoadType, StoreType};
-    use crate::parser::lexer::Lexer;
     use crate::parser::parser::Parser;
     use crate::parser::register::Register;
     use crate::parser::token::{Token, WithToken};
     use crate::passes::PassManager;
-
-    // to make prototyping easier, use the macro to create AST nodes
-    // example macro usage rtype!(Add X0 X1 X2)
-    macro_rules! arith {
-        ($inst:ident $rd:ident $rs1:ident $rs2:ident) => {
-            ASTNode::new_arith(
-                WithToken::blank(ArithType::$inst),
-                WithToken::blank(Register::$rd),
-                WithToken::blank(Register::$rs1),
-                WithToken::blank(Register::$rs2),
-            )
-        };
-    }
-
-    macro_rules! iarith {
-        ($inst:ident $rd:ident $rs1:ident $imm:expr) => {
-            ASTNode::new_iarith(
-                WithToken::blank(IArithType::$inst),
-                WithToken::blank(Register::$rd),
-                WithToken::blank(Register::$rs1),
-                WithToken::blank(Imm($imm)),
-            )
-        };
-    }
-
-    macro_rules! load {
-        ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
-            ASTNode::new_load(
-                WithToken::blank(LoadType::$inst),
-                WithToken::blank(Register::$rd),
-                WithToken::blank(Register::$rs1),
-                WithToken::blank(Imm($imm)),
-            )
-        };
-    }
-
-    macro_rules! store {
-        ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
-            ASTNode::new_store(
-                WithToken::blank(StoreType::$inst),
-                WithToken::blank(Register::$rd),
-                WithToken::blank(Register::$rs1),
-                WithToken::blank(Imm($imm)),
-            )
-        };
-    }
-
-    use super::*;
-    use crate::parser::imm::Imm;
 
     // A trait on strings to clean up some code for lexing
 
@@ -111,13 +65,13 @@ mod tests {
 
     #[test]
     fn lex_label() {
-        let tokens = Lexer::tokenize("My_Label:");
+        let tokens = tokenize("My_Label:");
         assert_eq!(tokens, vec![Token::Label("My_Label".to_owned())]);
     }
 
     #[test]
     fn lex_instruction() {
-        let tokens = Lexer::tokenize("add s0, s0, s2");
+        let tokens = tokenize("add s0, s0, s2");
         assert_eq!(
             tokens,
             vec![
@@ -131,7 +85,7 @@ mod tests {
 
     #[test]
     fn lex_ints() {
-        let tokens = Lexer::tokenize("0x1234,    0b1010, 1234  -222");
+        let tokens = tokenize("0x1234,    0b1010, 1234  -222");
         assert_eq!(
             tokens,
             vec![
@@ -145,7 +99,7 @@ mod tests {
 
     #[test]
     fn lex_long() {
-        let tokens = Lexer::tokenize(
+        let tokens = tokenize(
             "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
         );
         assert_eq!(
@@ -219,7 +173,7 @@ mod tests {
         let ast = parser.collect::<Vec<ASTNode>>();
         let blocks = CFG::new(ast).expect("unable to create cfg");
         assert_eq!(
-            vec![BasicBlock::from_nodes(vec![
+            vec![basic_block_from_nodes(vec![
                 arith!(Add X8 X8 X18),
                 arith!(Add X8 X8 X18),
                 iarith!(Addi X9 X9 1),
@@ -238,9 +192,9 @@ mod tests {
         let blocks = CFG::new(ast).expect("unable to create cfg");
         assert_eq!(
             vec![
-                BasicBlock::from_nodes(vec![arith!(Add X2 X2 X3),]),
-                BasicBlock::from_nodes(vec![arith!(Sub X10 X10 X11),]),
-                BasicBlock::from_nodes(vec![
+                basic_block_from_nodes(vec![arith!(Add X2 X2 X3),]),
+                basic_block_from_nodes(vec![arith!(Sub X10 X10 X11),]),
+                basic_block_from_nodes(vec![
                     arith!(Add X8 X8 X18),
                     arith!(Add X8 X8 X18),
                     iarith!(Addi X9 X9 1),
@@ -293,7 +247,7 @@ mod tests {
 
     #[test]
     fn lex_comments() {
-        let lexer = Lexer::tokenize(
+        let lexer = tokenize(
             "add x2,x2,x3 # hello, world!@#DKSAOKLJu3iou12o\nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
         );
 
@@ -356,7 +310,7 @@ mod tests {
         let blocks =
             CFG::from_str("\nhello_world:\n    addi x0, x2 12").expect("unable to create cfg");
         assert_eq!(
-            vec![BasicBlock::from_nodes(vec![iarith!(Addi X0 X2 12),])].data(),
+            vec![basic_block_from_nodes(vec![iarith!(Addi X0 X2 12),])].data(),
             blocks.blocks.data()
         );
 
@@ -368,7 +322,7 @@ mod tests {
         let blocks = CFG::from_str("\nhello_world:\n    addi x1, x2 12 # yolo\nadd x1, x2 x3")
             .expect("unable to create cfg");
         assert_eq!(
-            vec![BasicBlock::from_nodes(vec![
+            vec![basic_block_from_nodes(vec![
                 iarith!(Addi X1 X2 12),
                 arith!(Add X1 X2 X3),
             ])]

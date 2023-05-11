@@ -2,10 +2,10 @@ use crate::parser::imm::*;
 use crate::parser::inst::Inst;
 use crate::parser::inst::*;
 use crate::parser::lexer::Lexer;
-use crate::parser::mem::*;
+
 use crate::parser::register::Register;
 use crate::parser::token::{LineDisplay, Range, Token, WithToken};
-use lsp_types::ExecuteCommandClientCapabilities;
+
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
@@ -14,9 +14,8 @@ use std::rc::Rc;
 use std::str::FromStr;
 use uuid::Uuid;
 
-use super::imm;
 // TODO make a test case with every supported RARS instruction
-use super::inst::{self, InstType};
+use super::inst::InstType;
 use super::token::TokenInfo;
 
 // Since we use equality as a way to compare uuids of nodes, this trait is a
@@ -210,12 +209,12 @@ pub enum ASTNode {
     LoadAddr(LoadAddr), // Load address
     CSR(CSR),
     CSRImm(CSRI),
-    Ignore(Ignore),
 }
 
 #[derive(Debug, Clone)]
 pub struct EqNodeWrapper(pub ASTNode);
 
+// TODO switch to typesafe representations
 impl PartialEq for EqNodeWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
@@ -244,7 +243,6 @@ impl PartialEq for EqNodeWrapper {
             (ASTNode::CSR(a), ASTNode::CSR(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.csr == b.csr && a.rs1 == b.rs1
             }
-            (ASTNode::Ignore(a), ASTNode::Ignore(b)) => a.inst == b.inst,
             (ASTNode::LoadAddr(a), ASTNode::LoadAddr(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.name == b.name
             }
@@ -296,7 +294,6 @@ impl NodeData for ASTNode {
             ASTNode::Load(a) => a.key,
             ASTNode::CSR(a) => a.key,
             ASTNode::CSRImm(a) => a.key,
-            ASTNode::Ignore(a) => a.key,
             ASTNode::LoadAddr(a) => a.key,
         }
     }
@@ -477,13 +474,6 @@ impl ASTNode {
         })
     }
 
-    pub fn new_ignore(inst: WithToken<IgnoreType>) -> ASTNode {
-        ASTNode::Ignore(Ignore {
-            inst,
-            key: Uuid::new_v4(),
-        })
-    }
-
     pub fn new_label(name: WithToken<LabelString>) -> ASTNode {
         ASTNode::Label(Label {
             name,
@@ -627,9 +617,6 @@ impl Display for ASTNode {
                 let imm = x.imm.data.0.to_string();
                 format!("{} {} <- {} <- {}", inst, rd, csr, imm)
             }
-            ASTNode::Ignore(_) => {
-                format!("<ignored>")
-            }
         };
         write!(f, "{}", res)
     }
@@ -704,7 +691,6 @@ impl LineDisplay for WithToken<ASTNode> {
                 range.end = csr.imm.pos.end.clone();
                 range
             }
-            ASTNode::Ignore(_) => self.pos.clone(),
             ASTNode::Basic(_) => self.pos.clone(),
             ASTNode::LoadAddr(_) => self.pos.clone(),
             ASTNode::Directive(directive) => match &directive.dir.data {

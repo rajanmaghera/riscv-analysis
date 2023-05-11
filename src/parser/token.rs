@@ -154,22 +154,6 @@ where
             data,
         }
     }
-
-    // TODO should only be used in testing, get rid of later
-    pub fn blank(data: T) -> Self {
-        WithToken {
-            token: Token::Symbol("".to_owned()),
-            pos: Range {
-                start: Position { line: 0, column: 0 },
-                end: Position { line: 0, column: 0 },
-            },
-            data,
-        }
-    }
-
-    pub fn into(self) -> T {
-        self.data
-    }
 }
 
 impl<T> TryFrom<TokenInfo> for WithToken<T>

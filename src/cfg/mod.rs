@@ -1,6 +1,5 @@
 use crate::parser::ast::ASTNode;
 use crate::parser::ast::EqNodeDataVec;
-use crate::parser::ast::Label;
 use crate::parser::parser::Parser;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -79,14 +78,6 @@ impl VecBlockWrapper for Vec<Rc<BasicBlock>> {
 impl BasicBlock {
     pub fn new(nodes: Vec<Rc<ASTNode>>) -> BasicBlock {
         BasicBlock(nodes, Uuid::new_v4())
-    }
-
-    pub fn from_nodes(nodes: Vec<ASTNode>) -> Rc<BasicBlock> {
-        let mut rc_nodes = Vec::new();
-        for node in nodes {
-            rc_nodes.push(Rc::new(node));
-        }
-        Rc::new(BasicBlock(rc_nodes, Uuid::new_v4()))
     }
 
     pub fn push(&mut self, node: Rc<ASTNode>) {

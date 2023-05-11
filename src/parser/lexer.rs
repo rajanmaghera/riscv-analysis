@@ -30,10 +30,6 @@ impl Lexer {
         lex
     }
 
-    pub fn tokenize<S: Into<String>>(input: S) -> Vec<TokenInfo> {
-        Lexer::new(input).collect()
-    }
-
     fn next_char(&mut self) {
         let b = self.source.as_bytes();
 
