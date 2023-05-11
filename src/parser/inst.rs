@@ -6,6 +6,7 @@ use crate::parser::token::SymbolData;
 pub enum BasicType {
     Ebreak,
     Ecall,
+    Uret,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -89,6 +90,10 @@ pub enum CSRType {
     Csrrw,
     Csrrs,
     Csrrc,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CSRIType {
     Csrrwi,
     Csrrsi,
     Csrrci,
@@ -191,6 +196,27 @@ pub enum Inst {
     Not,
     Seqz,
     Snez,
+    Sltz,
+    Sgez,
+    Sgtz,
+    B,
+    Bltz,
+    Bgez,
+    Call,
+    Bgt,
+    Ble,
+    Bgtu,
+    Bleu,
+    Bgtz,
+    Blez,
+    Csrc,
+    Csrr,
+    Csrs,
+    Csrw,
+    Csrci,
+    Csrsi,
+    Csrwi,
+    Uret
 }
 
 impl Display for Inst {
@@ -276,6 +302,27 @@ impl Display for Inst {
             Inst::Not => write!(f, "not"),
             Inst::Seqz => write!(f, "seqz"),
             Inst::Snez => write!(f, "snez"),
+            Inst::Sltz => write!(f, "sltz"),
+            Inst::Sgez => write!(f, "sgez"),
+            Inst::Sgtz => write!(f, "sgtz"),
+            Inst::Bgez => write!(f, "bgez"),
+            Inst::Bltz => write!(f, "bltz"),
+            Inst::B => write!(f, "b"),
+            Inst::Call => write!(f, "call"),
+            Inst::Bgt => write!(f, "bgt"),
+            Inst::Ble => write!(f, "ble"),
+            Inst::Bgtu => write!(f, "bgtu"),
+            Inst::Bleu => write!(f, "bleu"),
+            Inst::Bgtz => write!(f, "bgtz"),
+            Inst::Blez => write!(f, "blez"),
+            Inst::Csrc => write!(f, "csrc"),
+            Inst::Csrr => write!(f, "csrr"),
+            Inst::Csrs => write!(f, "csrs"),
+            Inst::Csrw => write!(f, "csrw"),
+            Inst::Csrci => write!(f, "csrci"),
+            Inst::Csrsi => write!(f, "csrsi"),
+            Inst::Csrwi => write!(f, "csrwi"),
+            Inst::Uret => write!(f, "uret"),
         }
     }
 }
@@ -289,6 +336,7 @@ pub enum InstType {
     LoadType(LoadType),
     StoreType(StoreType),
     CSRType(CSRType),
+    CSRIType(CSRIType),
     IgnoreType(IgnoreType),
     BranchType(BranchType),
     PseudoType(PseudoType),
@@ -299,6 +347,8 @@ pub enum InstType {
 pub enum PseudoType {
     Beqz,
     Bnez,
+    Bltz,
+    Bgez,
     J,
     Jr,
     La,
@@ -310,6 +360,24 @@ pub enum PseudoType {
     Ret,
     Seqz,
     Snez,
+    Sgtz,
+    Sltz,
+    Sgez,
+    B,
+    Call,
+    Bgt,
+    Ble,
+    Bgtu,
+    Bleu,
+    Bgtz,
+    Blez,
+    Csrc,
+    Csrr,
+    Csrs,
+    Csrw,
+    Csrci,
+    Csrsi,
+    Csrwi
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -403,6 +471,27 @@ impl TryFrom<&SymbolData> for Inst {
             "not" => Ok(Inst::Not),
             "seqz" => Ok(Inst::Seqz),
             "snez" => Ok(Inst::Snez),
+            "sgtz" => Ok(Inst::Sgtz),
+            "sltz" => Ok(Inst::Sltz),    
+            "b" => Ok(Inst::B),
+            "bltz" => Ok(Inst::Bltz),
+            "bgez" => Ok(Inst::Bgez),
+            "call" => Ok(Inst::Call),
+            "bgt" => Ok(Inst::Bgt),
+            "ble" => Ok(Inst::Ble),
+            "bgtu" => Ok(Inst::Bgtu),
+            "bleu" => Ok(Inst::Bleu),
+            "bgtz" => Ok(Inst::Bgtz),
+            "blez" => Ok(Inst::Blez),
+            "sgez" => Ok(Inst::Sgez),
+            "csrc" => Ok(Inst::Csrc),
+            "csrr" => Ok(Inst::Csrr),
+            "csrs" => Ok(Inst::Csrs),
+            "csrw" => Ok(Inst::Csrw),
+            "csrci" => Ok(Inst::Csrci),
+            "csrsi" => Ok(Inst::Csrsi),
+            "csrwi" => Ok(Inst::Csrwi),
+            "uret" => Ok(Inst::Uret),
             _ => Err(()),
         }
     }
@@ -476,9 +565,9 @@ impl From<&Inst> for InstType {
             Inst::Csrrw => InstType::CSRType(CSRType::Csrrw),
             Inst::Csrrs => InstType::CSRType(CSRType::Csrrs),
             Inst::Csrrc => InstType::CSRType(CSRType::Csrrc),
-            Inst::Csrrwi => InstType::CSRType(CSRType::Csrrwi),
-            Inst::Csrrsi => InstType::CSRType(CSRType::Csrrsi),
-            Inst::Csrrci => InstType::CSRType(CSRType::Csrrci),
+            Inst::Csrrwi => InstType::CSRIType(CSRIType::Csrrwi),
+            Inst::Csrrsi => InstType::CSRIType(CSRIType::Csrrsi),
+            Inst::Csrrci => InstType::CSRIType(CSRIType::Csrrci),
             Inst::Nop => InstType::PseudoType(PseudoType::Nop),
             Inst::Auipc => InstType::IArithType(IArithType::Auipc),
             Inst::Beqz => InstType::PseudoType(PseudoType::Beqz),
@@ -492,6 +581,27 @@ impl From<&Inst> for InstType {
             Inst::Not => InstType::PseudoType(PseudoType::Not),
             Inst::Seqz => InstType::PseudoType(PseudoType::Seqz),
             Inst::Snez => InstType::PseudoType(PseudoType::Snez),
+            Inst::Sltz => InstType::PseudoType(PseudoType::Sltz),
+            Inst::Sgez => InstType::PseudoType(PseudoType::Sgez),
+            Inst::Sgtz => InstType::PseudoType(PseudoType::Sgtz),
+            Inst::B => InstType::PseudoType(PseudoType::B),
+            Inst::Bltz => InstType::PseudoType(PseudoType::Bltz),
+            Inst::Bgez => InstType::PseudoType(PseudoType::Bgez),
+            Inst::Bgtz => InstType::PseudoType(PseudoType::Bgtz),
+            Inst::Blez => InstType::PseudoType(PseudoType::Blez),
+            Inst::Call => InstType::PseudoType(PseudoType::Call),
+            Inst::Bgt => InstType::PseudoType(PseudoType::Bgt),
+            Inst::Ble => InstType::PseudoType(PseudoType::Ble),
+            Inst::Bgtu => InstType::PseudoType(PseudoType::Bgtu),
+            Inst::Bleu => InstType::PseudoType(PseudoType::Bleu),
+            Inst::Csrc => InstType::PseudoType(PseudoType::Csrc),
+            Inst::Csrr => InstType::PseudoType(PseudoType::Csrr),
+            Inst::Csrs => InstType::PseudoType(PseudoType::Csrs),
+            Inst::Csrw => InstType::PseudoType(PseudoType::Csrw),
+            Inst::Csrci => InstType::PseudoType(PseudoType::Csrci),
+            Inst::Csrsi => InstType::PseudoType(PseudoType::Csrsi),
+            Inst::Csrwi => InstType::PseudoType(PseudoType::Csrwi),
+            Inst::Uret => InstType::BasicType(BasicType::Uret),
         }
     }
 }
@@ -594,9 +704,16 @@ impl From<&CSRType> for Inst {
             CSRType::Csrrw => Inst::Csrrw,
             CSRType::Csrrs => Inst::Csrrs,
             CSRType::Csrrc => Inst::Csrrc,
-            CSRType::Csrrwi => Inst::Csrrwi,
-            CSRType::Csrrsi => Inst::Csrrsi,
-            CSRType::Csrrci => Inst::Csrrci,
+        }
+    }
+}
+
+impl From<&CSRIType> for Inst {
+    fn from(value: &CSRIType) -> Self {
+        match value {
+            CSRIType::Csrrwi => Inst::Csrrwi,
+            CSRIType::Csrrsi => Inst::Csrrsi,
+            CSRIType::Csrrci => Inst::Csrrci,
         }
     }
 }
@@ -606,6 +723,7 @@ impl From<&BasicType> for Inst {
         match value {
             BasicType::Ecall => Inst::Ecall,
             BasicType::Ebreak => Inst::Ebreak,
+            BasicType::Uret => Inst::Uret,
         }
     }
 }
