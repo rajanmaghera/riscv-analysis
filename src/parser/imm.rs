@@ -16,28 +16,77 @@ impl TryFrom<TokenInfo> for Imm {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct CSRImm(pub u32);
+
+impl TryFrom<TokenInfo> for CSRImm {
+    type Error = ();
+
+    fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
+        match value.token {
+            Token::Symbol(s) => CSRImm::try_from(s),
+            _ => Err(()),
+        }
+    }
+}
+
+impl FromStr for CSRImm {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let string = s.to_lowercase();
+        let num = match string.as_str() {
+            "ustatus" => 0x000,
+            "fflags" => 0x001,
+            "frm" => 0x002,
+            "fcsr" => 0x003,
+            "uie" => 0x004,
+            "utvec" => 0x005,
+            "uscratch" => 0x040,
+            "uepc" => 0x041,
+            "ucause" => 0x042,
+            "utval" => 0x043,
+            "uip" => 0x044,
+            "cycle" => 0xC00,
+            "time" => 0xC01,
+            "instret" => 0xC02,
+            "cycleh" => 0xC80,
+            "timeh" => 0xC81,
+            "instreth" => 0xC82,
+            _ => Imm::from_str(s)?.0 as u32,
+        };
+        Ok(CSRImm(num))
+    }
+}
+
 impl FromStr for Imm {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.to_lowercase();
+        let s = s.as_str();
         let neg = s.starts_with('-');
         let s = if neg { &s[1..] } else { s };
         let mul = if neg { -1 } else { 1 };
+
+        if s.to_lowercase() == "zero" {
+            return Ok(Imm(0));
+        }
 
         if s.starts_with("0x") {
             if s[2..].starts_with('-') {
                 return Err(());
             }
-            match i32::from_str_radix(&s[2..], 16) {
-                Ok(i) => return Ok(Imm(mul * i)),
+            match u32::from_str_radix(&s[2..], 16) {
+                Ok(i) => return Ok(Imm(mul * i as i32)),
                 Err(_) => return Err(()),
             }
         } else if s.starts_with("0b") {
             if s[2..].starts_with('-') {
                 return Err(());
             }
-            match i32::from_str_radix(&s[2..], 2) {
-                Ok(i) => return Ok(Imm(mul * i)),
+            match u32::from_str_radix(&s[2..], 2) {
+                Ok(i) => return Ok(Imm(mul * i as i32)),
                 Err(_) => return Err(()),
             }
         } else {
@@ -60,10 +109,36 @@ impl TryFrom<SymbolData> for Imm {
     }
 }
 
+impl TryFrom<SymbolData> for CSRImm {
+    type Error = ();
+
+    fn try_from(value: SymbolData) -> Result<Self, Self::Error> {
+        CSRImm::from_str(&value.0)
+    }
+}
+
+impl From<Imm> for CSRImm {
+    fn from(value: Imm) -> Self {
+        CSRImm(value.0 as u32)
+    }
+}
+
+impl From<CSRImm> for Imm {
+    fn from(value: CSRImm) -> Self {
+        Imm(value.0 as i32)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::parser::imm::Imm;
     use std::str::FromStr;
+
+    #[test]
+    fn zero() {
+        assert_eq!(Imm::from_str("zero"), Ok(Imm(0)));
+        assert_eq!(Imm::from_str("ZERO"), Ok(Imm(0)));
+    }
 
     #[test]
     fn basic_imm() {
@@ -71,6 +146,22 @@ mod test {
         assert_eq!(Imm::from_str("1"), Ok(Imm(1)));
         assert_eq!(Imm::from_str("-1"), Ok(Imm(-1)));
         assert_eq!(Imm::from_str("-16"), Ok(Imm(-16)));
+    }
+
+    #[test]
+    fn neg_hex() {
+        assert_eq!(Imm::from_str("0xFFFFFFFF"), Ok(Imm(-1)));
+    }
+
+    #[test]
+    fn almost_neg_hex() {
+        assert_eq!(Imm::from_str("0xFFFFFFFE"), Ok(Imm(-2)));
+    }
+
+    #[test]
+    fn safe_hex() {
+        assert_eq!(Imm::from_str("0x7FFFFFFF"), Ok(Imm(2147483647)));
+        assert_eq!(Imm::from_str("0x80000000"), Ok(Imm(-2147483648)));
     }
 
     #[test]
