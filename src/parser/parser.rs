@@ -1,5 +1,6 @@
 use crate::parser::ast::ASTNode;
 use crate::parser::lexer::Lexer;
+use std::collections::VecDeque;
 use std::iter::Peekable;
 
 use super::ast::ParseError;
@@ -7,12 +8,14 @@ use super::token::Token;
 
 pub struct Parser {
     lexer: Peekable<Lexer>,
+    queue: VecDeque<ASTNode>,
 }
 
 impl Parser {
     pub fn new<S: Into<String>>(source: S) -> Parser {
         Parser {
             lexer: Lexer::new(source).peekable(),
+            queue: VecDeque::new(),
         }
     }
 
@@ -36,7 +39,11 @@ impl Iterator for Parser {
     type Item = ASTNode;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // if next item is not a newline and astnode is not a label then error
+        // if there is an item in the queue, return it
+        if let Some(item) = self.queue.pop_front() {
+            return Some(item);
+        }
+
         loop {
             let mut item = ASTNode::try_from(&mut self.lexer);
 
@@ -48,19 +55,8 @@ impl Iterator for Parser {
             // print debug info for errors
             match &item {
                 Err(err) => match err {
-                    ParseError::UnexpectedEOF => {}
-                    ParseError::IsNewline(_) => {}
-                    ParseError::ExpectedImm(x) => {
-                        println!("line {}: Expected immediate value", x.pos.start.line)
-                    }
-                    ParseError::ExpectedRegister(x) => {
-                        println!("line {}: Expected register", x.pos.start.line)
-                    }
-                    ParseError::ExpectedLabel(x) => {
-                        println!("line {}: Expected label", x.pos.start.line)
-                    }
-                    ParseError::ExpectedMem(x) => {
-                        println!("line {}: Expected memory address", x.pos.start.line)
+                    ParseError::Expected(tokens, found) => {
+                        println!("Expected {:?}, found {:?}", tokens, found)
                     }
                     ParseError::UnexpectedToken(x) => {
                         println!("line {}: Unexpected token {:?}", x.pos.start.line, x.token)
@@ -69,15 +65,14 @@ impl Iterator for Parser {
                 },
                 _ => {}
             }
-
             return match item {
                 Ok(ast) => Some(ast),
                 Err(err) => match err {
-                    ParseError::UnexpectedEOF => None,
-                    ParseError::IsNewline(_) => {
-                        self.recover_from_parse_error();
-                        continue;
+                    ParseError::NeedTwoNodes(node1, node2) => {
+                        self.queue.push_back(node2);
+                        Some(node1)
                     }
+                    ParseError::UnexpectedEOF => None,
                     _ => {
                         self.recover_from_parse_error();
                         continue;

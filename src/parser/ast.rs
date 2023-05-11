@@ -724,12 +724,20 @@ impl LineDisplay for WithToken<ASTNode> {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub enum ExpectedType {
+    Register,
+    Imm,
+    Label,
+    LParen,
+    RParen,
+    CSRImm,
+}
+
 #[derive(Debug, Clone)]
 pub enum ParseError {
-    ExpectedRegister(TokenInfo),
-    ExpectedImm(TokenInfo),
-    ExpectedLabel(TokenInfo),
-    ExpectedMem(TokenInfo),
+    Expected(Vec<ExpectedType>, TokenInfo),
     IsNewline(TokenInfo),
     Ignored(TokenInfo),
     UnexpectedToken(TokenInfo),
@@ -762,7 +770,10 @@ fn expect_lparen(value: Option<&TokenInfo>) -> Result<(), ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     match v.token {
         Token::LParen => Ok(()),
-        _ => Err(ParseError::UnexpectedToken(v.to_owned())),
+        _ => Err(ParseError::Expected(
+            vec![ExpectedType::LParen],
+            v.to_owned(),
+        )),
     }
 }
 
@@ -770,28 +781,35 @@ fn expect_rparen(value: Option<TokenInfo>) -> Result<(), ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     match v.token {
         Token::RParen => Ok(()),
-        _ => Err(ParseError::UnexpectedToken(v)),
+        _ => Err(ParseError::Expected(
+            vec![ExpectedType::RParen],
+            v.to_owned(),
+        )),
     }
 }
 
 fn get_reg(value: Option<TokenInfo>) -> Result<WithToken<Register>, ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
-    WithToken::<Register>::try_from(v.clone()).map_err(|_| ParseError::ExpectedRegister(v))
+    WithToken::<Register>::try_from(v.clone())
+        .map_err(|_| ParseError::Expected(vec![ExpectedType::Register], v))
 }
 
 fn get_imm(value: Option<TokenInfo>) -> Result<WithToken<Imm>, ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
-    WithToken::<Imm>::try_from(v.clone()).map_err(|_| ParseError::ExpectedImm(v))
+    WithToken::<Imm>::try_from(v.clone())
+        .map_err(|_| ParseError::Expected(vec![ExpectedType::Imm], v))
 }
 
 fn get_label(value: Option<TokenInfo>) -> Result<WithToken<LabelString>, ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
-    WithToken::<LabelString>::try_from(v.clone()).map_err(|_| ParseError::ExpectedLabel(v))
+    WithToken::<LabelString>::try_from(v.clone())
+        .map_err(|_| ParseError::Expected(vec![ExpectedType::Label], v))
 }
 
 fn get_csrimm(value: Option<TokenInfo>) -> Result<WithToken<CSRImm>, ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
-    WithToken::<CSRImm>::try_from(v.clone()).map_err(|_| ParseError::ExpectedImm(v))
+    WithToken::<CSRImm>::try_from(v.clone())
+        .map_err(|_| ParseError::Expected(vec![ExpectedType::CSRImm], v))
 }
 
 impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
@@ -873,12 +891,16 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     reg,
                                     name,
                                 ))
-                            } else {
-                                let name = get_label(name_token.clone())?;
+                            } else if let Ok(name) = get_label(name_token.clone()) {
                                 Ok(ASTNode::new_jump_link(
                                     WithToken::new(inst, next_node.clone()),
                                     WithToken::new(Register::X1, next_node),
                                     name,
+                                ))
+                            } else {
+                                Err(Expected(
+                                    vec![ExpectedType::Register, ExpectedType::Label],
+                                    name_token.unwrap(),
                                 ))
                             };
                         }
@@ -959,7 +981,10 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     ),
                                 ))
                             } else {
-                                Err(UnexpectedToken(next_node))
+                                Err(Expected(
+                                    vec![ExpectedType::Label, ExpectedType::Imm],
+                                    next_node,
+                                ))
                             };
                         }
                         InstType::StoreType(inst) => {
@@ -1001,7 +1026,10 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     ),
                                 ))
                             } else {
-                                Err(UnexpectedToken(next_node))
+                                Err(Expected(
+                                    vec![ExpectedType::Label, ExpectedType::Imm],
+                                    next_node,
+                                ))
                             };
                         }
                         InstType::BranchType(inst) => {
@@ -1317,8 +1345,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                 Err(UnexpectedToken(next_node))
             }
             Token::Label(s) => Ok(ASTNode::new_label(WithToken::new(
-                LabelString::from_str(s)
-                    .map_err(|_| ParseError::ExpectedLabel(next_node.clone()))?,
+                LabelString::from_str(s).map_err(|_| {
+                    ParseError::Expected(vec![ExpectedType::Label], next_node.clone())
+                })?,
                 next_node,
             ))),
             Token::Directive(_) => Err(Ignored(next_node)),
