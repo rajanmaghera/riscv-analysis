@@ -20,14 +20,14 @@ impl TryFrom<TokenInfo> for Mem {
                 let mut split = s.0.split('(');
                 let offset = split.next().ok_or(())?;
                 let reg = split.next().ok_or(())?;
-                let reg = reg.trim_end_matches(')');
-                let reg_raw = Register::from_str(reg)?;
+                let reg = reg.trim().trim_end_matches(')');
+                let reg_raw = Register::from_str(reg.trim())?;
 
                 // if offset_raw is all whitespace, then it is 0
                 let offset_raw = if offset.trim() == "" {
                     Imm(0)
                 } else {
-                    Imm::from_str(offset)?
+                    Imm::from_str(offset.trim())?
                 };
 
                 // calculate positions of tokens
@@ -108,6 +108,28 @@ mod test {
     use crate::parser::token::Position;
 
     #[test]
+    fn bad_spacing() {
+        assert_eq!(exp!(0, X2), act!("  0(sp)  "));
+        assert_eq!(exp!(0, X2), act!("  0 (sp)  "));
+        assert_eq!(exp!(0, X2), act!("  0 ( sp)  "));
+        assert_eq!(exp!(0, X2), act!("  0 ( sp )  "));
+        assert_eq!(exp!(0, X2), act!("  0 (sp )  "));
+        assert_eq!(exp!(0, X2), act!("  0(sp )  "));
+        assert_eq!(exp!(0, X2), act!("  0( sp)  "));
+        assert_eq!(exp!(0, X2), act!("   ( sp)  "));
+        assert_eq!(exp!(0, X2), act!("   ( sp )  "));
+        assert_eq!(exp!(0, X2), act!("   (sp )  "));
+    }
+
+    #[test]
+    fn no_spacing_between() {
+        assert!(Mem::try_from(token!("0(s p)").to_owned()).is_err());
+        assert!(Mem::try_from(token!("1 2 (sp)").to_owned()).is_err());
+        assert!(Mem::try_from(token!("(x 0)").to_owned()).is_err());
+
+    }
+
+    #[test]
     fn basic_test() {
         assert_eq!(exp!(0, X2), act!("0(sp)"));
         assert_eq!(exp!(4, X8), act!("4(x8)"));
@@ -133,5 +155,10 @@ mod test {
         assert_eq!(exp!(0, X2), act!("(x2)"));
         assert_eq!(exp!(0, X0), act!("(zero)"));
         assert_eq!(exp!(0, X0), act!("(x0)"));
+    }
+
+    #[test]
+    fn fail_immediate_on_own() {
+        assert!(Mem::try_from(token!("0").to_owned()).is_err());
     }
 }

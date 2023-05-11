@@ -49,7 +49,16 @@ impl Iterator for Parser {
             // print debug info for errors
             match &item {
                 Err(err) => {
-                    dbg!(err);
+                    match err {
+                        ParseError::UnexpectedEOF => {},
+                        ParseError::IsNewline(_) => {},
+                        ParseError::ExpectedImm(x) => println!("line {}: Expected immediate value", x.pos.start.line),
+                        ParseError::ExpectedRegister(x) => println!("line {}: Expected register", x.pos.start.line),
+                        ParseError::ExpectedLabel(x) => println!("line {}: Expected label", x.pos.start.line),
+                        ParseError::ExpectedMem(x) => println!("line {}: Expected memory address", x.pos.start.line),
+                        ParseError::UnexpectedToken(x) => println!("line {}: Unexpected token {:?}", x.pos.start.line, x.token),
+                        _ => {},
+                    }
                 },
                 _ => {},
             }
