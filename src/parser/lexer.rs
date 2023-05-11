@@ -1,5 +1,5 @@
 use crate::parser::token::{Position, Range, TokenInfo};
-use crate::parser::token::{SymbolData, Token};
+use crate::parser::token::{Token};
 
 const EOF_CONST: char = 3 as char;
 
@@ -31,7 +31,6 @@ impl Lexer {
     }
 
     pub fn tokenize<S: Into<String>>(input: S) -> Vec<TokenInfo> {
-        dbg!("tokenize");
         Lexer::new(input).collect()
     }
 
@@ -67,8 +66,6 @@ impl Lexer {
             || (c >= 'A' && c <= 'Z')
             || c == '_'
             || c == '-'
-            || c == '('
-            || c == ')'
     }
 
     fn is_symbol_item(&self) -> bool {
@@ -84,7 +81,6 @@ impl Lexer {
 }
 
 // TODO typestate for lexer?
-// TODO extensive support for end of file needed
 
 impl Iterator for Lexer {
     type Item = TokenInfo;
@@ -110,7 +106,45 @@ impl Iterator for Lexer {
                     token: Token::Newline,
                     pos,
                 })
-            }
+            },
+            '(' => {
+                let pos = Range {
+                    start: Position {
+                        line: self.row,
+                        column: self.col,
+                    },
+                    end: Position {
+                        line: self.row,
+                        column: self.col,
+                    },
+                };
+
+                self.next_char();
+
+                Some(TokenInfo {
+                    token: Token::LParen,
+                    pos,
+                })
+            },
+            ')' => {
+                let pos = Range {
+                    start: Position {
+                        line: self.row,
+                        column: self.col,
+                    },
+                    end: Position {
+                        line: self.row,
+                        column: self.col,
+                    },
+                };
+
+                self.next_char();
+
+                Some(TokenInfo {
+                    token: Token::RParen,
+                    pos,
+                })
+            },            
             '.' => {
                 // directive
 
@@ -237,7 +271,7 @@ impl Iterator for Lexer {
                 };
 
                 Some(TokenInfo {
-                    token: Token::Symbol(SymbolData(symbol_str.to_owned())),
+                    token: Token::Symbol(symbol_str.to_owned()),
                     pos: Range { start, end },
                 })
             }
