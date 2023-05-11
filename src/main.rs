@@ -81,6 +81,17 @@ mod tests {
         };
     }
 
+    macro_rules! load {
+        ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
+            ASTNode::new_load(
+                WithToken::blank(LoadType::$inst),
+                WithToken::blank(Register::$rd),
+                WithToken::blank(Register::$rs1),
+                WithToken::blank(Imm($imm)),
+            )
+        };
+    }
+
     use super::*;
     use crate::parser::imm::Imm;
 
@@ -320,6 +331,23 @@ mod tests {
                 Token::Symbol("s0".into()),
                 Token::Symbol("s2".into()),
             ]
+        );
+    }
+
+    #[test]
+    fn parse_bad_memory() {
+        let parser = Parser::new("lw x10, 0(x10)\n  lw  x10, 0  (  x10  )  \n lw x10, 0 (x10)\n lw x10, 0(  x10)\n lw x10, 0(x10 )");
+        let ast = parser.collect::<Vec<ASTNode>>();
+
+        assert_eq!(
+            ast.data(),
+            vec![
+                load!(Lw X10 X10 0 ),
+                load!(Lw X10 X10 0 ),
+                load!(Lw X10 X10 0 ),
+                load!(Lw X10 X10 0 ),
+                load!(Lw X10 X10 0 ),
+            ].data()
         );
     }
 
