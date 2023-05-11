@@ -5,6 +5,7 @@ use crate::parser::lexer::Lexer;
 use crate::parser::mem::*;
 use crate::parser::register::Register;
 use crate::parser::token::{LineDisplay, Range, Token, WithToken};
+use lsp_types::ExecuteCommandClientCapabilities;
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
@@ -16,7 +17,7 @@ use uuid::Uuid;
 use super::imm;
 // TODO make a test case with every supported RARS instruction
 use super::inst::{self, InstType};
-use super::token::{TokenInfo, SymbolData};
+use super::token::{TokenInfo};
 
 // Since we use equality as a way to compare uuids of nodes, this trait is a
 // way to check that the contents of an ast node are equal. This is used in
@@ -77,7 +78,10 @@ impl FromStr for LabelString {
         }
 
         // ensure string only contains safe characters (including numbers)
-        if !s.chars().all(|c| c.is_digit(10) || c.is_alphabetic() || c == '_' || c == '.' || c == '$') {
+        if !s
+            .chars()
+            .all(|c| c.is_digit(10) || c.is_alphabetic() || c == '_' || c == '.' || c == '$')
+        {
             return Err(());
         }
         Ok(LabelString(s.to_string()))
@@ -162,8 +166,6 @@ pub struct CSRI {
     pub imm: WithToken<Imm>,
     pub key: Uuid,
 }
-
-
 
 #[derive(Debug, Clone)]
 pub struct Ignore {
@@ -538,93 +540,93 @@ impl ToDisplayForVecASTNode for Vec<ASTNode> {
 impl Display for ASTNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let res = match &self {
-                ASTNode::UpperArith(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let rd = x.rd.data.to_string();
-                    let imm = x.imm.data.0.to_string();
-                    format!("{} {} <- {}", inst, rd, imm)
-                }
-                ASTNode::Arith(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let rd = x.rd.data.to_string();
-                    let rs1 = x.rs1.data.to_string();
-                    let rs2 = x.rs2.data.to_string();
-                    format!("{} {} <- {}, {}", inst, rd, rs1, rs2)
-                }
-                ASTNode::IArith(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let rd = x.rd.data.to_string();
-                    let rs1 = x.rs1.data.to_string();
-                    let imm = x.imm.data.0.to_string();
-                    format!("{} {} <- {}, {}", inst, rd, rs1, imm)
-                }
-                ASTNode::Label(x) => format!("---[{}]---", x.name.data.0),
-                ASTNode::JumpLink(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let name = x.name.data.0.to_string();
-                    let rd = x.rd.data.to_string();
-                    format!("{} [{}] | {} <- PC", inst, name, rd)
-                }
-                ASTNode::JumpLinkR(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let rs1 = x.rs1.data.to_string();
-                    format!("{} [{}]", inst, rs1)
-                }
-                ASTNode::Basic(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    format!("{}", inst)
-                }
-                ASTNode::Directive(x) => {
-                    let dir = x.dir.data.to_string();
-                    format!("-<{}>-", dir)
-                }
-                ASTNode::Branch(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let rs1 = x.rs1.data.to_string();
-                    let rs2 = x.rs2.data.to_string();
-                    let name = x.name.data.0.to_string();
-                    format!("{} {}--{}, [{}]", inst, rs1, rs2, name)
-                }
-                ASTNode::Store(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let rs1 = x.rs1.data.to_string();
-                    let rs2 = x.rs2.data.to_string();
-                    let imm = x.imm.data.0.to_string();
-                    format!("{} {} -> {}({})", inst, rs2, imm, rs1)
-                }
-                ASTNode::Load(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let rd = x.rd.data.to_string();
-                    let rs1 = x.rs1.data.to_string();
-                    let imm = x.imm.data.0.to_string();
-                    format!("{} {} <- {}({})", inst, rd, imm, rs1)
-                }
-                // TODO don't use the pseudo type here
-                ASTNode::LoadAddr(x) => {
-                    let inst = "la";
-                    let rd = x.rd.data.to_string();
-                    let name = x.name.data.0.to_string();
-                    format!("{} {} <- [{}]", inst, rd, name)
-                }
-                ASTNode::CSR(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let rd = x.rd.data.to_string();
-                    let csr = x.csr.data.0.to_string();
-                    let rs1 = x.rs1.data.to_string();
-                    format!("{} {} <- {} <- {}", inst, rd, csr, rs1)
-                }
-                ASTNode::CSRImm(x) => {
-                    let inst: Inst = Inst::from(&x.inst.data);
-                    let rd = x.rd.data.to_string();
-                    let csr = x.csr.data.0.to_string();
-                    let imm = x.imm.data.0.to_string();
-                    format!("{} {} <- {} <- {}", inst, rd, csr, imm)
-                }
-                ASTNode::Ignore(_) => {
-                    format!("<ignored>")
-                }
-            };
-            write!(f, "{}", res)
+            ASTNode::UpperArith(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let rd = x.rd.data.to_string();
+                let imm = x.imm.data.0.to_string();
+                format!("{} {} <- {}", inst, rd, imm)
+            }
+            ASTNode::Arith(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let rd = x.rd.data.to_string();
+                let rs1 = x.rs1.data.to_string();
+                let rs2 = x.rs2.data.to_string();
+                format!("{} {} <- {}, {}", inst, rd, rs1, rs2)
+            }
+            ASTNode::IArith(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let rd = x.rd.data.to_string();
+                let rs1 = x.rs1.data.to_string();
+                let imm = x.imm.data.0.to_string();
+                format!("{} {} <- {}, {}", inst, rd, rs1, imm)
+            }
+            ASTNode::Label(x) => format!("---[{}]---", x.name.data.0),
+            ASTNode::JumpLink(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let name = x.name.data.0.to_string();
+                let rd = x.rd.data.to_string();
+                format!("{} [{}] | {} <- PC", inst, name, rd)
+            }
+            ASTNode::JumpLinkR(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let rs1 = x.rs1.data.to_string();
+                format!("{} [{}]", inst, rs1)
+            }
+            ASTNode::Basic(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                format!("{}", inst)
+            }
+            ASTNode::Directive(x) => {
+                let dir = x.dir.data.to_string();
+                format!("-<{}>-", dir)
+            }
+            ASTNode::Branch(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let rs1 = x.rs1.data.to_string();
+                let rs2 = x.rs2.data.to_string();
+                let name = x.name.data.0.to_string();
+                format!("{} {}--{}, [{}]", inst, rs1, rs2, name)
+            }
+            ASTNode::Store(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let rs1 = x.rs1.data.to_string();
+                let rs2 = x.rs2.data.to_string();
+                let imm = x.imm.data.0.to_string();
+                format!("{} {} -> {}({})", inst, rs2, imm, rs1)
+            }
+            ASTNode::Load(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let rd = x.rd.data.to_string();
+                let rs1 = x.rs1.data.to_string();
+                let imm = x.imm.data.0.to_string();
+                format!("{} {} <- {}({})", inst, rd, imm, rs1)
+            }
+            // TODO don't use the pseudo type here
+            ASTNode::LoadAddr(x) => {
+                let inst = "la";
+                let rd = x.rd.data.to_string();
+                let name = x.name.data.0.to_string();
+                format!("{} {} <- [{}]", inst, rd, name)
+            }
+            ASTNode::CSR(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let rd = x.rd.data.to_string();
+                let csr = x.csr.data.0.to_string();
+                let rs1 = x.rs1.data.to_string();
+                format!("{} {} <- {} <- {}", inst, rd, csr, rs1)
+            }
+            ASTNode::CSRImm(x) => {
+                let inst: Inst = Inst::from(&x.inst.data);
+                let rd = x.rd.data.to_string();
+                let csr = x.csr.data.0.to_string();
+                let imm = x.imm.data.0.to_string();
+                format!("{} {} <- {} <- {}", inst, rd, csr, imm)
+            }
+            ASTNode::Ignore(_) => {
+                format!("<ignored>")
+            }
+        };
+        write!(f, "{}", res)
     }
 }
 
@@ -748,11 +750,27 @@ impl TryFrom<TokenInfo> for LabelString {
     }
 }
 
-impl TryFrom<SymbolData> for LabelString {
+impl TryFrom<String> for LabelString {
     type Error = ();
 
-    fn try_from(value: SymbolData) -> Result<Self, Self::Error> {
-        LabelString::from_str(&value.0)
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        LabelString::from_str(&value)
+    }
+}
+
+fn expect_lparen(value: Option<&TokenInfo>) -> Result<(), ParseError> {
+    let v = value.ok_or(ParseError::UnexpectedEOF)?;
+    match v.token {
+        Token::LParen => Ok(()),
+        _ => Err(ParseError::UnexpectedToken(v.to_owned())),
+    }
+}
+
+fn expect_rparen(value: Option<TokenInfo>) -> Result<(), ParseError> {
+    let v = value.ok_or(ParseError::UnexpectedEOF)?;
+    match v.token {
+        Token::RParen => Ok(()),
+        _ => Err(ParseError::UnexpectedToken(v)),
     }
 }
 
@@ -771,51 +789,16 @@ fn get_label(value: Option<TokenInfo>) -> Result<WithToken<LabelString>, ParseEr
     WithToken::<LabelString>::try_from(v.clone()).map_err(|_| ParseError::ExpectedLabel(v))
 }
 
-fn get_mem(value: Option<TokenInfo>) -> Result<WithToken<Mem>, ParseError> {
-    let v = value.ok_or(ParseError::UnexpectedEOF)?;
-    WithToken::<Mem>::try_from(v.clone()).map_err(|_| ParseError::ExpectedMem(v))
-}
-
 fn get_csrimm(value: Option<TokenInfo>) -> Result<WithToken<CSRImm>, ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     WithToken::<CSRImm>::try_from(v.clone()).map_err(|_| ParseError::ExpectedImm(v))
 }
 
-// The Lexer might split memory labels, this function recovers all tokens in a 
-// row onward and returns a new combined token to be used in parsing
-fn recover_mem_fail(curr: Option<TokenInfo>, value: &mut Peekable<Lexer>) -> Result<TokenInfo, ParseError> {
-    let mut token = curr.ok_or(ParseError::UnexpectedEOF)?;
-    dbg!(&token);
-    if !matches!(token.token, Token::Symbol(_)) {
-        return Err(ParseError::UnexpectedToken(token.clone()));
-    }
-    let mut tokens = vec![token.clone()];
-    while let Some(next_token) = value.peek() {
-        if let Token::Symbol(_) = next_token.token {
-            tokens.push(value.next().ok_or(ParseError::UnexpectedEOF)?);
-            value.next();
-        } else {
-            break;
-        }
-    }
-    let token_str = tokens
-        .iter()
-        .map(|t| match &t.token {
-            Token::Symbol(s) => s.0.clone(),
-            _ => unreachable!("only symbols should be in tokens vec"),
-        })
-        .collect::<Vec<String>>()
-        .join("");
-    token.token = Token::Symbol(SymbolData(token_str));
-    token.pos.end = tokens.last().ok_or(ParseError::UnexpectedEOF)?.pos.end.clone();
-    Ok(token)
-}
-
 impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
     // TODO errors are not robust
-                            // TODO ensure that symbol is not a register
-                            // TODO how is error handling handled for non registers
-                            // TODO .clone() is probably not what we want
+    // TODO ensure that symbol is not a register
+    // TODO how is error handling handled for non registers
+    // TODO .clone() is probably not what we want
     type Error = ParseError;
 
     fn try_from(value: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
@@ -824,7 +807,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
         match &next_node.token {
             Token::Symbol(s) => {
                 // TODO implement loads with % syntax
-                if let Ok(inst) = Inst::try_from(s) {
+                if let Ok(inst) = Inst::from_str(s) {
                     let node = match InstType::from(&inst) {
                         InstType::CSRIType(inst) => {
                             let rd = get_reg(value.next())?;
@@ -900,7 +883,6 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                             };
                         }
                         InstType::JumpLinkRType(inst) => {
-
                             let reg1 = get_reg(value.next())?;
                             let next = value.next();
                             return if let Ok(rs1) = get_reg(next.clone()) {
@@ -911,20 +893,25 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     rs1,
                                     imm,
                                 ))
-                            } else if let Ok(mem) = get_mem(next.clone()) {
-                                Ok(ASTNode::new_jump_link_r(
-                                    WithToken::new(inst, next_node),
-                                    reg1,
-                                    mem.data.reg,
-                                    mem.data.offset,
-                                ))
                             } else if let Ok(imm) = get_imm(next) {
-                                Ok(ASTNode::new_jump_link_r(
-                                    WithToken::new(inst, next_node.clone()),
-                                    WithToken::new(Register::X1, next_node),
-                                    reg1,
-                                    imm,
-                                ))
+                                if let Ok(()) = expect_lparen(value.peek()) {
+                                    value.next();
+                                    let rs1 = get_reg(value.next())?;
+                                    expect_rparen(value.next())?;
+                                    Ok(ASTNode::new_jump_link_r(
+                                        WithToken::new(inst, next_node),
+                                        reg1,
+                                        rs1,
+                                        imm,
+                                    ))
+                                } else {
+                                    Ok(ASTNode::new_jump_link_r(
+                                        WithToken::new(inst, next_node.clone()),
+                                        WithToken::new(Register::X1, next_node),
+                                        reg1,
+                                        imm,
+                                    ))
+                                }
                             } else {
                                 Ok(ASTNode::new_jump_link_r(
                                     WithToken::new(inst, next_node.clone()),
@@ -939,32 +926,37 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                             let next = value.next();
                             dbg!(next.clone());
                             return if let Ok(imm) = get_imm(next.clone()) {
-                                Ok(ASTNode::new_load(
-                                    WithToken::new(inst, next_node.clone()),
-                                    rd,
-                                    WithToken::new(Register::X0, next_node),
-                                    imm,
-                                ))
+                                if let Ok(()) = expect_lparen(value.peek()) {
+                                    value.next();
+                                    let rs1 = get_reg(value.next())?;
+                                    expect_rparen(value.next())?;
+                                    Ok(ASTNode::new_load(
+                                        WithToken::new(inst, next_node),
+                                        rd,
+                                        rs1,
+                                        imm,
+                                    ))
+                                } else {
+                                    Ok(ASTNode::new_load(
+                                        WithToken::new(inst, next_node.clone()),
+                                        rd,
+                                        WithToken::new(Register::X0, next_node),
+                                        imm,
+                                    ))
+                                }
                             } else if let Ok(label) = get_label(next.clone()) {
                                 Err(NeedTwoNodes(
                                     ASTNode::new_load_addr(
                                         WithToken::new(PseudoType::La, next_node.clone()),
                                         rd.clone(),
-                                        label),
+                                        label,
+                                    ),
                                     ASTNode::new_load(
                                         WithToken::new(inst, next_node.clone()),
                                         rd.clone(),
                                         rd,
                                         WithToken::new(Imm(0), next_node),
                                     ),
-                                ))
-                            } else if let Ok(new_token) = recover_mem_fail(next, value) {
-                                let mem = get_mem(Some(new_token))?;
-                                Ok(ASTNode::new_load(
-                                    WithToken::new(inst, next_node),
-                                    rd,
-                                    mem.data.reg,
-                                    mem.data.offset,
                                 ))
                             } else {
                                 Err(UnexpectedToken(next_node))
@@ -974,27 +966,33 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                             let rs2 = get_reg(value.next())?;
                             let next = value.next();
 
-                            return if let Ok(mem) = get_mem(next.clone()) {
-                                Ok(ASTNode::new_store(
-                                    WithToken::new(inst, next_node),
-                                    rs2,
-                                    mem.data.reg,
-                                    mem.data.offset,
-                                ))
-                            } else if let Ok(imm) = get_imm(next.clone()) {
-                                Ok(ASTNode::new_store(
-                                    WithToken::new(inst, next_node.clone()),
-                                    rs2,
-                                    WithToken::new(Register::X0, next_node),
-                                    imm,
-                                ))
+                            return if let Ok(imm) = get_imm(next.clone()) {
+                                if let Ok(()) = expect_lparen(value.peek()) {
+                                    value.next();
+                                    let rs1 = get_reg(value.next())?;
+                                    expect_rparen(value.next())?;
+                                    Ok(ASTNode::new_store(
+                                        WithToken::new(inst, next_node),
+                                        rs2,
+                                        rs1,
+                                        imm,
+                                    ))
+                                } else {
+                                    Ok(ASTNode::new_store(
+                                        WithToken::new(inst, next_node.clone()),
+                                        rs2,
+                                        WithToken::new(Register::X0, next_node),
+                                        imm,
+                                    ))
+                                }
                             } else if let Ok(label) = get_label(next) {
                                 let temp_reg = get_reg(value.next())?;
                                 Err(NeedTwoNodes(
                                     ASTNode::new_load_addr(
                                         WithToken::new(PseudoType::La, next_node.clone()),
                                         temp_reg.clone(),
-                                        label),
+                                        label,
+                                    ),
                                     ASTNode::new_store(
                                         WithToken::new(inst, next_node.clone()),
                                         rs2,
@@ -1078,7 +1076,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         WithToken::new(Imm(0), next_node.clone()),
                                     ));
-                                },
+                                }
                                 PseudoType::Beqz => {
                                     let rs1 = get_reg(value.next())?;
                                     let label = get_label(value.next())?;
@@ -1088,7 +1086,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X0, next_node.clone()),
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Bnez => {
                                     let rs1 = get_reg(value.next())?;
                                     let label = get_label(value.next())?;
@@ -1098,7 +1096,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X0, next_node.clone()),
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Bltz => {
                                     let rs1 = get_reg(value.next())?;
                                     let label = get_label(value.next())?;
@@ -1108,7 +1106,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X0, next_node.clone()),
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Neg => {
                                     let rd = get_reg(value.next())?;
                                     let rs1 = get_reg(value.next())?;
@@ -1118,7 +1116,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X0, next_node.clone()),
                                         rs1,
                                     ));
-                                },
+                                }
                                 PseudoType::Not => {
                                     let rd = get_reg(value.next())?;
                                     let rs1 = get_reg(value.next())?;
@@ -1128,7 +1126,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         WithToken::new(Imm(-1), next_node.clone()),
                                     ));
-                                },
+                                }
                                 PseudoType::Seqz => {
                                     let rd = get_reg(value.next())?;
                                     let rs1 = get_reg(value.next())?;
@@ -1138,7 +1136,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         WithToken::new(Imm(1), next_node.clone()),
                                     ));
-                                },
+                                }
                                 PseudoType::Snez => {
                                     let rd = get_reg(value.next())?;
                                     let rs1 = get_reg(value.next())?;
@@ -1148,7 +1146,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         WithToken::new(Imm(0), next_node.clone()),
                                     ));
-                                },
+                                }
                                 PseudoType::Nop => {
                                     return Ok(ASTNode::new_iarith(
                                         WithToken::new(IArithType::Addi, next_node.clone()),
@@ -1156,7 +1154,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X0, next_node.clone()),
                                         WithToken::new(Imm(0), next_node.clone()),
                                     ));
-                                },
+                                }
                                 PseudoType::Bgez => {
                                     let rs1 = get_reg(value.next())?;
                                     let label = get_label(value.next())?;
@@ -1166,7 +1164,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X0, next_node.clone()),
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Sgtz => {
                                     let rd = get_reg(value.next())?;
                                     let rs1 = get_reg(value.next())?;
@@ -1176,7 +1174,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X0, next_node.clone()),
                                         rs1,
                                     ));
-                                },
+                                }
                                 PseudoType::Sltz => {
                                     let rd = get_reg(value.next())?;
                                     let rs1 = get_reg(value.next())?;
@@ -1186,7 +1184,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         WithToken::new(Register::X0, next_node.clone()),
                                     ));
-                                },
+                                }
                                 PseudoType::Sgez => {
                                     let rs1 = get_reg(value.next())?;
                                     let label = get_label(value.next())?;
@@ -1196,7 +1194,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Call => {
                                     let label = get_label(value.next())?;
                                     return Ok(ASTNode::new_jump_link(
@@ -1204,7 +1202,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X1, next_node.clone()),
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Bgt => {
                                     let rs1 = get_reg(value.next())?;
                                     let rs2 = get_reg(value.next())?;
@@ -1215,7 +1213,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Ble => {
                                     let rs1 = get_reg(value.next())?;
                                     let rs2 = get_reg(value.next())?;
@@ -1226,7 +1224,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Bgtu => {
                                     let rs1 = get_reg(value.next())?;
                                     let rs2 = get_reg(value.next())?;
@@ -1237,7 +1235,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Bleu => {
                                     let rs1 = get_reg(value.next())?;
                                     let rs2 = get_reg(value.next())?;
@@ -1248,7 +1246,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         rs1,
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Bgtz => {
                                     let rs1 = get_reg(value.next())?;
                                     let label = get_label(value.next())?;
@@ -1258,7 +1256,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X0, next_node.clone()),
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Blez => {
                                     let rs1 = get_reg(value.next())?;
                                     let label = get_label(value.next())?;
@@ -1268,7 +1266,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Register::X0, next_node.clone()),
                                         label,
                                     ));
-                                },
+                                }
                                 PseudoType::Csrci | PseudoType::Csrsi | PseudoType::Csrwi => {
                                     let csr = get_csrimm(value.next())?;
                                     let imm = get_imm(value.next())?;
@@ -1284,7 +1282,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         csr,
                                         imm,
                                     ));
-                                },
+                                }
                                 PseudoType::Csrc | PseudoType::Csrs | PseudoType::Csrw => {
                                     let rs1 = get_reg(value.next())?;
                                     let csr = get_csrimm(value.next())?;
@@ -1300,7 +1298,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         csr,
                                         rs1,
                                     ));
-                                },
+                                }
                                 PseudoType::Csrr => {
                                     let rd = get_reg(value.next())?;
                                     let csr = get_csrimm(value.next())?;
@@ -1310,9 +1308,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         csr,
                                         WithToken::new(Register::X0, next_node.clone()),
                                     ));
-                                },
-
-
+                                }
                             }
                         }
                     };
@@ -1320,7 +1316,11 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                 }
                 Err(UnexpectedToken(next_node))
             }
-            Token::Label(s) => Ok(ASTNode::new_label(WithToken::new(LabelString::from_str(s).map_err(|_| ParseError::ExpectedLabel(next_node.clone()))?, next_node))),
+            Token::Label(s) => Ok(ASTNode::new_label(WithToken::new(
+                LabelString::from_str(s)
+                    .map_err(|_| ParseError::ExpectedLabel(next_node.clone()))?,
+                next_node,
+            ))),
             Token::Directive(_) => Err(Ignored(next_node)),
             Token::Newline => Err(IsNewline(next_node)),
             _ => unimplemented!(),

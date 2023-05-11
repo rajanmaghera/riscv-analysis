@@ -1,9 +1,3 @@
-// For tokenizing, we are gonna use the most basic tokens.
-// The rest can be done during parsing.
-//
-// This just makes my job easier. In the future, we may
-// want to do this another way.
-
 // TODO use copy over clone
 
 use std::fmt::Display;
@@ -28,16 +22,31 @@ pub struct TokenInfo {
     pub pos: Range,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct SymbolData(pub String);
+/* TOKEN TYPES
+ * Our token types are very simple. We have the following
+ * basic tokens:
+ * - LParen '('
+ * - RParen ')'
+ * - Newline '\n'
+ * 
+ * We also have the following tokens to encapsulate extra data:
+ * - Label: text ending in ':'
+ * - Directive: text starting with '.'
+ * - String: text enclosed in double quotes
+ * 
+ * Finally, we have Symbol. This can include instructions, registers,
+ * numbers, minus everything above. While parsing, we attempt to convert
+ * these into the appropriate types, and based on those errors, we can 
+ * determine what the symbol is.
+ */
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
-    Colon,
-    Comma,
+    LParen,
+    RParen,
     Newline,
-    Label(String), // A label has to end with a : without any whitespace
-    Symbol(SymbolData),
+    Label(String),
+    Symbol(String),
     Directive(String),
     String(String),
 }
@@ -64,13 +73,13 @@ impl Display for TokenInfo {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Colon => write!(f, "(COLON) "),
-            Token::Comma => write!(f, "(COMMA) "),
             Token::Label(s) => write!(f, "[label: {}]\n", s),
-            Token::Symbol(s) => write!(f, "<{}> ", s.0),
+            Token::Symbol(s) => write!(f, "<{}> ", s),
             Token::Directive(s) => write!(f, "[directive: {}] ", s),
             Token::String(s) => write!(f, "\"{}\"", s),
             Token::Newline => write!(f, "<NL>\n"),
+            Token::LParen => write!(f, "("),
+            Token::RParen => write!(f, ")"),
         }
     }
 }
@@ -149,7 +158,7 @@ where
     // TODO should only be used in testing, get rid of later
     pub fn blank(data: T) -> Self {
         WithToken {
-            token: Token::Symbol(SymbolData("".to_owned())),
+            token: Token::Symbol("".to_owned()),
             pos: Range {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
@@ -183,7 +192,7 @@ impl TryFrom<TokenInfo> for String {
 
     fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) => Ok(s.0),
+            Token::Symbol(s) => Ok(s),
             _ => Err(format!("Expected symbol, got {:?}", value.token)),
         }
     }
@@ -195,12 +204,6 @@ where
 {
     fn eq(&self, other: &T) -> bool {
         self.data == *other
-    }
-}
-
-impl From<&str> for SymbolData {
-    fn from(s: &str) -> Self {
-        SymbolData(s.to_owned())
     }
 }
 
