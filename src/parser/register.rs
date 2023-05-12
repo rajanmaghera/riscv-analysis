@@ -1,5 +1,9 @@
 use crate::parser::token::{Token, TokenInfo};
-use std::{convert::TryFrom, str::FromStr};
+use std::{
+    convert::TryFrom,
+    hash::{Hash, Hasher},
+    str::FromStr,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Register {
@@ -126,5 +130,88 @@ impl ToString for Register {
             Register::X30 => "x30".to_owned(),
             Register::X31 => "x31".to_owned(),
         }
+    }
+}
+
+impl Register {
+    pub fn from_num(num: u8) -> Register {
+        match num {
+            0 => Register::X0,
+            1 => Register::X1,
+            2 => Register::X2,
+            3 => Register::X3,
+            4 => Register::X4,
+            5 => Register::X5,
+            6 => Register::X6,
+            7 => Register::X7,
+            8 => Register::X8,
+            9 => Register::X9,
+            10 => Register::X10,
+            11 => Register::X11,
+            12 => Register::X12,
+            13 => Register::X13,
+            14 => Register::X14,
+            15 => Register::X15,
+            16 => Register::X16,
+            17 => Register::X17,
+            18 => Register::X18,
+            19 => Register::X19,
+            20 => Register::X20,
+            21 => Register::X21,
+            22 => Register::X22,
+            23 => Register::X23,
+            24 => Register::X24,
+            25 => Register::X25,
+            26 => Register::X26,
+            27 => Register::X27,
+            28 => Register::X28,
+            29 => Register::X29,
+            30 => Register::X30,
+            31 => Register::X31,
+            _ => panic!("Invalid register number"),
+        }
+    }
+
+    pub fn to_num(&self) -> u8 {
+        match self {
+            Register::X0 => 0,
+            Register::X1 => 1,
+            Register::X2 => 2,
+            Register::X3 => 3,
+            Register::X4 => 4,
+            Register::X5 => 5,
+            Register::X6 => 6,
+            Register::X7 => 7,
+            Register::X8 => 8,
+            Register::X9 => 9,
+            Register::X10 => 10,
+            Register::X11 => 11,
+            Register::X12 => 12,
+            Register::X13 => 13,
+            Register::X14 => 14,
+            Register::X15 => 15,
+            Register::X16 => 16,
+            Register::X17 => 17,
+            Register::X18 => 18,
+            Register::X19 => 19,
+            Register::X20 => 20,
+            Register::X21 => 21,
+            Register::X22 => 22,
+            Register::X23 => 23,
+            Register::X24 => 24,
+            Register::X25 => 25,
+            Register::X26 => 26,
+            Register::X27 => 27,
+            Register::X28 => 28,
+            Register::X29 => 29,
+            Register::X30 => 30,
+            Register::X31 => 31,
+        }
+    }
+}
+
+impl Hash for Register {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_num().hash(state);
     }
 }

@@ -21,7 +21,7 @@ use super::token::TokenInfo;
 // Since we use equality as a way to compare uuids of nodes, this trait is a
 // way to check that the contents of an ast node are equal. This is used in
 // testing, mostly.
-trait NodeData {
+pub trait NodeData {
     fn get_id(&self) -> Uuid;
 }
 
@@ -311,6 +311,18 @@ impl Hash for dyn NodeData {
     }
 }
 
+impl PartialEq for ASTNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_id() == other.get_id()
+    }
+}
+impl Eq for ASTNode {}
+impl Hash for ASTNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_id().hash(state);
+    }
+}
+
 impl ASTNode {
     // TODO derive AST new funcs using procedural macros
 
@@ -507,6 +519,28 @@ impl ASTNode {
             ASTNode::JumpLinkR(_) => true,
             ASTNode::Branch(_) => true,
             _ => false,
+        }
+    }
+
+    // right now only checks if this is specific return statement
+    pub fn is_halt(&self) -> bool {
+        match self {
+            ASTNode::JumpLinkR(x) => {
+                x.inst == JumpLinkRType::Jalr
+                    && x.rd == Register::X0
+                    && x.rs1 == Register::X1
+                    && x.imm == Imm(0)
+            }
+            _ => false,
+        }
+    }
+
+    // checks if a node jumps to another INTERNAL node
+    pub fn jumps_to(&self) -> Option<WithToken<LabelString>> {
+        match self {
+            ASTNode::JumpLink(x) => Some(x.name.to_owned()),
+            ASTNode::Branch(x) => Some(x.name.to_owned()),
+            _ => None,
         }
     }
 
