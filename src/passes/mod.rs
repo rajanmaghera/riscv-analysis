@@ -1,8 +1,11 @@
 use crate::cfg::{BasicBlock, CFG};
+use crate::parser::ast::{self, ASTNode, NodeData};
 use crate::parser::register::Register;
 use crate::parser::token::{LineDisplay, Range};
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::fmt::Display;
+use std::hash::Hash;
 use std::rc::Rc;
 
 // TODO switch to types that take up zero space
@@ -94,28 +97,297 @@ struct Direction {
 
 type LabelMap = HashMap<String, Rc<BasicBlock>>;
 
-trait DirectionalCFG {
-    fn calculate_directions(&self) -> DirectionMap;
+pub trait DirectionalCFG {
+    fn calculate_directions(&self) -> DirectionalWrapper<'_>;
     fn calculate_labels(&self) -> LabelMap;
 }
 
-struct UseDef {
-    use_: HashSet<Register>,
-    def: HashSet<Register>,
+pub struct DirectionalWrapper<'a> {
+    cfg: &'a CFG,
+    directions: DirectionMap,
 }
 
-struct GenKill {
-    gen: HashSet<Register>,
-    kill: HashSet<Register>,
+pub trait UseDefItems {
+    fn uses(&self) -> HashSet<Register>;
+    fn defs(&self) -> HashSet<Register>;
 }
-// TODO left off here
+
+impl UseDefItems for ASTNode {
+    fn defs(&self) -> HashSet<Register> {
+        let reg = match self.to_owned() {
+            ASTNode::Arith(x) => Some(x.rd),
+            ASTNode::IArith(x) => Some(x.rd),
+            ASTNode::UpperArith(x) => Some(x.rd),
+            ASTNode::Label(_) => None,
+            ASTNode::JumpLink(x) => Some(x.rd),
+            ASTNode::JumpLinkR(x) => Some(x.rd),
+            ASTNode::Basic(_) => None,
+            ASTNode::Directive(_) => None,
+            ASTNode::Branch(_) => None,
+            ASTNode::Store(_) => None,
+            ASTNode::Load(x) => Some(x.rd),
+            ASTNode::LoadAddr(x) => Some(x.rd),
+            ASTNode::CSR(x) => Some(x.rd),
+            ASTNode::CSRImm(x) => Some(x.rd),
+        };
+        // skip x0-x4
+        if let Some(reg) = reg {
+            if reg == Register::X0
+                || reg == Register::X1
+                || reg == Register::X2
+                || reg == Register::X3
+                || reg == Register::X4
+            {
+                HashSet::new()
+            } else {
+                let mut set = HashSet::new();
+                set.insert(reg.data);
+                set
+            }
+        } else {
+            HashSet::new()
+        }
+    }
+    fn uses(&self) -> HashSet<Register> {
+        let regs: HashSet<Register> = match self {
+            ASTNode::Arith(x) => vec![x.rs1.data, x.rs2.data].into_iter().collect(),
+            ASTNode::IArith(x) => vec![x.rs1.data].into_iter().collect(),
+            ASTNode::UpperArith(x) => HashSet::new(),
+            ASTNode::Label(_) => HashSet::new(),
+            ASTNode::JumpLink(x) => HashSet::new(),
+            ASTNode::JumpLinkR(x) => vec![x.rs1.data].into_iter().collect(),
+            ASTNode::Basic(_) => HashSet::new(),
+            ASTNode::Directive(_) => HashSet::new(),
+            ASTNode::Branch(x) => vec![x.rs1.data, x.rs2.data].into_iter().collect(),
+            ASTNode::Store(x) => vec![x.rs1.data, x.rs2.data].into_iter().collect(),
+            ASTNode::Load(x) => vec![x.rs1.data].into_iter().collect(),
+            ASTNode::LoadAddr(_) => HashSet::new(),
+            ASTNode::CSR(x) => vec![x.rs1.data].into_iter().collect(),
+            ASTNode::CSRImm(_) => HashSet::new(),
+        };
+        // filter out x0 to x4
+        regs.into_iter()
+            .filter(|x| {
+                *x != Register::X0
+                    && *x != Register::X1
+                    && *x != Register::X2
+                    && *x != Register::X3
+                    && *x != Register::X4
+            })
+            .collect::<HashSet<_>>()
+    }
+}
+
+trait InOutRegs {
+    fn in_regs(&self) -> HashSet<Register>;
+    fn out_regs(&self) -> HashSet<Register>;
+}
+
+trait ToRegBitmap {
+    fn to_bitmap(&self) -> u32;
+}
+
+trait ToRegHashset {
+    fn to_hashset(&self) -> HashSet<Register>;
+}
+
+impl ToRegBitmap for HashSet<Register> {
+    fn to_bitmap(&self) -> u32 {
+        convert_to_bitmap(self.clone())
+    }
+}
+
+impl ToRegHashset for u32 {
+    fn to_hashset(&self) -> HashSet<Register> {
+        convert_to_hashset(*self)
+    }
+}
+
+fn convert_to_hashset(bitmap: u32) -> HashSet<Register> {
+    let mut set = HashSet::new();
+    for i in 0..32 {
+        if bitmap & (1 << i) != 0 {
+            set.insert(Register::from_num(i));
+        }
+    }
+    set
+}
+
+fn convert_to_bitmap(set: HashSet<Register>) -> u32 {
+    let mut bitmap = 0;
+    for reg in set {
+        bitmap |= 1 << reg.to_num();
+    }
+    bitmap
+}
+
+// calculate the in and out registers for every statement
+impl DirectionalWrapper<'_> {
+    pub fn calculate_in_out(&self) -> () {
+        // initialize the in and out registers for every statement
+        // TODO switch to structs that are a bit more typesafe
+        let mut defs = Vec::new();
+        let mut uses = Vec::new();
+        let mut ins = Vec::new();
+        let mut outs = Vec::new();
+        let mut nexts = Vec::new();
+        let mut prevs = Vec::new();
+        let mut astidx = HashMap::new();
+        for block in &self.cfg.blocks {
+            let len = block.0.len();
+            for (i, node) in block.0.iter().enumerate() {
+                // TODO ensure basic block cannot be empty
+                astidx.insert(node.clone(), i);
+
+                // determine previous of each node
+                if i == 0 {
+                    let block = self.directions.get(block).unwrap().prev.clone();
+                    let mut prev = HashSet::new();
+                    for item in block {
+                        prev.insert(item.0.last().unwrap().to_owned());
+                    }
+                    prevs.push(prev);
+                } else {
+                    let mut prev = HashSet::new();
+                    prev.insert(block.0[i - 1].clone());
+                    prevs.push(prev);
+                }
+
+                // determine next of each node
+                if i == len - 1 {
+                    let block = self.directions.get(block).unwrap().next.clone();
+                    let mut next = HashSet::new();
+                    for item in block {
+                        next.insert(item.0.first().unwrap().to_owned());
+                    }
+                    nexts.push(next);
+                } else {
+                    let mut next = HashSet::new();
+                    next.insert(block.0[i + 1].clone());
+                    nexts.push(next);
+                }
+
+                uses.push(node.uses().to_bitmap());
+                defs.push(node.defs().to_bitmap());
+                ins.push(0);
+                outs.push(0);
+            }
+        }
+
+        // calculate the in and out registers for every statement
+        let mut changed = true;
+        while changed {
+            changed = false;
+            let len = defs.len();
+            for i in 0..len {
+                // get union of IN of all successors of this node
+                let mut out = 0;
+                for next in &nexts[i] {
+                    let idx = astidx.get(next).unwrap();
+                    out |= ins[*idx].clone();
+                }
+                outs[i] = out;
+
+                // TODO debug, this is incorrect at the moment
+
+                // calculate new IN
+                let in_old = ins[i].clone();
+                ins[i] = uses[i].clone() | (outs[i].clone() & !defs[i].clone());
+                if in_old != ins[i] {
+                    changed = true;
+                }
+            }
+        }
+
+        // convert the in and out registers to hashsets
+        let mut ins_hashset = Vec::new();
+        let mut outs_hashset = Vec::new();
+        for i in 0..ins.len() {
+            ins_hashset.push(ins[i].to_hashset());
+            outs_hashset.push(outs[i].to_hashset());
+        }
+
+        // print the in and out registers
+        for (i, block) in self.cfg.blocks.iter().enumerate() {
+            println!("BLOCK: {}", i);
+            for (j, node) in block.0.iter().enumerate() {
+                println!(
+                    "IN: {:?}, OUT: {:?}, USES: {:?}, DEFS: {:?}",
+                    ins_hashset[i * block.0.len() + j],
+                    outs_hashset[i * block.0.len() + j],
+                    node.uses(),
+                    node.defs()
+                );
+            }
+        }
+    }
+}
+
+impl Display for DirectionalWrapper<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        let mut labels = self.cfg.labels_for_branch.iter();
+
+        for block in self.cfg.blocks.iter() {
+            let prevvec = self
+                .directions
+                .get(block)
+                .unwrap()
+                .prev
+                .iter()
+                .collect::<Vec<_>>()
+                .iter()
+                .map(|x| x.1.as_simple().to_string()[..8].to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            s.push_str(&format!(
+                "ID: {}, LABELS: {:?}, PREV: [{}]\n",
+                block.1.as_simple().to_string()[..8].to_string(),
+                labels.next().unwrap(),
+                prevvec
+            ));
+            s.push_str("/---------\n");
+            for node in block.0.iter() {
+                s.push_str(&format!(
+                    "| {}  [use: ({}), def: ({})]\n",
+                    node,
+                    node.uses()
+                        .into_iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    node.defs()
+                        .into_iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+            }
+            s.push_str("\\--------\n");
+            // convert hashset to vector for display
+            let nextvec = self
+                .directions
+                .get(block)
+                .unwrap()
+                .next
+                .iter()
+                .collect::<Vec<_>>()
+                .iter()
+                .map(|x| x.1.as_simple().to_string()[..8].to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            s.push_str(&format!("NEXT: [{}]\n\n", nextvec));
+        }
+        write!(f, "{}", s)
+    }
+}
 
 impl DirectionalCFG for CFG {
     fn calculate_labels(&self) -> LabelMap {
         self.labels.clone()
     }
 
-    fn calculate_directions(&self) -> DirectionMap {
+    fn calculate_directions(&self) -> DirectionalWrapper<'_> {
         // initialize the direction map
         let mut direction_map = DirectionMap::new();
         for block in self.blocks.clone() {
@@ -128,9 +400,28 @@ impl DirectionalCFG for CFG {
             );
         }
 
-        // calculate next and previous of each BasicBlock with linear scan
         let mut prev: Option<Rc<BasicBlock>> = None;
         for block in self.blocks.clone() {
+            for node in block.0.clone() {
+                if let Some(n) = node.jumps_to() {
+                    // assert that this is the final node in the block
+                    // assert_eq!(block.0.last().unwrap(), &node);
+                    direction_map
+                        .get_mut(&block)
+                        .unwrap()
+                        .next
+                        .insert(self.labels.get(&n.data.0).unwrap().clone());
+                    direction_map
+                        .get_mut(self.labels.get(&n.data.0).unwrap())
+                        .unwrap()
+                        .prev
+                        .insert(block.clone());
+                }
+            }
+
+            // if the current block ends with a halt, we don't want to add it to the previous
+
+            // LIN-SCAN
             if let Some(prev) = prev {
                 direction_map
                     .get_mut(&prev)
@@ -143,15 +434,29 @@ impl DirectionalCFG for CFG {
                     .prev
                     .insert(prev.clone());
             }
-            prev = Some(block.clone());
+
+            // done weird because it's unstable
+            prev = if let Some(fin) = block.0.last() {
+                if fin.is_halt() {
+                    None
+                } else {
+                    Some(block.clone())
+                }
+            } else {
+                Some(block.clone())
+            }
         }
 
+        // JUMP TARGETS
         // TODO find all targets of branches and add them to the next set
         // If we have made our CFG correctly, all possible branches should only
         // ever be at the end of a block, so we can just look at the last node
         // of each block
 
-        direction_map
+        DirectionalWrapper {
+            cfg: self,
+            directions: direction_map,
+        }
     }
 }
 // tests for DirectionalCFG
@@ -171,17 +476,48 @@ mod tests {
         let block3 = blocks.blocks.get(2).unwrap();
 
         let map = blocks.calculate_directions();
-        assert_eq!(map.get(block1).unwrap().prev.len(), 0);
-        assert_eq!(map.get(block1).unwrap().next.len(), 1);
-        assert_eq!(map.get(block2).unwrap().prev.len(), 1);
-        assert_eq!(map.get(block2).unwrap().next.len(), 1);
-        assert_eq!(map.get(block3).unwrap().prev.len(), 1);
-        assert_eq!(map.get(block3).unwrap().next.len(), 0);
-
-        assert_eq!(map.get(block1).unwrap().next.get(block2).unwrap(), block2);
-        assert_eq!(map.get(block2).unwrap().prev.get(block1).unwrap(), block1);
-        assert_eq!(map.get(block2).unwrap().next.get(block3).unwrap(), block3);
-        assert_eq!(map.get(block3).unwrap().prev.get(block2).unwrap(), block2);
+        assert_eq!(map.directions.get(block1).unwrap().prev.len(), 0);
+        assert_eq!(map.directions.get(block1).unwrap().next.len(), 1);
+        assert_eq!(map.directions.get(block2).unwrap().prev.len(), 1);
+        assert_eq!(map.directions.get(block2).unwrap().next.len(), 1);
+        assert_eq!(map.directions.get(block3).unwrap().prev.len(), 1);
+        assert_eq!(map.directions.get(block3).unwrap().next.len(), 0);
+        assert_eq!(
+            map.directions
+                .get(block1)
+                .unwrap()
+                .next
+                .get(block2)
+                .unwrap(),
+            block2
+        );
+        assert_eq!(
+            map.directions
+                .get(block2)
+                .unwrap()
+                .prev
+                .get(block1)
+                .unwrap(),
+            block1
+        );
+        assert_eq!(
+            map.directions
+                .get(block2)
+                .unwrap()
+                .next
+                .get(block3)
+                .unwrap(),
+            block3
+        );
+        assert_eq!(
+            map.directions
+                .get(block3)
+                .unwrap()
+                .prev
+                .get(block2)
+                .unwrap(),
+            block2
+        );
     }
 }
 
