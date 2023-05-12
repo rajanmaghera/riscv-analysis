@@ -1,4 +1,5 @@
 use crate::cfg::CFG;
+use crate::passes::DirectionalCFG;
 use std::str::FromStr;
 
 mod cfg;
@@ -18,8 +19,8 @@ fn main() {
     // TODO use rust cli library
 
     // read argument from command line as filename
-    let filename = std::env::args().nth(1).expect("No filename provided");
-    // let filename = "/Users/rajanmaghera/labs_test_cases/cmput229-fa21/lab_arm-alu-StaticESC/Code/arm_alu.s";
+    // let filename = std::env::args().nth(1).expect("No filename provided");
+    let filename = "/Users/rajanmaghera/sample.s";
     let file = std::fs::read_to_string(filename).expect("Unable to read file");
 
     // create a new lexer and tokenize the file
@@ -29,8 +30,10 @@ fn main() {
     // let parser: Vec<ASTNode> = parser.collect();
     // println!("{}", parser.to_display());
 
-    let _ = CFG::from_str(file.as_str()).expect("Unable to parse file");
-    // println!("{}", cfg);
+    let cfg = CFG::from_str(file.as_str()).expect("Unable to parse file");
+    let dir = cfg.calculate_directions();
+    dir.calculate_in_out();
+    println!("\n{}", dir);
     // println!("{:#?}", cfg);
     // let res = PassManager::new().run(cfg);
 

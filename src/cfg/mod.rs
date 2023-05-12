@@ -133,7 +133,11 @@ impl Display for CFG {
 
         for block in self.blocks.iter() {
             s.push_str("/---------\n");
-            s.push_str(&format!("| LABELS: {:?}\n", labels.next().unwrap()));
+            s.push_str(&format!(
+                "| LABELS: {:?}, ID: {}\n",
+                labels.next().unwrap(),
+                block.1.as_simple().to_string()[..8].to_string()
+            ));
             for node in block.0.iter() {
                 s.push_str(&format!("| {}\n", node));
             }
@@ -169,10 +173,7 @@ impl CFG {
                     }
                     last_labels.push(s.name.data.0);
                 }
-                ASTNode::Branch(_)
-                | ASTNode::JumpLink(_)
-                | ASTNode::JumpLinkR(_)
-                | ASTNode::Basic(_) => {
+                _ if matches!(node.jumps_to(), Some(_)) => {
                     current_block.push(Rc::new(node));
                     // end block
                     let rc = Rc::new(current_block);
