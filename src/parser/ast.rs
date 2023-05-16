@@ -326,6 +326,62 @@ impl Hash for ASTNode {
 impl ASTNode {
     // TODO derive AST new funcs using procedural macros
 
+    pub fn inst(&self) -> WithToken<Inst> {
+        let token = match self {
+            ASTNode::Arith(x) => x.inst.token.clone(),
+            ASTNode::IArith(x) => x.inst.token.clone(),
+            ASTNode::UpperArith(x) => x.inst.token.clone(),
+            ASTNode::Label(x) => x.name.token.clone(),
+            ASTNode::JumpLink(x) => x.inst.token.clone(),
+            ASTNode::JumpLinkR(x) => x.inst.token.clone(),
+            ASTNode::Basic(x) => x.inst.token.clone(),
+            ASTNode::Directive(x) => x.dir.token.clone(),
+            ASTNode::Branch(x) => x.inst.token.clone(),
+            ASTNode::Store(x) => x.inst.token.clone(),
+            ASTNode::Load(x) => x.inst.token.clone(),
+            ASTNode::CSR(x) => x.inst.token.clone(),
+            ASTNode::CSRImm(x) => x.inst.token.clone(),
+            ASTNode::LoadAddr(x) => x.inst.token.clone(),
+        };
+        let inst: Inst = match self {
+            ASTNode::Arith(x) => (&x.inst.data).into(),
+            ASTNode::IArith(x) => (&x.inst.data).into(),
+            ASTNode::UpperArith(x) => (&x.inst.data).into(),
+            ASTNode::Label(_) => Inst::Nop,
+            ASTNode::JumpLink(x) => (&x.inst.data).into(),
+            ASTNode::JumpLinkR(x) => (&x.inst.data).into(),
+            ASTNode::Basic(x) => (&x.inst.data).into(),
+            ASTNode::Directive(x) => Inst::Nop,
+            ASTNode::Branch(x) => (&x.inst.data).into(),
+            ASTNode::Store(x) => (&x.inst.data).into(),
+            ASTNode::Load(x) => (&x.inst.data).into(),
+            ASTNode::CSR(x) => (&x.inst.data).into(),
+            ASTNode::CSRImm(x) => (&x.inst.data).into(),
+            ASTNode::LoadAddr(x) => Inst::La,
+        };
+        let pos = match self {
+            ASTNode::Arith(x) => x.inst.pos.clone(),
+            ASTNode::IArith(x) => x.inst.pos.clone(),
+            ASTNode::UpperArith(x) => x.inst.pos.clone(),
+            ASTNode::Label(x) => x.name.pos.clone(),
+            ASTNode::JumpLink(x) => x.inst.pos.clone(),
+            ASTNode::JumpLinkR(x) => x.inst.pos.clone(),
+            ASTNode::Basic(x) => x.inst.pos.clone(),
+            ASTNode::Directive(x) => x.dir.pos.clone(),
+            ASTNode::Branch(x) => x.inst.pos.clone(),
+            ASTNode::Store(x) => x.inst.pos.clone(),
+            ASTNode::Load(x) => x.inst.pos.clone(),
+            ASTNode::CSR(x) => x.inst.pos.clone(),
+            ASTNode::CSRImm(x) => x.inst.pos.clone(),
+            ASTNode::LoadAddr(x) => x.inst.pos.clone(),
+        };
+        WithToken {
+            token,
+            data: inst,
+            pos,
+        }
+    }
+
     pub fn new_arith(
         inst: WithToken<ArithType>,
         rd: WithToken<Register>,
@@ -522,6 +578,14 @@ impl ASTNode {
         }
     }
 
+    pub fn is_call(&self) -> bool {
+        match self {
+            ASTNode::JumpLink(_) => true,
+            ASTNode::Basic(x) => x.inst == BasicType::Ecall,
+            _ => false,
+        }
+    }
+
     // right now only checks if this is specific return statement
     pub fn is_halt(&self) -> bool {
         match self {
@@ -538,8 +602,14 @@ impl ASTNode {
     // checks if a node jumps to another INTERNAL node
     pub fn jumps_to(&self) -> Option<WithToken<LabelString>> {
         match self {
-            ASTNode::JumpLink(x) => Some(x.name.to_owned()),
             ASTNode::Branch(x) => Some(x.name.to_owned()),
+            _ => None,
+        }
+    }
+
+    pub fn calls_to(&self) -> Option<WithToken<LabelString>> {
+        match self {
+            ASTNode::JumpLink(x) => Some(x.name.to_owned()),
             _ => None,
         }
     }
@@ -671,81 +741,67 @@ impl<'a> fmt::Display for VecASTDisplayWrapper<'a> {
 }
 
 // TODO this might differ based on how the nodes are made
-impl LineDisplay for WithToken<ASTNode> {
+impl LineDisplay for ASTNode {
     fn get_range(&self) -> Range {
-        match &self.data {
+        match &self {
             ASTNode::UpperArith(x) => {
-                let mut range = self.pos.clone();
+                let mut range = x.inst.pos.clone();
                 range.end = x.imm.pos.end.clone();
                 range
             }
-            ASTNode::Label(_) => self.pos.clone(),
+            ASTNode::Label(x) => x.name.pos.clone(),
             ASTNode::Arith(arith) => {
-                let mut range = self.pos.clone();
+                let mut range = arith.inst.pos.clone();
                 range.end = arith.rs2.pos.end.clone();
                 range
             }
             ASTNode::IArith(iarith) => {
-                let mut range = self.pos.clone();
+                let mut range = iarith.inst.pos.clone();
                 range.end = iarith.imm.pos.end.clone();
                 range
             }
             ASTNode::JumpLink(jl) => {
-                let mut range = self.pos.clone();
+                let mut range = jl.inst.pos.clone();
                 range.end = jl.name.pos.end.clone();
                 range
             }
             ASTNode::JumpLinkR(jlr) => {
-                let mut range = self.pos.clone();
+                let mut range = jlr.inst.pos.clone();
                 range.end = jlr.inst.pos.end.clone();
                 range
             }
             ASTNode::Branch(branch) => {
-                let mut range = self.pos.clone();
+                let mut range = branch.inst.pos.clone();
                 range.end = branch.name.pos.end.clone();
                 range
             }
             ASTNode::Store(store) => {
-                let mut range = self.pos.clone();
+                let mut range = store.inst.pos.clone();
                 range.end = store.imm.pos.end.clone();
                 range
             }
             ASTNode::Load(load) => {
-                let mut range = self.pos.clone();
+                let mut range = load.inst.pos.clone();
                 range.end = load.imm.pos.end.clone();
                 range
             }
             ASTNode::CSR(csr) => {
-                let mut range = self.pos.clone();
+                let mut range = csr.inst.pos.clone();
                 range.end = csr.rs1.pos.end.clone();
                 range
             }
             ASTNode::CSRImm(csr) => {
-                let mut range = self.pos.clone();
+                let mut range = csr.inst.pos.clone();
                 range.end = csr.imm.pos.end.clone();
                 range
             }
-            ASTNode::Basic(_) => self.pos.clone(),
-            ASTNode::LoadAddr(_) => self.pos.clone(),
-            ASTNode::Directive(directive) => match &directive.dir.data {
-                DirectiveType::Data => self.pos.clone(),
-                DirectiveType::Text => self.pos.clone(),
-                DirectiveType::Include(incl) => {
-                    let mut range = self.pos.clone();
-                    range.end = incl.pos.end.clone();
-                    range
-                }
-                DirectiveType::Align(align) => {
-                    let mut range = self.pos.clone();
-                    range.end = align.pos.end.clone();
-                    range
-                }
-                DirectiveType::Space(item) => {
-                    let mut range = self.pos.clone();
-                    range.end = item.pos.end.clone();
-                    range
-                }
-            },
+            ASTNode::Basic(x) => x.inst.pos.clone(),
+            ASTNode::LoadAddr(x) => {
+                let mut range = x.inst.pos.clone();
+                range.end = x.name.pos.end.clone();
+                range
+            }
+            ASTNode::Directive(directive) => directive.dir.pos.clone(),
         }
     }
 }
@@ -1128,7 +1184,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     return Ok(ASTNode::new_iarith(
                                         WithToken::new(IArithType::Addi, next_node.clone()),
                                         rd,
-                                        WithToken::new(Register::X0, next_node.clone()),
+                                        WithToken::new(Register::X0, imm.clone().into()),
                                         imm,
                                     ));
                                 }

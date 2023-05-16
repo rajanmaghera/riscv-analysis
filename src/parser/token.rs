@@ -57,6 +57,15 @@ impl PartialEq<Token> for TokenInfo {
     }
 }
 
+impl<T> From<WithToken<T>> for TokenInfo {
+    fn from(w: WithToken<T>) -> Self {
+        TokenInfo {
+            token: w.token,
+            pos: w.pos,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct WithToken<T> {
     pub token: Token,

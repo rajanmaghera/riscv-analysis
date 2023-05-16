@@ -248,7 +248,7 @@ impl Iterator for Lexer {
                     // this is a label
                     self.next_char();
                     let end = Position {
-                        line: start.line,
+                        line: self.row,
                         column: self.col,
                     };
 
@@ -259,9 +259,11 @@ impl Iterator for Lexer {
                 }
 
                 let end = Position {
-                    line: start.line,
+                    line: self.row,
                     column: self.col,
                 };
+
+                dbg!(&end);
 
                 Some(TokenInfo {
                     token: Token::Symbol(symbol_str.to_owned()),
