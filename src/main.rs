@@ -1,5 +1,5 @@
 use crate::cfg::CFG;
-use crate::passes::DirectionalCFG;
+use crate::passes::{DirectionalCFG, PassManager};
 use std::str::FromStr;
 
 mod cfg;
@@ -35,16 +35,16 @@ fn main() {
     dir.calculate_in_out();
     println!("\n{}", dir);
     // println!("{:#?}", cfg);
-    // let res = PassManager::new().run(cfg);
+    let res = PassManager::new().run(cfg);
 
-    // if res.is_err() {
-    //     println!("Errors found:");
-    //     for err in res.err().unwrap().errors {
-    //         println!("{}({}): {}", err, err.range(), err.long_description());
-    //     }
-    // } else {
-    //     println!("No errors found");
-    // }
+    if res.is_err() {
+        println!("Errors found:");
+        for err in res.err().unwrap().errors {
+            println!("{}({}): {}", err, err.range(), err.long_description());
+        }
+    } else {
+        println!("No errors found");
+    }
 }
 
 #[cfg(test)]
