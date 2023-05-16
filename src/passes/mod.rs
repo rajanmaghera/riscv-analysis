@@ -1,11 +1,9 @@
-use crate::cfg::{BasicBlock, CFG};
-use crate::parser::ast::{self, ASTNode, NodeData};
+use crate::cfg::{self, BasicBlock, CFG};
+use crate::parser::ast::ASTNode;
 use crate::parser::register::Register;
 use crate::parser::token::{LineDisplay, Range};
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
-use std::hash::Hash;
 use std::rc::Rc;
 
 // TODO switch to types that take up zero space
@@ -21,7 +19,8 @@ trait Pass {
 
 #[derive(Debug)]
 pub enum PassError {
-    UnusedValue(Range),
+    InvalidUseAfterCall(Range, HashSet<Register>),
+    DeadAssignment(Range),
     SaveToZero(Range),
 }
 
@@ -34,8 +33,9 @@ pub enum WarningLevel {
 impl Into<WarningLevel> for &PassError {
     fn into(self) -> WarningLevel {
         match self {
-            PassError::UnusedValue(_) => WarningLevel::Suggestion,
+            PassError::DeadAssignment(_) => WarningLevel::Suggestion,
             PassError::SaveToZero(_) => WarningLevel::Warning,
+            PassError::InvalidUseAfterCall(_, _) => WarningLevel::Error,
         }
     }
 }
@@ -44,8 +44,9 @@ impl Into<WarningLevel> for &PassError {
 impl std::fmt::Display for PassError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            PassError::UnusedValue(_) => write!(f, "Unused value"),
+            PassError::DeadAssignment(_) => write!(f, "Unused value"),
             PassError::SaveToZero(_) => write!(f, "Saving to zero register"),
+            PassError::InvalidUseAfterCall(_, _) => write!(f, "Invalid use after call"),
         }
     }
 }
@@ -53,15 +54,20 @@ impl std::fmt::Display for PassError {
 impl PassError {
     pub fn long_description(&self) -> String {
         match self {
-            PassError::UnusedValue(_) => "Unused value".to_string(),
-            PassError::SaveToZero(_) => "The result of this instruction is being stored to the zero (x0) register. This instruction has no effect.".to_string()
+            PassError::DeadAssignment(_) => "Unused value".to_string(),
+            PassError::SaveToZero(_) => "The result of this instruction is being stored to the zero (x0) register. This instruction has no effect.".to_string(),
+            PassError::InvalidUseAfterCall(_,x) => format!("Register{} [{}] were read from after a function call. Reading from these registers is invalid and likely contain garbage values.",
+            if x.len() > 1 { "s" } else { "" },
+             x.into_iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")
+        ).to_string(),
         }
     }
 
     pub fn range(&self) -> Range {
         match self {
-            PassError::UnusedValue(range) => range.clone(),
+            PassError::DeadAssignment(range) => range.clone(),
             PassError::SaveToZero(range) => range.clone(),
+            PassError::InvalidUseAfterCall(range, _) => range.clone(),
         }
     }
 }
@@ -80,6 +86,68 @@ impl Pass for SaveToZeroCheck {
             }
         }
 
+        if errors.len() > 0 {
+            Err(PassErrors { errors })
+        } else {
+            Ok(())
+        }
+    }
+}
+
+struct DeadValueCheck;
+impl Pass for DeadValueCheck {
+    fn run(&self, cfg: &CFG) -> Result<(), PassErrors> {
+        let dcfg = cfg.calculate_directions();
+        let node_next = dcfg.node_nexts();
+        let in_outs = dcfg.calculate_in_out();
+        let mut errors = Vec::new();
+        let mut i: usize = 0;
+        // recalc mapping of nodes to idx
+        let mut node_idx = HashMap::new();
+        for block in cfg.blocks.clone() {
+            for node in block.0.clone() {
+                node_idx.insert(node, i);
+                i += 1;
+            }
+        }
+        let mut i = 0;
+        for block in cfg.blocks.clone() {
+            for node in block.0.clone() {
+                // check for any assignments that don't make it
+                // to the end of the node
+                for def in node.defs() {
+                    if !in_outs.1.get(i).unwrap().contains(&def) {
+                        errors.push(PassError::DeadAssignment(node.get_range().clone()));
+                    }
+                }
+
+                // if the node is a call (func call), check that there
+                // are not extra values in the IN of the next node
+                if node.is_call() {
+                    for next in node_next.get(&node).unwrap() {
+                        // subtract the Current nodes' OUT from next's IN
+                        let idx: usize = node_idx.get(next).unwrap().clone();
+                        let mut next_in: HashSet<Register> = in_outs.0[idx].clone();
+                        for out in in_outs.1.get(i).unwrap() {
+                            next_in.remove(out);
+                        }
+
+                        // if there are any values left in next_in, then
+                        // there are invalid uses of values after a call
+
+                        // TODO have more specific annotations for this
+                        // error
+                        if next_in.len() > 0 {
+                            errors.push(PassError::InvalidUseAfterCall(
+                                node.get_range().clone(),
+                                next_in,
+                            ));
+                        }
+                    }
+                }
+                i += 1;
+            }
+        }
         if errors.len() > 0 {
             Err(PassErrors { errors })
         } else {
@@ -223,54 +291,61 @@ fn convert_to_bitmap(set: HashSet<Register>) -> u32 {
 
 // calculate the in and out registers for every statement
 impl DirectionalWrapper<'_> {
-    pub fn calculate_in_out(&self) -> () {
+    pub fn node_nexts(&self) -> HashMap<Rc<ASTNode>, HashSet<Rc<ASTNode>>> {
+        let mut nexts = HashMap::new();
+        for block in &self.cfg.blocks {
+            let len = block.0.len();
+            for (i, node) in block.0.iter().enumerate() {
+                // determine next of each node
+                let mut set = HashSet::new();
+                if i == len - 1 {
+                    let block = self.directions.get(block).unwrap().next.clone();
+                    for next in block {
+                        set.insert(next.0.first().unwrap().clone());
+                    }
+                } else {
+                    set.insert(block.0[i + 1].clone());
+                }
+                nexts.insert(node.clone(), set);
+            }
+        }
+        nexts
+    }
+    pub fn calculate_in_out(&self) -> (Vec<HashSet<Register>>, Vec<HashSet<Register>>) {
         // initialize the in and out registers for every statement
         // TODO switch to structs that are a bit more typesafe
         let mut defs = Vec::new();
         let mut uses = Vec::new();
         let mut ins = Vec::new();
         let mut outs = Vec::new();
+
         let mut nexts = Vec::new();
-        let mut prevs = Vec::new();
+        let mut ast = Vec::new();
         let mut astidx = HashMap::new();
+        let next_map = self.node_nexts();
+
+        let mut big_idx = 0;
         for block in &self.cfg.blocks {
-            let len = block.0.len();
-            for (i, node) in block.0.iter().enumerate() {
+            for node in block.0.iter() {
                 // TODO ensure basic block cannot be empty
-                astidx.insert(node.clone(), i);
-
-                // determine previous of each node
-                if i == 0 {
-                    let block = self.directions.get(block).unwrap().prev.clone();
-                    let mut prev = HashSet::new();
-                    for item in block {
-                        prev.insert(item.0.last().unwrap().to_owned());
-                    }
-                    prevs.push(prev);
-                } else {
-                    let mut prev = HashSet::new();
-                    prev.insert(block.0[i - 1].clone());
-                    prevs.push(prev);
-                }
-
-                // determine next of each node
-                if i == len - 1 {
-                    let block = self.directions.get(block).unwrap().next.clone();
-                    let mut next = HashSet::new();
-                    for item in block {
-                        next.insert(item.0.first().unwrap().to_owned());
-                    }
-                    nexts.push(next);
-                } else {
-                    let mut next = HashSet::new();
-                    next.insert(block.0[i + 1].clone());
-                    nexts.push(next);
-                }
-
+                ast.push(node.clone());
+                astidx.insert(node.clone(), big_idx);
+                nexts.push(next_map.get(node).unwrap().clone());
                 uses.push(node.uses().to_bitmap());
                 defs.push(node.defs().to_bitmap());
-                ins.push(0);
-                outs.push(0);
+
+                // TODO this is hardcoded for now, to only allow a0 as a return value for a function
+                if node.is_halt() {
+                    ins.push(1 << Register::X10.to_num());
+                    outs.push(0);
+                } else if node.is_call() {
+                    ins.push(1 << Register::X10.to_num());
+                    outs.push(1 << Register::X10.to_num());
+                } else {
+                    ins.push(0);
+                    outs.push(0);
+                }
+                big_idx += 1;
             }
         }
 
@@ -280,6 +355,10 @@ impl DirectionalWrapper<'_> {
             changed = false;
             let len = defs.len();
             for i in 0..len {
+                // if node is a halt, skip it
+                if ast[i].is_halt() || ast[i].is_call() {
+                    continue;
+                }
                 // get union of IN of all successors of this node
                 let mut out = 0;
                 for next in &nexts[i] {
@@ -308,18 +387,21 @@ impl DirectionalWrapper<'_> {
         }
 
         // print the in and out registers
-        for (i, block) in self.cfg.blocks.iter().enumerate() {
-            println!("BLOCK: {}", i);
-            for (j, node) in block.0.iter().enumerate() {
+        let mut i = 0;
+        for (ii, block) in self.cfg.blocks.iter().enumerate() {
+            println!("BLOCK: {}", ii);
+            for (_, node) in block.0.iter().enumerate() {
                 println!(
                     "IN: {:?}, OUT: {:?}, USES: {:?}, DEFS: {:?}",
-                    ins_hashset[i * block.0.len() + j],
-                    outs_hashset[i * block.0.len() + j],
+                    ins_hashset[i],
+                    outs_hashset[i],
                     node.uses(),
                     node.defs()
                 );
+                i += 1;
             }
         }
+        (ins_hashset, outs_hashset)
     }
 }
 
@@ -406,6 +488,7 @@ impl DirectionalCFG for CFG {
                 if let Some(n) = node.jumps_to() {
                     // assert that this is the final node in the block
                     // assert_eq!(block.0.last().unwrap(), &node);
+                    dbg!(&n.data.0);
                     direction_map
                         .get_mut(&block)
                         .unwrap()
@@ -453,6 +536,8 @@ impl DirectionalCFG for CFG {
         // ever be at the end of a block, so we can just look at the last node
         // of each block
 
+        // TODO add check if program may fall off at bottom
+
         DirectionalWrapper {
             cfg: self,
             directions: direction_map,
@@ -466,6 +551,67 @@ mod tests {
 
     use super::*;
     use std::str::FromStr;
+
+    #[test]
+    fn next_node_from_big_nexts() {
+        let str =
+            "sample_eval:\nli t0, 7\nbne a0, t0, L2\nli a0, 99\nret\nL2:\naddi a0, a0, 21\nret";
+        let blocks = CFG::from_str(str).expect("unable to create cfg");
+        let map = blocks.calculate_directions();
+        let next = map.node_nexts();
+
+        assert_eq!(next.len(), 6);
+        assert_eq!(
+            next[&blocks.blocks[0].0[0]],
+            HashSet::from([blocks.blocks[0].0[1].clone()])
+        );
+        assert_eq!(
+            next[&blocks.blocks[0].0[1]],
+            HashSet::from([blocks.blocks[1].0[0].clone(), blocks.blocks[2].0[0].clone(),])
+        );
+        assert_eq!(
+            next[&blocks.blocks[1].0[0]],
+            HashSet::from([blocks.blocks[1].0[1].clone()])
+        );
+        assert_eq!(next[&blocks.blocks[1].0[1]], HashSet::from([]));
+
+        assert_eq!(
+            next[&blocks.blocks[2].0[0]],
+            HashSet::from([blocks.blocks[2].0[1].clone()])
+        );
+        assert_eq!(next[&blocks.blocks[2].0[1]], HashSet::from([]));
+    }
+
+    #[test]
+    fn basic_live_in_out() {
+        use Register::*;
+        let str =
+            "sample_eval:\nli t0, 7\nbne a0, t0, L2\nli a0, 99\nret\nL2:\naddi a0, a0, 21\nret";
+        let blocks = CFG::from_str(str).expect("unable to create cfg");
+        let map = blocks.calculate_directions();
+        let (ins, outs) = map.calculate_in_out();
+
+        assert_eq!(ins.len(), 6);
+        assert_eq!(outs.len(), 6);
+
+        assert_eq!(ins[0], HashSet::from([X10]));
+        assert_eq!(outs[0], HashSet::from([X5, X10]));
+
+        assert_eq!(ins[1], HashSet::from([X10, X5]));
+        assert_eq!(outs[1], HashSet::from([X10]));
+
+        assert_eq!(ins[2], HashSet::from([]));
+        assert_eq!(outs[2], HashSet::from([X10]));
+
+        assert_eq!(ins[3], HashSet::from([X10]));
+        assert_eq!(outs[3], HashSet::from([]));
+
+        assert_eq!(ins[4], HashSet::from([X10]));
+        assert_eq!(outs[4], HashSet::from([X10]));
+
+        assert_eq!(ins[5], HashSet::from([X10]));
+        assert_eq!(outs[5], HashSet::from([]));
+    }
 
     #[test]
     fn has_prev_and_before_items() {
@@ -528,7 +674,7 @@ pub struct PassManager {
 impl PassManager {
     pub fn new() -> PassManager {
         PassManager {
-            passes: vec![Box::new(SaveToZeroCheck)],
+            passes: vec![Box::new(SaveToZeroCheck), Box::new(DeadValueCheck)],
         }
     }
 

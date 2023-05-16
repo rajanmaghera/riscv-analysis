@@ -36,7 +36,8 @@ impl From<PassError> for Diagnostic {
     fn from(e: PassError) -> Self {
         let range = match &e {
             SaveToZero(r) => r,
-            UnusedValue(r) => r,
+            DeadAssignment(r) => r,
+            InvalidUseAfterCall(r, _) => r,
         };
 
         let warning_level: WarningLevel = (&e).into();
