@@ -64,7 +64,7 @@ pub struct IArith {
     pub key: Uuid,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LabelString(pub String);
 
 impl FromStr for LabelString {
@@ -194,7 +194,14 @@ pub struct UpperArith {
 }
 
 #[derive(Debug, Clone)]
+pub struct FuncEntry {
+    pub name: WithToken<LabelString>,
+    pub key: Uuid,
+}
+
+#[derive(Debug, Clone)]
 pub enum ASTNode {
+    FuncEntry(FuncEntry),
     Arith(Arith),
     IArith(IArith),
     UpperArith(UpperArith),
@@ -218,6 +225,7 @@ pub struct EqNodeWrapper(pub ASTNode);
 impl PartialEq for EqNodeWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
+            (ASTNode::FuncEntry(a), ASTNode::FuncEntry(b)) => a.name == b.name,
             (ASTNode::Arith(a), ASTNode::Arith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
             }
@@ -295,6 +303,7 @@ impl NodeData for ASTNode {
             ASTNode::CSR(a) => a.key,
             ASTNode::CSRImm(a) => a.key,
             ASTNode::LoadAddr(a) => a.key,
+            ASTNode::FuncEntry(a) => a.key,
         }
     }
 }
@@ -342,6 +351,7 @@ impl ASTNode {
             ASTNode::CSR(x) => x.inst.token.clone(),
             ASTNode::CSRImm(x) => x.inst.token.clone(),
             ASTNode::LoadAddr(x) => x.inst.token.clone(),
+            ASTNode::FuncEntry(x) => x.name.token.clone(),
         };
         let inst: Inst = match self {
             ASTNode::Arith(x) => (&x.inst.data).into(),
@@ -358,6 +368,7 @@ impl ASTNode {
             ASTNode::CSR(x) => (&x.inst.data).into(),
             ASTNode::CSRImm(x) => (&x.inst.data).into(),
             ASTNode::LoadAddr(x) => Inst::La,
+            ASTNode::FuncEntry(_) => Inst::Nop,
         };
         let pos = match self {
             ASTNode::Arith(x) => x.inst.pos.clone(),
@@ -374,6 +385,7 @@ impl ASTNode {
             ASTNode::CSR(x) => x.inst.pos.clone(),
             ASTNode::CSRImm(x) => x.inst.pos.clone(),
             ASTNode::LoadAddr(x) => x.inst.pos.clone(),
+            ASTNode::FuncEntry(x) => x.name.pos.clone(),
         };
         WithToken {
             token,
@@ -527,6 +539,13 @@ impl ASTNode {
         })
     }
 
+    pub fn new_func_entry(name: WithToken<LabelString>) -> ASTNode {
+        ASTNode::FuncEntry(FuncEntry {
+            name,
+            key: Uuid::new_v4(),
+        })
+    }
+
     pub fn new_csri(
         inst: WithToken<CSRIType>,
         rd: WithToken<Register>,
@@ -569,6 +588,13 @@ impl ASTNode {
         }
     }
 
+    pub fn is_func_start(&self) -> bool {
+        match self {
+            ASTNode::FuncEntry(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_exit(&self) -> bool {
         match self {
             ASTNode::JumpLink(_) => true,
@@ -587,7 +613,7 @@ impl ASTNode {
     }
 
     // right now only checks if this is specific return statement
-    pub fn is_halt(&self) -> bool {
+    pub fn is_return(&self) -> bool {
         match self {
             ASTNode::JumpLinkR(x) => {
                 x.inst == JumpLinkRType::Jalr
@@ -639,6 +665,10 @@ impl ToDisplayForVecASTNode for Vec<ASTNode> {
 impl Display for ASTNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let res = match &self {
+            ASTNode::FuncEntry(x) => {
+                let name = x.name.data.0.to_string();
+                format!("FUNC ENTRY: {}", name)
+            }
             ASTNode::UpperArith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
@@ -744,6 +774,7 @@ impl<'a> fmt::Display for VecASTDisplayWrapper<'a> {
 impl LineDisplay for ASTNode {
     fn get_range(&self) -> Range {
         match &self {
+            ASTNode::FuncEntry(x) => x.name.pos.clone(),
             ASTNode::UpperArith(x) => {
                 let mut range = x.inst.pos.clone();
                 range.end = x.imm.pos.end.clone();
