@@ -406,6 +406,49 @@ fn convert_to_bitmap(set: HashSet<Register>) -> u32 {
 }
 
 // calculate the in and out registers for every statement
+
+impl CFG {
+    pub fn calc_ast_directions(
+        &self,
+        direction_map: &HashMap<Rc<BasicBlock>, Direction>,
+    ) -> (
+        HashMap<Rc<ASTNode>, HashSet<Rc<ASTNode>>>,
+        HashMap<Rc<ASTNode>, HashSet<Rc<ASTNode>>>,
+    ) {
+        let mut nexts = HashMap::new();
+        let mut prevs = HashMap::new();
+        for block in &self.blocks {
+            let len = block.0.len();
+            for (i, node) in block.0.iter().enumerate() {
+                // determine next of each node
+                let mut set = HashSet::new();
+                if i == len - 1 {
+                    let block = direction_map.get(block).unwrap().next.clone();
+                    for next in block {
+                        set.insert(next.0.first().unwrap().clone());
+                    }
+                } else {
+                    set.insert(block.0[i + 1].clone());
+                }
+                nexts.insert(node.clone(), set);
+
+                // determine prevs of each node
+                let mut set = HashSet::new();
+                if i == 0 {
+                    let block = direction_map.get(block).unwrap().prev.clone();
+                    for prev in block {
+                        set.insert(prev.0.last().unwrap().clone());
+                    }
+                } else {
+                    set.insert(block.0[i - 1].clone());
+                }
+                prevs.insert(node.clone(), set);
+            }
+        }
+        (nexts, prevs)
+    }
+}
+
 impl DirectionalWrapper<'_> {
     pub fn node_nexts(&self) -> HashMap<Rc<ASTNode>, HashSet<Rc<ASTNode>>> {
         let mut nexts = HashMap::new();
