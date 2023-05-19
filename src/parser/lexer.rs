@@ -263,8 +263,6 @@ impl Iterator for Lexer {
                     column: self.col,
                 };
 
-                dbg!(&end);
-
                 Some(TokenInfo {
                     token: Token::Symbol(symbol_str.to_owned()),
                     pos: Range { start, end },

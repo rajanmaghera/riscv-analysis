@@ -1,6 +1,7 @@
 // TODO use copy over clone
 
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
 
 use crate::parser::register::Register;
 
@@ -71,6 +72,15 @@ pub struct WithToken<T> {
     pub token: Token,
     pub pos: Range,
     pub data: T,
+}
+
+impl<T> Hash for WithToken<T>
+where
+    T: Hash,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.data.hash(state);
+    }
 }
 
 impl Display for TokenInfo {

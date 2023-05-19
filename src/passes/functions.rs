@@ -18,3 +18,6 @@ If a label is both called to and jumped to, add an error
 -
 */
 
+use crate::cfg::CFG;
+
+impl CFG {}

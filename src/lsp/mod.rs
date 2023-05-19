@@ -38,6 +38,8 @@ impl From<PassError> for Diagnostic {
             SaveToZero(r) => r,
             DeadAssignment(r) => r,
             InvalidUseAfterCall(r, _) => r,
+            JumpToFunc(r, _) => r,
+            NaturalFuncEntry(r) => r,
         };
 
         let warning_level: WarningLevel = (&e).into();

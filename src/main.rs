@@ -31,6 +31,7 @@ fn main() {
     // println!("{}", parser.to_display());
 
     let cfg = CFG::from_str(file.as_str()).expect("Unable to parse file");
+    println!("{}", cfg);
     let dir = cfg.calculate_directions();
     dir.calculate_in_out();
     println!("\n{}", dir);
