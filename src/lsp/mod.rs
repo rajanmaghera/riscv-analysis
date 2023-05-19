@@ -1,11 +1,12 @@
 // Type conversions for LSP
 
+use std::borrow::Borrow;
 use std::convert::From;
 
 use crate::parser::token::Range as MyRange;
 use crate::passes::PassError::*;
 use crate::passes::{PassError, WarningLevel};
-use lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
+use lsp_types::{Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Position, Range};
 
 impl From<&MyRange> for Range {
     fn from(r: &MyRange) -> Self {
@@ -41,6 +42,19 @@ impl From<PassError> for Diagnostic {
             JumpToFunc(r, _) => r,
             NaturalFuncEntry(r) => r,
         };
+        let related = match &e {
+            InvalidUseAfterCall(_, label) => Some(vec![DiagnosticRelatedInformation {
+                location: lsp_types::Location {
+                    uri: lsp_types::Url::parse("file:///").unwrap(),
+                    range: label.pos.borrow().into(),
+                },
+                message: format!(
+                    "The function call to [{}] invalidates any temporary registers afterwards.",
+                    label.data.0
+                ),
+            }]),
+            _ => None,
+        };
 
         let warning_level: WarningLevel = (&e).into();
         Diagnostic {
@@ -50,7 +64,7 @@ impl From<PassError> for Diagnostic {
             code_description: None,
             source: None,
             message: e.long_description(),
-            related_information: None,
+            related_information: related,
             tags: None,
             data: None,
         }
