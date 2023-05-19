@@ -689,16 +689,103 @@ impl DirectionalCFG for CFG {
             }
         }
 
+        // --- POST-DIRECTIONAL CALCULATIONS ---
+
+        // AST NEXTS/PREVS
+        // Using the big block nexts and prevs, we can now calculate the
+        // nexts and prevs for each AST node. We do this by walking through
+        let (next_ast_map, prev_ast_map) = self.calc_ast_directions(&direction_map);
+
+        // TODO verify!!!
+        // RETURN LABEL TARGETS
+        // All return labels should only have one possible function entry
+        // for good code, so we can just walk backwards from all return
+        // labels till we reach an AST function start node. If we reach
+        // multiple, we have a problem.
+        let mut return_label_map = HashMap::new();
+        let mut label_return_map = HashMap::new();
+        // for each return label
+        for block in self.blocks.clone() {
+            for node in &block.0.clone() {
+                if node.is_return() {
+                    // walk backwards
+                    let mut walked = HashSet::new();
+                    let mut queue = vec![node.clone()];
+                    let mut found = Vec::new();
+                    'inn: while let Some(n) = queue.pop() {
+                        walked.insert(n.clone());
+                        // if we find a function start, we're done
+                        match n.as_ref() {
+                            ASTNode::FuncEntry(x) => {
+                                return_label_map.insert(node.clone(), x.name.clone());
+                                match label_return_map.get_mut(&x.name.data) {
+                                    None => {
+                                        let mut new_set = HashSet::new();
+                                        new_set.insert(node.clone());
+                                        label_return_map.insert(x.name.data.clone(), new_set);
+                                    }
+                                    Some(x) => {
+                                        x.insert(node.clone());
+                                    }
+                                }
+                                found.push(n);
+                                continue 'inn;
+                            }
+                            _ => (),
+                        }
+                        // otherwise, add all prevs to the queue
+                        for prev in prev_ast_map.get(&n).unwrap() {
+                            if !walked.contains(prev) {
+                                queue.push(prev.clone());
+                            }
+                        }
+                    }
+                    // if we found more than one, we have a problem
+                    if found.len() > 1 {
+                        unimplemented!("Multiple function starts found for return label");
+                    } else if found.len() == 0 {
+                        unimplemented!("No function starts found for return label");
+                    }
+                }
+            }
+        }
+
+        // LABEL CALL MAP
+        // Find all places where a label is called and add them to the
+        // label call map
+        let mut label_call_map = HashMap::new();
+        for block in self.blocks.clone() {
+            for node in &block.0.clone() {
+                if let ASTNode::JumpLink(x) = node.as_ref() {
+                    match label_call_map.get_mut(&x.name.data) {
+                        None => {
+                            let mut new_set = HashSet::new();
+                            new_set.insert(node.clone());
+                            label_call_map.insert(x.name.data.clone(), new_set);
+                        }
+                        Some(x) => {
+                            x.insert(node.clone());
+                        }
+                    }
+                }
+            }
+        }
+
         // JUMP TARGETS
         // TODO find all targets of branches and add them to the next set
         // If we have made our CFG correctly, all possible branches should only
         // ever be at the end of a block, so we can just look at the last node
         // of each block
 
-        // TODO add check if program may fall off at bottom
+        // calculate the possible function labels
 
         DirectionalWrapper {
             cfg: self,
+            next_ast_map,
+            prev_ast_map,
+            return_label_map,
+            label_return_map,
+            label_call_map,
             directions: direction_map,
         }
     }
