@@ -19,9 +19,15 @@ trait Pass {
 
 #[derive(Debug)]
 pub enum PassError {
-    InvalidUseAfterCall(Range, HashSet<Register>),
+    InvalidUseAfterCall(Range, WithToken<LabelString>),
+    JumpToFunc(Range, LabelString),
+    NaturalFuncEntry(Range),
     DeadAssignment(Range),
     SaveToZero(Range),
+    // SetBadRegister(Range, Register), -- used when setting registers that should not be set
+    // OverwriteRaRegister(Range), -- used when overwriting the return address register
+    // OverwriteRegister(Range, Register), -- used when overwriting a register that has not been saved
+    // FallOffEnd(Range), program may fall off the end of code
 }
 
 pub enum WarningLevel {
@@ -36,6 +42,8 @@ impl Into<WarningLevel> for &PassError {
             PassError::DeadAssignment(_) => WarningLevel::Suggestion,
             PassError::SaveToZero(_) => WarningLevel::Warning,
             PassError::InvalidUseAfterCall(_, _) => WarningLevel::Error,
+            PassError::JumpToFunc(..) => WarningLevel::Warning,
+            PassError::NaturalFuncEntry(_) => WarningLevel::Warning,
         }
     }
 }
@@ -47,6 +55,8 @@ impl std::fmt::Display for PassError {
             PassError::DeadAssignment(_) => write!(f, "Unused value"),
             PassError::SaveToZero(_) => write!(f, "Saving to zero register"),
             PassError::InvalidUseAfterCall(_, _) => write!(f, "Invalid use after call"),
+            PassError::JumpToFunc(..) => write!(f, "Jump to function"),
+            PassError::NaturalFuncEntry(_) => write!(f, "Natural function entry"),
         }
     }
 }
@@ -56,10 +66,11 @@ impl PassError {
         match self {
             PassError::DeadAssignment(_) => "Unused value".to_string(),
             PassError::SaveToZero(_) => "The result of this instruction is being stored to the zero (x0) register. This instruction has no effect.".to_string(),
-            PassError::InvalidUseAfterCall(_,x) => format!("Register{} [{}] were read from after a function call. Reading from these registers is invalid and likely contain garbage values.",
-            if x.len() > 1 { "s" } else { "" },
-             x.into_iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", ")
+            PassError::InvalidUseAfterCall(_,x) => format!("Register were read from after a function call to {}. Reading from these registers is invalid and likely contain garbage values.",
+                x.data.0
         ).to_string(),
+            PassError::JumpToFunc(_, x) => format!("Label {} is both called and jumped to. This label will be treated like a function.", x.0).to_string(),
+            PassError::NaturalFuncEntry(_) => "This function can be entered through non-conventional ways. Either by the code before or through a jump.".to_string(),
         }
     }
 
@@ -68,6 +79,8 @@ impl PassError {
             PassError::DeadAssignment(range) => range.clone(),
             PassError::SaveToZero(range) => range.clone(),
             PassError::InvalidUseAfterCall(range, _) => range.clone(),
+            PassError::JumpToFunc(range, _) => range.clone(),
+            PassError::NaturalFuncEntry(range) => range.clone(),
         }
     }
 }
