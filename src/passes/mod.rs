@@ -186,10 +186,17 @@ pub trait DirectionalCFG {
 pub struct DirectionalWrapper<'a> {
     cfg: &'a CFG,
     directions: DirectionMap,
+    return_label_map: HashMap<Rc<ASTNode>, WithToken<LabelString>>,
+    label_return_map: HashMap<LabelString, HashSet<Rc<ASTNode>>>,
+    label_call_map: HashMap<LabelString, HashSet<Rc<ASTNode>>>,
+    next_ast_map: HashMap<Rc<ASTNode>, HashSet<Rc<ASTNode>>>,
+    prev_ast_map: HashMap<Rc<ASTNode>, HashSet<Rc<ASTNode>>>,
 }
 
 pub trait UseDefItems {
+    fn orig_defs(&self) -> HashSet<Register>;
     fn uses(&self) -> HashSet<Register>;
+    fn uses_reg(&self) -> HashSet<WithToken<Register>>;
     fn defs(&self) -> HashSet<Register>;
 }
 
@@ -481,7 +488,6 @@ impl DirectionalWrapper<'_> {
         let mut nexts = Vec::new();
         let mut ast = Vec::new();
         let mut astidx = HashMap::new();
-        let next_map = self.node_nexts();
 
         let mut big_idx = 0;
         for block in &self.cfg.blocks {
@@ -489,53 +495,157 @@ impl DirectionalWrapper<'_> {
                 // TODO ensure basic block cannot be empty
                 ast.push(node.clone());
                 astidx.insert(node.clone(), big_idx);
-                nexts.push(next_map.get(node).unwrap().clone());
+                nexts.push(self.next_ast_map.get(node).unwrap().clone());
                 uses.push(node.uses().to_bitmap());
-                defs.push(node.defs().to_bitmap());
+                defs.push(node.orig_defs().to_bitmap());
+                ins.push(0);
+                outs.push(0);
 
-                // TODO this is hardcoded for now, to only allow a0 as a return value for a function
-                if node.is_halt() {
-                    ins.push(1 << Register::X10.to_num());
-                    outs.push(0);
-                } else if node.is_call() {
-                    ins.push(1 << Register::X10.to_num());
-                    outs.push(1 << Register::X10.to_num());
-                } else {
-                    ins.push(0);
-                    outs.push(0);
-                }
                 big_idx += 1;
             }
         }
 
+        // HELPER VALUES
+        // mask of only argument registers
+        let arg_mask = vec![
+            Register::X10,
+            Register::X11,
+            Register::X12,
+            Register::X13,
+            Register::X14,
+            Register::X15,
+            Register::X16,
+            Register::X17,
+        ]
+        .into_iter()
+        .collect::<HashSet<_>>()
+        .to_bitmap();
+
         // calculate the in and out registers for every statement
-        let mut changed = true;
-        while changed {
-            changed = false;
-            let len = defs.len();
-            for i in 0..len {
-                // if node is a halt, skip it
-                if ast[i].is_halt() || ast[i].is_call() {
-                    continue;
-                }
-                // get union of IN of all successors of this node
-                let mut out = 0;
-                for next in &nexts[i] {
-                    let idx = astidx.get(next).unwrap();
-                    out |= ins[*idx].clone();
-                }
-                outs[i] = out;
+        let mut rounds = 0;
+        while rounds < 3 {
+            let mut changed = true;
+            while changed {
+                changed = false;
+                let len = defs.len();
+                for i in 0..len {
+                    // get union of IN of all successors of this node
+                    let mut out = 0;
+                    for next in &nexts[i] {
+                        let idx = astidx.get(next).unwrap();
+                        out |= ins[*idx].clone();
+                    }
+                    outs[i] = out;
 
-                // TODO debug, this is incorrect at the moment
-
-                // calculate new IN
-                let in_old = ins[i].clone();
-                ins[i] = uses[i].clone() | (outs[i].clone() & !defs[i].clone());
-                if in_old != ins[i] {
-                    changed = true;
+                    // calculate new IN
+                    let in_old = ins[i].clone();
+                    ins[i] = uses[i].clone() | (outs[i].clone() & !defs[i].clone());
+                    if in_old != ins[i] {
+                        changed = true;
+                    }
                 }
             }
+
+            match rounds {
+                0 => {
+                    // AFTER FIRST ROUND -- INFER FUNCTION RETURN VALUES
+                    for node in &ast {
+                        match node.as_ref() {
+                            ASTNode::JumpLink(x) => {
+                                // FUNCTION CALL
+                                // if an argument value is in the OUT of a use, it is a return value
+                                // attach it to the use of the return statements
+
+                                // get OUT of func
+                                let idx = astidx.get(node).unwrap();
+                                let out = outs[*idx].clone();
+                                // AND with arg mask
+                                let out = out & arg_mask;
+
+                                // debug -- print out the registers that are used as arguments
+                                println!(
+                                    "Function call: {}, Guessed return values: {}",
+                                    x.name.data.0,
+                                    out.to_hashset()
+                                        .into_iter()
+                                        .fold(String::new(), |acc, x| acc
+                                            + &format!("{}, ", x.to_string()))
+                                );
+
+                                // find all return statements
+                                let returns = self.label_return_map.get(&x.name.data).unwrap();
+                                for ret in returns {
+                                    // set the use of the return statement to the return value
+                                    let idx = astidx.get(ret).unwrap();
+                                    uses[*idx] = out.clone();
+                                }
+
+                                // TODO if orig_out has temp registers, then they were used incorrectly
+
+                                // TODO if we guess that a function returns a register that is never set in
+                                // the function, then that register should be removed from the set
+
+                                // TODO reset everything completely at the end of this round!!!
+                                // reset defs of function call to empty
+                                defs[*astidx.get(node).unwrap()] = 0;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                1 => {
+                    for node in &ast {
+                        match node.as_ref() {
+                            ASTNode::FuncEntry(x) => {
+                                // FUNCTION ENTRY
+                                // if an argument value is in the out of the start of a function,
+                                // then attach it to the use of all function calls
+
+                                // get OUT of start
+                                let idx = astidx.get(node).unwrap();
+                                let out = outs[*idx].clone();
+                                // AND with arg mask
+                                let out = out & arg_mask;
+
+                                // debug -- print out the registers that are used as arguments
+                                println!(
+                                    "Function entry: {}, Guessed argument values: {}",
+                                    x.name.data.0,
+                                    out.to_hashset()
+                                        .into_iter()
+                                        .fold(String::new(), |acc, x| acc
+                                            + &format!("{}, ", x.to_string()))
+                                );
+
+                                // find all function calls
+                                let calls = self.label_call_map.get(&x.name.data).unwrap();
+                                for call in calls {
+                                    // set the use of the call to the guessed argument values
+                                    let idx = astidx.get(call).unwrap();
+                                    uses[*idx] = out.clone();
+                                }
+
+                                defs[*astidx.get(node).unwrap()] = 0;
+
+                                // TODO if we guess that a function takes in a value that is not
+                                // set before a function call, then we should return an error OR
+                                // remove it from the set
+                                // This error handling needs to be more robust once we get to multiple
+                                // sites of entry and exit
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {
+                    break;
+                }
+            }
+            rounds += 1;
         }
+
+        // ARGUMENT GUESSING
+        //
 
         // convert the in and out registers to hashsets
         let mut ins_hashset = Vec::new();
@@ -647,7 +757,6 @@ impl DirectionalCFG for CFG {
                 if let Some(n) = node.jumps_to() {
                     // assert that this is the final node in the block
                     // assert_eq!(block.0.last().unwrap(), &node);
-                    dbg!(&n.data.0);
                     direction_map
                         .get_mut(&block)
                         .unwrap()
@@ -679,7 +788,7 @@ impl DirectionalCFG for CFG {
 
             // done weird because it's unstable
             prev = if let Some(fin) = block.0.last() {
-                if fin.is_halt() {
+                if fin.is_return() {
                     None
                 } else {
                     Some(block.clone())
