@@ -194,48 +194,149 @@ pub trait UseDefItems {
 }
 
 impl UseDefItems for ASTNode {
+    // These defs are used to help start some functional analysis
+    fn orig_defs(&self) -> HashSet<Register> {
+        match self.to_owned() {
+            ASTNode::FuncEntry(_) => vec![
+                Register::X1,
+                Register::X10,
+                Register::X11,
+                Register::X12,
+                Register::X13,
+                Register::X14,
+                Register::X15,
+                Register::X16,
+                Register::X17,
+                // We also include all temporary registers
+                // if they are in the OUT, they were used
+                // in the function incorrectly
+                Register::X5,
+                Register::X6,
+                Register::X7,
+                Register::X28,
+                Register::X29,
+                Register::X30,
+                Register::X31,
+            ]
+            .into_iter()
+            .collect(),
+
+            ASTNode::JumpLink(x) => {
+                // a function call will "define" all argument registers
+                // as if every a-register was used as a return value
+                if x.rd.data != Register::X1 {
+                    vec![x.rd.data].into_iter().collect()
+                } else {
+                    vec![
+                        Register::X1,
+                        Register::X10,
+                        Register::X11,
+                        // TODO technically a0 and a1 are the
+                        // only return values?
+                        Register::X12,
+                        Register::X13,
+                        Register::X14,
+                        Register::X15,
+                        Register::X16,
+                        Register::X17,
+                        Register::X5,
+                        Register::X6,
+                        Register::X7,
+                        Register::X28,
+                        Register::X29,
+                        Register::X30,
+                        Register::X31,
+                    ]
+                    .into_iter()
+                    .collect()
+                }
+            }
+            _ => self.defs(),
+        }
+    }
+
     fn defs(&self) -> HashSet<Register> {
-        let reg = match self.to_owned() {
-            ASTNode::Arith(x) => Some(x.rd),
-            ASTNode::IArith(x) => Some(x.rd),
-            ASTNode::UpperArith(x) => Some(x.rd),
-            ASTNode::Label(_) => None,
-            ASTNode::JumpLink(x) => Some(x.rd),
-            ASTNode::JumpLinkR(x) => Some(x.rd),
-            ASTNode::Basic(_) => None,
-            ASTNode::Directive(_) => None,
-            ASTNode::Branch(_) => None,
-            ASTNode::Store(_) => None,
-            ASTNode::Load(x) => Some(x.rd),
-            ASTNode::LoadAddr(x) => Some(x.rd),
-            ASTNode::CSR(x) => Some(x.rd),
-            ASTNode::CSRImm(x) => Some(x.rd),
+        let regs: HashSet<Register> = match self.to_owned() {
+            ASTNode::FuncEntry(_) => HashSet::new(),
+            ASTNode::Arith(x) => vec![x.rd.data].into_iter().collect(),
+            ASTNode::IArith(x) => vec![x.rd.data].into_iter().collect(),
+            ASTNode::UpperArith(x) => vec![x.rd.data].into_iter().collect(),
+            ASTNode::Label(_) => HashSet::new(),
+            ASTNode::JumpLink(x) => {
+                // a function call will "define" all argument registers
+                // as if every a-register was used as a return value
+                if x.rd.data != Register::X1 {
+                    vec![x.rd.data].into_iter().collect()
+                } else {
+                    HashSet::new()
+                }
+            }
+            ASTNode::JumpLinkR(x) => vec![x.rd.data].into_iter().collect(),
+            ASTNode::Basic(_) => HashSet::new(),
+            ASTNode::Directive(_) => HashSet::new(),
+            ASTNode::Branch(_) => HashSet::new(),
+            ASTNode::Store(_) => HashSet::new(),
+            ASTNode::Load(x) => vec![x.rd.data].into_iter().collect(),
+            ASTNode::LoadAddr(x) => vec![x.rd.data].into_iter().collect(),
+            ASTNode::CSR(x) => vec![x.rd.data].into_iter().collect(),
+            ASTNode::CSRImm(x) => vec![x.rd.data].into_iter().collect(),
         };
         // skip x0-x4
-        if let Some(reg) = reg {
-            if reg == Register::X0
-                || reg == Register::X1
-                || reg == Register::X2
-                || reg == Register::X3
-                || reg == Register::X4
-            {
+        regs.into_iter()
+            .filter(|x| {
+                *x != Register::X0
+                    && *x != Register::X1
+                    && *x != Register::X2
+                    && *x != Register::X3
+                    && *x != Register::X4
+            })
+            .collect::<HashSet<_>>()
+    }
+    fn uses_reg(&self) -> HashSet<WithToken<Register>> {
+        let regs: HashSet<WithToken<Register>> = match self {
+            ASTNode::FuncEntry(_) => HashSet::new(),
+            ASTNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()].into_iter().collect(),
+            ASTNode::IArith(x) => vec![x.rs1.clone()].into_iter().collect(),
+            ASTNode::UpperArith(x) => HashSet::new(),
+            ASTNode::Label(_) => HashSet::new(),
+            ASTNode::JumpLink(x) => {
+                // A function call will "use" no argument registers
                 HashSet::new()
-            } else {
-                let mut set = HashSet::new();
-                set.insert(reg.data);
-                set
             }
-        } else {
-            HashSet::new()
-        }
+            ASTNode::JumpLinkR(x) => vec![x.rs1.clone()].into_iter().collect(),
+            ASTNode::Basic(_) => HashSet::new(),
+            ASTNode::Directive(_) => HashSet::new(),
+            ASTNode::Branch(x) => vec![x.rs1.clone(), x.rs2.clone()].into_iter().collect(),
+            ASTNode::Store(x) => vec![x.rs1.clone(), x.rs2.clone()].into_iter().collect(),
+            ASTNode::Load(x) => vec![x.rs1.clone()].into_iter().collect(),
+            ASTNode::LoadAddr(_) => HashSet::new(),
+            ASTNode::CSR(x) => vec![x.rs1.clone()].into_iter().collect(),
+            ASTNode::CSRImm(_) => HashSet::new(),
+        };
+        // filter out x0 to x4
+        let item = regs
+            .into_iter()
+            .filter(|x| {
+                *x != Register::X0
+                    && *x != Register::X1
+                    && *x != Register::X2
+                    && *x != Register::X3
+                    && *x != Register::X4
+            })
+            .collect::<HashSet<_>>();
+        item
     }
     fn uses(&self) -> HashSet<Register> {
         let regs: HashSet<Register> = match self {
+            ASTNode::FuncEntry(_) => HashSet::new(),
             ASTNode::Arith(x) => vec![x.rs1.data, x.rs2.data].into_iter().collect(),
             ASTNode::IArith(x) => vec![x.rs1.data].into_iter().collect(),
             ASTNode::UpperArith(x) => HashSet::new(),
             ASTNode::Label(_) => HashSet::new(),
-            ASTNode::JumpLink(x) => HashSet::new(),
+            ASTNode::JumpLink(x) => {
+                // A function call will "use" no argument registers
+                HashSet::new()
+            }
             ASTNode::JumpLinkR(x) => vec![x.rs1.data].into_iter().collect(),
             ASTNode::Basic(_) => HashSet::new(),
             ASTNode::Directive(_) => HashSet::new(),
@@ -247,7 +348,8 @@ impl UseDefItems for ASTNode {
             ASTNode::CSRImm(_) => HashSet::new(),
         };
         // filter out x0 to x4
-        regs.into_iter()
+        let item = regs
+            .into_iter()
             .filter(|x| {
                 *x != Register::X0
                     && *x != Register::X1
@@ -255,7 +357,8 @@ impl UseDefItems for ASTNode {
                     && *x != Register::X3
                     && *x != Register::X4
             })
-            .collect::<HashSet<_>>()
+            .collect::<HashSet<_>>();
+        item
     }
 }
 
