@@ -1,10 +1,11 @@
-use crate::cfg::{self, BasicBlock, CFG};
-use crate::parser::ast::ASTNode;
+use crate::cfg::{self, BasicBlock, BlockDataWrapper, CFG};
+use crate::parser::ast::{ASTNode, LabelString};
 use crate::parser::register::Register;
-use crate::parser::token::{LineDisplay, Range};
-use std::collections::{HashMap, HashSet};
+use crate::parser::token::{LineDisplay, Range, WithToken};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
 use std::rc::Rc;
+mod functions;
 
 // TODO switch to types that take up zero space
 
@@ -134,27 +135,57 @@ impl Pass for DeadValueCheck {
                     }
                 }
 
-                // if the node is a call (func call), check that there
-                // are not extra values in the IN of the next node
-                if node.is_call() {
-                    for next in node_next.get(&node).unwrap() {
-                        // subtract the Current nodes' OUT from next's IN
-                        let idx: usize = node_idx.get(next).unwrap().clone();
-                        let mut next_in: HashSet<Register> = in_outs.0[idx].clone();
-                        for out in in_outs.1.get(i).unwrap() {
-                            next_in.remove(out);
+                // check the out of the node for any uses that
+                // should not be there (temporaries)
+                if let Some(name) = node.call_name() {
+                    // AND the out of the node with all temporaries
+                    // if there is anything left, then there is an error
+                    let mut out = in_outs.1.get(i).unwrap().clone();
+                    out.retain(|x| x.is_temporary());
+
+                    // if there is anything left, then there is an error
+                    // for each item, keep going to the next node until a use of
+                    // that item is found
+                    for item in out {
+                        let mut queue = VecDeque::new();
+                        // push the next nodes onto the queue
+                        for next in node_next.get(&node).unwrap() {
+                            queue.push_back(next.clone());
                         }
 
-                        // if there are any values left in next_in, then
-                        // there are invalid uses of values after a call
+                        // keep track of visited nodes
+                        let mut visited = HashSet::new();
+                        visited.insert(node.clone());
 
-                        // TODO have more specific annotations for this
-                        // error
-                        if next_in.len() > 0 {
-                            errors.push(PassError::InvalidUseAfterCall(
-                                node.get_range().clone(),
-                                next_in,
-                            ));
+                        // visit each node in the queue
+                        // if the error is found, add error
+                        // if not, add the next nodes to the queue
+                        while let Some(next) = queue.pop_front() {
+                            if visited.contains(&next) {
+                                continue;
+                            }
+                            visited.insert(next.clone());
+                            if next.uses().contains(&item) {
+                                // find the use
+                                let regs = next.uses_reg();
+                                let mut it = None;
+                                for reg in regs {
+                                    if reg == item {
+                                        it = Some(reg);
+                                        break;
+                                    }
+                                }
+                                if let Some(reg) = it {
+                                    errors.push(PassError::InvalidUseAfterCall(
+                                        reg.get_range().clone(),
+                                        name.clone(),
+                                    ));
+                                }
+                                break;
+                            }
+                            for next_next in node_next.get(&next).unwrap() {
+                                queue.push_back(next_next.clone());
+                            }
                         }
                     }
                 }
