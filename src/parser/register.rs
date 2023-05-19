@@ -208,6 +208,19 @@ impl Register {
             Register::X31 => 31,
         }
     }
+
+    pub fn is_temporary(&self) -> bool {
+        match self {
+            Register::X5
+            | Register::X6
+            | Register::X7
+            | Register::X28
+            | Register::X29
+            | Register::X30
+            | Register::X31 => true,
+            _ => false,
+        }
+    }
 }
 
 impl Hash for Register {

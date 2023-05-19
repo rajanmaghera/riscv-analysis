@@ -612,6 +612,13 @@ impl ASTNode {
         }
     }
 
+    pub fn call_name(&self) -> Option<WithToken<LabelString>> {
+        match self {
+            ASTNode::JumpLink(x) => Some(x.name.to_owned()),
+            _ => None,
+        }
+    }
+
     // right now only checks if this is specific return statement
     pub fn is_return(&self) -> bool {
         match self {

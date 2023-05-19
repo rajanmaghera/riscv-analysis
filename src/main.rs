@@ -20,15 +20,8 @@ fn main() {
 
     // read argument from command line as filename
     // let filename = std::env::args().nth(1).expect("No filename provided");
-    let filename = "/Users/rajanmaghera/sample.s";
+    let filename = "/Users/rajanmaghera/Documents/GitHub/riscv-analysis/tmp/sample.s";
     let file = std::fs::read_to_string(filename).expect("Unable to read file");
-
-    // create a new lexer and tokenize the file
-    // let tokens = tokenize(file.as_str());
-    // println!("{}", tokens.to_display());
-    // let parser = Parser::new(file.as_str());
-    // let parser: Vec<ASTNode> = parser.collect();
-    // println!("{}", parser.to_display());
 
     let cfg = CFG::from_str(file.as_str()).expect("Unable to parse file");
     println!("{}", cfg);
