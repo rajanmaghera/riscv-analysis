@@ -9,6 +9,25 @@ The return value is passed in registers `a0` and `a1`. The conventions also
 state how overflow arguments are passed via the stack, but we will not be
 considering that for now.
 
+## Defining Arguments and Return Values
+Because argument registers are caller-saved, some values might be used as both
+arguments and return values. Some might also be never used.
+
+Unless the arguments are explicitly defined by a programmer, arguments are guessed
+by the compiler. This represents a subset of allowed programs, but this subset
+**(should be/)**is guaranteed to be a safe set of arguments. We will be guessing
+arguments based on the following rules:
+- Return values are used by the caller after a function call. Unused values are
+  not considered to be return values.
+- A return value must be defined within a function. Arguments passed to a function
+  not defined within a function
+- Nested calls act as bars, and therefore only values after the last call is
+  considered to be a return value.
+- A return value must be set in all branches of a function. If a return value
+  is not set in a branch, it is not considered to be a return value.
+  (Note: if a potential return value is conditionally set, it is considered an
+  error).
+
 ## Function Calls
 A function is denoted by a jump and link (jal) call to a label. This call
 sets the return address register (ra) to the address of the next instruction
