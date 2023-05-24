@@ -519,7 +519,9 @@ impl DirectionalWrapper<'_> {
         let mut nexts = Vec::new();
         let mut ast = Vec::new();
         let mut astidx = HashMap::new();
+        let mut funcidx = HashMap::new(); // index of start of function
 
+        // INTRA-PROCEDURAL AND PER-STATEMENT ANALYSIS
         let mut big_idx = 0;
         for block in &self.cfg.blocks {
             for node in block.0.iter() {
@@ -528,9 +530,13 @@ impl DirectionalWrapper<'_> {
                 astidx.insert(node.clone(), big_idx);
                 nexts.push(self.next_ast_map.get(node).unwrap().clone());
                 uses.push(node.uses().to_bitmap());
-                defs.push(node.orig_defs().to_bitmap());
+                defs.push(node.defs().to_bitmap());
                 ins.push(0);
                 outs.push(0);
+
+                if let ASTNode::FuncEntry(entry) = node.borrow() {
+                    funcidx.insert(entry.name.data.clone(), big_idx);
+                }
 
                 big_idx += 1;
             }
