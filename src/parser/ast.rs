@@ -640,13 +640,6 @@ impl ASTNode {
         }
     }
 
-    pub fn calls_to(&self) -> Option<WithToken<LabelString>> {
-        match self {
-            ASTNode::JumpLink(x) => Some(x.name.to_owned()),
-            _ => None,
-        }
-    }
-
     // NOTE: This is in context to a register store, not a memory store
     pub fn stores_to(&self) -> Option<WithToken<Register>> {
         match self {

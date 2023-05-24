@@ -4,6 +4,7 @@ use crate::parser::ast::LabelString;
 use crate::parser::parser::Parser;
 use crate::parser::register::Register;
 use crate::parser::token::WithToken;
+use crate::passes::UseDefItems;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Display;
@@ -90,6 +91,14 @@ impl BasicBlock {
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub fn arg_defs(&self) -> HashSet<Register> {
+        self.0
+            .iter()
+            .flat_map(|x| x.defs())
+            .filter(|x| x.is_argument())
+            .collect::<HashSet<Register>>()
     }
 }
 

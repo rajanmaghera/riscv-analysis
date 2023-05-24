@@ -221,6 +221,20 @@ impl Register {
             _ => false,
         }
     }
+
+    pub fn is_argument(&self) -> bool {
+        match self {
+            Register::X10
+            | Register::X11
+            | Register::X12
+            | Register::X13
+            | Register::X14
+            | Register::X15
+            | Register::X16
+            | Register::X17 => true,
+            _ => false,
+        }
+    }
 }
 
 impl Hash for Register {
