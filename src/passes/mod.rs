@@ -916,7 +916,7 @@ impl DirectionalCFG for CFG {
                     .insert(prev.clone());
             }
 
-            // done weird because it's unstable
+            // done weird because it's unstable in Rust
             prev = if let Some(fin) = block.0.last() {
                 if fin.is_return() {
                     None
@@ -942,6 +942,7 @@ impl DirectionalCFG for CFG {
         // labels till we reach an AST function start node. If we reach
         // multiple, we have a problem.
         let mut return_label_map = HashMap::new();
+        let mut return_block_map = HashMap::new();
         let mut label_return_map = HashMap::new();
         // for each return label
         for block in self.blocks.clone() {
@@ -967,6 +968,16 @@ impl DirectionalCFG for CFG {
                                         x.insert(node.clone());
                                     }
                                 }
+                                match return_block_map.get_mut(&x.name.data) {
+                                    None => {
+                                        let mut new_set = HashSet::new();
+                                        new_set.insert(block.clone());
+                                        return_block_map.insert(x.name.data.clone(), new_set);
+                                    }
+                                    Some(x) => {
+                                        x.insert(block.clone());
+                                    }
+                                }
                                 found.push(n);
                                 continue 'inn;
                             }
@@ -979,7 +990,7 @@ impl DirectionalCFG for CFG {
                             }
                         }
                     }
-                    // if we found more than one, we have a problem
+                    // if we found anything other than one, it is not SESE
                     if found.len() > 1 {
                         unimplemented!("Multiple function starts found for return label");
                     } else if found.len() == 0 {
@@ -1010,6 +1021,72 @@ impl DirectionalCFG for CFG {
             }
         }
 
+        // FUNCTION CONFIRMED ARG DEFS
+        // for every given function, calculate all possible return values
+        // these values must be freshly defined in all possible paths
+        // This is going to be similar to a data-flow equation (reaching def)
+        // TODO this is bad, redo while taking into account function calls?
+        let func_arg_defs: HashMap<LabelString, u32> = HashMap::new();
+        /*
+        for (label, node) in label_return_map {
+            let mut ast = Vec::new();
+            let mut alive = Vec::new();
+            let mut blockidx = HashMap::new();
+            let mut idx = 0;
+            let mut visited = HashSet::new();
+            let mut queue = VecDeque::new();
+            queue.push_back(curr_block);
+            while let Some(b) = queue.pop_front() {
+                if visited.contains(&b) {
+                    break;
+                }
+                blocks.push(b.clone());
+                blockidx.insert(b.clone(), idx);
+                visited.insert(b.clone());
+                idx += 1;
+                alive.push(b.arg_defs().to_bitmap());
+                // should be none for func starts
+                let prevs = direction_map.get(&b).unwrap().prev.clone();
+                for prev in prevs {
+                    queue.push_back(prev);
+                }
+            }
+            
+            let mut changed = true;
+            while changed == true {
+                changed = false;
+                for i in (0..blocks.len()).rev() {
+                    let mut new_alive = u32::MAX;
+                    let prevs = direction_map.get(&blocks[i]).unwrap().prev.clone();
+                    if prevs.len() == 0 {
+                        continue;
+                    }
+                    // get and of all prevs
+                    for prev in prevs.clone() {
+                        let prev_idx = blockidx.get(&prev).unwrap();
+                        new_alive = new_alive & alive[*prev_idx];
+                    }
+                    new_alive |= blocks[i].arg_defs().to_bitmap();
+                    if new_alive != alive[i] {
+                        alive[i] = new_alive;
+                        changed = true;
+                    }
+                }
+            }
+
+            // add label block to the end
+            func_arg_defs.insert(label, alive[0]);
+        }
+        */
+
+        // pretty print the defined args
+        for (label, defs) in func_arg_defs.clone() {
+            dbg!("{}: {}", label, defs.to_hashset());
+        }
+
+        // FUNCTION CALL GRAPH
+        // TODO maybe??
+
         // JUMP TARGETS
         // TODO find all targets of branches and add them to the next set
         // If we have made our CFG correctly, all possible branches should only
@@ -1025,6 +1102,7 @@ impl DirectionalCFG for CFG {
             return_label_map,
             label_return_map,
             label_call_map,
+            func_arg_defs,
             directions: direction_map,
         }
     }
