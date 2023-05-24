@@ -542,9 +542,29 @@ impl DirectionalWrapper<'_> {
             }
         }
 
-        // HELPER VALUES
-        // mask of only argument registers
-        let arg_mask = vec![
+        // INTER-PROCEDURAL ANALYSIS SETUP
+        let mut func_call_idx = Vec::new();
+        let mut rets = Vec::new();
+        for block in &self.cfg.blocks {
+            for node in block.0.iter() {
+                if let Some(name) = node.call_name() {
+                    func_call_idx.push(Some(funcidx.get(&name.data).unwrap().clone()));
+                    let mut retset = HashSet::new();
+                    let labels = self.label_return_map.get(&name.data).unwrap().clone();
+                    for ret in labels {
+                        let id = astidx.get(&ret).unwrap().clone();
+                        retset.insert(id);
+                    }
+                    rets.push(retset);
+                } else {
+                    func_call_idx.push(None);
+                    rets.push(HashSet::new());
+                }
+            }
+        }
+
+        let garbage_values = vec![
+            Register::X1,
             Register::X10,
             Register::X11,
             Register::X12,
@@ -553,6 +573,13 @@ impl DirectionalWrapper<'_> {
             Register::X15,
             Register::X16,
             Register::X17,
+            Register::X5,
+            Register::X6,
+            Register::X7,
+            Register::X28,
+            Register::X29,
+            Register::X30,
+            Register::X31,
         ]
         .into_iter()
         .collect::<HashSet<_>>()
