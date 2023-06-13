@@ -367,13 +367,13 @@ impl ASTNode {
             ASTNode::JumpLink(x) => (&x.inst.data).into(),
             ASTNode::JumpLinkR(x) => (&x.inst.data).into(),
             ASTNode::Basic(x) => (&x.inst.data).into(),
-            ASTNode::Directive(x) => Inst::Nop,
+            ASTNode::Directive(_x) => Inst::Nop,
             ASTNode::Branch(x) => (&x.inst.data).into(),
             ASTNode::Store(x) => (&x.inst.data).into(),
             ASTNode::Load(x) => (&x.inst.data).into(),
             ASTNode::CSR(x) => (&x.inst.data).into(),
             ASTNode::CSRImm(x) => (&x.inst.data).into(),
-            ASTNode::LoadAddr(x) => Inst::La,
+            ASTNode::LoadAddr(_x) => Inst::La,
             ASTNode::FuncEntry(_) => Inst::Nop,
         };
         let pos = match self {

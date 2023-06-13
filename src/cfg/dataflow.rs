@@ -135,7 +135,7 @@ impl DirectionalWrapper {
                         func_return_data.live_in | (node.live_out & func_return_data.u_def);
                 // else if ecall (similar logic to function call, but we don't
                 // need to markup inside a function
-                } else if let ASTNode::Basic(x) = node.node.borrow() {
+                } else if let ASTNode::Basic(_x) = node.node.borrow() {
                     // if we have access to a constant value for the ecall
 
                     node.u_def = node.live_out;
@@ -144,7 +144,7 @@ impl DirectionalWrapper {
 
                     if let Some(call_val) = avail.avail_in.get(i).unwrap().get(&Register::X17) {
                         if let AvailableValue::Constant(call_num) = call_val {
-                            if let Some((args, rets)) = ecall_in_outs(call_num.clone()) {
+                            if let Some((args, _rets)) = ecall_in_outs(call_num.clone()) {
                                 // TODO do something about return values?
                                 node.live_in |= args.to_bitmap();
                             }

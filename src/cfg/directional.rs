@@ -6,7 +6,7 @@ use std::{
 use crate::parser::{ast::ASTNode, register::Register, token::WithToken};
 
 use super::{
-    BasicBlock, BlockSet, DirectionMap, LabelToBlock, LabelToNode, LabelToNodes, NodeToNodes, CFG,
+    BasicBlock, BlockSet, DirectionMap, LabelToNode, LabelToNodes, NodeToNodes, CFG,
 };
 
 pub struct Direction {

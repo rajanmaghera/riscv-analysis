@@ -3,7 +3,7 @@
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
-use crate::parser::register::Register;
+
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Position {

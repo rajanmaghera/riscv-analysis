@@ -1,7 +1,7 @@
 use crate::parser::ast::ASTNode;
 use crate::parser::ast::EqNodeDataVec;
 
-use std::collections::HashSet;
+
 use std::rc::Rc;
 use uuid::Uuid;
 
