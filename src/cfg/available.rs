@@ -44,3 +44,49 @@ impl Display for AvailableValue {
         }
     }
 }
+pub struct AvailableValueResult {
+    pub avail_in: Vec<HashMap<Register, AvailableValue>>,
+    pub avail_out: Vec<HashMap<Register, AvailableValue>>,
+}
+// statically perform operation and return new available value
+fn perform_operation(
+    ins: &HashMap<Register, AvailableValue>,
+    node: &ASTNode,
+) -> Option<AvailableValue> {
+    let lhs = match node {
+        ASTNode::Arith(expr) => ins.get(&expr.rs1.data).map(|x| x.clone()),
+        ASTNode::IArith(expr) => ins.get(&expr.rs1.data).map(|x| x.clone()),
+        ASTNode::Load(expr) => ins.get(&expr.rs1.data).map(|x| x.clone()),
+        ASTNode::LoadAddr(expr) => Some(AvailableValue::MemAddr(expr.name.data.clone())),
+        _ => None,
+    };
+
+    let rhs = match node {
+        ASTNode::Arith(expr) => ins.get(&expr.rs2.data).map(|x| x.clone()),
+        ASTNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
+        ASTNode::Load(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
+        ASTNode::LoadAddr(_) => Some(AvailableValue::Constant(0)),
+        _ => None,
+    };
+
+    if node.inst().data == Inst::Addi {
+        dbg!(&lhs, &rhs);
+    }
+
+    match (lhs, rhs) {
+        (Some(AvailableValue::Constant(x)), Some(AvailableValue::Constant(y))) => node
+            .inst()
+            .data
+            .math_op()
+            .map(|op| op.operate(x, y))
+            .map(|x| AvailableValue::Constant(x)),
+        (Some(AvailableValue::ScalarOffset(reg, x)), Some(AvailableValue::Constant(y)))
+        | (Some(AvailableValue::Constant(x)), Some(AvailableValue::ScalarOffset(reg, y))) => node
+            .inst()
+            .data
+            .scalar_op()
+            .map(|op| op.operate(x, y))
+            .map(|z| AvailableValue::ScalarOffset(reg, z)),
+        (_, _) => None,
+    }
+}
