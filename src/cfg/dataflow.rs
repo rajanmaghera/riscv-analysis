@@ -1,12 +1,12 @@
-use crate::cfg::directional::UseDefItems;
-use crate::cfg::{ToRegBitmap, ToRegHashset};
+use crate::cfg::{ecall_in_outs, AvailableValue, ToRegBitmap, ToRegHashset};
 use crate::parser::ast::ASTNode;
+use crate::parser::inst::BasicType;
 use crate::parser::register::Register;
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use super::DirectionalWrapper;
+use super::{AvailableValueResult, DirectionalWrapper};
 
 pub struct LiveAnalysisResult {
     pub live_in: Vec<HashSet<Register>>,
@@ -14,7 +14,7 @@ pub struct LiveAnalysisResult {
     pub uncond_defs: Vec<HashSet<Register>>,
 }
 
-impl DirectionalWrapper<'_> {
+impl DirectionalWrapper {
     pub fn node_nexts(&self) -> HashMap<Rc<ASTNode>, HashSet<Rc<ASTNode>>> {
         let mut nexts = HashMap::new();
         for block in &self.cfg.blocks {
@@ -37,7 +37,7 @@ impl DirectionalWrapper<'_> {
     }
 
     /* The magic of this app */
-    pub fn live_analysis(&self) -> LiveAnalysisResult {
+    pub fn live_analysis(&mut self, avail: &AvailableValueResult) -> LiveAnalysisResult {
         #[derive(Clone)]
         struct LiveAnalysisNodeData {
             node: Rc<ASTNode>,
@@ -57,6 +57,24 @@ impl DirectionalWrapper<'_> {
         let mut idx = 0;
         for block in &self.cfg.blocks {
             for node in block.0.iter() {
+                // HACK - if ecall is an exit call, then remove nexts
+                if let ASTNode::Basic(basic) = &(**node) {
+                    if basic.inst.data == BasicType::Ecall {
+                        if let Some(call_val) = avail.avail_in.get(idx).unwrap().get(&Register::X17)
+                        {
+                            if let AvailableValue::Constant(call_num) = call_val {
+                                if call_num == &10 {
+                                    // for all nexts, remove their prev counterparts
+                                    for next in self.next_ast_map.get(node).unwrap().clone() {
+                                        self.prev_ast_map.get_mut(&next).unwrap().remove(node);
+                                    }
+                                    self.next_ast_map.get_mut(node).unwrap().clear();
+                                }
+                            }
+                        }
+                    }
+                }
+
                 nodes.push(LiveAnalysisNodeData {
                     node: node.clone(),
                     kill: node.defs().to_bitmap(),
@@ -115,6 +133,23 @@ impl DirectionalWrapper<'_> {
                         | (node.live_out & !super::caller_saved_registers());
                     func_return_data.live_in =
                         func_return_data.live_in | (node.live_out & func_return_data.u_def);
+                // else if ecall (similar logic to function call, but we don't
+                // need to markup inside a function
+                } else if let ASTNode::Basic(x) = node.node.borrow() {
+                    // if we have access to a constant value for the ecall
+
+                    node.u_def = node.live_out;
+                    node.live_in = HashSet::from_iter(vec![Register::X17]).to_bitmap()
+                        | (node.live_out & !super::caller_saved_registers());
+
+                    if let Some(call_val) = avail.avail_in.get(i).unwrap().get(&Register::X17) {
+                        if let AvailableValue::Constant(call_num) = call_val {
+                            if let Some((args, rets)) = ecall_in_outs(call_num.clone()) {
+                                // TODO do something about return values?
+                                node.live_in |= args.to_bitmap();
+                            }
+                        }
+                    }
 
                 // else if return from a function
                 // aka. else if node is value in label_return_map
