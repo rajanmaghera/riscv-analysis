@@ -2,7 +2,7 @@ use crate::parser::token::{Token, TokenInfo};
 use std::{
     convert::TryFrom,
     hash::{Hash, Hasher},
-    str::FromStr,
+    str::FromStr, collections::HashSet, fmt::Display,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,44 +94,6 @@ impl FromStr for Register {
     }
 }
 
-impl ToString for Register {
-    fn to_string(&self) -> String {
-        match self {
-            Register::X0 => "x0".to_owned(),
-            Register::X1 => "x1".to_owned(),
-            Register::X2 => "x2".to_owned(),
-            Register::X3 => "x3".to_owned(),
-            Register::X4 => "x4".to_owned(),
-            Register::X5 => "x5".to_owned(),
-            Register::X6 => "x6".to_owned(),
-            Register::X7 => "x7".to_owned(),
-            Register::X8 => "x8".to_owned(),
-            Register::X9 => "x9".to_owned(),
-            Register::X10 => "x10".to_owned(),
-            Register::X11 => "x11".to_owned(),
-            Register::X12 => "x12".to_owned(),
-            Register::X13 => "x13".to_owned(),
-            Register::X14 => "x14".to_owned(),
-            Register::X15 => "x15".to_owned(),
-            Register::X16 => "x16".to_owned(),
-            Register::X17 => "x17".to_owned(),
-            Register::X18 => "x18".to_owned(),
-            Register::X19 => "x19".to_owned(),
-            Register::X20 => "x20".to_owned(),
-            Register::X21 => "x21".to_owned(),
-            Register::X22 => "x22".to_owned(),
-            Register::X23 => "x23".to_owned(),
-            Register::X24 => "x24".to_owned(),
-            Register::X25 => "x25".to_owned(),
-            Register::X26 => "x26".to_owned(),
-            Register::X27 => "x27".to_owned(),
-            Register::X28 => "x28".to_owned(),
-            Register::X29 => "x29".to_owned(),
-            Register::X30 => "x30".to_owned(),
-            Register::X31 => "x31".to_owned(),
-        }
-    }
-}
 
 impl Register {
     pub fn from_num(num: u8) -> Register {
@@ -209,6 +171,51 @@ impl Register {
         }
     }
 
+    pub fn is_garbaged(&self) -> bool {
+        match self {
+            // t-regs
+            Register::X5
+            | Register::X6
+            | Register::X7
+            | Register::X28
+            | Register::X29
+            | Register::X30
+            | Register::X31 
+            // a-regs
+            | Register::X10
+            | Register::X11
+            | Register::X12
+            | Register::X13
+            | Register::X14
+            | Register::X15
+            | Register::X16
+            | Register::X17 => true,
+            _ => false,
+        }
+    }
+
+    pub fn garbages() -> HashSet<Register> {
+        HashSet::from_iter(
+            vec![
+                Register::X5,
+                Register::X6,
+                Register::X7,
+                Register::X28,
+                Register::X29,
+                Register::X30,
+                Register::X31,
+                Register::X10,
+                Register::X11,
+                Register::X12,
+                Register::X13,
+                Register::X14,
+                Register::X15,
+                Register::X16,
+                Register::X17,
+            ].into_iter()
+        )
+    }
+
     pub fn is_temporary(&self) -> bool {
         match self {
             Register::X5
@@ -240,5 +247,45 @@ impl Register {
 impl Hash for Register {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.to_num().hash(state);
+    }
+}
+
+impl Display for Register {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mstr = match self {
+            Register::X0 => "x0".to_owned(),
+            Register::X1 => "x1".to_owned(),
+            Register::X2 => "x2".to_owned(),
+            Register::X3 => "x3".to_owned(),
+            Register::X4 => "x4".to_owned(),
+            Register::X5 => "x5".to_owned(),
+            Register::X6 => "x6".to_owned(),
+            Register::X7 => "x7".to_owned(),
+            Register::X8 => "x8".to_owned(),
+            Register::X9 => "x9".to_owned(),
+            Register::X10 => "x10".to_owned(),
+            Register::X11 => "x11".to_owned(),
+            Register::X12 => "x12".to_owned(),
+            Register::X13 => "x13".to_owned(),
+            Register::X14 => "x14".to_owned(),
+            Register::X15 => "x15".to_owned(),
+            Register::X16 => "x16".to_owned(),
+            Register::X17 => "x17".to_owned(),
+            Register::X18 => "x18".to_owned(),
+            Register::X19 => "x19".to_owned(),
+            Register::X20 => "x20".to_owned(),
+            Register::X21 => "x21".to_owned(),
+            Register::X22 => "x22".to_owned(),
+            Register::X23 => "x23".to_owned(),
+            Register::X24 => "x24".to_owned(),
+            Register::X25 => "x25".to_owned(),
+            Register::X26 => "x26".to_owned(),
+            Register::X27 => "x27".to_owned(),
+            Register::X28 => "x28".to_owned(),
+            Register::X29 => "x29".to_owned(),
+            Register::X30 => "x30".to_owned(),
+            Register::X31 => "x31".to_owned(),
+        };
+        f.write_str(&mstr)
     }
 }
