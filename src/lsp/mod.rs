@@ -39,12 +39,12 @@ impl From<PassError> for Diagnostic {
             SaveToZero(r) => r,
             DeadAssignment(r) => r,
             InvalidUseAfterCall(r, _) => r,
-            JumpToFunc(r, _) => r,
-            NaturalFuncEntry(r) => r,
+            ImproperFuncEntry(r, _) => r,
         };
         let related = match &e {
             InvalidUseAfterCall(_, label) => Some(vec![DiagnosticRelatedInformation {
                 location: lsp_types::Location {
+                    // TODO this is a hack, we need to get the file path from the parser
                     uri: lsp_types::Url::parse("file:///").unwrap(),
                     range: label.pos.borrow().into(),
                 },
