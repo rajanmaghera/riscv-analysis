@@ -1,7 +1,7 @@
-use crate::cfg::{AnnotatedCFG, UseDefItems};
-use crate::cfg::{DirectionalCFG, CFG};
+use crate::parser::inst::BasicType;
 use crate::parser::register::Register;
 use crate::parser::token::LineDisplay;
+use crate::{cfg::AnnotatedCFG, parser::ast::ASTNode};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::*;
@@ -122,6 +122,85 @@ impl Pass for DeadValueCheck {
                 i += 1;
             }
         }
+        if errors.len() > 0 {
+            Err(PassErrors { errors })
+        } else {
+            Ok(())
+        }
+    }
+}
+
+// Check if you can enter a function through the first line of code
+// Check if you can enter a function through a jump (a previous exists)
+// Check if any code has no previous (except for the first line of code)
+pub struct ControlFlowCheck;
+impl Pass for ControlFlowCheck {
+    fn run(&self, cfg: &AnnotatedCFG) -> Result<(), PassErrors> {
+        let mut errors = Vec::new();
+        let mut bigidx = 0;
+        for block in cfg.blocks.clone() {
+            let mut littleidx = 0;
+            for node in block.0.clone() {
+                match &(*node) {
+                    ASTNode::FuncEntry(x) => {
+                        if bigidx == 0 || cfg.prev_ast_map.get(&node).unwrap().len() > 0 {
+                            errors.push(PassError::ImproperFuncEntry(
+                                x.name.get_range().clone(),
+                                x.name.clone(),
+                            ));
+                        }
+                    }
+                    _ => {
+                        if bigidx != 0 && cfg.prev_ast_map.get(&node).unwrap().len() == 0 {
+                            errors.push(PassError::UnreachableCode(node.get_range().clone()));
+                        }
+                    }
+                }
+                bigidx += 1;
+                littleidx += 1;
+            }
+        }
+
+        if errors.len() > 0 {
+            Err(PassErrors { errors })
+        } else {
+            Ok(())
+        }
+    }
+}
+
+// Check if every ecall has a known call number
+// TODO Check if there are any instructions after an ecall to terminate the program
+pub struct EcallCheck;
+impl Pass for EcallCheck {
+    fn run(&self, cfg: &AnnotatedCFG) -> Result<(), PassErrors> {
+        let mut errors = Vec::new();
+        let mut bigidx = 0;
+        for block in cfg.blocks.clone() {
+            let mut littleidx = 0;
+            for node in block.0.clone() {
+                match &(*node) {
+                    ASTNode::Basic(x) => {
+                        if x.inst.data == BasicType::Ecall {
+                            if cfg
+                                .available
+                                .avail_in
+                                .get(bigidx)
+                                .unwrap()
+                                .get(&Register::X17)
+                                .is_none()
+                            {
+                                errors.push(PassError::UnknownEcall(x.inst.get_range().clone()));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                bigidx += 1;
+                littleidx += 1;
+            }
+        }
+
         if errors.len() > 0 {
             Err(PassErrors { errors })
         } else {
