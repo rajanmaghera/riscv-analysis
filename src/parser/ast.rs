@@ -92,6 +92,12 @@ impl FromStr for LabelString {
     }
 }
 
+impl Display for LabelString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Label {
     pub name: WithToken<LabelString>,
