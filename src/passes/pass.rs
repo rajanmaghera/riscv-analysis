@@ -1,6 +1,6 @@
-use crate::cfg::{AnnotatedCFG, CFG};
+use crate::cfg::AnnotatedCFG;
 
-use super::{DeadValueCheck, PassErrors, SaveToZeroCheck};
+use super::{ControlFlowCheck, DeadValueCheck, EcallCheck, PassErrors, SaveToZeroCheck};
 
 pub trait Pass {
     fn run(&self, cfg: &AnnotatedCFG) -> Result<(), PassErrors>;
@@ -13,7 +13,12 @@ pub struct PassManager {
 impl PassManager {
     pub fn new() -> PassManager {
         PassManager {
-            passes: vec![Box::new(SaveToZeroCheck), Box::new(DeadValueCheck)],
+            passes: vec![
+                Box::new(SaveToZeroCheck),
+                Box::new(DeadValueCheck),
+                Box::new(EcallCheck),
+                Box::new(ControlFlowCheck),
+            ],
         }
     }
 

@@ -145,7 +145,13 @@ impl std::fmt::Display for Range {
     }
 }
 
-impl LineDisplay for WithToken<Register> {
+// impl LineDisplay for WithToken<Register> {
+//     fn get_range(&self) -> Range {
+//         self.pos.clone()
+//     }
+// }
+
+impl<T> LineDisplay for WithToken<T> {
     fn get_range(&self) -> Range {
         self.pos.clone()
     }
