@@ -62,3 +62,69 @@ impl From<DirectionalWrapper> for AnalysisWrapper {
     }
 }
 
+impl Display for AnnotatedCFG {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut index = 0;
+
+        let mut labels = self.labels_for_branch.iter();
+        for block in self.blocks.iter() {
+            f.write_str("+---------\n")?;
+            f.write_str(&format!(
+                "| LABELS: {:?}, ID: {}\n",
+                labels.next().unwrap(),
+                block.1.as_simple().to_string()[..8].to_string()
+            ))?;
+            f.write_str(&format!(
+                "| PREV: [{}]\n",
+                self.directions
+                    .get(block)
+                    .unwrap()
+                    .prev
+                    .iter()
+                    .collect::<Vec<_>>()
+                    .iter()
+                    .map(|x| x.1.as_simple().to_string()[..8].to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ))?;
+
+            f.write_str("| ****\n")?;
+            for node in block.0.iter() {
+                f.write_str(&format!(
+                    "| IN: {:<20} | OUT: {:<20} {}\n",
+                    self.liveness
+                        .live_in
+                        .get(index)
+                        .unwrap()
+                        .into_iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    self.liveness
+                        .live_out
+                        .get(index)
+                        .unwrap()
+                        .into_iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    node
+                ))?;
+                f.write_str(&format!(
+                    "| {}\n",
+                    self.available
+                        .avail_out
+                        .get(index)
+                        .unwrap()
+                        .into_iter()
+                        .map(|(k, v)| format!("[{}: {}]", k, v))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ))?;
+                index += 1;
+            }
+            f.write_str("+---------\n")?;
+        }
+        Ok(())
+    }
+}
