@@ -1,33 +1,27 @@
-use crate::cfg::{BasicBlock, CFG};
-use crate::parser::ast::{ASTNode, LabelString};
-use crate::parser::register::Register;
-use crate::parser::token::{LineDisplay, Range, WithToken};
-use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::fmt::Display;
-use std::rc::Rc;
+use crate::parser::ast::LabelString;
 
+use crate::parser::token::{Range, WithToken};
 
 #[derive(Debug)]
 pub struct PassErrors {
     pub errors: Vec<PassError>,
 }
 
-
 #[derive(Debug)]
 pub enum PassError {
     InvalidUseAfterCall(Range, WithToken<LabelString>),
-    ImproperFuncEntry(Range, LabelString), // if a function has any prev items, (including program entry)
+    ImproperFuncEntry(Range, WithToken<LabelString>), // if a function has any prev items, (including program entry)
     DeadAssignment(Range),
     SaveToZero(Range),
-    // SetBadRegister(Range, Register), -- used when setting registers that should not be set
-    // OverwriteRaRegister(Range), -- used when overwriting the return address register
-    // OverwriteRegister(Range, Register), -- used when overwriting a register that has not been saved
-    // FallOffEnd(Range), program may fall off the end of code
-    // UnreachableCode(Range), -- code that is unreachable
-    // EcallNonLiveArgument -- ecall where expected argument based on a7 is not live
-    // \_ for this, use same logic as argument passing
-    // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
+    UnknownEcall(Range),
+    UnreachableCode(Range), // -- code that is unreachable
+                            // SetBadRegister(Range, Register), -- used when setting registers that should not be set
+                            // OverwriteRaRegister(Range), -- used when overwriting the return address register
+                            // OverwriteRegister(Range, Register), -- used when overwriting a register that has not been saved
+                            // FallOffEnd(Range), program may fall off the end of code
+                            // EcallNonLiveArgument -- ecall where expected argument based on a7 is not live
+                            // \_ for this, use same logic as argument passing
+                            // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
 }
 
 pub enum WarningLevel {
@@ -39,10 +33,12 @@ pub enum WarningLevel {
 impl Into<WarningLevel> for &PassError {
     fn into(self) -> WarningLevel {
         match self {
-            PassError::DeadAssignment(_) => WarningLevel::Suggestion,
+            PassError::DeadAssignment(_) => WarningLevel::Warning,
             PassError::SaveToZero(_) => WarningLevel::Warning,
             PassError::InvalidUseAfterCall(_, _) => WarningLevel::Error,
             PassError::ImproperFuncEntry(..) => WarningLevel::Warning,
+            PassError::UnknownEcall(_) => WarningLevel::Error,
+            PassError::UnreachableCode(_) => WarningLevel::Warning,
         }
     }
 }
@@ -55,6 +51,8 @@ impl std::fmt::Display for PassError {
             PassError::SaveToZero(_) => write!(f, "Saving to zero register"),
             PassError::InvalidUseAfterCall(_, _) => write!(f, "Invalid use after call"),
             PassError::ImproperFuncEntry(..) => write!(f, "Improper function entry"),
+            PassError::UnknownEcall(_) => write!(f, "Unknown ecall"),
+            PassError::UnreachableCode(_) => write!(f, "Unreachable code"),
         }
     }
 }
@@ -68,6 +66,8 @@ impl PassError {
                 x.data.0
         ).to_string(),
             PassError::ImproperFuncEntry(..) => "This function can be entered through non-conventional ways. Either by the code before or through a jump. This label is treated like a function because there is either a [jal] instruction or an explicit definition of this function.".to_string(),
+            PassError::UnknownEcall(_) => "The ecall type is not recognized. It is possible that you did not set a7 to a value.".to_string(),
+            PassError::UnreachableCode(_) => "This code is unreachable. It is possible that you have a jump to a label that does not exist.".to_string(),
         }
     }
 
@@ -77,7 +77,8 @@ impl PassError {
             PassError::SaveToZero(range) => range.clone(),
             PassError::InvalidUseAfterCall(range, _) => range.clone(),
             PassError::ImproperFuncEntry(range, _) => range.clone(),
+            PassError::UnknownEcall(range) => range.clone(),
+            PassError::UnreachableCode(range) => range.clone(),
         }
     }
 }
-

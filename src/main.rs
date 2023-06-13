@@ -1,5 +1,5 @@
-use crate::cfg::CFG;
-use crate::passes::{DirectionalCFG, PassManager};
+use crate::cfg::{AnnotatedCFG, CFG};
+use crate::passes::PassManager;
 use std::str::FromStr;
 
 mod cfg;
@@ -11,25 +11,20 @@ mod passes;
  */
 
 fn main() {
-    // Rust uses UTF8 under the hood, but we are going to
-    // have a guarantee that only ASCII strings work to
-    // simplify some of the logic
-    //
-    // TODO add check for ASCII strings
     // TODO use rust cli library
 
     // read argument from command line as filename
     // let filename = std::env::args().nth(1).expect("No filename provided");
-    let filename = "/Users/rajanmaghera/Documents/GitHub/riscv-analysis/tmp/sample.s";
+
+    let filename = "/Users/rajanmaghera/Documents/GitHub/riscv-analysis/tmp/saved-reg.s";
     let file = std::fs::read_to_string(filename).expect("Unable to read file");
 
     let cfg = CFG::from_str(file.as_str()).expect("Unable to parse file");
-    println!("{}", cfg);
-    let dir = cfg.calculate_directions();
-    dir.calculate_in_out();
-    println!("\n{}", dir);
-    // println!("{:#?}", cfg);
-    let res = PassManager::new().run(cfg);
+    let acfg = AnnotatedCFG::from(cfg);
+
+    println!("{}", acfg);
+
+    let res = PassManager::new().run(acfg);
 
     if res.is_err() {
         println!("Errors found:");
@@ -310,7 +305,7 @@ mod tests {
             vec![basic_block_from_nodes(vec![iarith!(Addi X0 X2 12),])].data(),
             blocks.blocks.data()
         );
-
+        let blocks = AnnotatedCFG::from(blocks);
         PassManager::new().run(blocks).unwrap_err();
     }
 
@@ -326,6 +321,7 @@ mod tests {
             .data(),
             blocks.blocks.data()
         );
+        let blocks = AnnotatedCFG::from(blocks);
         PassManager::new().run(blocks).unwrap();
     }
 

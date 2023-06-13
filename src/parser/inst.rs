@@ -113,6 +113,7 @@ pub enum JumpLinkRType {
     Jalr,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Inst {
     Ret,
     Ebreak,

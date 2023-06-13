@@ -35,12 +35,7 @@ impl From<WarningLevel> for DiagnosticSeverity {
 
 impl From<PassError> for Diagnostic {
     fn from(e: PassError) -> Self {
-        let range = match &e {
-            SaveToZero(r) => r,
-            DeadAssignment(r) => r,
-            InvalidUseAfterCall(r, _) => r,
-            ImproperFuncEntry(r, _) => r,
-        };
+        let range = e.range();
         let related = match &e {
             InvalidUseAfterCall(_, label) => Some(vec![DiagnosticRelatedInformation {
                 location: lsp_types::Location {
@@ -58,7 +53,7 @@ impl From<PassError> for Diagnostic {
 
         let warning_level: WarningLevel = (&e).into();
         Diagnostic {
-            range: range.into(),
+            range: (&range).into(),
             severity: Some(warning_level.into()),
             code: None,
             code_description: None,

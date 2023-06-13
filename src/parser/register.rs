@@ -1,8 +1,10 @@
 use crate::parser::token::{Token, TokenInfo};
 use std::{
+    collections::HashSet,
     convert::TryFrom,
+    fmt::Display,
     hash::{Hash, Hasher},
-    str::FromStr, collections::HashSet, fmt::Display,
+    str::FromStr,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,7 +96,6 @@ impl FromStr for Register {
     }
 }
 
-
 impl Register {
     pub fn from_num(num: u8) -> Register {
         match num {
@@ -173,15 +174,14 @@ impl Register {
 
     pub fn is_garbaged(&self) -> bool {
         match self {
-            // t-regs
+            // t-regs and a-regs
             Register::X5
             | Register::X6
             | Register::X7
             | Register::X28
             | Register::X29
             | Register::X30
-            | Register::X31 
-            // a-regs
+            | Register::X31
             | Register::X10
             | Register::X11
             | Register::X12
@@ -212,7 +212,8 @@ impl Register {
                 Register::X15,
                 Register::X16,
                 Register::X17,
-            ].into_iter()
+            ]
+            .into_iter(),
         )
     }
 

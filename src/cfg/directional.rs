@@ -14,13 +14,8 @@ pub struct Direction {
     pub prev: BlockSet,
 }
 
-pub trait DirectionalCFG {
-    fn calculate_directions(&self) -> DirectionalWrapper<'_>;
-    fn calculate_labels(&self) -> LabelToBlock;
-}
-
-pub struct DirectionalWrapper<'a> {
-    pub cfg: &'a CFG,
+pub struct DirectionalWrapper {
+    pub cfg: CFG,
     pub directions: DirectionMap,
     // pub return_label_map: NodeToLabel,
     pub label_entry_map: LabelToNode,
@@ -30,20 +25,12 @@ pub struct DirectionalWrapper<'a> {
     pub prev_ast_map: NodeToNodes,
 }
 
-pub trait UseDefItems {
-    fn orig_defs(&self) -> HashSet<Register>;
-    fn uses(&self) -> HashSet<Register>;
-    fn uses_reg(&self) -> HashSet<WithToken<Register>>;
-    fn defs(&self) -> HashSet<Register>;
-}
-
 // TODO deprecate most of these
-impl UseDefItems for ASTNode {
+impl ASTNode {
     // These defs are used to help start some functional analysis
-    fn orig_defs(&self) -> HashSet<Register> {
+    pub fn kill_value(&self) -> HashSet<Register> {
         match self.to_owned() {
             ASTNode::FuncEntry(_) => vec![
-                Register::X1,
                 Register::X10,
                 Register::X11,
                 Register::X12,
@@ -73,7 +60,6 @@ impl UseDefItems for ASTNode {
                     vec![x.rd.data].into_iter().collect()
                 } else {
                     vec![
-                        Register::X1,
                         Register::X10,
                         Register::X11,
                         // TODO technically a0 and a1 are the
@@ -100,7 +86,7 @@ impl UseDefItems for ASTNode {
         }
     }
 
-    fn defs(&self) -> HashSet<Register> {
+    pub fn defs(&self) -> HashSet<Register> {
         let regs: HashSet<Register> = match self.to_owned() {
             ASTNode::FuncEntry(_) => HashSet::new(),
             ASTNode::Arith(x) => vec![x.rd.data].into_iter().collect(),
@@ -130,14 +116,14 @@ impl UseDefItems for ASTNode {
         regs.into_iter()
             .filter(|x| {
                 *x != Register::X0
-                    && *x != Register::X1
-                    && *x != Register::X2
-                    && *x != Register::X3
-                    && *x != Register::X4
+                // && *x != Register::X1
+                // && *x != Register::X2
+                // && *x != Register::X3
+                // && *x != Register::X4
             })
             .collect::<HashSet<_>>()
     }
-    fn uses_reg(&self) -> HashSet<WithToken<Register>> {
+    pub fn uses_reg(&self) -> HashSet<WithToken<Register>> {
         let regs: HashSet<WithToken<Register>> = match self {
             ASTNode::FuncEntry(_) => HashSet::new(),
             ASTNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()].into_iter().collect(),
@@ -171,7 +157,7 @@ impl UseDefItems for ASTNode {
             .collect::<HashSet<_>>();
         item
     }
-    fn uses(&self) -> HashSet<Register> {
+    pub fn uses(&self) -> HashSet<Register> {
         let regs: HashSet<Register> = match self {
             ASTNode::FuncEntry(_) => HashSet::new(),
             ASTNode::Arith(x) => vec![x.rs1.data, x.rs2.data].into_iter().collect(),
@@ -255,15 +241,12 @@ impl CFG {
         (nexts, prevs)
     }
 }
-impl DirectionalCFG for CFG {
-    fn calculate_labels(&self) -> LabelToBlock {
-        self.labels.clone()
-    }
 
-    fn calculate_directions(&self) -> DirectionalWrapper<'_> {
+impl From<CFG> for DirectionalWrapper {
+    fn from(cfg: CFG) -> Self {
         // initialize the direction map
         let mut direction_map = DirectionMap::new();
-        for block in self.blocks.clone() {
+        for block in cfg.blocks.clone() {
             direction_map.insert(
                 block.clone(),
                 Direction {
@@ -274,7 +257,7 @@ impl DirectionalCFG for CFG {
         }
 
         let mut prev: Option<Rc<BasicBlock>> = None;
-        for block in self.blocks.clone() {
+        for block in cfg.blocks.clone() {
             for node in block.0.clone() {
                 if let Some(n) = node.jumps_to() {
                     // assert that this is the final node in the block
@@ -283,9 +266,9 @@ impl DirectionalCFG for CFG {
                         .get_mut(&block)
                         .unwrap()
                         .next
-                        .insert(self.labels.get(&n.data.0).unwrap().clone());
+                        .insert(cfg.labels.get(&n.data.0).unwrap().clone());
                     direction_map
-                        .get_mut(self.labels.get(&n.data.0).unwrap())
+                        .get_mut(cfg.labels.get(&n.data.0).unwrap())
                         .unwrap()
                         .prev
                         .insert(block.clone());
@@ -325,7 +308,7 @@ impl DirectionalCFG for CFG {
         // AST NEXTS/PREVS
         // Using the big block nexts and prevs, we can now calculate the
         // nexts and prevs for each AST node. We do this by walking through
-        let (next_ast_map, prev_ast_map) = self.calc_ast_directions(&direction_map);
+        let (next_ast_map, prev_ast_map) = cfg.calc_ast_directions(&direction_map);
 
         // TODO verify!!!
         // RETURN LABEL TARGETS
@@ -338,7 +321,7 @@ impl DirectionalCFG for CFG {
         let mut return_block_map = HashMap::new();
         let mut label_return_map = HashMap::new();
         // for each return label
-        for block in self.blocks.clone() {
+        for block in cfg.blocks.clone() {
             for node in &block.0.clone() {
                 if node.is_return() {
                     // walk backwards
@@ -398,7 +381,7 @@ impl DirectionalCFG for CFG {
         // Find all places where a label is called and add them to the
         // label call map
         let mut label_call_map = HashMap::new();
-        for block in self.blocks.clone() {
+        for block in cfg.blocks.clone() {
             for node in &block.0.clone() {
                 if let ASTNode::JumpLink(x) = node.as_ref() {
                     match label_call_map.get_mut(&x.name.data) {
@@ -426,8 +409,8 @@ impl DirectionalCFG for CFG {
 
         // calculate the possible function labels
 
-        DirectionalWrapper {
-            cfg: self,
+        Self {
+            cfg,
             next_ast_map,
             prev_ast_map,
             // return_label_map,
@@ -441,7 +424,7 @@ impl DirectionalCFG for CFG {
 
 #[cfg(test)]
 mod tests {
-    use crate::cfg::CFG;
+    use crate::cfg::{AnalysisWrapper, CFG};
 
     use super::*;
     use std::str::FromStr;
@@ -451,8 +434,10 @@ mod tests {
         let str =
             "sample_eval:\nli t0, 7\nbne a0, t0, L2\nli a0, 99\nret\nL2:\naddi a0, a0, 21\nret";
         let blocks = CFG::from_str(str).expect("unable to create cfg");
-        let map = blocks.calculate_directions();
+        let map = DirectionalWrapper::from(blocks);
         let next = map.node_nexts();
+
+        let blocks = map.cfg;
 
         assert_eq!(next.len(), 6);
         assert_eq!(
@@ -482,10 +467,10 @@ mod tests {
         let str =
             "sample_eval:\nli t0, 7\nbne a0, t0, L2\nli a0, 99\nret\nL2:\naddi a0, a0, 21\nret";
         let blocks = CFG::from_str(str).expect("unable to create cfg");
-        let map = blocks.calculate_directions();
-        let data = map.live_analysis();
-        let ins = data.live_in;
-        let outs = data.live_out;
+        let map = DirectionalWrapper::from(blocks);
+        let data = AnalysisWrapper::from(map);
+        let ins = data.liveness.live_in;
+        let outs = data.liveness.live_out;
 
         assert_eq!(ins.len(), 6);
         assert_eq!(outs.len(), 6);
@@ -513,52 +498,52 @@ mod tests {
     fn has_prev_and_before_items() {
         let blocks = CFG::from_str("add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1").expect("unable to create cfg");
 
-        let block1 = blocks.blocks.get(0).unwrap();
-        let block2 = blocks.blocks.get(1).unwrap();
-        let block3 = blocks.blocks.get(2).unwrap();
+        let block1 = blocks.blocks.get(0).unwrap().clone();
+        let block2 = blocks.blocks.get(1).unwrap().clone();
+        let block3 = blocks.blocks.get(2).unwrap().clone();
 
-        let map = blocks.calculate_directions();
-        assert_eq!(map.directions.get(block1).unwrap().prev.len(), 0);
-        assert_eq!(map.directions.get(block1).unwrap().next.len(), 1);
-        assert_eq!(map.directions.get(block2).unwrap().prev.len(), 1);
-        assert_eq!(map.directions.get(block2).unwrap().next.len(), 1);
-        assert_eq!(map.directions.get(block3).unwrap().prev.len(), 1);
-        assert_eq!(map.directions.get(block3).unwrap().next.len(), 0);
+        let map = DirectionalWrapper::from(blocks);
+        assert_eq!(map.directions.get(&block1).unwrap().prev.len(), 0);
+        assert_eq!(map.directions.get(&block1).unwrap().next.len(), 1);
+        assert_eq!(map.directions.get(&block2).unwrap().prev.len(), 1);
+        assert_eq!(map.directions.get(&block2).unwrap().next.len(), 1);
+        assert_eq!(map.directions.get(&block3).unwrap().prev.len(), 1);
+        assert_eq!(map.directions.get(&block3).unwrap().next.len(), 0);
         assert_eq!(
             map.directions
-                .get(block1)
+                .get(&block1)
                 .unwrap()
                 .next
-                .get(block2)
+                .get(&block2)
                 .unwrap(),
-            block2
+            &block2
         );
         assert_eq!(
             map.directions
-                .get(block2)
+                .get(&block2)
                 .unwrap()
                 .prev
-                .get(block1)
+                .get(&block1)
                 .unwrap(),
-            block1
+            &block1
         );
         assert_eq!(
             map.directions
-                .get(block2)
+                .get(&block2)
                 .unwrap()
                 .next
-                .get(block3)
+                .get(&block3)
                 .unwrap(),
-            block3
+            &block3
         );
         assert_eq!(
             map.directions
-                .get(block3)
+                .get(&block3)
                 .unwrap()
                 .prev
-                .get(block2)
+                .get(&block2)
                 .unwrap(),
-            block2
+            &block2
         );
     }
 }

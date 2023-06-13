@@ -1,11 +1,9 @@
 use crate::parser::ast::ASTNode;
 use crate::parser::ast::EqNodeDataVec;
-use crate::parser::register::Register;
+
 use std::collections::HashSet;
 use std::rc::Rc;
 use uuid::Uuid;
-
-use super::directional::UseDefItems;
 
 #[derive(Debug)]
 pub struct BasicBlock(pub Vec<Rc<ASTNode>>, pub Uuid);
@@ -73,14 +71,6 @@ impl BasicBlock {
 
     pub fn len(&self) -> usize {
         self.0.len()
-    }
-
-    pub fn arg_defs(&self) -> HashSet<Register> {
-        self.0
-            .iter()
-            .flat_map(|x| x.defs())
-            .filter(|x| x.is_argument())
-            .collect::<HashSet<Register>>()
     }
 }
 

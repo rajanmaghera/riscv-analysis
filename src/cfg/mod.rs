@@ -8,8 +8,6 @@ pub use block::{BasicBlock, BlockDataWrapper, BlockWrapper, VecBlockDataWrapper,
 mod graph;
 pub use graph::CFG;
 
-mod display;
-
 mod directional;
 pub use directional::*;
 
@@ -27,3 +25,9 @@ pub use annotated::*;
 
 mod types;
 pub use types::*;
+
+mod ops;
+pub use ops::*;
+
+mod ecall;
+pub use ecall::*;

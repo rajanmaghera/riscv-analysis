@@ -1,5 +1,6 @@
 use crate::cfg::CFG;
 use crate::passes::PassManager;
+use cfg::AnnotatedCFG;
 use lsp_types::{Diagnostic, Position, Range};
 use passes::PassErrors;
 use serde_wasm_bindgen::to_value;
@@ -66,7 +67,8 @@ pub fn riscv_get_diagnostics(input: &str) -> JsValue {
     if cfg.is_err() {
         return WrapperDiag::new(&cfg.unwrap_err()).into();
     }
-    let res = PassManager::new().run(cfg.unwrap());
+    let cfg = AnnotatedCFG::from(cfg.unwrap());
+    let res = PassManager::new().run(cfg);
     match res {
         Ok(_) => WrapperDiag::default().into(),
         Err(e) => WrapperDiag::from(e).into(),
