@@ -2,6 +2,9 @@
 name = "riscv_analysis"
 version = "0.1.0"
 edition = "2021"
+description = "RISC-V static analysis tools"
+authors = ["Rajan Maghera"]
+repository = "https://github.com/rajanmaghera/riscv-analysis"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
@@ -9,6 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wasm-bindgen = "0.2.84"
+itertools = "0.10.5"
 lsp-types = "0.94.0"
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.5"
