@@ -66,7 +66,28 @@ impl From<PassError> for Diagnostic {
     }
 }
 
-// COMPLETION ITEMS
+// TODO COMPLETION ITEMS
 // X0 - X32
 //
 // write enums for registers from X0 to X32
+
+/* TODO extended completion and hover information
+
+I would like to implement completion based on the type of instruction.
+For example, if I write "add", the next completion item should be a register.
+
+Labels should be differentiated from function labels.
+
+Each instruction should have a hover item that shows the syntax of the instruction,
+and "what" the instruction is doing to registers.
+
+Aliases and long names should be in descriptions, so they pick up on completion.
+For example, modulus, remainder, mod and rem should all be completion items for
+the "rem" instruction.
+
+Each instruction should have a hover item that shows function that it is part of,
+as well as their inputs and outputs.
+
+Stack store/restores could have a hover item that displays the always known item
+
+ */

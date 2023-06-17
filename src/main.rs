@@ -12,6 +12,16 @@ mod passes;
 
 fn main() {
     // TODO use rust cli library
+    // TODO doctor command that tells you the function definitions, and why it
+    // thinks that.
+
+    // Ex. Return values: a0, a1
+    // a2 may be a return value, but it is never read from after a function call to __
+    // a3 is read from after a function call, but it is not defined in the function
+    // check every path of execution to ensure it is assigned a value.
+    // You assigned a3 on line xx, but then it is not when line xx (other path) is
+    // run. This means that if line xx (join) is run, we cannot guarantee that a3
+    // has been assigned in your function.
 
     // read argument from command line as filename
     // let filename = std::env::args().nth(1).expect("No filename provided");
