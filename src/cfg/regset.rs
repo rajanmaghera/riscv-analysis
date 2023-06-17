@@ -41,3 +41,40 @@ impl ToRegHashset for u32 {
     }
 }
 
+pub struct RegSets;
+impl RegSets {
+    pub fn temporary() -> HashSet<Register> {
+        use Register::*;
+        vec![X5, X6, X7, X28, X29, X30, X31].into_iter().collect()
+    }
+    pub fn argument() -> HashSet<Register> {
+        use Register::*;
+        vec![X10, X11, X12, X13, X14, X15, X16, X17]
+            .into_iter()
+            .collect()
+    }
+    pub fn ret() -> HashSet<Register> {
+        RegSets::argument()
+    }
+
+    pub fn saved() -> HashSet<Register> {
+        use Register::*;
+        vec![X8, X9, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27]
+            .into_iter()
+            .collect()
+    }
+    pub fn sp_ra() -> HashSet<Register> {
+        use Register::*;
+        vec![X2, X1].into_iter().collect()
+    }
+    pub fn caller_saved() -> HashSet<Register> {
+        let mut set = RegSets::temporary();
+        set.extend(RegSets::argument());
+        set
+    }
+    pub fn callee_saved() -> HashSet<Register> {
+        let mut set = RegSets::saved();
+        set.extend(RegSets::sp_ra());
+        set
+    }
+}
