@@ -97,6 +97,11 @@ impl CFG {
             }
         }
 
+        // ADD PROGRAM START NODE
+        let start_node = Rc::new(ASTNode::new_program_entry());
+        current_block.push(start_node.clone());
+        new_nodes.push(start_node);
+
         for node in nodes {
             match node {
                 ASTNode::Label(s) => {
@@ -121,7 +126,7 @@ impl CFG {
                     }
                     last_labels.push(s.name.data.0);
                 }
-                _ if matches!(node.jumps_to(), Some(_)) => {
+                _ if matches!(node.potential_jumps_to(), Some(_)) => {
                     let new_node = Rc::new(node);
                     current_block.push(new_node.clone());
                     new_nodes.push(new_node);

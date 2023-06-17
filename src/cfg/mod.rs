@@ -14,8 +14,8 @@ pub use directional::*;
 mod dataflow;
 pub use dataflow::*;
 
-mod regsets;
-pub use regsets::{caller_saved_registers, ToRegBitmap, ToRegHashset};
+mod regset;
+pub use regset::*;
 
 mod available;
 pub use available::*;
