@@ -1,4 +1,4 @@
-use crate::parser::token::{Token, TokenInfo};
+use crate::parser::token::{Info, Token};
 use std::{
     convert::TryFrom,
     fmt::Display,
@@ -42,10 +42,10 @@ pub enum Register {
     X31,
 }
 
-impl TryFrom<TokenInfo> for Register {
+impl TryFrom<Info> for Register {
     type Error = ();
 
-    fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
             Token::Symbol(s) => Register::from_str(&s),
             _ => Err(()),

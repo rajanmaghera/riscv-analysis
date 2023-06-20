@@ -12,7 +12,7 @@ use std::{collections::VecDeque, str::FromStr};
 use super::imm::{CSRImm, Imm};
 use super::{
     ast::LabelString,
-    token::{Token, TokenInfo},
+    token::{Info, Token},
 };
 
 pub struct Parser {
@@ -103,20 +103,20 @@ pub enum ExpectedType {
 
 #[derive(Debug, Clone)]
 pub enum ParseError {
-    Expected(Vec<ExpectedType>, TokenInfo),
-    IsNewline(TokenInfo),
-    Ignored(TokenInfo),
-    UnexpectedToken(TokenInfo),
+    Expected(Vec<ExpectedType>, Info),
+    IsNewline(Info),
+    Ignored(Info),
+    UnexpectedToken(Info),
     UnexpectedEOF,
     NeedTwoNodes(ASTNode, ASTNode),
 }
 
 // TODO add parse error for lw (where two nodes are needed)
 
-impl TryFrom<TokenInfo> for LabelString {
+impl TryFrom<Info> for LabelString {
     type Error = ();
 
-    fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
             Token::Symbol(s) => LabelString::try_from(s),
             _ => Err(()),
@@ -132,7 +132,7 @@ impl TryFrom<String> for LabelString {
     }
 }
 
-fn expect_lparen(value: Option<TokenInfo>) -> Result<(), ParseError> {
+fn expect_lparen(value: Option<Info>) -> Result<(), ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     match v.token {
         Token::LParen => Ok(()),
@@ -140,7 +140,7 @@ fn expect_lparen(value: Option<TokenInfo>) -> Result<(), ParseError> {
     }
 }
 
-fn expect_rparen(value: Option<TokenInfo>) -> Result<(), ParseError> {
+fn expect_rparen(value: Option<Info>) -> Result<(), ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     match v.token {
         Token::RParen => Ok(()),
@@ -148,24 +148,24 @@ fn expect_rparen(value: Option<TokenInfo>) -> Result<(), ParseError> {
     }
 }
 
-fn get_reg(value: Option<TokenInfo>) -> Result<With<Register>, ParseError> {
+fn get_reg(value: Option<Info>) -> Result<With<Register>, ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     With::<Register>::try_from(v.clone())
         .map_err(|_| ParseError::Expected(vec![ExpectedType::Register], v))
 }
 
-fn get_imm(value: Option<TokenInfo>) -> Result<With<Imm>, ParseError> {
+fn get_imm(value: Option<Info>) -> Result<With<Imm>, ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     With::<Imm>::try_from(v.clone()).map_err(|_| ParseError::Expected(vec![ExpectedType::Imm], v))
 }
 
-fn get_label(value: Option<TokenInfo>) -> Result<With<LabelString>, ParseError> {
+fn get_label(value: Option<Info>) -> Result<With<LabelString>, ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     With::<LabelString>::try_from(v.clone())
         .map_err(|_| ParseError::Expected(vec![ExpectedType::Label], v))
 }
 
-fn get_csrimm(value: Option<TokenInfo>) -> Result<With<CSRImm>, ParseError> {
+fn get_csrimm(value: Option<Info>) -> Result<With<CSRImm>, ParseError> {
     let v = value.ok_or(ParseError::UnexpectedEOF)?;
     With::<CSRImm>::try_from(v.clone())
         .map_err(|_| ParseError::Expected(vec![ExpectedType::CSRImm], v))

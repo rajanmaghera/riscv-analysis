@@ -16,7 +16,7 @@ pub struct Range {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct TokenInfo {
+pub struct Info {
     pub token: Token,
     pub pos: Range,
 }
@@ -50,7 +50,7 @@ pub enum Token {
     String(String),
 }
 
-impl PartialEq<Token> for TokenInfo {
+impl PartialEq<Token> for Info {
     fn eq(&self, other: &Token) -> bool {
         self.token == *other
     }
@@ -66,8 +66,8 @@ impl PartialEq<Token> for TokenInfo {
 // }
 
 impl<T> With<T> {
-    pub fn info(&self) -> TokenInfo {
-        TokenInfo {
+    pub fn info(&self) -> Info {
+        Info {
             token: self.token.clone(),
             pos: self.pos.clone(),
         }
@@ -99,7 +99,7 @@ where
     }
 }
 
-impl Display for TokenInfo {
+impl Display for Info {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.token)
     }
@@ -119,7 +119,7 @@ impl Display for Token {
     }
 }
 
-pub struct VecTokenDisplayWrapper<'a>(&'a Vec<TokenInfo>);
+pub struct VecTokenDisplayWrapper<'a>(&'a Vec<Info>);
 impl<'a> Display for VecTokenDisplayWrapper<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for t in self.0 {
@@ -133,7 +133,7 @@ pub trait ToDisplayForTokenVec {
     fn to_display(&self) -> VecTokenDisplayWrapper;
 }
 
-impl ToDisplayForTokenVec for Vec<TokenInfo> {
+impl ToDisplayForTokenVec for Vec<Info> {
     fn to_display(&self) -> VecTokenDisplayWrapper {
         VecTokenDisplayWrapper(self)
     }
@@ -175,7 +175,7 @@ impl<T> With<T>
 where
     T: PartialEq<T>,
 {
-    pub fn new(data: T, info: TokenInfo) -> Self {
+    pub fn new(data: T, info: Info) -> Self {
         With {
             token: info.token,
             pos: info.pos,
@@ -184,13 +184,13 @@ where
     }
 }
 
-impl<T> TryFrom<TokenInfo> for With<T>
+impl<T> TryFrom<Info> for With<T>
 where
-    T: TryFrom<TokenInfo>,
+    T: TryFrom<Info>,
 {
     type Error = T::Error;
 
-    fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: Info) -> Result<Self, Self::Error> {
         Ok(With {
             pos: value.pos.clone(),
             token: value.token.clone(),
@@ -199,10 +199,10 @@ where
     }
 }
 
-impl TryFrom<TokenInfo> for String {
+impl TryFrom<Info> for String {
     type Error = String;
 
-    fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
             Token::Symbol(s) => Ok(s),
             _ => Err(format!("Expected symbol, got {:?}", value.token)),

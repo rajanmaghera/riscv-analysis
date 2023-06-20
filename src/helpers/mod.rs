@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::cfg::BasicBlock;
 use crate::parser::ASTNode;
 use crate::parser::Lexer;
-use crate::parser::{Position, Range, Token, TokenInfo, With};
+use crate::parser::{Info, Position, Range, Token, With};
 
 pub fn basic_block_from_nodes(nodes: Vec<ASTNode>) -> Rc<BasicBlock> {
     let mut rc_nodes = Vec::new();
@@ -16,7 +16,7 @@ pub fn basic_block_from_nodes(nodes: Vec<ASTNode>) -> Rc<BasicBlock> {
     Rc::new(BasicBlock(rc_nodes, Uuid::new_v4()))
 }
 
-pub fn tokenize<S: Into<String>>(input: S) -> Vec<TokenInfo> {
+pub fn tokenize<S: Into<String>>(input: S) -> Vec<Info> {
     Lexer::new(input).collect()
 }
 
@@ -107,7 +107,7 @@ macro_rules! exp {
 #[macro_export]
 macro_rules! token {
     ($x:expr) => {
-        TokenInfo {
+        Info {
             token: Token::Symbol($x.to_owned()),
             pos: Range {
                 start: Position { line: 0, column: 0 },

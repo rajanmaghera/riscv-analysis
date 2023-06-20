@@ -1,5 +1,5 @@
 use crate::parser::token::Token;
-use crate::parser::token::{Position, Range, TokenInfo};
+use crate::parser::token::{Info, Position, Range};
 
 const EOF_CONST: char = 3 as char;
 
@@ -96,7 +96,7 @@ impl Lexer {
 // TODO typestate for lexer?
 
 impl Iterator for Lexer {
-    type Item = TokenInfo;
+    type Item = Info;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.skip_ws();
@@ -106,7 +106,7 @@ impl Iterator for Lexer {
                 let pos = self.get_range();
                 self.next_char();
 
-                Some(TokenInfo {
+                Some(Info {
                     token: Token::Newline,
                     pos,
                 })
@@ -115,7 +115,7 @@ impl Iterator for Lexer {
                 let pos = self.get_range();
                 self.next_char();
 
-                Some(TokenInfo {
+                Some(Info {
                     token: Token::LParen,
                     pos,
                 })
@@ -124,7 +124,7 @@ impl Iterator for Lexer {
                 let pos = self.get_range();
                 self.next_char();
 
-                Some(TokenInfo {
+                Some(Info {
                     token: Token::RParen,
                     pos,
                 })
@@ -149,7 +149,7 @@ impl Iterator for Lexer {
                     return None;
                 }
 
-                Some(TokenInfo {
+                Some(Info {
                     token: Token::Directive(dir_str.clone()),
                     pos: Range { start, end },
                 })
@@ -168,7 +168,7 @@ impl Iterator for Lexer {
                 // TODO switch to comment tokens
                 // For now, we return the newline, as it ends
                 // in a newline
-                Some(TokenInfo {
+                Some(Info {
                     token: Token::Newline,
                     pos: self.get_range(),
                 })
@@ -192,7 +192,7 @@ impl Iterator for Lexer {
 
                 self.next_char();
 
-                Some(TokenInfo {
+                Some(Info {
                     token: Token::String(string_str.clone()),
                     pos: Range { start, end },
                 })
@@ -217,7 +217,7 @@ impl Iterator for Lexer {
                     self.next_char();
                     let end = self.get_pos();
 
-                    return Some(TokenInfo {
+                    return Some(Info {
                         token: Token::Label(symbol_str.clone()),
                         pos: Range { start, end },
                     });
@@ -225,7 +225,7 @@ impl Iterator for Lexer {
 
                 let end = self.get_pos();
 
-                Some(TokenInfo {
+                Some(Info {
                     token: Token::Symbol(symbol_str.clone()),
                     pos: Range { start, end },
                 })

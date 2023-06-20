@@ -1,14 +1,14 @@
 use std::str::FromStr;
 
-use crate::parser::token::{Token, TokenInfo};
+use crate::parser::token::{Info, Token};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Imm(pub i32);
 
-impl TryFrom<TokenInfo> for Imm {
+impl TryFrom<Info> for Imm {
     type Error = ();
 
-    fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
             Token::Symbol(s) => Imm::from_str(&s),
             _ => Err(()),
@@ -19,10 +19,10 @@ impl TryFrom<TokenInfo> for Imm {
 #[derive(Debug, PartialEq, Clone)]
 pub struct CSRImm(pub u32);
 
-impl TryFrom<TokenInfo> for CSRImm {
+impl TryFrom<Info> for CSRImm {
     type Error = ();
 
-    fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
             Token::Symbol(s) => CSRImm::from_str(&s),
             _ => Err(()),

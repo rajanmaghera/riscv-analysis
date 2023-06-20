@@ -45,8 +45,6 @@ impl WrapperDiag {
     }
 }
 
-
-
 // impl From<Vec<>> for WrapperDiag {
 //     fn from(e: PassErrors) -> Self {
 //         let mut diag = Vec::new();
@@ -60,11 +58,12 @@ impl WrapperDiag {
 #[wasm_bindgen]
 pub fn riscv_get_diagnostics(input: &str) -> JsValue {
     let cfg = CFG::from_str(input).map_err(|e| format!("{:#?}", e));
-    if cfg.is_err() {
-        return WrapperDiag::new(&cfg.unwrap_err()).into();
+    match cfg {
+        Ok(cfg) => {
+            let cfg = AnnotatedCFG::from(cfg);
+            let res = Manager::new().run(&cfg);
+            WrapperDiag(res.iter().map(|x| x.to_owned().into()).collect()).into()
+        }
+        Err(e) => WrapperDiag::new(&e).into(),
     }
-    let cfg = AnnotatedCFG::from(cfg.unwrap());
-    let res = Manager::new().run(&cfg);
-    WrapperDiag(res.iter().map(|x| x.to_owned().into()).collect())
-    .into()
 }
