@@ -716,7 +716,7 @@ impl Display for Node {
         let res = match &self {
             Node::ProgramEntry(_) => "---[PROGRAM ENTRY]---".to_string(),
             Node::FuncEntry(x) => {
-                let name = x.name.data.0.to_string();
+                let name = x.name.data.0.clone();
                 format!("FUNC ENTRY: {name}")
             }
             Node::UpperArith(x) => {
@@ -742,7 +742,7 @@ impl Display for Node {
             Node::Label(x) => format!("---[{}]---", x.name.data.0),
             Node::JumpLink(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
-                let name = x.name.data.0.to_string();
+                let name = x.name.data.0.clone();
                 let rd = x.rd.data.to_string();
                 format!("{inst} [{name}] | {rd} <- PC")
             }
@@ -763,7 +763,7 @@ impl Display for Node {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rs1 = x.rs1.data.to_string();
                 let rs2 = x.rs2.data.to_string();
-                let name = x.name.data.0.to_string();
+                let name = x.name.data.0.clone();
                 format!("{inst} {rs1}--{rs2}, [{name}]")
             }
             Node::Store(x) => {
@@ -784,7 +784,7 @@ impl Display for Node {
             Node::LoadAddr(x) => {
                 let inst = "la";
                 let rd = x.rd.data.to_string();
-                let name = x.name.data.0.to_string();
+                let name = x.name.data.0.clone();
                 format!("{inst} {rd} <- [{name}]")
             }
             Node::Csr(x) => {

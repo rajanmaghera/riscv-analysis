@@ -9,7 +9,7 @@ use itertools::Itertools;
 use crate::parser::{BasicType, Node, Register};
 
 use super::{
-    regset::RegSets, AvailableValue, AvailableValueResult, BasicBlock, Cfg, DirectionMap,
+    regset::RegSets, AvailableValue, AvailableValueResult, BaseCFG, BasicBlock, DirectionMap,
     DirectionalWrapper, LabelToNode, LabelToNodes, LiveAnalysisResult, NodeToNodes,
     NodeToPotentialLabel,
 };
@@ -62,14 +62,14 @@ use super::{
 //     //
 // }
 
-// struct NewAnnotatedCFG {
+// struct NewCFG {
 //     nodes: Vec<Rc<AnnotatedNode>>,
 //     functions: HashMap<LabelString, Rc<AnnotatedFunction>>,
 //     //
 // }
 
-// impl AnnotatedCFG {
-//     fn to_new(&self) -> NewAnnotatedCFG {
+// impl CFG {
+//     fn to_new(&self) -> NewCFG {
 //         let mut nodes = Vec::new();
 //         let mut old_new_map = HashMap::new();
 
@@ -108,7 +108,7 @@ use super::{
 //             }
 //         }
 
-//         NewAnnotatedCFG {
+//         NewCFG {
 //             nodes,
 //             functions: HashMap::new(),
 //         }
@@ -145,8 +145,8 @@ impl IntoIterator for AnnotatedCFG {
     }
 }
 
-impl From<Cfg> for AnnotatedCFG {
-    fn from(cfg: Cfg) -> Self {
+impl From<BaseCFG> for AnnotatedCFG {
+    fn from(cfg: BaseCFG) -> Self {
         let cfg = DirectionalWrapper::from(cfg);
         let awrap = AnalysisWrapper::from(cfg);
 
@@ -196,7 +196,7 @@ impl Display for AnnotatedCFG {
             f.write_str(&format!(
                 "| LABELS: {:?}, ID: {}\n",
                 labels.next().unwrap(),
-                &block.1.as_simple().to_string()[..8]
+                &block.1.as_simple().to_string().get(..8).unwrap_or("")
             ))?;
             f.write_str(&format!(
                 "| PREV: [{}]\n",
@@ -207,7 +207,13 @@ impl Display for AnnotatedCFG {
                     .iter()
                     .collect::<Vec<_>>()
                     .iter()
-                    .map(|x| x.1.as_simple().to_string()[..8].to_string())
+                    .map(|x| x
+                        .1
+                        .as_simple()
+                        .to_string()
+                        .get(..8)
+                        .unwrap_or("")
+                        .to_string())
                     .collect::<Vec<_>>()
                     .join(", ")
             ))?;
@@ -326,8 +332,7 @@ impl AnnotatedCFG {
     pub fn _is_program_exit(&self, node: &Rc<Node>) -> bool {
         match &*(*node) {
             Node::Basic(x) => {
-                let idx = self.nodes.iter().position(|x| x == node).unwrap();
-
+                let idx = self.nodes.iter().position(|n| n == node).unwrap();
                 let avail_a7 = self
                     .available
                     .avail_out

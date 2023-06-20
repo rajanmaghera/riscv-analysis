@@ -56,7 +56,7 @@ impl DirectionalWrapper {
                 }
 
                 nodes.push(LiveAnalysisNodeData {
-                    node: node.clone(),
+                    node: Rc::clone(node),
                     kill: node.kill().to_bitmap(),
                     gen: node.gen().to_bitmap(),
                     live_in: 0,
@@ -66,7 +66,7 @@ impl DirectionalWrapper {
                     prevs: self.prev_ast_map.get(node).unwrap().clone(),
                 });
 
-                astidx.insert(node.clone(), idx);
+                astidx.insert(Rc::clone(node), idx);
                 if let Node::FuncEntry(entry) = node.borrow() {
                     funcidx.insert(entry.name.data.clone(), idx);
                 }
@@ -82,8 +82,8 @@ impl DirectionalWrapper {
 
                 let mut live_out = 0;
                 for next in &node.nexts {
-                    let idx = astidx.get(next).unwrap();
-                    live_out |= nodes.get(*idx).unwrap().live_in;
+                    let id = astidx.get(next).unwrap();
+                    live_out |= nodes.get(*id).unwrap().live_in;
                 }
 
                 node.live_out = live_out;
@@ -102,8 +102,8 @@ impl DirectionalWrapper {
                         new_u_def = 0;
                     } else {
                         for prev in node.prevs.clone() {
-                            let idx = astidx.get(&prev).unwrap();
-                            new_u_def &= nodes[*idx].u_def;
+                            let id = astidx.get(&prev).unwrap();
+                            new_u_def &= nodes[*id].u_def;
                         }
                     }
 
@@ -165,7 +165,7 @@ impl DirectionalWrapper {
                 } else if self
                     .label_return_map
                     .values()
-                    .any(|x| x.iter().next().unwrap().clone() == node.node)
+                    .any(|x| x.iter().next().unwrap() == &node.node)
                 {
                     // AND all the unconditional defs of the previous nodes
                     let mut new_u_def = u32::MAX;
@@ -173,8 +173,8 @@ impl DirectionalWrapper {
                         new_u_def = 0;
                     } else {
                         for prev in node.prevs.clone() {
-                            let idx = astidx.get(&prev).unwrap();
-                            new_u_def &= nodes[*idx].u_def;
+                            let id = astidx.get(&prev).unwrap();
+                            new_u_def &= nodes[*id].u_def;
                         }
                     }
                     node.u_def = new_u_def;
@@ -189,8 +189,8 @@ impl DirectionalWrapper {
                         new_u_def = 0;
                     } else {
                         for prev in node.prevs.clone() {
-                            let idx = astidx.get(&prev).unwrap();
-                            new_u_def &= nodes[*idx].u_def;
+                            let id = astidx.get(&prev).unwrap();
+                            new_u_def &= nodes[*id].u_def;
                         }
                     }
 

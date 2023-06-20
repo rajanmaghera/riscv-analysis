@@ -1,9 +1,27 @@
 #![deny(clippy::all, clippy::pedantic, clippy::cargo)]
+#![deny(
+    clippy::try_err,
+    clippy::string_to_string,
+    clippy::string_slice,
+    clippy::shadow_unrelated,
+    clippy::unseparated_literal_suffix,
+    clippy::as_underscore,
+    clippy::clone_on_ref_ptr,
+    clippy::dbg_macro,
+    clippy::decimal_literal_representation,
+    clippy::deref_by_slicing,
+    clippy::empty_drop,
+    clippy::empty_structs_with_brackets,
+    clippy::exit,
+    clippy::expect_used,
+    clippy::let_underscore_must_use
+)]
+// #![deny(clippy::panic_in_result_fn, clippy::use_debug, clippy::todo, clippy::indexing_slicing)]
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::too_many_lines)]
 
-use crate::cfg::{AnnotatedCFG, Cfg};
+use crate::cfg::{AnnotatedCFG, BaseCFG};
 use crate::passes::Manager;
 use std::str::FromStr;
 
@@ -32,9 +50,16 @@ fn main() {
     // let filename = std::env::args().nth(1).expect("No filename provided");
 
     let filename = "/Users/rajanmaghera/Documents/GitHub/riscv-analysis/tmp/saved-reg.s";
-    let file = std::fs::read_to_string(filename).expect("Unable to read file");
+    let Ok(file) = std::fs::read_to_string(filename) else {
+        println!("Unable to read file");
+        return;
+    };
 
-    let cfg = Cfg::from_str(file.as_str()).expect("Unable to parse file");
+    let Ok(cfg) = BaseCFG::from_str(file.as_str()) else {
+        println!("Unable to parse file");
+        return;
+    };
+
     let cfg = AnnotatedCFG::from(cfg);
 
     println!("{cfg}");
@@ -50,7 +75,7 @@ fn main() {
 mod tests {
 
     use super::*;
-    use crate::cfg::{Cfg, VecBlockWrapper};
+    use crate::cfg::{AnnotatedCFG, VecBlockWrapper};
     use crate::helpers::{basic_block_from_nodes, tokenize};
     use crate::parser::Imm;
     use crate::parser::Parser;
@@ -173,7 +198,7 @@ mod tests {
     fn linear_block() {
         let parser = Parser::new("my_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1");
         let ast = parser.collect::<Vec<Node>>();
-        let blocks = Cfg::new(ast).expect("unable to create cfg");
+        let blocks = BaseCFG::new(ast).expect("unable to create cfg");
         assert_eq!(
             vec![
                 basic_block_from_nodes(vec![Node::new_program_entry()]),
@@ -194,7 +219,7 @@ mod tests {
             "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1",
         );
         let ast = parser.collect::<Vec<Node>>();
-        let blocks = Cfg::new(ast).expect("unable to create cfg");
+        let blocks = BaseCFG::new(ast).expect("unable to create cfg");
         assert_eq!(
             vec![
                 basic_block_from_nodes(vec![Node::new_program_entry(), arith!(Add X2 X2 X3),]),
@@ -212,7 +237,7 @@ mod tests {
 
     #[test]
     fn block_labels() {
-        let blocks = Cfg::from_str(
+        let blocks = BaseCFG::from_str(
             "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
         )
         .expect("unable to create cfg");
@@ -229,13 +254,13 @@ mod tests {
 
     #[test]
     fn duplicate_labels() {
-        Cfg::from_str("my_block: add s0, s0, s2\nmy_block: add s0, s0, s2")
+        BaseCFG::from_str("my_block: add s0, s0, s2\nmy_block: add s0, s0, s2")
             .expect_err("duplicate labels should fail");
     }
 
     #[test]
     fn block_labels_with_spaces() {
-        let blocks = Cfg::from_str(
+        let blocks = BaseCFG::from_str(
             "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
         )
         .expect("unable to create cfg");
@@ -313,7 +338,7 @@ mod tests {
     #[test]
     fn basic_imm() {
         let blocks =
-            Cfg::from_str("\nhello_world:\n    addi x0, x2 12").expect("unable to create cfg");
+            BaseCFG::from_str("\nhello_world:\n    addi x0, x2 12").expect("unable to create cfg");
         assert_eq!(
             vec![
                 basic_block_from_nodes(vec![Node::new_program_entry()]),
@@ -329,7 +354,7 @@ mod tests {
 
     #[test]
     fn pass_with_comments() {
-        let blocks = Cfg::from_str("\nhello_world:\n    addi x1, x2 12 # yolo\nadd x1, x2 x3")
+        let blocks = BaseCFG::from_str("\nhello_world:\n    addi x1, x2 12 # yolo\nadd x1, x2 x3")
             .expect("unable to create cfg");
         assert_eq!(
             vec![

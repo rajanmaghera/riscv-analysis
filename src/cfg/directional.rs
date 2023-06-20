@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::{
-    BasicBlock, BlockSet, Cfg, DirectionMap, LabelToNode, LabelToNodes, NodeToNodes,
+    BaseCFG, BasicBlock, BlockSet, DirectionMap, LabelToNode, LabelToNodes, NodeToNodes,
     NodeToPotentialLabel,
 };
 
@@ -21,7 +21,7 @@ pub struct Direction {
 }
 
 pub struct DirectionalWrapper {
-    pub cfg: Cfg,
+    pub cfg: BaseCFG,
     pub directions: DirectionMap,
     pub node_function_map: NodeToPotentialLabel,
     // pub return_label_map: NodeToLabel,
@@ -76,7 +76,7 @@ impl Node {
 }
 // calculate the in and out registers for every statement
 
-impl Cfg {
+impl BaseCFG {
     pub fn calc_ast_directions(
         &self,
         direction_map: &HashMap<Rc<BasicBlock>, Direction>,
@@ -91,37 +91,37 @@ impl Cfg {
                 if i == len - 1 {
                     let block = direction_map.get(block).unwrap().next.clone();
                     for next in block {
-                        set.insert(next.0.first().unwrap().clone());
+                        set.insert(Rc::clone(next.0.first().unwrap()));
                     }
                 } else {
-                    set.insert(block.0[i + 1].clone());
+                    set.insert(Rc::clone(&block.0[i + 1]));
                 }
-                nexts.insert(node.clone(), set);
+                nexts.insert(Rc::clone(node), set);
 
                 // determine prevs of each node
-                let mut set = HashSet::new();
+                let mut prev_set = HashSet::new();
                 if i == 0 {
                     let block = direction_map.get(block).unwrap().prev.clone();
                     for prev in block {
-                        set.insert(prev.0.last().unwrap().clone());
+                        prev_set.insert(Rc::clone(prev.0.last().unwrap()));
                     }
                 } else {
-                    set.insert(block.0[i - 1].clone());
+                    prev_set.insert(Rc::clone(&block.0[i - 1]));
                 }
-                prevs.insert(node.clone(), set);
+                prevs.insert(Rc::clone(node), prev_set);
             }
         }
         (nexts, prevs)
     }
 }
 
-impl From<Cfg> for DirectionalWrapper {
-    fn from(cfg: Cfg) -> Self {
+impl From<BaseCFG> for DirectionalWrapper {
+    fn from(cfg: BaseCFG) -> Self {
         // initialize the direction map
         let mut direction_map = DirectionMap::new();
         for block in cfg.blocks.clone() {
             direction_map.insert(
-                block.clone(),
+                Rc::clone(&block),
                 Direction {
                     next: HashSet::new(),
                     prev: HashSet::new(),
@@ -139,12 +139,12 @@ impl From<Cfg> for DirectionalWrapper {
                         .get_mut(&block)
                         .unwrap()
                         .next
-                        .insert(cfg.labels.get(&n.data.0).unwrap().clone());
+                        .insert(Rc::clone(cfg.labels.get(&n.data.0).unwrap()));
                     direction_map
                         .get_mut(cfg.labels.get(&n.data.0).unwrap())
                         .unwrap()
                         .prev
-                        .insert(block.clone());
+                        .insert(Rc::clone(&block));
                 }
             }
 
@@ -156,12 +156,12 @@ impl From<Cfg> for DirectionalWrapper {
                     .get_mut(&prev)
                     .unwrap()
                     .next
-                    .insert(block.clone());
+                    .insert(Rc::clone(&block));
                 direction_map
                     .get_mut(&block)
                     .unwrap()
                     .prev
-                    .insert(prev.clone());
+                    .insert(Rc::clone(&prev));
             }
 
             // done weird because it's unstable in Rust
@@ -169,10 +169,10 @@ impl From<Cfg> for DirectionalWrapper {
                 if fin.is_return() {
                     None
                 } else {
-                    Some(block.clone())
+                    Some(Rc::clone(&block))
                 }
             } else {
-                Some(block.clone())
+                Some(Rc::clone(&block))
             }
         }
 
@@ -200,32 +200,32 @@ impl From<Cfg> for DirectionalWrapper {
                 if node.is_return() {
                     // walk backwards
                     let mut walked = HashSet::new();
-                    let mut queue = vec![node.clone()];
+                    let mut queue = vec![Rc::clone(node)];
                     let mut found = Vec::new();
                     'inn: while let Some(n) = queue.pop() {
-                        walked.insert(n.clone());
+                        walked.insert(Rc::clone(&n));
                         // if we find a function start, we're done
                         if let Node::FuncEntry(x) = n.as_ref() {
-                            label_entry_map.insert(x.name.data.clone(), n.clone());
-                            return_label_map.insert(node.clone(), x.name.clone());
+                            label_entry_map.insert(x.name.data.clone(), Rc::clone(&n));
+                            return_label_map.insert(Rc::clone(node), x.name.clone());
                             match label_return_map.get_mut(&x.name.data) {
                                 None => {
                                     let mut new_set = HashSet::new();
-                                    new_set.insert(node.clone());
+                                    new_set.insert(Rc::clone(node));
                                     label_return_map.insert(x.name.data.clone(), new_set);
                                 }
                                 Some(x) => {
-                                    x.insert(node.clone());
+                                    x.insert(Rc::clone(node));
                                 }
                             }
                             match return_block_map.get_mut(&x.name.data) {
                                 None => {
                                     let mut new_set = HashSet::new();
-                                    new_set.insert(block.clone());
+                                    new_set.insert(Rc::clone(&block));
                                     return_block_map.insert(x.name.data.clone(), new_set);
                                 }
                                 Some(x) => {
-                                    x.insert(block.clone());
+                                    x.insert(Rc::clone(&block));
                                 }
                             }
                             found.push(x.name.clone());
@@ -233,9 +233,9 @@ impl From<Cfg> for DirectionalWrapper {
                             continue 'inn;
                         }
                         // otherwise, add all prevs to the queue
-                        for prev in prev_ast_map.get(&n).unwrap() {
-                            if !walked.contains(prev) {
-                                queue.push(prev.clone());
+                        for pr in prev_ast_map.get(&n).unwrap() {
+                            if !walked.contains(pr) {
+                                queue.push(Rc::clone(pr));
                             }
                         }
                     }
@@ -247,8 +247,8 @@ impl From<Cfg> for DirectionalWrapper {
                     }
 
                     // if we found one, add all the walked nodes to the node_function_map
-                    for node in walked {
-                        node_function_map.insert(node, found[0].clone());
+                    for n in walked {
+                        node_function_map.insert(n, found[0].clone());
                     }
                 }
             }
@@ -264,11 +264,11 @@ impl From<Cfg> for DirectionalWrapper {
                     match label_call_map.get_mut(&x.name.data) {
                         None => {
                             let mut new_set = HashSet::new();
-                            new_set.insert(node.clone());
+                            new_set.insert(Rc::clone(node));
                             label_call_map.insert(x.name.data.clone(), new_set);
                         }
                         Some(x) => {
-                            x.insert(node.clone());
+                            x.insert(Rc::clone(node));
                         }
                     }
                 }

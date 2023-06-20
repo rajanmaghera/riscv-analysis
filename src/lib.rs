@@ -1,4 +1,4 @@
-use crate::cfg::Cfg;
+use crate::cfg::BaseCFG;
 use crate::passes::Manager;
 use cfg::AnnotatedCFG;
 use lsp_types::{Diagnostic, Position, Range};
@@ -57,7 +57,7 @@ impl WrapperDiag {
 
 #[wasm_bindgen]
 pub fn riscv_get_diagnostics(input: &str) -> JsValue {
-    let cfg = Cfg::from_str(input).map_err(|e| format!("{:#?}", e));
+    let cfg = BaseCFG::from_str(input).map_err(|e| format!("{:#?}", e));
     match cfg {
         Ok(cfg) => {
             let cfg = AnnotatedCFG::from(cfg);

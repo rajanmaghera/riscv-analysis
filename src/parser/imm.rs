@@ -67,9 +67,11 @@ impl FromStr for Imm {
         let s = s.to_lowercase();
         let s = s.as_str();
         let s = s.trim();
-        let neg = s.starts_with('-');
-        let s = if neg { &s[1..] } else { s };
-        let mul = if neg { -1 } else { 1 };
+        let (s, mul) = if let Some(stripped) = s.strip_prefix('-') {
+            (stripped, -1)
+        } else {
+            (s, 1)
+        };
 
         if s == "zero" {
             Ok(Imm(0))

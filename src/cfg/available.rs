@@ -163,14 +163,14 @@ impl DirectionalWrapper {
         for block in &self.cfg.blocks {
             for node in &block.0 {
                 nodes.push(AvailableValueNodeData {
-                    node: node.clone(),
+                    node: Rc::clone(node),
                     ins: HashMap::new(),
                     outs: HashMap::new(),
                     stack_ins: HashMap::new(),
                     stack_outs: HashMap::new(),
                     prevs: self.prev_ast_map.get(node).unwrap().clone(),
                 });
-                astidx.insert(node.clone(), idx);
+                astidx.insert(Rc::clone(node), idx);
                 idx += 1;
             }
         }
@@ -187,11 +187,7 @@ impl DirectionalWrapper {
                 let mut in_vals = HashMap::new();
                 let mut prev_vals = node.prevs.clone().into_iter().map(|x| {
                     let prev = nodes.get(*astidx.get(&x).unwrap()).unwrap();
-                    prev.outs
-                        .clone()
-                        .into_iter()
-                        .map(|(x, y)| (x, y))
-                        .collect::<HashSet<_>>()
+                    prev.outs.clone().into_iter().collect::<HashSet<_>>()
                 });
 
                 if let Some(s) = prev_vals.next() {
@@ -205,11 +201,7 @@ impl DirectionalWrapper {
                 let mut in_stacks = HashMap::new();
                 let mut prev_stacks = node.prevs.clone().into_iter().map(|x| {
                     let prev = nodes.get(*astidx.get(&x).unwrap()).unwrap();
-                    prev.stack_outs
-                        .clone()
-                        .into_iter()
-                        .map(|(x, y)| (x, y))
-                        .collect::<HashSet<_>>()
+                    prev.stack_outs.clone().into_iter().collect::<HashSet<_>>()
                 });
 
                 if let Some(s) = prev_stacks.next() {

@@ -65,10 +65,17 @@ impl Iterator for Parser {
             if let Err(err) = &item {
                 match err {
                     ParseError::Expected(tokens, found) => {
-                        println!("Expected {tokens:?}, found {found:?}");
+                        println!(
+                            "Expected {}, found {found}",
+                            tokens
+                                .iter()
+                                .map(std::string::ToString::to_string)
+                                .collect::<Vec<String>>()
+                                .join(" or "),
+                        );
                     }
                     ParseError::UnexpectedToken(x) => {
-                        println!("line {}: Unexpected token {:?}", x.pos.start.line, x.token);
+                        println!("line {}: Unexpected token {}", x.pos.start.line, x.token);
                     }
                     _ => {}
                 }
@@ -101,6 +108,19 @@ pub enum ExpectedType {
     CSRImm,
 }
 
+impl std::fmt::Display for ExpectedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ExpectedType::Register => write!(f, "Register"),
+            ExpectedType::Imm => write!(f, "Imm"),
+            ExpectedType::Label => write!(f, "Label"),
+            ExpectedType::LParen => write!(f, "("),
+            ExpectedType::RParen => write!(f, ")"),
+            ExpectedType::CSRImm => write!(f, "CSRImm"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ParseError {
     Expected(Vec<ExpectedType>, Info),
@@ -109,6 +129,7 @@ pub enum ParseError {
     UnexpectedToken(Info),
     UnexpectedEOF,
     NeedTwoNodes(Box<Node>, Box<Node>),
+    UnexpectedError,
 }
 
 impl TryFrom<Info> for LabelString {
@@ -635,7 +656,7 @@ impl TryFrom<&mut Peekable<Lexer>> for Node {
                                         PseudoType::Csrci => CSRIType::Csrrci,
                                         PseudoType::Csrsi => CSRIType::Csrrsi,
                                         PseudoType::Csrwi => CSRIType::Csrrwi,
-                                        _ => unreachable!(),
+                                        _ => return Err(ParseError::UnexpectedError),
                                     };
                                     return Ok(Node::new_csri(
                                         With::new(inst, next_node.clone()),
@@ -651,7 +672,7 @@ impl TryFrom<&mut Peekable<Lexer>> for Node {
                                         PseudoType::Csrc => CSRType::Csrrc,
                                         PseudoType::Csrs => CSRType::Csrrs,
                                         PseudoType::Csrw => CSRType::Csrrw,
-                                        _ => unreachable!(),
+                                        _ => return Err(ParseError::UnexpectedError),
                                     };
                                     return Ok(Node::new_csr(
                                         With::new(inst, next_node.clone()),
@@ -694,7 +715,9 @@ impl TryFrom<&mut Peekable<Lexer>> for Node {
                 Ok(Node::new_directive(With::new(DirectiveType::Nop, node)))
             }
             Token::Newline => Err(IsNewline(next_node)),
-            _ => unimplemented!(),
+            Token::LParen | Token::RParen | Token::String(_) => {
+                Err(ParseError::UnexpectedToken(next_node))
+            }
         }
     }
 }

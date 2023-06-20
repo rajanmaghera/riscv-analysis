@@ -23,12 +23,12 @@ impl AnnotatedCFG {
         let mut ranges = Vec::new();
         // push the next nodes onto the queue
         for next in self.next_ast_map.get(node).unwrap() {
-            queue.push_back(next.clone());
+            queue.push_back(Rc::clone(next));
         }
 
         // keep track of visited nodes
         let mut visited = HashSet::new();
-        visited.insert(node.clone());
+        visited.insert(Rc::clone(node));
 
         // visit each node in the queue
         // if the error is found, add error
@@ -37,7 +37,7 @@ impl AnnotatedCFG {
             if visited.contains(&next) {
                 continue;
             }
-            visited.insert(next.clone());
+            visited.insert(Rc::clone(&next));
             if next.gen().contains(&item) {
                 // find the use
                 let regs = next.gen();
@@ -56,7 +56,7 @@ impl AnnotatedCFG {
                 break;
             }
             for next_next in self.next_ast_map.get(&next).unwrap() {
-                queue.push_back(next_next.clone());
+                queue.push_back(Rc::clone(next_next));
             }
         }
         ranges
@@ -179,53 +179,49 @@ impl Pass for EcallCheck {
 pub struct GarbageInputValueCheck;
 impl Pass for GarbageInputValueCheck {
     fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
-        let mut bigidx = 0;
-        for block in cfg.blocks.clone() {
-            for node in block.0.clone() {
-                if bigidx == 0 {
-                    let mut garbage = cfg
-                        .liveness
-                        .live_in
-                        .get(bigidx)
-                        .unwrap()
-                        .clone()
-                        .into_iter()
-                        .collect::<Vec<_>>();
-                    garbage.retain(|x| !RegSets::saved().contains(x));
-                    if !garbage.is_empty() {
-                        let mut ranges = Vec::new();
-                        for reg in garbage {
-                            let mut ranges_tmp = cfg.error_ranges_for_first_usage(&node, reg);
-                            ranges.append(&mut ranges_tmp);
-                        }
-                        for range in ranges {
-                            errors.push(PassError::InvalidUseBeforeAssignment(range.clone()));
-                        }
+        for (i, node) in cfg.clone().into_iter().enumerate() {
+            if i == 0 {
+                let mut garbage = cfg
+                    .liveness
+                    .live_in
+                    .get(i)
+                    .unwrap()
+                    .clone()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                garbage.retain(|x| !RegSets::saved().contains(x));
+                if !garbage.is_empty() {
+                    let mut ranges = Vec::new();
+                    for reg in garbage {
+                        let mut ranges_tmp = cfg.error_ranges_for_first_usage(&node, reg);
+                        ranges.append(&mut ranges_tmp);
                     }
-                } else if let Node::FuncEntry(x) = &(*node) {
-                    let args = cfg.function_args(x.name.data.0.as_str()).unwrap();
-                    let mut garbage = cfg
-                        .liveness
-                        .live_in
-                        .get(bigidx)
-                        .unwrap()
-                        .clone()
-                        .into_iter()
-                        .collect::<Vec<_>>();
-                    garbage.retain(|x| !args.contains(x));
-                    garbage.retain(|x| !RegSets::saved().contains(x));
-                    if !garbage.is_empty() {
-                        let mut ranges = Vec::new();
-                        for reg in garbage {
-                            let mut ranges_tmp = cfg.error_ranges_for_first_usage(&node, reg);
-                            ranges.append(&mut ranges_tmp);
-                        }
-                        for range in ranges {
-                            errors.push(PassError::InvalidUseBeforeAssignment(range.clone()));
-                        }
+                    for range in ranges {
+                        errors.push(PassError::InvalidUseBeforeAssignment(range.clone()));
                     }
                 }
-                bigidx += 1;
+            } else if let Node::FuncEntry(x) = &(*node) {
+                let args = cfg.function_args(x.name.data.0.as_str()).unwrap();
+                let mut garbage = cfg
+                    .liveness
+                    .live_in
+                    .get(i)
+                    .unwrap()
+                    .clone()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                garbage.retain(|reg| !args.contains(reg));
+                garbage.retain(|reg| !RegSets::saved().contains(reg));
+                if !garbage.is_empty() {
+                    let mut ranges = Vec::new();
+                    for reg in garbage {
+                        let mut ranges_tmp = cfg.error_ranges_for_first_usage(&node, reg);
+                        ranges.append(&mut ranges_tmp);
+                    }
+                    for range in ranges {
+                        errors.push(PassError::InvalidUseBeforeAssignment(range.clone()));
+                    }
+                }
             }
         }
     }

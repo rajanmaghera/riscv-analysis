@@ -9,24 +9,24 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Cfg {
+pub struct BaseCFG {
     pub blocks: Vec<Rc<BasicBlock>>,
     pub nodes: Vec<Rc<Node>>,
     pub labels: HashMap<String, Rc<BasicBlock>>,
     pub labels_for_branch: Vec<Vec<String>>,
 }
 
-impl FromStr for Cfg {
+impl FromStr for BaseCFG {
     type Err = CFGError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parser = Parser::new(s);
         let ast = parser.collect::<Vec<Node>>();
-        Cfg::new(ast)
+        BaseCFG::new(ast)
     }
 }
 // todo move to cfg.into_nodes_iter() with separate struct wrapper
-impl IntoIterator for Cfg {
+impl IntoIterator for BaseCFG {
     type Item = Rc<Node>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
@@ -45,7 +45,7 @@ pub enum CFGError {
     LabelNotDefined,
 }
 
-impl Display for Cfg {
+impl Display for BaseCFG {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::new();
         let mut labels = self.labels_for_branch.iter();
@@ -55,7 +55,8 @@ impl Display for Cfg {
             s.push_str(&format!(
                 "| LABELS: {:?}, ID: {}\n",
                 labels.next().unwrap(),
-                &block.1.as_simple().to_string()[..8]
+                // get last 8 chars of uuid
+                &block.1.as_simple().to_string().get(..8).unwrap_or("")
             ));
             for node in &block.0 {
                 s.push_str(&format!("| {node}\n"));
@@ -66,8 +67,8 @@ impl Display for Cfg {
     }
 }
 
-impl Cfg {
-    pub fn new(nodes: Vec<Node>) -> Result<Cfg, CFGError> {
+impl BaseCFG {
+    pub fn new(nodes: Vec<Node>) -> Result<BaseCFG, CFGError> {
         // TODO transition nodes/blocks to iterator of single type
         let mut labels = HashMap::new();
         let mut blocks = Vec::new();
@@ -99,7 +100,7 @@ impl Cfg {
 
         // ADD PROGRAM START NODE
         let start_node = Rc::new(Node::new_program_entry());
-        current_block.push(start_node.clone());
+        current_block.push(Rc::clone(&start_node));
         new_nodes.push(start_node);
 
         for node in nodes {
@@ -108,7 +109,7 @@ impl Cfg {
                     if current_block.len() > 0 {
                         let rc = Rc::new(current_block);
                         for label in &last_labels {
-                            if labels.insert(label.clone(), rc.clone()).is_some() {
+                            if labels.insert(label.clone(), Rc::clone(&rc)).is_some() {
                                 return Err(CFGError::LabelNotDefined);
                             }
                         }
@@ -121,19 +122,19 @@ impl Cfg {
                     // if label is a function label, add it to the block
                     if func_labels.contains(&s.name) {
                         let current_node = Rc::new(Node::new_func_entry(s.name.clone()));
-                        current_block.push(current_node.clone());
+                        current_block.push(Rc::clone(&current_node));
                         new_nodes.push(current_node);
                     }
                     last_labels.push(s.name.data.0);
                 }
                 _ if matches!(node.potential_jumps_to(), Some(_)) => {
                     let new_node = Rc::new(node);
-                    current_block.push(new_node.clone());
+                    current_block.push(Rc::clone(&new_node));
                     new_nodes.push(new_node);
                     // end block
                     let rc = Rc::new(current_block);
                     for label in &last_labels {
-                        if labels.insert(label.clone(), rc.clone()).is_some() {
+                        if labels.insert(label.clone(), Rc::clone(&rc)).is_some() {
                             return Err(CFGError::LabelNotDefined);
                         }
                     }
@@ -145,7 +146,7 @@ impl Cfg {
                 }
                 _ => {
                     let new_node = Rc::new(node);
-                    new_nodes.push(new_node.clone());
+                    new_nodes.push(Rc::clone(&new_node));
                     current_block.push(new_node);
                 }
             }
@@ -154,7 +155,7 @@ impl Cfg {
         if current_block.len() > 0 {
             let rc = Rc::new(current_block);
             for label in &last_labels {
-                if labels.insert(label.clone(), rc.clone()).is_some() {
+                if labels.insert(label.clone(), Rc::clone(&rc)).is_some() {
                     return Err(CFGError::LabelNotDefined);
                 }
             }
@@ -162,7 +163,7 @@ impl Cfg {
             blocks.push(rc);
         }
 
-        Ok(Cfg {
+        Ok(BaseCFG {
             blocks,
             nodes: new_nodes,
             labels,

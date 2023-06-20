@@ -5,6 +5,7 @@ use std::rc::Rc;
 use uuid::Uuid;
 
 #[derive(Debug)]
+// TODO make Vec<Rc<Node>> private
 pub struct BasicBlock(pub Vec<Rc<Node>>, pub Uuid);
 impl PartialEq for BasicBlock {
     fn eq(&self, other: &Self) -> bool {

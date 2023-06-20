@@ -6,7 +6,7 @@ mod block;
 pub use block::{BasicBlock, BlockDataWrapper, BlockWrapper, VecBlockDataWrapper, VecBlockWrapper};
 
 mod graph;
-pub use graph::Cfg;
+pub use graph::BaseCFG;
 
 mod directional;
 pub use directional::*;
