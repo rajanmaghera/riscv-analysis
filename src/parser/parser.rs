@@ -1,5 +1,8 @@
 use crate::parser::ast::{ASTNode, DirectiveType};
-use crate::parser::inst::{ArithType, BranchType, CSRIType, CSRType, IArithType, Inst, InstType, JumpLinkRType, JumpLinkType, PseudoType};
+use crate::parser::inst::{
+    ArithType, BranchType, CSRIType, CSRType, IArithType, Inst, InstType, JumpLinkRType,
+    JumpLinkType, PseudoType,
+};
 use crate::parser::lexer::Lexer;
 use crate::parser::register::Register;
 use crate::parser::token::WithToken;
@@ -62,10 +65,10 @@ impl Iterator for Parser {
             match &item {
                 Err(err) => match err {
                     ParseError::Expected(tokens, found) => {
-                        println!("Expected {tokens:?}, found {found:?}")
+                        println!("Expected {tokens:?}, found {found:?}");
                     }
                     ParseError::UnexpectedToken(x) => {
-                        println!("line {}: Unexpected token {:?}", x.pos.start.line, x.token)
+                        println!("line {}: Unexpected token {:?}", x.pos.start.line, x.token);
                     }
                     _ => {}
                 },
@@ -178,7 +181,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
     type Error = ParseError;
 
     fn try_from(value: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
-        use ParseError::{Expected, Ignored, IsNewline, NeedTwoNodes, UnexpectedEOF, UnexpectedToken};
+        use ParseError::{
+            Expected, Ignored, IsNewline, NeedTwoNodes, UnexpectedEOF, UnexpectedToken,
+        };
         let next_node = value.next().ok_or(UnexpectedEOF)?;
         match &next_node.token {
             Token::Symbol(s) => {

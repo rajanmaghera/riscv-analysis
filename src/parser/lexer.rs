@@ -71,6 +71,26 @@ impl Lexer {
             self.next_char();
         }
     }
+
+    fn get_range(&self) -> Range {
+        Range {
+            start: Position {
+                line: self.row,
+                column: self.col,
+            },
+            end: Position {
+                line: self.row,
+                column: self.col,
+            },
+        }
+    }
+
+    fn get_pos(&self) -> Position {
+        Position {
+            line: self.row,
+            column: self.col,
+        }
+    }
 }
 
 // TODO typestate for lexer?
@@ -80,21 +100,10 @@ impl Iterator for Lexer {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.skip_ws();
-        
 
         match self.ch {
             '\n' => {
-                let pos = Range {
-                    start: Position {
-                        line: self.row,
-                        column: self.col,
-                    },
-                    end: Position {
-                        line: self.row,
-                        column: self.col,
-                    },
-                };
-
+                let pos = self.get_range();
                 self.next_char();
 
                 Some(TokenInfo {
@@ -103,17 +112,7 @@ impl Iterator for Lexer {
                 })
             }
             '(' => {
-                let pos = Range {
-                    start: Position {
-                        line: self.row,
-                        column: self.col,
-                    },
-                    end: Position {
-                        line: self.row,
-                        column: self.col,
-                    },
-                };
-
+                let pos = self.get_range();
                 self.next_char();
 
                 Some(TokenInfo {
@@ -122,17 +121,7 @@ impl Iterator for Lexer {
                 })
             }
             ')' => {
-                let pos = Range {
-                    start: Position {
-                        line: self.row,
-                        column: self.col,
-                    },
-                    end: Position {
-                        line: self.row,
-                        column: self.col,
-                    },
-                };
-
+                let pos = self.get_range();
                 self.next_char();
 
                 Some(TokenInfo {
@@ -143,10 +132,7 @@ impl Iterator for Lexer {
             '.' => {
                 // directive
 
-                let start = Position {
-                    line: self.row,
-                    column: self.col,
-                };
+                let start = self.get_pos();
                 self.next_char();
 
                 let mut dir_str: String = String::new();
@@ -156,10 +142,7 @@ impl Iterator for Lexer {
                     self.next_char();
                 }
 
-                let end = Position {
-                    line: self.row,
-                    column: self.col,
-                };
+                let end = self.get_pos();
 
                 if dir_str.is_empty() {
                     // TODO this is an error or end of line?
@@ -187,26 +170,13 @@ impl Iterator for Lexer {
                 // in a newline
                 Some(TokenInfo {
                     token: Token::Newline,
-                    pos: Range {
-                        start: Position {
-                            line: self.row,
-                            column: self.col,
-                        },
-                        end: Position {
-                            line: self.row,
-                            column: self.col,
-                        },
-                    },
+                    pos: self.get_range(),
                 })
             }
 
             '"' => {
                 // string
-                let start = Position {
-                    line: self.row,
-                    column: self.col,
-                };
-
+                let start = self.get_pos();
                 let mut string_str: String = String::new();
 
                 self.next_char();
@@ -218,10 +188,7 @@ impl Iterator for Lexer {
 
                 self.next_char();
 
-                let end = Position {
-                    line: self.row,
-                    column: self.col,
-                };
+                let end = self.get_pos();
 
                 self.next_char();
 
@@ -231,10 +198,9 @@ impl Iterator for Lexer {
                 })
             }
             _ => {
-                let start = Position {
-                    line: self.row,
-                    column: self.col - 1,
-                };
+                self.col -= 1;
+
+                let start = self.get_pos();
 
                 let mut symbol_str: String = String::new();
 
@@ -249,10 +215,7 @@ impl Iterator for Lexer {
                 } else if self.ch == ':' {
                     // this is a label
                     self.next_char();
-                    let end = Position {
-                        line: self.row,
-                        column: self.col,
-                    };
+                    let end = self.get_pos();
 
                     return Some(TokenInfo {
                         token: Token::Label(symbol_str.clone()),
@@ -260,10 +223,7 @@ impl Iterator for Lexer {
                     });
                 }
 
-                let end = Position {
-                    line: self.row,
-                    column: self.col,
-                };
+                let end = self.get_pos();
 
                 Some(TokenInfo {
                     token: Token::Symbol(symbol_str.clone()),
