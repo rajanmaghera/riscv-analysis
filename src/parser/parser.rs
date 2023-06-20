@@ -1,5 +1,5 @@
 use crate::parser::ast::{ASTNode, DirectiveType};
-use crate::parser::inst::*;
+use crate::parser::inst::{ArithType, BranchType, CSRIType, CSRType, IArithType, Inst, InstType, JumpLinkRType, JumpLinkType, PseudoType};
 use crate::parser::lexer::Lexer;
 use crate::parser::register::Register;
 use crate::parser::token::WithToken;
@@ -28,7 +28,7 @@ impl Parser {
     // if there is an error, we will try to recover from it
     // by skipping the rest of the line
     fn recover_from_parse_error(&mut self) {
-        while let Some(token) = self.lexer.next() {
+        for token in self.lexer.by_ref() {
             if token == Token::Newline {
                 break;
             }
@@ -62,7 +62,7 @@ impl Iterator for Parser {
             match &item {
                 Err(err) => match err {
                     ParseError::Expected(tokens, found) => {
-                        println!("Expected {:?}, found {:?}", tokens, found)
+                        println!("Expected {tokens:?}, found {found:?}")
                     }
                     ParseError::UnexpectedToken(x) => {
                         println!("line {}: Unexpected token {:?}", x.pos.start.line, x.token)
@@ -178,7 +178,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
     type Error = ParseError;
 
     fn try_from(value: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
-        use ParseError::*;
+        use ParseError::{Expected, Ignored, IsNewline, NeedTwoNodes, UnexpectedEOF, UnexpectedToken};
         let next_node = value.next().ok_or(UnexpectedEOF)?;
         match &next_node.token {
             Token::Symbol(s) => {
@@ -399,7 +399,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     ),
                                     ASTNode::new_store(
                                         WithToken::new(inst, next_node.clone()),
-                                        temp_reg.clone(),
+                                        temp_reg,
                                         rs2,
                                         WithToken::new(Imm(0), next_node),
                                     ),

@@ -1,6 +1,9 @@
-use crate::parser::imm::*;
+use crate::parser::imm::{CSRImm, Imm};
 use crate::parser::inst::Inst;
-use crate::parser::inst::*;
+use crate::parser::inst::{
+    ArithType, BasicType, BranchType, CSRIType, CSRType, IArithType, IgnoreType, JumpLinkRType,
+    JumpLinkType, LoadType, PseudoType, StoreType, UpperArithType,
+};
 
 use crate::parser::register::Register;
 use crate::parser::token::{LineDisplay, Range, Token, WithToken};
@@ -37,14 +40,7 @@ pub enum DirectiveType {
 
 impl Display for DirectiveType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            // DirectiveType::Include(_) => write!(f, ".include"),
-            // DirectiveType::Align(_) => write!(f, ".align"),
-            // DirectiveType::Space(_) => write!(f, ".space"),
-            // DirectiveType::Text => write!(f, ".text"),
-            // DirectiveType::Data => write!(f, ".data"),
-            _ => write!(f, ""),
-        }
+        write!(f, "")
     }
 }
 
@@ -86,7 +82,7 @@ impl FromStr for LabelString {
         // ensure string only contains safe characters (including numbers)
         if !s
             .chars()
-            .all(|c| c.is_digit(10) || c.is_alphabetic() || c == '_' || c == '.' || c == '$')
+            .all(|c| c.is_ascii_digit() || c.is_alphabetic() || c == '_' || c == '.' || c == '$')
         {
             return Err(());
         }
@@ -294,7 +290,9 @@ impl EqNodeData for ASTNode {
 
 impl EqNodeDataVec for Vec<ASTNode> {
     fn data(&self) -> Vec<EqNodeWrapper> {
-        self.iter().map(|x| x.data()).collect()
+        self.iter()
+            .map(crate::parser::ast::EqNodeData::data)
+            .collect()
     }
 }
 
@@ -371,7 +369,7 @@ impl ASTNode {
             ASTNode::CSRImm(x) => x.inst.token.clone(),
             ASTNode::LoadAddr(x) => x.inst.token.clone(),
             ASTNode::FuncEntry(x) => x.name.token.clone(),
-            ASTNode::ProgramEntry(_) => Token::Symbol("".to_string()),
+            ASTNode::ProgramEntry(_) => Token::Symbol(String::new()),
         };
         let inst: Inst = match self {
             ASTNode::Arith(x) => (&x.inst.data).into(),
@@ -655,14 +653,14 @@ impl ASTNode {
     // TODO make uncond_jumps_to
     pub fn potential_jumps_to(&self) -> Option<WithToken<LabelString>> {
         match self {
-            ASTNode::Branch(x) => Some(x.name.to_owned()),
+            ASTNode::Branch(x) => Some(x.name.clone()),
             _ => None,
         }
     }
 
     pub fn calls_func_to(&self) -> Option<WithToken<LabelString>> {
         match self {
-            ASTNode::JumpLink(x) if x.rd == Register::X1 => Some(x.name.to_owned()),
+            ASTNode::JumpLink(x) if x.rd == Register::X1 => Some(x.name.clone()),
             _ => None,
         }
     }
@@ -724,95 +722,95 @@ impl ToDisplayForVecASTNode for Vec<ASTNode> {
 impl Display for ASTNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let res = match &self {
-            ASTNode::ProgramEntry(_) => format!("---[PROGRAM ENTRY]---"),
+            ASTNode::ProgramEntry(_) => "---[PROGRAM ENTRY]---".to_string(),
             ASTNode::FuncEntry(x) => {
                 let name = x.name.data.0.to_string();
-                format!("FUNC ENTRY: {}", name)
+                format!("FUNC ENTRY: {name}")
             }
             ASTNode::UpperArith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let imm = x.imm.data.0.to_string();
-                format!("{} {} <- {}", inst, rd, imm)
+                format!("{inst} {rd} <- {imm}")
             }
             ASTNode::Arith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let rs1 = x.rs1.data.to_string();
                 let rs2 = x.rs2.data.to_string();
-                format!("{} {} <- {}, {}", inst, rd, rs1, rs2)
+                format!("{inst} {rd} <- {rs1}, {rs2}")
             }
             ASTNode::IArith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let rs1 = x.rs1.data.to_string();
                 let imm = x.imm.data.0.to_string();
-                format!("{} {} <- {}, {}", inst, rd, rs1, imm)
+                format!("{inst} {rd} <- {rs1}, {imm}")
             }
             ASTNode::Label(x) => format!("---[{}]---", x.name.data.0),
             ASTNode::JumpLink(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let name = x.name.data.0.to_string();
                 let rd = x.rd.data.to_string();
-                format!("{} [{}] | {} <- PC", inst, name, rd)
+                format!("{inst} [{name}] | {rd} <- PC")
             }
             ASTNode::JumpLinkR(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rs1 = x.rs1.data.to_string();
-                format!("{} [{}]", inst, rs1)
+                format!("{inst} [{rs1}]")
             }
             ASTNode::Basic(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
-                format!("{}", inst)
+                format!("{inst}")
             }
             ASTNode::Directive(x) => {
                 let dir = x.dir.data.to_string();
-                format!("-<{}>-", dir)
+                format!("-<{dir}>-")
             }
             ASTNode::Branch(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rs1 = x.rs1.data.to_string();
                 let rs2 = x.rs2.data.to_string();
                 let name = x.name.data.0.to_string();
-                format!("{} {}--{}, [{}]", inst, rs1, rs2, name)
+                format!("{inst} {rs1}--{rs2}, [{name}]")
             }
             ASTNode::Store(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rs1 = x.rs1.data.to_string();
                 let rs2 = x.rs2.data.to_string();
                 let imm = x.imm.data.0.to_string();
-                format!("{} {} -> {}({})", inst, rs2, imm, rs1)
+                format!("{inst} {rs2} -> {imm}({rs1})")
             }
             ASTNode::Load(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let rs1 = x.rs1.data.to_string();
                 let imm = x.imm.data.0.to_string();
-                format!("{} {} <- {}({})", inst, rd, imm, rs1)
+                format!("{inst} {rd} <- {imm}({rs1})")
             }
             // TODO don't use the pseudo type here
             ASTNode::LoadAddr(x) => {
                 let inst = "la";
                 let rd = x.rd.data.to_string();
                 let name = x.name.data.0.to_string();
-                format!("{} {} <- [{}]", inst, rd, name)
+                format!("{inst} {rd} <- [{name}]")
             }
             ASTNode::CSR(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let csr = x.csr.data.0.to_string();
                 let rs1 = x.rs1.data.to_string();
-                format!("{} {} <- {} <- {}", inst, rd, csr, rs1)
+                format!("{inst} {rd} <- {csr} <- {rs1}")
             }
             ASTNode::CSRImm(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let csr = x.csr.data.0.to_string();
                 let imm = x.imm.data.0.to_string();
-                format!("{} {} <- {} <- {}", inst, rd, csr, imm)
+                format!("{inst} {rd} <- {csr} <- {imm}")
             }
         };
-        write!(f, "{}", res)
+        write!(f, "{res}")
     }
 }
 
@@ -821,9 +819,9 @@ impl<'a> fmt::Display for VecASTDisplayWrapper<'a> {
         let mut last = false;
         for node in self.0 {
             if last {
-                write!(f, "\n")?;
+                writeln!(f)?;
             }
-            write!(f, "{}", node)?;
+            write!(f, "{node}")?;
             last = true;
         }
         Ok(())
@@ -833,7 +831,7 @@ impl<'a> fmt::Display for VecASTDisplayWrapper<'a> {
 impl ASTNode {
     pub fn get_store_range(&self) -> Range {
         if let Some(item) = self.stores_to() {
-            item.pos.clone()
+            item.pos
         } else {
             self.get_range()
         }
@@ -852,59 +850,59 @@ impl LineDisplay for ASTNode {
             ASTNode::FuncEntry(x) => x.name.pos.clone(),
             ASTNode::UpperArith(x) => {
                 let mut range = x.inst.pos.clone();
-                range.end = x.imm.pos.end.clone();
+                range.end = x.imm.pos.end;
                 range
             }
             ASTNode::Label(x) => x.name.pos.clone(),
             ASTNode::Arith(arith) => {
                 let mut range = arith.inst.pos.clone();
-                range.end = arith.rs2.pos.end.clone();
+                range.end = arith.rs2.pos.end;
                 range
             }
             ASTNode::IArith(iarith) => {
                 let mut range = iarith.inst.pos.clone();
-                range.end = iarith.imm.pos.end.clone();
+                range.end = iarith.imm.pos.end;
                 range
             }
             ASTNode::JumpLink(jl) => {
                 let mut range = jl.inst.pos.clone();
-                range.end = jl.name.pos.end.clone();
+                range.end = jl.name.pos.end;
                 range
             }
             ASTNode::JumpLinkR(jlr) => {
                 let mut range = jlr.inst.pos.clone();
-                range.end = jlr.inst.pos.end.clone();
+                range.end = jlr.inst.pos.end;
                 range
             }
             ASTNode::Branch(branch) => {
                 let mut range = branch.inst.pos.clone();
-                range.end = branch.name.pos.end.clone();
+                range.end = branch.name.pos.end;
                 range
             }
             ASTNode::Store(store) => {
                 let mut range = store.inst.pos.clone();
-                range.end = store.imm.pos.end.clone();
+                range.end = store.imm.pos.end;
                 range
             }
             ASTNode::Load(load) => {
                 let mut range = load.inst.pos.clone();
-                range.end = load.imm.pos.end.clone();
+                range.end = load.imm.pos.end;
                 range
             }
             ASTNode::CSR(csr) => {
                 let mut range = csr.inst.pos.clone();
-                range.end = csr.rs1.pos.end.clone();
+                range.end = csr.rs1.pos.end;
                 range
             }
             ASTNode::CSRImm(csr) => {
                 let mut range = csr.inst.pos.clone();
-                range.end = csr.imm.pos.end.clone();
+                range.end = csr.imm.pos.end;
                 range
             }
             ASTNode::Basic(x) => x.inst.pos.clone(),
             ASTNode::LoadAddr(x) => {
                 let mut range = x.inst.pos.clone();
-                range.end = x.name.pos.end.clone();
+                range.end = x.name.pos.end;
                 range
             }
             ASTNode::Directive(directive) => directive.dir.pos.clone(),

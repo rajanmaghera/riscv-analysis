@@ -65,20 +65,20 @@ impl MathOp {
             MathOp::And => x & y,
             MathOp::Or => x | y,
             MathOp::Sll => x << y,
-            MathOp::Slt => (x < y) as i32,
-            MathOp::Sltu => ((x as u32) < (y as u32)) as i32,
+            MathOp::Slt => i32::from(x < y),
+            MathOp::Sltu => i32::from((x as u32) < (y as u32)),
             MathOp::Sra => x >> y,
             MathOp::Srl => (x as u32 >> y) as i32,
             MathOp::Sub => x - y,
             MathOp::Xor => x ^ y,
             MathOp::Mul => x * y,
             MathOp::Mulh => {
-                let (x, y) = (x as i64, y as i64);
+                let (x, y) = (i64::from(x), i64::from(y));
                 ((x * y) >> 32) as i32
             }
             MathOp::Mulhsu => {
                 // TODO BUG FIX
-                let (x, y) = (x as i64, y as i64);
+                let (x, y) = (i64::from(x), i64::from(y));
                 ((x * y) >> 32) as i32
             }
             MathOp::Mulhu => {

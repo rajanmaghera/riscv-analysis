@@ -79,8 +79,8 @@ impl FromStr for Imm {
                 return Err(());
             }
             match u32::from_str_radix(&s[2..], 16) {
-                Ok(i) => return Ok(Imm(mul * i as i32)),
-                Err(_) => return Err(()),
+                Ok(i) => Ok(Imm(mul * i as i32)),
+                Err(_) => Err(()),
             }
         } else if s.starts_with("0b") {
             if s[2..].starts_with('-') {
@@ -145,8 +145,8 @@ mod test {
 
     #[test]
     fn safe_hex() {
-        assert_eq!(Imm::from_str("0x7FFFFFFF"), Ok(Imm(2147483647)));
-        assert_eq!(Imm::from_str("0x80000000"), Ok(Imm(-2147483648)));
+        assert_eq!(Imm::from_str("0x7FFFFFFF"), Ok(Imm(2_147_483_647)));
+        assert_eq!(Imm::from_str("0x80000000"), Ok(Imm(-2_147_483_648)));
     }
 
     #[test]

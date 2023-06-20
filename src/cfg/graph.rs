@@ -50,19 +50,19 @@ impl Display for CFG {
         let mut s = String::new();
         let mut labels = self.labels_for_branch.iter();
 
-        for block in self.blocks.iter() {
+        for block in &self.blocks {
             s.push_str("/---------\n");
             s.push_str(&format!(
                 "| LABELS: {:?}, ID: {}\n",
                 labels.next().unwrap(),
-                block.1.as_simple().to_string()[..8].to_string()
+                &block.1.as_simple().to_string()[..8]
             ));
-            for node in block.0.iter() {
-                s.push_str(&format!("| {}\n", node));
+            for node in &block.0 {
+                s.push_str(&format!("| {node}\n"));
             }
             s.push_str("\\--------\n");
         }
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -107,8 +107,8 @@ impl CFG {
                 ASTNode::Label(s) => {
                     if current_block.len() > 0 {
                         let rc = Rc::new(current_block);
-                        for label in last_labels.iter() {
-                            if labels.insert(label.to_owned(), rc.clone()) != None {
+                        for label in &last_labels {
+                            if labels.insert(label.clone(), rc.clone()) != None {
                                 return Err(CFGError::LabelNotDefined);
                             }
                         }
@@ -132,8 +132,8 @@ impl CFG {
                     new_nodes.push(new_node);
                     // end block
                     let rc = Rc::new(current_block);
-                    for label in last_labels.iter() {
-                        if labels.insert(label.to_owned(), rc.clone()) != None {
+                    for label in &last_labels {
+                        if labels.insert(label.clone(), rc.clone()) != None {
                             return Err(CFGError::LabelNotDefined);
                         }
                     }
@@ -153,8 +153,8 @@ impl CFG {
 
         if current_block.len() > 0 {
             let rc = Rc::new(current_block);
-            for label in last_labels.iter() {
-                if labels.insert(label.to_owned(), rc.clone()) != None {
+            for label in &last_labels {
+                if labels.insert(label.clone(), rc.clone()) != None {
                     return Err(CFGError::LabelNotDefined);
                 }
             }

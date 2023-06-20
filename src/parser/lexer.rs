@@ -58,12 +58,12 @@ impl Lexer {
         // TODO be careful, we may not want - to be a symbol character,
         // This is done so number parsing is only done once we know what the instruction is
         // aka. to make our lives easier
-        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '-'
+        ('a'..='z').contains(&c) || ('A'..='Z').contains(&c) || c == '_' || c == '-'
     }
 
     fn is_symbol_item(&self) -> bool {
         let c = self.ch;
-        self.is_symbol_char() || (c >= '0' && c <= '9')
+        self.is_symbol_char() || ('0'..='9').contains(&c)
     }
 
     fn skip_ws(&mut self) {
@@ -147,7 +147,7 @@ impl Iterator for Lexer {
                 };
                 self.next_char();
 
-                let mut dir_str: String = "".to_owned();
+                let mut dir_str: String = String::new();
 
                 while self.is_symbol_item() {
                     dir_str += &self.ch.to_string();
@@ -159,13 +159,13 @@ impl Iterator for Lexer {
                     column: self.col,
                 };
 
-                if dir_str == "" {
+                if dir_str.is_empty() {
                     // TODO this is an error or end of line?
                     return None;
                 }
 
                 Some(TokenInfo {
-                    token: Token::Directive(dir_str.to_owned()),
+                    token: Token::Directive(dir_str.clone()),
                     pos: Range { start, end },
                 })
             }
@@ -205,7 +205,7 @@ impl Iterator for Lexer {
                     column: self.col,
                 };
 
-                let mut string_str: String = "".to_owned();
+                let mut string_str: String = String::new();
 
                 self.next_char();
 
@@ -224,7 +224,7 @@ impl Iterator for Lexer {
                 self.next_char();
 
                 Some(TokenInfo {
-                    token: Token::String(string_str.to_owned()),
+                    token: Token::String(string_str.clone()),
                     pos: Range { start, end },
                 })
             }
@@ -234,14 +234,14 @@ impl Iterator for Lexer {
                     column: self.col - 1,
                 };
 
-                let mut symbol_str: String = "".to_owned();
+                let mut symbol_str: String = String::new();
 
                 while self.is_symbol_item() {
                     symbol_str += &self.ch.to_string();
                     self.next_char();
                 }
 
-                if symbol_str == "" {
+                if symbol_str.is_empty() {
                     // this is an error or end of line?
                     return None;
                 } else if self.ch == ':' {
@@ -253,7 +253,7 @@ impl Iterator for Lexer {
                     };
 
                     return Some(TokenInfo {
-                        token: Token::Label(symbol_str.to_owned()),
+                        token: Token::Label(symbol_str.clone()),
                         pos: Range { start, end },
                     });
                 }
@@ -264,7 +264,7 @@ impl Iterator for Lexer {
                 };
 
                 Some(TokenInfo {
-                    token: Token::Symbol(symbol_str.to_owned()),
+                    token: Token::Symbol(symbol_str.clone()),
                     pos: Range { start, end },
                 })
             }

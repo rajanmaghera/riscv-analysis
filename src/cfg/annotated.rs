@@ -191,12 +191,12 @@ impl Display for AnnotatedCFG {
         let mut index = 0;
 
         let mut labels = self.labels_for_branch.iter();
-        for block in self.blocks.iter() {
+        for block in &self.blocks {
             f.write_str("+---------\n")?;
             f.write_str(&format!(
                 "| LABELS: {:?}, ID: {}\n",
                 labels.next().unwrap(),
-                block.1.as_simple().to_string()[..8].to_string()
+                &block.1.as_simple().to_string()[..8]
             ))?;
             f.write_str(&format!(
                 "| PREV: [{}]\n",
@@ -213,7 +213,7 @@ impl Display for AnnotatedCFG {
             ))?;
 
             f.write_str("| ****\n")?;
-            for node in block.0.iter() {
+            for node in &block.0 {
                 f.write_str(&format!(
                     "| {:>3}: {}\n|  in: {:<20}\n| out: {:<20}\n",
                     index,
@@ -222,20 +222,20 @@ impl Display for AnnotatedCFG {
                         .live_in
                         .get(index)
                         .unwrap()
-                        .into_iter()
+                        .iter()
                         .sorted()
                         .into_iter()
-                        .map(|x| x.to_string())
+                        .map(std::string::ToString::to_string)
                         .collect::<Vec<_>>()
                         .join(", "),
                     self.liveness
                         .live_out
                         .get(index)
                         .unwrap()
-                        .into_iter()
+                        .iter()
                         .sorted()
                         .into_iter()
-                        .map(|x| x.to_string())
+                        .map(std::string::ToString::to_string)
                         .collect::<Vec<_>>()
                         .join(", "),
                 ))?;
@@ -245,10 +245,10 @@ impl Display for AnnotatedCFG {
                         .avail_out
                         .get(index)
                         .unwrap()
-                        .into_iter()
+                        .iter()
                         .sorted_by_key(|x| x.0)
                         .into_iter()
-                        .map(|(k, v)| format!("[{}: {}]", k, v))
+                        .map(|(k, v)| format!("[{k}: {v}]"))
                         .collect::<Vec<_>>()
                         .join(", ")
                 ))?;
@@ -258,10 +258,10 @@ impl Display for AnnotatedCFG {
                         .stack_out
                         .get(index)
                         .unwrap()
-                        .into_iter()
+                        .iter()
                         .sorted_by_key(|x| x.0)
                         .into_iter()
-                        .map(|(k, v)| format!("[{}: {}]", k, v))
+                        .map(|(k, v)| format!("[{k}: {v}]"))
                         .collect::<Vec<_>>()
                         .join(", ")
                 ))?;
@@ -271,10 +271,10 @@ impl Display for AnnotatedCFG {
                         .uncond_defs
                         .get(index)
                         .unwrap()
-                        .into_iter()
+                        .iter()
                         .sorted()
                         .into_iter()
-                        .map(|x| x.to_string())
+                        .map(std::string::ToString::to_string)
                         .collect::<Vec<_>>()
                         .join(", ")
                 ))?;
@@ -283,7 +283,7 @@ impl Display for AnnotatedCFG {
             f.write_str("+---------\n")?;
         }
         f.write_str("FUNCTION DATA:\n")?;
-        for (k, _) in self.label_entry_map.iter() {
+        for (k, _) in &self.label_entry_map {
             f.write_str(&format!(
                 "{}: {} -> {}\n",
                 k.0,
@@ -312,7 +312,7 @@ impl AnnotatedCFG {
             .get(&crate::parser::ast::LabelString(name.to_owned()))?;
         let idx = self.nodes.iter().position(|x| x == val)?;
         let node = self.liveness.live_in.get(idx)?.clone();
-        let node = node.intersection(&RegSets::argument()).cloned().collect();
+        let node = node.intersection(&RegSets::argument()).copied().collect();
         Some(node)
     }
 
@@ -320,11 +320,11 @@ impl AnnotatedCFG {
         let val = self
             .label_return_map
             .get(&crate::parser::ast::LabelString(name.to_owned()))?
-            .into_iter()
+            .iter()
             .next()?;
         let idx = self.nodes.iter().position(|x| x == val)?;
         let node = self.liveness.live_in.get(idx)?.clone();
-        let node = node.intersection(&RegSets::ret()).cloned().collect();
+        let node = node.intersection(&RegSets::ret()).copied().collect();
         Some(node)
     }
 

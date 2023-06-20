@@ -32,7 +32,7 @@ impl Manager {
     pub fn run(&self, cfg: &AnnotatedCFG) -> Vec<PassError> {
         let mut errors = Vec::new();
         for pass in &self.passes {
-            pass.run(&cfg, &mut errors);
+            pass.run(cfg, &mut errors);
         }
         errors
     }

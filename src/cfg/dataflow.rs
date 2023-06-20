@@ -37,14 +37,14 @@ impl DirectionalWrapper {
 
         let mut idx = 0;
         for block in &self.cfg.blocks {
-            for node in block.0.iter() {
+            for node in &block.0 {
                 // HACK - if ecall is an exit call, then remove nexts
                 if let ASTNode::Basic(basic) = &(**node) {
                     if basic.inst.data == BasicType::Ecall {
                         if let Some(call_val) = avail.avail_in.get(idx).unwrap().get(&Register::X17)
                         {
                             if let AvailableValue::Constant(call_num) = call_val {
-                                if is_ecall_exit(call_num.clone()) {
+                                if is_ecall_exit(*call_num) {
                                     // for all nexts, remove their prev counterparts
                                     for next in self.next_ast_map.get(node).unwrap().clone() {
                                         self.prev_ast_map.get_mut(&next).unwrap().remove(node);
@@ -99,7 +99,7 @@ impl DirectionalWrapper {
                     // TODO ensure we are mutating values correctly
 
                     let mut new_u_def = u32::MAX;
-                    if node.prevs.len() == 0 {
+                    if node.prevs.is_empty() {
                         new_u_def = 0;
                     } else {
                         for prev in node.prevs.clone() {
@@ -154,7 +154,7 @@ impl DirectionalWrapper {
 
                     if let Some(call_val) = avail.avail_in.get(i).unwrap().get(&Register::X17) {
                         if let AvailableValue::Constant(call_num) = call_val {
-                            if let Some((args, _rets)) = ecall_in_outs(call_num.clone()) {
+                            if let Some((args, _rets)) = ecall_in_outs(*call_num) {
                                 // TODO do something about return values?
                                 node.live_in |= args.to_bitmap();
                             }
@@ -166,12 +166,11 @@ impl DirectionalWrapper {
                 } else if self
                     .label_return_map
                     .values()
-                    .find(|x| x.iter().next().unwrap().clone() == node.node)
-                    .is_some()
+                    .any(|x| x.iter().next().unwrap().clone() == node.node)
                 {
                     // AND all the unconditional defs of the previous nodes
                     let mut new_u_def = u32::MAX;
-                    if node.prevs.len() == 0 {
+                    if node.prevs.is_empty() {
                         new_u_def = 0;
                     } else {
                         for prev in node.prevs.clone() {
@@ -187,7 +186,7 @@ impl DirectionalWrapper {
                     node.u_def = node.live_in;
                 } else {
                     let mut new_u_def = u32::MAX;
-                    if node.prevs.len() == 0 {
+                    if node.prevs.is_empty() {
                         new_u_def = 0;
                     } else {
                         for prev in node.prevs.clone() {
@@ -215,11 +214,11 @@ impl DirectionalWrapper {
         let mut live_in = Vec::new();
         let mut live_out = Vec::new();
         let mut uncond_defs = Vec::new();
-        nodes.iter().for_each(|node| {
+        for node in nodes.iter() {
             live_in.push(node.live_in.to_hashset());
             live_out.push(node.live_out.to_hashset());
             uncond_defs.push(node.u_def.to_hashset());
-        });
+        }
         LiveAnalysisResult {
             live_in,
             live_out,

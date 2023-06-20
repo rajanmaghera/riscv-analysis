@@ -39,7 +39,7 @@ impl ASTNode {
     // TODO BIG FIX for all different types of conditional/unconditional jumps
     // These defs are used to help start some functional analysis
     pub fn kill_available_value(&self) -> HashSet<Register> {
-        match self.to_owned() {
+        match self.clone() {
             ASTNode::FuncEntry(_) => RegSets::caller_saved(),
             ASTNode::JumpLink(x) => {
                 let mut set = RegSets::caller_saved();
@@ -51,7 +51,7 @@ impl ASTNode {
     }
 
     pub fn kill(&self) -> HashSet<Register> {
-        let regs: HashSet<Register> = match self.to_owned() {
+        let regs: HashSet<Register> = match self.clone() {
             ASTNode::FuncEntry(_) => RegSets::callee_saved(),
             ASTNode::JumpLink(_) if self.is_function_call() => HashSet::new(),
             _ => self
@@ -248,7 +248,7 @@ impl From<CFG> for DirectionalWrapper {
                     // if we found anything other than one, it is not SESE
                     if found.len() > 1 {
                         unimplemented!("Multiple function starts found for return label");
-                    } else if found.len() == 0 {
+                    } else if found.is_empty() {
                         unimplemented!("No function starts found for return label");
                     }
 
