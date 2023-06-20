@@ -1,12 +1,17 @@
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
+    vec,
 };
 
-use crate::parser::{ast::ASTNode, register::Register, token::WithToken};
+use crate::{
+    cfg::regset::RegSets,
+    parser::{ast::ASTNode, register::Register, token::WithToken},
+};
 
 use super::{
-    BasicBlock, BlockSet, DirectionMap, LabelToNode, LabelToNodes, NodeToNodes, CFG,
+    BasicBlock, BlockSet, DirectionMap, LabelToNode, LabelToNodes, NodeToNodes,
+    NodeToPotentialLabel, CFG,
 };
 
 pub struct Direction {
@@ -17,6 +22,7 @@ pub struct Direction {
 pub struct DirectionalWrapper {
     pub cfg: CFG,
     pub directions: DirectionMap,
+    pub node_function_map: NodeToPotentialLabel,
     // pub return_label_map: NodeToLabel,
     pub label_entry_map: LabelToNode,
     pub label_return_map: LabelToNodes,
@@ -26,178 +32,47 @@ pub struct DirectionalWrapper {
 }
 
 // TODO deprecate most of these
+// TODO remove all "blocks" and treat each AST as their own block
+// TODO if a node has previous nodes and it is not a func start or program start, remove its nexts. That way, we can see if code is unreachable based on if nexts/prevs are empty
 impl ASTNode {
+    // TODO BIG FIX for all different types of conditional/unconditional jumps
     // These defs are used to help start some functional analysis
-    pub fn kill_value(&self) -> HashSet<Register> {
+    pub fn kill_available_value(&self) -> HashSet<Register> {
         match self.to_owned() {
-            ASTNode::FuncEntry(_) => vec![
-                Register::X10,
-                Register::X11,
-                Register::X12,
-                Register::X13,
-                Register::X14,
-                Register::X15,
-                Register::X16,
-                Register::X17,
-                // We also include all temporary registers
-                // if they are in the OUT, they were used
-                // in the function incorrectly
-                Register::X5,
-                Register::X6,
-                Register::X7,
-                Register::X28,
-                Register::X29,
-                Register::X30,
-                Register::X31,
-            ]
-            .into_iter()
-            .collect(),
-
+            ASTNode::FuncEntry(_) => RegSets::caller_saved(),
             ASTNode::JumpLink(x) => {
-                // a function call will "define" all argument registers
-                // as if every a-register was used as a return value
-                if x.rd.data != Register::X1 {
-                    vec![x.rd.data].into_iter().collect()
-                } else {
-                    vec![
-                        Register::X10,
-                        Register::X11,
-                        // TODO technically a0 and a1 are the
-                        // only return values?
-                        Register::X12,
-                        Register::X13,
-                        Register::X14,
-                        Register::X15,
-                        Register::X16,
-                        Register::X17,
-                        Register::X5,
-                        Register::X6,
-                        Register::X7,
-                        Register::X28,
-                        Register::X29,
-                        Register::X30,
-                        Register::X31,
-                    ]
-                    .into_iter()
-                    .collect()
-                }
+                let mut set = RegSets::caller_saved();
+                set.insert(x.rd.data);
+                set
             }
-            _ => self.defs(),
+            _ => self.kill(),
         }
     }
 
-    pub fn defs(&self) -> HashSet<Register> {
+    pub fn kill(&self) -> HashSet<Register> {
         let regs: HashSet<Register> = match self.to_owned() {
-            ASTNode::FuncEntry(_) => HashSet::new(),
-            ASTNode::Arith(x) => vec![x.rd.data].into_iter().collect(),
-            ASTNode::IArith(x) => vec![x.rd.data].into_iter().collect(),
-            ASTNode::UpperArith(x) => vec![x.rd.data].into_iter().collect(),
-            ASTNode::Label(_) => HashSet::new(),
-            ASTNode::JumpLink(x) => {
-                // a function call will "define" all argument registers
-                // as if every a-register was used as a return value
-                if x.rd.data != Register::X1 {
-                    vec![x.rd.data].into_iter().collect()
-                } else {
-                    HashSet::new()
-                }
-            }
-            ASTNode::JumpLinkR(x) => vec![x.rd.data].into_iter().collect(),
-            ASTNode::Basic(_) => HashSet::new(),
-            ASTNode::Directive(_) => HashSet::new(),
-            ASTNode::Branch(_) => HashSet::new(),
-            ASTNode::Store(_) => HashSet::new(),
-            ASTNode::Load(x) => vec![x.rd.data].into_iter().collect(),
-            ASTNode::LoadAddr(x) => vec![x.rd.data].into_iter().collect(),
-            ASTNode::CSR(x) => vec![x.rd.data].into_iter().collect(),
-            ASTNode::CSRImm(x) => vec![x.rd.data].into_iter().collect(),
+            ASTNode::FuncEntry(_) => RegSets::callee_saved(),
+            ASTNode::JumpLink(_) if self.is_function_call() => HashSet::new(),
+            _ => self
+                .stores_to()
+                .map(|x| vec![x.data].into_iter().collect())
+                .unwrap_or_default(),
         };
-        // skip x0-x4
         regs.into_iter()
-            .filter(|x| {
-                *x != Register::X0
-                // && *x != Register::X1
-                // && *x != Register::X2
-                // && *x != Register::X3
-                // && *x != Register::X4
-            })
+            .filter(|x| *x != Register::X0)
             .collect::<HashSet<_>>()
     }
-    pub fn uses_reg(&self) -> HashSet<WithToken<Register>> {
-        let regs: HashSet<WithToken<Register>> = match self {
-            ASTNode::FuncEntry(_) => HashSet::new(),
-            ASTNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()].into_iter().collect(),
-            ASTNode::IArith(x) => vec![x.rs1.clone()].into_iter().collect(),
-            ASTNode::UpperArith(_) => HashSet::new(),
-            ASTNode::Label(_) => HashSet::new(),
-            ASTNode::JumpLink(_) => {
-                // A function call will "use" no argument registers
-                HashSet::new()
-            }
-            ASTNode::JumpLinkR(x) => vec![x.rs1.clone()].into_iter().collect(),
-            ASTNode::Basic(_) => HashSet::new(),
-            ASTNode::Directive(_) => HashSet::new(),
-            ASTNode::Branch(x) => vec![x.rs1.clone(), x.rs2.clone()].into_iter().collect(),
-            ASTNode::Store(x) => vec![x.rs1.clone(), x.rs2.clone()].into_iter().collect(),
-            ASTNode::Load(x) => vec![x.rs1.clone()].into_iter().collect(),
-            ASTNode::LoadAddr(_) => HashSet::new(),
-            ASTNode::CSR(x) => vec![x.rs1.clone()].into_iter().collect(),
-            ASTNode::CSRImm(_) => HashSet::new(),
-        };
-        // filter out x0 to x4
-        let item = regs
-            .into_iter()
-            .filter(|x| {
-                *x != Register::X0
-                    && *x != Register::X1
-                    && *x != Register::X2
-                    && *x != Register::X3
-                    && *x != Register::X4
-            })
-            .collect::<HashSet<_>>();
-        item
-    }
-    pub fn uses(&self) -> HashSet<Register> {
+
+    pub fn gen(&self) -> HashSet<Register> {
         let regs: HashSet<Register> = match self {
-            ASTNode::FuncEntry(_) => HashSet::new(),
-            ASTNode::Arith(x) => vec![x.rs1.data, x.rs2.data].into_iter().collect(),
-            ASTNode::IArith(x) => vec![x.rs1.data].into_iter().collect(),
-            ASTNode::UpperArith(_) => HashSet::new(),
-            ASTNode::Label(_) => HashSet::new(),
-            ASTNode::JumpLink(_) => {
-                // A function call will "use" no argument registers
-                HashSet::new()
-            }
-            ASTNode::JumpLinkR(x) => vec![x.rs1.data].into_iter().collect(),
-            ASTNode::Basic(_) => HashSet::new(),
-            ASTNode::Directive(_) => HashSet::new(),
-            ASTNode::Branch(x) => vec![x.rs1.data, x.rs2.data].into_iter().collect(),
-            ASTNode::Store(x) => vec![x.rs1.data, x.rs2.data].into_iter().collect(),
-            ASTNode::Load(x) => vec![x.rs1.data].into_iter().collect(),
-            ASTNode::LoadAddr(_) => HashSet::new(),
-            ASTNode::CSR(x) => vec![x.rs1.data].into_iter().collect(),
-            ASTNode::CSRImm(_) => HashSet::new(),
+            ASTNode::JumpLinkR(_) if self.is_return() => RegSets::callee_saved(),
+            _ => self.reads_from().into_iter().map(|x| x.data).collect(),
         };
-        // filter out x0 to x4
-        let item = regs
-            .into_iter()
-            .filter(|x| {
-                *x != Register::X0
-                    && *x != Register::X1
-                    && *x != Register::X2
-                    && *x != Register::X3
-                    && *x != Register::X4
-            })
-            .collect::<HashSet<_>>();
-        item
+        regs.into_iter()
+            .filter(|x| *x != Register::X0)
+            .collect::<HashSet<_>>()
     }
 }
-
-trait InOutRegs {
-    fn in_regs(&self) -> HashSet<Register>;
-    fn out_regs(&self) -> HashSet<Register>;
-}
-
 // calculate the in and out registers for every statement
 
 impl CFG {
@@ -259,7 +134,7 @@ impl From<CFG> for DirectionalWrapper {
         let mut prev: Option<Rc<BasicBlock>> = None;
         for block in cfg.blocks.clone() {
             for node in block.0.clone() {
-                if let Some(n) = node.jumps_to() {
+                if let Some(n) = node.potential_jumps_to() {
                     // assert that this is the final node in the block
                     // assert_eq!(block.0.last().unwrap(), &node);
                     direction_map
@@ -320,6 +195,7 @@ impl From<CFG> for DirectionalWrapper {
         let mut label_entry_map = HashMap::new();
         let mut return_block_map = HashMap::new();
         let mut label_return_map = HashMap::new();
+        let mut node_function_map = HashMap::new();
         // for each return label
         for block in cfg.blocks.clone() {
             for node in &block.0.clone() {
@@ -355,7 +231,8 @@ impl From<CFG> for DirectionalWrapper {
                                         x.insert(block.clone());
                                     }
                                 }
-                                found.push(n);
+                                found.push(x.name.clone());
+
                                 continue 'inn;
                             }
                             _ => (),
@@ -372,6 +249,11 @@ impl From<CFG> for DirectionalWrapper {
                         unimplemented!("Multiple function starts found for return label");
                     } else if found.len() == 0 {
                         unimplemented!("No function starts found for return label");
+                    }
+
+                    // if we found one, add all the walked nodes to the node_function_map
+                    for node in walked {
+                        node_function_map.insert(node, found[0].clone());
                     }
                 }
             }
@@ -413,7 +295,7 @@ impl From<CFG> for DirectionalWrapper {
             cfg,
             next_ast_map,
             prev_ast_map,
-            // return_label_map,
+            node_function_map,
             label_entry_map,
             label_return_map,
             label_call_map,
