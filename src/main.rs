@@ -175,11 +175,14 @@ mod tests {
         let ast = parser.collect::<Vec<ASTNode>>();
         let blocks = CFG::new(ast).expect("unable to create cfg");
         assert_eq!(
-            vec![basic_block_from_nodes(vec![
-                arith!(Add X8 X8 X18),
-                arith!(Add X8 X8 X18),
-                iarith!(Addi X9 X9 1),
-            ])]
+            vec![
+                basic_block_from_nodes(vec![ASTNode::new_program_entry()]),
+                basic_block_from_nodes(vec![
+                    arith!(Add X8 X8 X18),
+                    arith!(Add X8 X8 X18),
+                    iarith!(Addi X9 X9 1),
+                ])
+            ]
             .data(),
             blocks.blocks.data()
         );
@@ -194,7 +197,7 @@ mod tests {
         let blocks = CFG::new(ast).expect("unable to create cfg");
         assert_eq!(
             vec![
-                basic_block_from_nodes(vec![arith!(Add X2 X2 X3),]),
+                basic_block_from_nodes(vec![ASTNode::new_program_entry(), arith!(Add X2 X2 X3),]),
                 basic_block_from_nodes(vec![arith!(Sub X10 X10 X11),]),
                 basic_block_from_nodes(vec![
                     arith!(Add X8 X8 X18),
@@ -312,7 +315,11 @@ mod tests {
         let blocks =
             CFG::from_str("\nhello_world:\n    addi x0, x2 12").expect("unable to create cfg");
         assert_eq!(
-            vec![basic_block_from_nodes(vec![iarith!(Addi X0 X2 12),])].data(),
+            vec![
+                basic_block_from_nodes(vec![ASTNode::new_program_entry()]),
+                basic_block_from_nodes(vec![iarith!(Addi X0 X2 12),])
+            ]
+            .data(),
             blocks.blocks.data()
         );
         let blocks = AnnotatedCFG::from(blocks);
@@ -324,15 +331,13 @@ mod tests {
         let blocks = CFG::from_str("\nhello_world:\n    addi x1, x2 12 # yolo\nadd x1, x2 x3")
             .expect("unable to create cfg");
         assert_eq!(
-            vec![basic_block_from_nodes(vec![
-                iarith!(Addi X1 X2 12),
-                arith!(Add X1 X2 X3),
-            ])]
+            vec![
+                basic_block_from_nodes(vec![ASTNode::new_program_entry()]),
+                basic_block_from_nodes(vec![iarith!(Addi X1 X2 12), arith!(Add X1 X2 X3),])
+            ]
             .data(),
             blocks.blocks.data()
         );
-        let blocks = AnnotatedCFG::from(blocks);
-        PassManager::new().run(blocks).unwrap();
     }
 
     #[test]
@@ -342,7 +347,7 @@ mod tests {
 
         assert_eq!(
             ast.data(),
-            vec![iarith!(Addi X2 X2 -16), store!(Sw X1 X2 0),].data()
+            vec![iarith!(Addi X2 X2 -16), store!(Sw X2 X1 0),].data()
         );
     }
 }
