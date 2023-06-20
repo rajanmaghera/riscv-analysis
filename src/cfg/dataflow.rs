@@ -214,7 +214,7 @@ impl DirectionalWrapper {
         let mut live_in = Vec::new();
         let mut live_out = Vec::new();
         let mut uncond_defs = Vec::new();
-        for node in nodes.iter() {
+        for node in &nodes {
             live_in.push(node.live_in.to_hashset());
             live_out.push(node.live_out.to_hashset());
             uncond_defs.push(node.u_def.to_hashset());

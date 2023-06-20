@@ -108,7 +108,7 @@ impl CFG {
                     if current_block.len() > 0 {
                         let rc = Rc::new(current_block);
                         for label in &last_labels {
-                            if labels.insert(label.clone(), rc.clone()) != None {
+                            if labels.insert(label.clone(), rc.clone()).is_some() {
                                 return Err(CFGError::LabelNotDefined);
                             }
                         }
@@ -133,7 +133,7 @@ impl CFG {
                     // end block
                     let rc = Rc::new(current_block);
                     for label in &last_labels {
-                        if labels.insert(label.clone(), rc.clone()) != None {
+                        if labels.insert(label.clone(), rc.clone()).is_some() {
                             return Err(CFGError::LabelNotDefined);
                         }
                     }
@@ -154,7 +154,7 @@ impl CFG {
         if current_block.len() > 0 {
             let rc = Rc::new(current_block);
             for label in &last_labels {
-                if labels.insert(label.clone(), rc.clone()) != None {
+                if labels.insert(label.clone(), rc.clone()).is_some() {
                     return Err(CFGError::LabelNotDefined);
                 }
             }

@@ -48,7 +48,7 @@ mod tests {
 
     use super::*;
     use crate::cfg::{VecBlockWrapper, CFG};
-    use crate::helpers::*;
+    use crate::helpers::{basic_block_from_nodes, tokenize};
     use crate::parser::ast::{ASTNode, EqNodeDataVec};
     use crate::parser::imm::Imm;
     use crate::parser::inst::{ArithType, IArithType, LoadType, StoreType};

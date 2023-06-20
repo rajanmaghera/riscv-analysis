@@ -58,12 +58,12 @@ impl Lexer {
         // TODO be careful, we may not want - to be a symbol character,
         // This is done so number parsing is only done once we know what the instruction is
         // aka. to make our lives easier
-        ('a'..='z').contains(&c) || ('A'..='Z').contains(&c) || c == '_' || c == '-'
+        c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_' || c == '-'
     }
 
     fn is_symbol_item(&self) -> bool {
         let c = self.ch;
-        self.is_symbol_char() || ('0'..='9').contains(&c)
+        self.is_symbol_char() || c.is_ascii_digit()
     }
 
     fn skip_ws(&mut self) {
@@ -80,7 +80,9 @@ impl Iterator for Lexer {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.skip_ws();
-        let token = match self.ch {
+        
+
+        match self.ch {
             '\n' => {
                 let pos = Range {
                     start: Position {
@@ -268,8 +270,6 @@ impl Iterator for Lexer {
                     pos: Range { start, end },
                 })
             }
-        };
-
-        token
+        }
     }
 }

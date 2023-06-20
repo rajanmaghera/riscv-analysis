@@ -17,6 +17,7 @@ pub fn riscv_parse(input: &str) -> Result<String, String> {
     Ok(format!("Hello, {}!", input))
 }
 
+#[derive(Default)]
 pub struct WrapperDiag(pub Vec<Diagnostic>);
 
 impl From<WrapperDiag> for JsValue {
@@ -44,11 +45,7 @@ impl WrapperDiag {
     }
 }
 
-impl Default for WrapperDiag {
-    fn default() -> Self {
-        WrapperDiag(Vec::new())
-    }
-}
+
 
 // impl From<Vec<>> for WrapperDiag {
 //     fn from(e: PassErrors) -> Self {
@@ -68,8 +65,6 @@ pub fn riscv_get_diagnostics(input: &str) -> JsValue {
     }
     let cfg = AnnotatedCFG::from(cfg.unwrap());
     let res = Manager::new().run(&cfg);
-    WrapperDiag {
-        0: res.iter().map(|x| x.to_owned().into()).collect(),
-    }
+    WrapperDiag(res.iter().map(|x| x.to_owned().into()).collect())
     .into()
 }
