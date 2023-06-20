@@ -31,13 +31,13 @@ pub enum AvailableValue {
 }
 
 pub trait AvailableRegisterValues {
-    fn is_original_value(&self, reg: &Register) -> bool;
+    fn is_original_value(&self, reg: Register) -> bool;
 }
 
 impl AvailableRegisterValues for &HashMap<Register, AvailableValue> {
-    fn is_original_value(&self, reg: &Register) -> bool {
-        self.get(reg).map_or(false, |x| match x {
-            AvailableValue::OrigScalarOffset(reg2, offset) => reg == reg2 && offset == &0,
+    fn is_original_value(&self, reg: Register) -> bool {
+        self.get(&reg).map_or(false, |x| match x {
+            AvailableValue::OrigScalarOffset(reg2, offset) => &reg == reg2 && offset == &0,
             _ => false,
         })
     }
@@ -144,18 +144,18 @@ pub struct AvailableValueResult {
     pub stack_out: Vec<HashMap<i32, AvailableValue>>,
 }
 
+#[derive(Clone)]
+struct AvailableValueNodeData {
+    node: Rc<Node>,
+    ins: HashMap<Register, AvailableValue>,
+    outs: HashMap<Register, AvailableValue>,
+    stack_ins: HashMap<i32, AvailableValue>,
+    stack_outs: HashMap<i32, AvailableValue>,
+    prevs: HashSet<Rc<Node>>,
+}
+
 impl DirectionalWrapper {
     pub fn available_value_analysis(&self) -> AvailableValueResult {
-        #[derive(Clone)]
-        struct AvailableValueNodeData {
-            node: Rc<Node>,
-            ins: HashMap<Register, AvailableValue>,
-            outs: HashMap<Register, AvailableValue>,
-            stack_ins: HashMap<i32, AvailableValue>,
-            stack_outs: HashMap<i32, AvailableValue>,
-            prevs: HashSet<Rc<Node>>,
-        }
-
         let mut nodes = Vec::new();
         let mut astidx = HashMap::new();
 
@@ -235,11 +235,11 @@ impl DirectionalWrapper {
                     out_vals.insert(reg, val);
                 }
                 if let Some((off, val)) = node.node.gen_stack() {
-                    if let Some(sp) = node.ins.get(&Register::X2) {
-                        if let AvailableValue::OrigScalarOffset(reg, x) = sp {
-                            if reg == &Register::X2 {
-                                out_stacks.insert(*x + off, val);
-                            }
+                    if let Some(AvailableValue::OrigScalarOffset(reg, x)) =
+                        node.ins.get(&Register::X2)
+                    {
+                        if reg == &Register::X2 {
+                            out_stacks.insert(*x + off, val);
                         }
                     }
                 }
@@ -260,43 +260,35 @@ impl DirectionalWrapper {
                         out_vals.insert(reg.data, val);
                     }
 
-                    if let Some(val) = out_vals.get(&reg.data) {
-                        match val {
-                            AvailableValue::OrigMemReg(psp, off) => {
-                                if psp == &Register::X2 {
-                                    if let Some(stack_val) = node.stack_ins.get(off) {
-                                        out_vals.insert(
-                                            reg.data,
-                                            stack_val.clone(), // TODO good idea? or should I go case by case
-                                        );
-                                    }
-                                }
+                    if let Some(AvailableValue::OrigMemReg(psp, off)) = out_vals.get(&reg.data) {
+                        if psp == &Register::X2 {
+                            if let Some(stack_val) = node.stack_ins.get(off) {
+                                out_vals.insert(
+                                    reg.data,
+                                    stack_val.clone(), // TODO good idea? or should I go case by case
+                                );
                             }
-                            _ => {}
                         }
                     }
                 }
 
                 // perform stack operation estimates
                 for (pos, val) in out_stacks.clone() {
-                    match val {
-                        AvailableValue::CurrScalarOffset(reg, off) => {
-                            if let Some(item) = node.ins.get(&reg) {
-                                match item {
-                                    AvailableValue::Constant(x) => {
-                                        out_stacks.insert(pos, AvailableValue::Constant(*x + off));
-                                    }
-                                    AvailableValue::OrigScalarOffset(reg2, off3) => {
-                                        out_stacks.insert(
-                                            pos,
-                                            AvailableValue::OrigScalarOffset(*reg2, *off3 + off),
-                                        );
-                                    }
-                                    _ => {}
+                    if let AvailableValue::CurrScalarOffset(reg, off) = val {
+                        if let Some(item) = node.ins.get(&reg) {
+                            match item {
+                                AvailableValue::Constant(x) => {
+                                    out_stacks.insert(pos, AvailableValue::Constant(*x + off));
                                 }
+                                AvailableValue::OrigScalarOffset(reg2, off3) => {
+                                    out_stacks.insert(
+                                        pos,
+                                        AvailableValue::OrigScalarOffset(*reg2, *off3 + off),
+                                    );
+                                }
+                                _ => {}
                             }
                         }
-                        _ => {}
                     }
                 }
 

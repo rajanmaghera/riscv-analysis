@@ -283,7 +283,7 @@ impl Pass for CalleeSavedGarbageReadCheck {
                         .avail_in
                         .get(i)
                         .unwrap()
-                        .is_original_value(&read.data)
+                        .is_original_value(read.data)
                 {
                     errors.push(PassError::InvalidUseBeforeAssignment(
                         read.get_range().clone(),
@@ -298,6 +298,7 @@ impl Pass for CalleeSavedGarbageReadCheck {
 pub struct CalleeSavedRegisterCheck;
 impl Pass for CalleeSavedRegisterCheck {
     fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
+        use Register::{X1, X18, X19, X2, X20, X21, X22, X23, X24, X25, X26, X27, X8, X9};
         // for all functions
         for func_ret in cfg.label_return_map.values() {
             // TODO scan function to find all "first" definitions of function,
@@ -310,7 +311,6 @@ impl Pass for CalleeSavedRegisterCheck {
                 .avail_in
                 .get(cfg.nodes.iter().position(|x| x == func_ret).unwrap())
                 .unwrap();
-            use Register::{X1, X18, X19, X2, X20, X21, X22, X23, X24, X25, X26, X27, X8, X9};
             for reg in [
                 X1, X2, X8, X9, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27,
             ] {

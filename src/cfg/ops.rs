@@ -58,6 +58,8 @@ impl Inst {
 }
 
 impl MathOp {
+    #[allow(clippy::cast_possible_wrap)]
+    #[allow(clippy::cast_sign_loss)]
     pub fn operate(&self, x: i32, y: i32) -> i32 {
         match self {
             // TODO check bounds
@@ -72,11 +74,7 @@ impl MathOp {
             MathOp::Sub => x - y,
             MathOp::Xor => x ^ y,
             MathOp::Mul => x * y,
-            MathOp::Mulh => {
-                let (x, y) = (i64::from(x), i64::from(y));
-                ((x * y) >> 32) as i32
-            }
-            MathOp::Mulhsu => {
+            MathOp::Mulh | MathOp::Mulhsu => {
                 // TODO BUG FIX
                 let (x, y) = (i64::from(x), i64::from(y));
                 ((x * y) >> 32) as i32

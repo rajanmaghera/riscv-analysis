@@ -9,9 +9,9 @@ use itertools::Itertools;
 use crate::parser::{BasicType, Node, Register};
 
 use super::{
-    regset::RegSets, AvailableValue, AvailableValueResult, BasicBlock, DirectionMap,
+    regset::RegSets, AvailableValue, AvailableValueResult, BasicBlock, Cfg, DirectionMap,
     DirectionalWrapper, LabelToNode, LabelToNodes, LiveAnalysisResult, NodeToNodes,
-    NodeToPotentialLabel, CFG,
+    NodeToPotentialLabel,
 };
 
 // struct AnnotatedNode {
@@ -145,10 +145,10 @@ impl IntoIterator for AnnotatedCFG {
     }
 }
 
-impl From<CFG> for AnnotatedCFG {
-    fn from(cfg: CFG) -> Self {
-        let dcfg = DirectionalWrapper::from(cfg);
-        let awrap = AnalysisWrapper::from(dcfg);
+impl From<Cfg> for AnnotatedCFG {
+    fn from(cfg: Cfg) -> Self {
+        let cfg = DirectionalWrapper::from(cfg);
+        let awrap = AnalysisWrapper::from(cfg);
 
         Self {
             liveness: awrap.liveness,
@@ -278,7 +278,7 @@ impl Display for AnnotatedCFG {
             f.write_str("+---------\n")?;
         }
         f.write_str("FUNCTION DATA:\n")?;
-        for (k, _) in &self.label_entry_map {
+        for k in self.label_entry_map.keys() {
             f.write_str(&format!(
                 "{}: {} -> {}\n",
                 k.0,

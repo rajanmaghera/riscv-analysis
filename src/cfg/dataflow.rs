@@ -1,5 +1,5 @@
 use crate::cfg::RegSets;
-use crate::cfg::{ecall_in_outs, is_ecall_exit, AvailableValue, ToRegBitmap, ToRegHashset};
+use crate::cfg::{environment_in_outs, is_ecall_exit, AvailableValue, ToRegBitmap, ToRegHashset};
 use crate::parser::BasicType;
 use crate::parser::Node;
 use crate::parser::Register;
@@ -41,16 +41,15 @@ impl DirectionalWrapper {
                 // HACK - if ecall is an exit call, then remove nexts
                 if let Node::Basic(basic) = &(**node) {
                     if basic.inst.data == BasicType::Ecall {
-                        if let Some(call_val) = avail.avail_in.get(idx).unwrap().get(&Register::X17)
+                        if let Some(AvailableValue::Constant(call_num)) =
+                            avail.avail_in.get(idx).unwrap().get(&Register::X17)
                         {
-                            if let AvailableValue::Constant(call_num) = call_val {
-                                if is_ecall_exit(*call_num) {
-                                    // for all nexts, remove their prev counterparts
-                                    for next in self.next_ast_map.get(node).unwrap().clone() {
-                                        self.prev_ast_map.get_mut(&next).unwrap().remove(node);
-                                    }
-                                    self.next_ast_map.get_mut(node).unwrap().clear();
+                            if is_ecall_exit(*call_num) {
+                                // for all nexts, remove their prev counterparts
+                                for next in self.next_ast_map.get(node).unwrap().clone() {
+                                    self.prev_ast_map.get_mut(&next).unwrap().remove(node);
                                 }
+                                self.next_ast_map.get_mut(node).unwrap().clear();
                             }
                         }
                     }
@@ -152,12 +151,12 @@ impl DirectionalWrapper {
                     node.live_in = HashSet::from_iter(vec![Register::X17]).to_bitmap()
                         | (node.live_out & !RegSets::caller_saved().to_bitmap());
 
-                    if let Some(call_val) = avail.avail_in.get(i).unwrap().get(&Register::X17) {
-                        if let AvailableValue::Constant(call_num) = call_val {
-                            if let Some((args, _rets)) = ecall_in_outs(*call_num) {
-                                // TODO do something about return values?
-                                node.live_in |= args.to_bitmap();
-                            }
+                    if let Some(AvailableValue::Constant(call_num)) =
+                        avail.avail_in.get(i).unwrap().get(&Register::X17)
+                    {
+                        if let Some((args, _rets)) = environment_in_outs(*call_num) {
+                            // TODO do something about return values?
+                            node.live_in |= args.to_bitmap();
                         }
                     }
 

@@ -10,8 +10,8 @@ use crate::{
 };
 
 use super::{
-    BasicBlock, BlockSet, DirectionMap, LabelToNode, LabelToNodes, NodeToNodes,
-    NodeToPotentialLabel, CFG,
+    BasicBlock, BlockSet, Cfg, DirectionMap, LabelToNode, LabelToNodes, NodeToNodes,
+    NodeToPotentialLabel,
 };
 
 #[derive(Clone)]
@@ -21,7 +21,7 @@ pub struct Direction {
 }
 
 pub struct DirectionalWrapper {
-    pub cfg: CFG,
+    pub cfg: Cfg,
     pub directions: DirectionMap,
     pub node_function_map: NodeToPotentialLabel,
     // pub return_label_map: NodeToLabel,
@@ -76,14 +76,11 @@ impl Node {
 }
 // calculate the in and out registers for every statement
 
-impl CFG {
+impl Cfg {
     pub fn calc_ast_directions(
         &self,
         direction_map: &HashMap<Rc<BasicBlock>, Direction>,
-    ) -> (
-        HashMap<Rc<Node>, HashSet<Rc<Node>>>,
-        HashMap<Rc<Node>, HashSet<Rc<Node>>>,
-    ) {
+    ) -> (NodeToNodes, NodeToNodes) {
         let mut nexts = HashMap::new();
         let mut prevs = HashMap::new();
         for block in &self.blocks {
@@ -118,8 +115,8 @@ impl CFG {
     }
 }
 
-impl From<CFG> for DirectionalWrapper {
-    fn from(cfg: CFG) -> Self {
+impl From<Cfg> for DirectionalWrapper {
+    fn from(cfg: Cfg) -> Self {
         // initialize the direction map
         let mut direction_map = DirectionMap::new();
         for block in cfg.blocks.clone() {
@@ -208,35 +205,32 @@ impl From<CFG> for DirectionalWrapper {
                     'inn: while let Some(n) = queue.pop() {
                         walked.insert(n.clone());
                         // if we find a function start, we're done
-                        match n.as_ref() {
-                            Node::FuncEntry(x) => {
-                                label_entry_map.insert(x.name.data.clone(), n.clone());
-                                return_label_map.insert(node.clone(), x.name.clone());
-                                match label_return_map.get_mut(&x.name.data) {
-                                    None => {
-                                        let mut new_set = HashSet::new();
-                                        new_set.insert(node.clone());
-                                        label_return_map.insert(x.name.data.clone(), new_set);
-                                    }
-                                    Some(x) => {
-                                        x.insert(node.clone());
-                                    }
+                        if let Node::FuncEntry(x) = n.as_ref() {
+                            label_entry_map.insert(x.name.data.clone(), n.clone());
+                            return_label_map.insert(node.clone(), x.name.clone());
+                            match label_return_map.get_mut(&x.name.data) {
+                                None => {
+                                    let mut new_set = HashSet::new();
+                                    new_set.insert(node.clone());
+                                    label_return_map.insert(x.name.data.clone(), new_set);
                                 }
-                                match return_block_map.get_mut(&x.name.data) {
-                                    None => {
-                                        let mut new_set = HashSet::new();
-                                        new_set.insert(block.clone());
-                                        return_block_map.insert(x.name.data.clone(), new_set);
-                                    }
-                                    Some(x) => {
-                                        x.insert(block.clone());
-                                    }
+                                Some(x) => {
+                                    x.insert(node.clone());
                                 }
-                                found.push(x.name.clone());
-
-                                continue 'inn;
                             }
-                            _ => (),
+                            match return_block_map.get_mut(&x.name.data) {
+                                None => {
+                                    let mut new_set = HashSet::new();
+                                    new_set.insert(block.clone());
+                                    return_block_map.insert(x.name.data.clone(), new_set);
+                                }
+                                Some(x) => {
+                                    x.insert(block.clone());
+                                }
+                            }
+                            found.push(x.name.clone());
+
+                            continue 'inn;
                         }
                         // otherwise, add all prevs to the queue
                         for prev in prev_ast_map.get(&n).unwrap() {

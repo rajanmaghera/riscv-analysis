@@ -5,6 +5,9 @@ edition = "2021"
 description = "RISC-V static analysis tools"
 authors = ["Rajan Maghera"]
 repository = "https://github.com/rajanmaghera/riscv-analysis"
+license-file = "LICENSE"
+keywords = ["riscv", "static analysis", "binary analysis", "risc-v"]
+categories = ["static analysis", "binary analysis", "risc-v"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

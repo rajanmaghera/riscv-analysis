@@ -9,24 +9,24 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct CFG {
+pub struct Cfg {
     pub blocks: Vec<Rc<BasicBlock>>,
     pub nodes: Vec<Rc<Node>>,
     pub labels: HashMap<String, Rc<BasicBlock>>,
     pub labels_for_branch: Vec<Vec<String>>,
 }
 
-impl FromStr for CFG {
+impl FromStr for Cfg {
     type Err = CFGError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parser = Parser::new(s);
         let ast = parser.collect::<Vec<Node>>();
-        CFG::new(ast)
+        Cfg::new(ast)
     }
 }
 // todo move to cfg.into_nodes_iter() with separate struct wrapper
-impl IntoIterator for CFG {
+impl IntoIterator for Cfg {
     type Item = Rc<Node>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
@@ -45,7 +45,7 @@ pub enum CFGError {
     LabelNotDefined,
 }
 
-impl Display for CFG {
+impl Display for Cfg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::new();
         let mut labels = self.labels_for_branch.iter();
@@ -66,8 +66,8 @@ impl Display for CFG {
     }
 }
 
-impl CFG {
-    pub fn new(nodes: Vec<Node>) -> Result<CFG, CFGError> {
+impl Cfg {
+    pub fn new(nodes: Vec<Node>) -> Result<Cfg, CFGError> {
         // TODO transition nodes/blocks to iterator of single type
         let mut labels = HashMap::new();
         let mut blocks = Vec::new();
@@ -162,7 +162,7 @@ impl CFG {
             blocks.push(rc);
         }
 
-        Ok(CFG {
+        Ok(Cfg {
             blocks,
             nodes: new_nodes,
             labels,
