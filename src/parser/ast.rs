@@ -158,7 +158,7 @@ pub struct Directive {
 }
 
 #[derive(Debug, Clone)]
-pub struct CSR {
+pub struct Csr {
     pub inst: With<CSRType>,
     pub rd: With<Register>,
     pub csr: With<CSRImm>,
@@ -167,7 +167,7 @@ pub struct CSR {
 }
 
 #[derive(Debug, Clone)]
-pub struct CSRI {
+pub struct CsrI {
     pub inst: With<CSRIType>,
     pub rd: With<Register>,
     pub csr: With<CSRImm>,
@@ -212,7 +212,7 @@ pub struct ProgramEntry {
 // then, implement TokenInfo for the options on a case by case basis
 
 #[derive(Debug, Clone)]
-pub enum ASTNode {
+pub enum Node {
     ProgramEntry(ProgramEntry),
     FuncEntry(FuncEntry),
     Arith(Arith),
@@ -227,45 +227,45 @@ pub enum ASTNode {
     Store(Store),       // Stores
     Load(Load),         // Loads, are actually mostly ITypes
     LoadAddr(LoadAddr), // Load address
-    CSR(CSR),
-    CSRImm(CSRI),
+    Csr(Csr),
+    CsrI(CsrI),
 }
 
 #[derive(Debug, Clone)]
-pub struct EqNodeWrapper(pub ASTNode);
+pub struct EqNodeWrapper(pub Node);
 
 // TODO switch to typesafe representations
 impl PartialEq for EqNodeWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
-            (ASTNode::FuncEntry(a), ASTNode::FuncEntry(b)) => a.name == b.name,
-            (ASTNode::ProgramEntry(_a), ASTNode::ProgramEntry(_b)) => true,
-            (ASTNode::Arith(a), ASTNode::Arith(b)) => {
+            (Node::FuncEntry(a), Node::FuncEntry(b)) => a.name == b.name,
+            (Node::ProgramEntry(_a), Node::ProgramEntry(_b)) => true,
+            (Node::Arith(a), Node::Arith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
             }
-            (ASTNode::IArith(a), ASTNode::IArith(b)) => {
+            (Node::IArith(a), Node::IArith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
             }
-            (ASTNode::Label(a), ASTNode::Label(b)) => a.name == b.name,
-            (ASTNode::JumpLink(a), ASTNode::JumpLink(b)) => a.inst == b.inst && a.name == b.name,
-            (ASTNode::JumpLinkR(a), ASTNode::JumpLinkR(b)) => {
+            (Node::Label(a), Node::Label(b)) => a.name == b.name,
+            (Node::JumpLink(a), Node::JumpLink(b)) => a.inst == b.inst && a.name == b.name,
+            (Node::JumpLinkR(a), Node::JumpLinkR(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
             }
-            (ASTNode::Basic(a), ASTNode::Basic(b)) => a.inst == b.inst,
-            (ASTNode::Directive(a), ASTNode::Directive(b)) => a.dir == b.dir,
-            (ASTNode::Branch(a), ASTNode::Branch(b)) => {
+            (Node::Basic(a), Node::Basic(b)) => a.inst == b.inst,
+            (Node::Directive(a), Node::Directive(b)) => a.dir == b.dir,
+            (Node::Branch(a), Node::Branch(b)) => {
                 a.inst == b.inst && a.rs1 == b.rs1 && a.rs2 == b.rs2 && a.name == b.name
             }
-            (ASTNode::Store(a), ASTNode::Store(b)) => {
+            (Node::Store(a), Node::Store(b)) => {
                 a.inst == b.inst && a.rs1 == b.rs1 && a.rs2 == b.rs2 && a.imm == b.imm
             }
-            (ASTNode::Load(a), ASTNode::Load(b)) => {
+            (Node::Load(a), Node::Load(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
             }
-            (ASTNode::CSR(a), ASTNode::CSR(b)) => {
+            (Node::Csr(a), Node::Csr(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.csr == b.csr && a.rs1 == b.rs1
             }
-            (ASTNode::LoadAddr(a), ASTNode::LoadAddr(b)) => {
+            (Node::LoadAddr(a), Node::LoadAddr(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.name == b.name
             }
             _ => false,
@@ -282,13 +282,13 @@ pub trait EqNodeDataVec {
     fn data(&self) -> Vec<EqNodeWrapper>;
 }
 
-impl EqNodeData for ASTNode {
+impl EqNodeData for Node {
     fn data(&self) -> EqNodeWrapper {
         EqNodeWrapper(self.clone())
     }
 }
 
-impl EqNodeDataVec for Vec<ASTNode> {
+impl EqNodeDataVec for Vec<Node> {
     fn data(&self) -> Vec<EqNodeWrapper> {
         self.iter()
             .map(crate::parser::ast::EqNodeData::data)
@@ -296,31 +296,31 @@ impl EqNodeDataVec for Vec<ASTNode> {
     }
 }
 
-impl EqNodeDataVec for Vec<Rc<ASTNode>> {
+impl EqNodeDataVec for Vec<Rc<Node>> {
     fn data(&self) -> Vec<EqNodeWrapper> {
         self.iter().map(|x| x.data()).collect()
     }
 }
 
-impl NodeData for ASTNode {
+impl NodeData for Node {
     fn get_id(&self) -> Uuid {
         match self {
-            ASTNode::Arith(a) => a.key,
-            ASTNode::IArith(a) => a.key,
-            ASTNode::UpperArith(a) => a.key,
-            ASTNode::Label(a) => a.key,
-            ASTNode::JumpLink(a) => a.key,
-            ASTNode::JumpLinkR(a) => a.key,
-            ASTNode::Basic(a) => a.key,
-            ASTNode::Directive(a) => a.key,
-            ASTNode::Branch(a) => a.key,
-            ASTNode::Store(a) => a.key,
-            ASTNode::Load(a) => a.key,
-            ASTNode::CSR(a) => a.key,
-            ASTNode::CSRImm(a) => a.key,
-            ASTNode::LoadAddr(a) => a.key,
-            ASTNode::FuncEntry(a) => a.key,
-            ASTNode::ProgramEntry(a) => a.key,
+            Node::Arith(a) => a.key,
+            Node::IArith(a) => a.key,
+            Node::UpperArith(a) => a.key,
+            Node::Label(a) => a.key,
+            Node::JumpLink(a) => a.key,
+            Node::JumpLinkR(a) => a.key,
+            Node::Basic(a) => a.key,
+            Node::Directive(a) => a.key,
+            Node::Branch(a) => a.key,
+            Node::Store(a) => a.key,
+            Node::Load(a) => a.key,
+            Node::Csr(a) => a.key,
+            Node::CsrI(a) => a.key,
+            Node::LoadAddr(a) => a.key,
+            Node::FuncEntry(a) => a.key,
+            Node::ProgramEntry(a) => a.key,
         }
     }
 }
@@ -337,75 +337,74 @@ impl Hash for dyn NodeData {
     }
 }
 
-impl PartialEq for ASTNode {
+impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         self.get_id() == other.get_id()
     }
 }
-impl Eq for ASTNode {}
-impl Hash for ASTNode {
+impl Eq for Node {}
+impl Hash for Node {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.get_id().hash(state);
     }
 }
 
-impl ASTNode {
+impl Node {
     // TODO derive AST new funcs using procedural macros
 
     pub fn inst(&self) -> With<Inst> {
         let token = match self {
-            ASTNode::Arith(x) => x.inst.token.clone(),
-            ASTNode::IArith(x) => x.inst.token.clone(),
-            ASTNode::UpperArith(x) => x.inst.token.clone(),
-            ASTNode::Label(x) => x.name.token.clone(),
-            ASTNode::JumpLink(x) => x.inst.token.clone(),
-            ASTNode::JumpLinkR(x) => x.inst.token.clone(),
-            ASTNode::Basic(x) => x.inst.token.clone(),
-            ASTNode::Directive(x) => x.dir.token.clone(),
-            ASTNode::Branch(x) => x.inst.token.clone(),
-            ASTNode::Store(x) => x.inst.token.clone(),
-            ASTNode::Load(x) => x.inst.token.clone(),
-            ASTNode::CSR(x) => x.inst.token.clone(),
-            ASTNode::CSRImm(x) => x.inst.token.clone(),
-            ASTNode::LoadAddr(x) => x.inst.token.clone(),
-            ASTNode::FuncEntry(x) => x.name.token.clone(),
-            ASTNode::ProgramEntry(_) => Token::Symbol(String::new()),
+            Node::Arith(x) => x.inst.token.clone(),
+            Node::IArith(x) => x.inst.token.clone(),
+            Node::UpperArith(x) => x.inst.token.clone(),
+            Node::Label(x) => x.name.token.clone(),
+            Node::JumpLink(x) => x.inst.token.clone(),
+            Node::JumpLinkR(x) => x.inst.token.clone(),
+            Node::Basic(x) => x.inst.token.clone(),
+            Node::Directive(x) => x.dir.token.clone(),
+            Node::Branch(x) => x.inst.token.clone(),
+            Node::Store(x) => x.inst.token.clone(),
+            Node::Load(x) => x.inst.token.clone(),
+            Node::Csr(x) => x.inst.token.clone(),
+            Node::CsrI(x) => x.inst.token.clone(),
+            Node::LoadAddr(x) => x.inst.token.clone(),
+            Node::FuncEntry(x) => x.name.token.clone(),
+            Node::ProgramEntry(_) => Token::Symbol(String::new()),
         };
         let inst: Inst = match self {
-            ASTNode::Arith(x) => (&x.inst.data).into(),
-            ASTNode::IArith(x) => (&x.inst.data).into(),
-            ASTNode::UpperArith(x) => (&x.inst.data).into(),
-            ASTNode::Label(_) => Inst::Nop,
-            ASTNode::JumpLink(x) => (&x.inst.data).into(),
-            ASTNode::JumpLinkR(x) => (&x.inst.data).into(),
-            ASTNode::Basic(x) => (&x.inst.data).into(),
-            ASTNode::Directive(_x) => Inst::Nop,
-            ASTNode::Branch(x) => (&x.inst.data).into(),
-            ASTNode::Store(x) => (&x.inst.data).into(),
-            ASTNode::Load(x) => (&x.inst.data).into(),
-            ASTNode::CSR(x) => (&x.inst.data).into(),
-            ASTNode::CSRImm(x) => (&x.inst.data).into(),
-            ASTNode::LoadAddr(_x) => Inst::La,
-            ASTNode::FuncEntry(_) => Inst::Nop,
-            ASTNode::ProgramEntry(_) => Inst::Nop,
+            Node::Arith(x) => (&x.inst.data).into(),
+            Node::IArith(x) => (&x.inst.data).into(),
+            Node::UpperArith(x) => (&x.inst.data).into(),
+            Node::JumpLink(x) => (&x.inst.data).into(),
+            Node::JumpLinkR(x) => (&x.inst.data).into(),
+            Node::Basic(x) => (&x.inst.data).into(),
+            Node::Branch(x) => (&x.inst.data).into(),
+            Node::Store(x) => (&x.inst.data).into(),
+            Node::Load(x) => (&x.inst.data).into(),
+            Node::Csr(x) => (&x.inst.data).into(),
+            Node::CsrI(x) => (&x.inst.data).into(),
+            Node::LoadAddr(_) => Inst::La,
+            Node::Label(_) | Node::Directive(_) | Node::FuncEntry(_) | Node::ProgramEntry(_) => {
+                Inst::Nop
+            }
         };
         let pos = match self {
-            ASTNode::Arith(x) => x.inst.pos.clone(),
-            ASTNode::IArith(x) => x.inst.pos.clone(),
-            ASTNode::UpperArith(x) => x.inst.pos.clone(),
-            ASTNode::Label(x) => x.name.pos.clone(),
-            ASTNode::JumpLink(x) => x.inst.pos.clone(),
-            ASTNode::JumpLinkR(x) => x.inst.pos.clone(),
-            ASTNode::Basic(x) => x.inst.pos.clone(),
-            ASTNode::Directive(x) => x.dir.pos.clone(),
-            ASTNode::Branch(x) => x.inst.pos.clone(),
-            ASTNode::Store(x) => x.inst.pos.clone(),
-            ASTNode::Load(x) => x.inst.pos.clone(),
-            ASTNode::CSR(x) => x.inst.pos.clone(),
-            ASTNode::CSRImm(x) => x.inst.pos.clone(),
-            ASTNode::LoadAddr(x) => x.inst.pos.clone(),
-            ASTNode::FuncEntry(x) => x.name.pos.clone(),
-            ASTNode::ProgramEntry(_) => Range {
+            Node::Arith(x) => x.inst.pos.clone(),
+            Node::IArith(x) => x.inst.pos.clone(),
+            Node::UpperArith(x) => x.inst.pos.clone(),
+            Node::Label(x) => x.name.pos.clone(),
+            Node::JumpLink(x) => x.inst.pos.clone(),
+            Node::JumpLinkR(x) => x.inst.pos.clone(),
+            Node::Basic(x) => x.inst.pos.clone(),
+            Node::Directive(x) => x.dir.pos.clone(),
+            Node::Branch(x) => x.inst.pos.clone(),
+            Node::Store(x) => x.inst.pos.clone(),
+            Node::Load(x) => x.inst.pos.clone(),
+            Node::Csr(x) => x.inst.pos.clone(),
+            Node::CsrI(x) => x.inst.pos.clone(),
+            Node::LoadAddr(x) => x.inst.pos.clone(),
+            Node::FuncEntry(x) => x.name.pos.clone(),
+            Node::ProgramEntry(_) => Range {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
             },
@@ -422,8 +421,8 @@ impl ASTNode {
         rd: With<Register>,
         rs1: With<Register>,
         rs2: With<Register>,
-    ) -> ASTNode {
-        ASTNode::Arith(Arith {
+    ) -> Node {
+        Node::Arith(Arith {
             inst,
             rd,
             rs1,
@@ -437,8 +436,8 @@ impl ASTNode {
         rd: With<Register>,
         rs1: With<Register>,
         imm: With<Imm>,
-    ) -> ASTNode {
-        ASTNode::IArith(IArith {
+    ) -> Node {
+        Node::IArith(IArith {
             inst,
             rd,
             rs1,
@@ -447,12 +446,8 @@ impl ASTNode {
         })
     }
 
-    pub fn new_upper_arith(
-        inst: With<UpperArithType>,
-        rd: With<Register>,
-        imm: With<Imm>,
-    ) -> ASTNode {
-        ASTNode::UpperArith(UpperArith {
+    pub fn new_upper_arith(inst: With<UpperArithType>, rd: With<Register>, imm: With<Imm>) -> Node {
+        Node::UpperArith(UpperArith {
             inst,
             rd,
             imm,
@@ -464,8 +459,8 @@ impl ASTNode {
         inst: With<JumpLinkType>,
         rd: With<Register>,
         name: With<LabelString>,
-    ) -> ASTNode {
-        ASTNode::JumpLink(JumpLink {
+    ) -> Node {
+        Node::JumpLink(JumpLink {
             inst,
             rd,
             name,
@@ -478,8 +473,8 @@ impl ASTNode {
         rd: With<Register>,
         rs1: With<Register>,
         imm: With<Imm>,
-    ) -> ASTNode {
-        ASTNode::JumpLinkR(JumpLinkR {
+    ) -> Node {
+        Node::JumpLinkR(JumpLinkR {
             inst,
             rd,
             rs1,
@@ -488,15 +483,15 @@ impl ASTNode {
         })
     }
 
-    pub fn new_basic(inst: With<BasicType>) -> ASTNode {
-        ASTNode::Basic(Basic {
+    pub fn new_basic(inst: With<BasicType>) -> Node {
+        Node::Basic(Basic {
             inst,
             key: Uuid::new_v4(),
         })
     }
 
-    pub fn new_directive(dir: With<DirectiveType>) -> ASTNode {
-        ASTNode::Directive(Directive {
+    pub fn new_directive(dir: With<DirectiveType>) -> Node {
+        Node::Directive(Directive {
             dir,
             key: Uuid::new_v4(),
         })
@@ -507,8 +502,8 @@ impl ASTNode {
         rs1: With<Register>,
         rs2: With<Register>,
         name: With<LabelString>,
-    ) -> ASTNode {
-        ASTNode::Branch(Branch {
+    ) -> Node {
+        Node::Branch(Branch {
             inst,
             rs1,
             rs2,
@@ -522,8 +517,8 @@ impl ASTNode {
         rs1: With<Register>,
         rs2: With<Register>,
         imm: With<Imm>,
-    ) -> ASTNode {
-        ASTNode::Store(Store {
+    ) -> Node {
+        Node::Store(Store {
             inst,
             rs1,
             rs2,
@@ -537,8 +532,8 @@ impl ASTNode {
         rd: With<Register>,
         rs1: With<Register>,
         imm: With<Imm>,
-    ) -> ASTNode {
-        ASTNode::Load(Load {
+    ) -> Node {
+        Node::Load(Load {
             inst,
             rd,
             rs1,
@@ -552,8 +547,8 @@ impl ASTNode {
         rd: With<Register>,
         csr: With<CSRImm>,
         rs1: With<Register>,
-    ) -> ASTNode {
-        ASTNode::CSR(CSR {
+    ) -> Node {
+        Node::Csr(Csr {
             inst,
             rd,
             rs1,
@@ -562,15 +557,15 @@ impl ASTNode {
         })
     }
 
-    pub fn new_func_entry(name: With<LabelString>) -> ASTNode {
-        ASTNode::FuncEntry(FuncEntry {
+    pub fn new_func_entry(name: With<LabelString>) -> Node {
+        Node::FuncEntry(FuncEntry {
             name,
             key: Uuid::new_v4(),
         })
     }
 
-    pub fn new_program_entry() -> ASTNode {
-        ASTNode::ProgramEntry(ProgramEntry {
+    pub fn new_program_entry() -> Node {
+        Node::ProgramEntry(ProgramEntry {
             key: Uuid::new_v4(),
         })
     }
@@ -580,8 +575,8 @@ impl ASTNode {
         rd: With<Register>,
         csr: With<CSRImm>,
         imm: With<Imm>,
-    ) -> ASTNode {
-        ASTNode::CSRImm(CSRI {
+    ) -> Node {
+        Node::CsrI(CsrI {
             inst,
             rd,
             imm,
@@ -590,8 +585,8 @@ impl ASTNode {
         })
     }
 
-    pub fn new_label(name: With<LabelString>) -> ASTNode {
-        ASTNode::Label(Label {
+    pub fn new_label(name: With<LabelString>) -> Node {
+        Node::Label(Label {
             name,
             key: Uuid::new_v4(),
         })
@@ -601,8 +596,8 @@ impl ASTNode {
         inst: With<PseudoType>,
         rd: With<Register>,
         name: With<LabelString>,
-    ) -> ASTNode {
-        ASTNode::LoadAddr(LoadAddr {
+    ) -> Node {
+        Node::LoadAddr(LoadAddr {
             inst,
             rd,
             name,
@@ -614,7 +609,7 @@ impl ASTNode {
     // TODO attach to jumplinkr only?
     pub fn is_return(&self) -> bool {
         match self {
-            ASTNode::JumpLinkR(x) => {
+            Node::JumpLinkR(x) => {
                 x.inst == JumpLinkRType::Jalr
                     && x.rd == Register::X0
                     && x.rs1 == Register::X1
@@ -625,27 +620,24 @@ impl ASTNode {
     }
 
     pub fn is_function_call(&self) -> bool {
-        match self {
-            ASTNode::JumpLink(x) => x.rd == Register::X1,
-            _ => false,
+        if let Node::JumpLink(x) = self {
+            x.rd == Register::X1
+        } else {
+            false
         }
     }
 
     // TODO move into Load/Store ast node info
     pub fn _is_stack_access(&self) -> bool {
         match self {
-            ASTNode::Load(x) => x.rs1 == Register::X2,
-            ASTNode::Store(x) => x.rs1 == Register::X2,
+            Node::Load(x) => x.rs1 == Register::X2,
+            Node::Store(x) => x.rs1 == Register::X2,
             _ => false,
         }
     }
 
     pub fn is_memory_access(&self) -> bool {
-        match self {
-            ASTNode::Load(_) => true,
-            ASTNode::Store(_) => true,
-            _ => false,
-        }
+        matches!(self, Node::Load(_) | Node::Store(_))
     }
 
     // checks if a node jumps to another INTERNAL node
@@ -653,135 +645,135 @@ impl ASTNode {
     // TODO make uncond_jumps_to
     pub fn potential_jumps_to(&self) -> Option<With<LabelString>> {
         match self {
-            ASTNode::Branch(x) => Some(x.name.clone()),
+            Node::Branch(x) => Some(x.name.clone()),
             _ => None,
         }
     }
 
     pub fn calls_func_to(&self) -> Option<With<LabelString>> {
         match self {
-            ASTNode::JumpLink(x) if x.rd == Register::X1 => Some(x.name.clone()),
+            Node::JumpLink(x) if x.rd == Register::X1 => Some(x.name.clone()),
             _ => None,
         }
     }
     // NOTE: This is in context to a register store, not a memory store
     pub fn stores_to(&self) -> Option<With<Register>> {
         match self {
-            ASTNode::Load(load) => Some(load.rd.clone()),
-            ASTNode::LoadAddr(load) => Some(load.rd.clone()),
-            ASTNode::Arith(arith) => Some(arith.rd.clone()),
-            ASTNode::IArith(iarith) => Some(iarith.rd.clone()),
-            ASTNode::UpperArith(upper_arith) => Some(upper_arith.rd.clone()),
-            ASTNode::JumpLink(jump_link) => Some(jump_link.rd.clone()),
-            ASTNode::JumpLinkR(jump_link_r) => Some(jump_link_r.rd.clone()),
-            ASTNode::CSR(csr) => Some(csr.rd.clone()),
-            ASTNode::CSRImm(csri) => Some(csri.rd.clone()),
-            ASTNode::ProgramEntry(_)
-            | ASTNode::FuncEntry(_)
-            | ASTNode::Label(_)
-            | ASTNode::Basic(_)
-            | ASTNode::Directive(_)
-            | ASTNode::Branch(_)
-            | ASTNode::Store(_) => None,
+            Node::Load(load) => Some(load.rd.clone()),
+            Node::LoadAddr(load) => Some(load.rd.clone()),
+            Node::Arith(arith) => Some(arith.rd.clone()),
+            Node::IArith(iarith) => Some(iarith.rd.clone()),
+            Node::UpperArith(upper_arith) => Some(upper_arith.rd.clone()),
+            Node::JumpLink(jump_link) => Some(jump_link.rd.clone()),
+            Node::JumpLinkR(jump_link_r) => Some(jump_link_r.rd.clone()),
+            Node::Csr(csr) => Some(csr.rd.clone()),
+            Node::CsrI(csri) => Some(csri.rd.clone()),
+            Node::ProgramEntry(_)
+            | Node::FuncEntry(_)
+            | Node::Label(_)
+            | Node::Basic(_)
+            | Node::Directive(_)
+            | Node::Branch(_)
+            | Node::Store(_) => None,
         }
     }
 
     pub fn reads_from(&self) -> HashSet<With<Register>> {
         let vector = match self {
-            ASTNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()],
-            ASTNode::IArith(x) => vec![x.rs1.clone()],
-            ASTNode::JumpLinkR(x) => vec![x.rs1.clone()],
-            ASTNode::Branch(x) => vec![x.rs1.clone(), x.rs2.clone()],
-            ASTNode::Store(x) => vec![x.rs1.clone(), x.rs2.clone()],
-            ASTNode::Load(x) => vec![x.rs1.clone()],
-            ASTNode::CSR(x) => vec![x.rs1.clone()],
-            ASTNode::ProgramEntry(_)
-            | ASTNode::FuncEntry(_)
-            | ASTNode::UpperArith(_)
-            | ASTNode::Label(_)
-            | ASTNode::JumpLink(_)
-            | ASTNode::Basic(_)
-            | ASTNode::Directive(_)
-            | ASTNode::LoadAddr(_)
-            | ASTNode::CSRImm(_) => vec![],
+            Node::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()],
+            Node::IArith(x) => vec![x.rs1.clone()],
+            Node::JumpLinkR(x) => vec![x.rs1.clone()],
+            Node::Branch(x) => vec![x.rs1.clone(), x.rs2.clone()],
+            Node::Store(x) => vec![x.rs1.clone(), x.rs2.clone()],
+            Node::Load(x) => vec![x.rs1.clone()],
+            Node::Csr(x) => vec![x.rs1.clone()],
+            Node::ProgramEntry(_)
+            | Node::FuncEntry(_)
+            | Node::UpperArith(_)
+            | Node::Label(_)
+            | Node::JumpLink(_)
+            | Node::Basic(_)
+            | Node::Directive(_)
+            | Node::LoadAddr(_)
+            | Node::CsrI(_) => vec![],
         };
         vector.into_iter().collect()
     }
 }
 
 // -- PRETTY PRINTING --
-pub struct VecASTDisplayWrapper<'a>(&'a Vec<ASTNode>);
+pub struct VecASTDisplayWrapper<'a>(&'a Vec<Node>);
 pub trait ToDisplayForVecASTNode {
     fn to_display(&self) -> VecASTDisplayWrapper;
 }
-impl ToDisplayForVecASTNode for Vec<ASTNode> {
+impl ToDisplayForVecASTNode for Vec<Node> {
     fn to_display(&self) -> VecASTDisplayWrapper {
         VecASTDisplayWrapper(self)
     }
 }
-impl Display for ASTNode {
+impl Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let res = match &self {
-            ASTNode::ProgramEntry(_) => "---[PROGRAM ENTRY]---".to_string(),
-            ASTNode::FuncEntry(x) => {
+            Node::ProgramEntry(_) => "---[PROGRAM ENTRY]---".to_string(),
+            Node::FuncEntry(x) => {
                 let name = x.name.data.0.to_string();
                 format!("FUNC ENTRY: {name}")
             }
-            ASTNode::UpperArith(x) => {
+            Node::UpperArith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let imm = x.imm.data.0.to_string();
                 format!("{inst} {rd} <- {imm}")
             }
-            ASTNode::Arith(x) => {
+            Node::Arith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let rs1 = x.rs1.data.to_string();
                 let rs2 = x.rs2.data.to_string();
                 format!("{inst} {rd} <- {rs1}, {rs2}")
             }
-            ASTNode::IArith(x) => {
+            Node::IArith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let rs1 = x.rs1.data.to_string();
                 let imm = x.imm.data.0.to_string();
                 format!("{inst} {rd} <- {rs1}, {imm}")
             }
-            ASTNode::Label(x) => format!("---[{}]---", x.name.data.0),
-            ASTNode::JumpLink(x) => {
+            Node::Label(x) => format!("---[{}]---", x.name.data.0),
+            Node::JumpLink(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let name = x.name.data.0.to_string();
                 let rd = x.rd.data.to_string();
                 format!("{inst} [{name}] | {rd} <- PC")
             }
-            ASTNode::JumpLinkR(x) => {
+            Node::JumpLinkR(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rs1 = x.rs1.data.to_string();
                 format!("{inst} [{rs1}]")
             }
-            ASTNode::Basic(x) => {
+            Node::Basic(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 format!("{inst}")
             }
-            ASTNode::Directive(x) => {
+            Node::Directive(x) => {
                 let dir = x.dir.data.to_string();
                 format!("-<{dir}>-")
             }
-            ASTNode::Branch(x) => {
+            Node::Branch(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rs1 = x.rs1.data.to_string();
                 let rs2 = x.rs2.data.to_string();
                 let name = x.name.data.0.to_string();
                 format!("{inst} {rs1}--{rs2}, [{name}]")
             }
-            ASTNode::Store(x) => {
+            Node::Store(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rs1 = x.rs1.data.to_string();
                 let rs2 = x.rs2.data.to_string();
                 let imm = x.imm.data.0.to_string();
                 format!("{inst} {rs2} -> {imm}({rs1})")
             }
-            ASTNode::Load(x) => {
+            Node::Load(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let rs1 = x.rs1.data.to_string();
@@ -789,20 +781,20 @@ impl Display for ASTNode {
                 format!("{inst} {rd} <- {imm}({rs1})")
             }
             // TODO don't use the pseudo type here
-            ASTNode::LoadAddr(x) => {
+            Node::LoadAddr(x) => {
                 let inst = "la";
                 let rd = x.rd.data.to_string();
                 let name = x.name.data.0.to_string();
                 format!("{inst} {rd} <- [{name}]")
             }
-            ASTNode::CSR(x) => {
+            Node::Csr(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let csr = x.csr.data.0.to_string();
                 let rs1 = x.rs1.data.to_string();
                 format!("{inst} {rd} <- {csr} <- {rs1}")
             }
-            ASTNode::CSRImm(x) => {
+            Node::CsrI(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
                 let csr = x.csr.data.0.to_string();
@@ -828,7 +820,7 @@ impl<'a> fmt::Display for VecASTDisplayWrapper<'a> {
     }
 }
 
-impl ASTNode {
+impl Node {
     pub fn get_store_range(&self) -> Range {
         if let Some(item) = self.stores_to() {
             item.pos
@@ -840,72 +832,72 @@ impl ASTNode {
 
 // TODO this might differ based on how the nodes are made
 // TODO store whole range for each ASTNode as field
-impl LineDisplay for ASTNode {
+impl LineDisplay for Node {
     fn get_range(&self) -> Range {
         match &self {
-            ASTNode::ProgramEntry(_) => Range {
+            Node::ProgramEntry(_) => Range {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
             },
-            ASTNode::FuncEntry(x) => x.name.pos.clone(),
-            ASTNode::UpperArith(x) => {
+            Node::FuncEntry(x) => x.name.pos.clone(),
+            Node::UpperArith(x) => {
                 let mut range = x.inst.pos.clone();
                 range.end = x.imm.pos.end;
                 range
             }
-            ASTNode::Label(x) => x.name.pos.clone(),
-            ASTNode::Arith(arith) => {
+            Node::Label(x) => x.name.pos.clone(),
+            Node::Arith(arith) => {
                 let mut range = arith.inst.pos.clone();
                 range.end = arith.rs2.pos.end;
                 range
             }
-            ASTNode::IArith(iarith) => {
+            Node::IArith(iarith) => {
                 let mut range = iarith.inst.pos.clone();
                 range.end = iarith.imm.pos.end;
                 range
             }
-            ASTNode::JumpLink(jl) => {
+            Node::JumpLink(jl) => {
                 let mut range = jl.inst.pos.clone();
                 range.end = jl.name.pos.end;
                 range
             }
-            ASTNode::JumpLinkR(jlr) => {
+            Node::JumpLinkR(jlr) => {
                 let mut range = jlr.inst.pos.clone();
                 range.end = jlr.inst.pos.end;
                 range
             }
-            ASTNode::Branch(branch) => {
+            Node::Branch(branch) => {
                 let mut range = branch.inst.pos.clone();
                 range.end = branch.name.pos.end;
                 range
             }
-            ASTNode::Store(store) => {
+            Node::Store(store) => {
                 let mut range = store.inst.pos.clone();
                 range.end = store.imm.pos.end;
                 range
             }
-            ASTNode::Load(load) => {
+            Node::Load(load) => {
                 let mut range = load.inst.pos.clone();
                 range.end = load.imm.pos.end;
                 range
             }
-            ASTNode::CSR(csr) => {
+            Node::Csr(csr) => {
                 let mut range = csr.inst.pos.clone();
                 range.end = csr.rs1.pos.end;
                 range
             }
-            ASTNode::CSRImm(csr) => {
+            Node::CsrI(csr) => {
                 let mut range = csr.inst.pos.clone();
                 range.end = csr.imm.pos.end;
                 range
             }
-            ASTNode::Basic(x) => x.inst.pos.clone(),
-            ASTNode::LoadAddr(x) => {
+            Node::Basic(x) => x.inst.pos.clone(),
+            Node::LoadAddr(x) => {
                 let mut range = x.inst.pos.clone();
                 range.end = x.name.pos.end;
                 range
             }
-            ASTNode::Directive(directive) => directive.dir.pos.clone(),
+            Node::Directive(directive) => directive.dir.pos.clone(),
         }
     }
 }

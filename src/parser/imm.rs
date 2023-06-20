@@ -53,6 +53,7 @@ impl FromStr for CSRImm {
             "cycleh" => 0xC80,
             "timeh" => 0xC81,
             "instreth" => 0xC82,
+            #[allow(clippy::cast_sign_loss)]
             _ => Imm::from_str(s)?.0 as u32,
         };
         Ok(CSRImm(num))
@@ -70,25 +71,27 @@ impl FromStr for Imm {
         let s = if neg { &s[1..] } else { s };
         let mul = if neg { -1 } else { 1 };
 
-        if s.to_lowercase() == "zero" {
-            return Ok(Imm(0));
-        }
-
-        if s.starts_with("0x") {
-            if s[2..].starts_with('-') {
-                return Err(());
+        if s == "zero" {
+            Ok(Imm(0))
+        } else if let Some(stripped) = s.strip_prefix("0x") {
+            if stripped.starts_with('-') {
+                Err(())
+            } else {
+                match u32::from_str_radix(stripped, 16) {
+                    #[allow(clippy::cast_possible_wrap)]
+                    Ok(i) => Ok(Imm(mul * i as i32)),
+                    Err(_) => Err(()),
+                }
             }
-            match u32::from_str_radix(&s[2..], 16) {
-                Ok(i) => Ok(Imm(mul * i as i32)),
-                Err(_) => Err(()),
-            }
-        } else if s.starts_with("0b") {
-            if s[2..].starts_with('-') {
-                return Err(());
-            }
-            match u32::from_str_radix(&s[2..], 2) {
-                Ok(i) => return Ok(Imm(mul * i as i32)),
-                Err(_) => return Err(()),
+        } else if let Some(stripped) = s.strip_prefix("0b") {
+            if stripped.starts_with('-') {
+                Err(())
+            } else {
+                match u32::from_str_radix(stripped, 2) {
+                    #[allow(clippy::cast_possible_wrap)]
+                    Ok(i) => Ok(Imm(mul * i as i32)),
+                    Err(_) => Err(()),
+                }
             }
         } else {
             if s.starts_with('-') {
@@ -104,12 +107,14 @@ impl FromStr for Imm {
 
 impl From<Imm> for CSRImm {
     fn from(value: Imm) -> Self {
+        #[allow(clippy::cast_sign_loss)]
         CSRImm(value.0 as u32)
     }
 }
 
 impl From<CSRImm> for Imm {
     fn from(value: CSRImm) -> Self {
+        #[allow(clippy::cast_possible_wrap)]
         Imm(value.0 as i32)
     }
 }

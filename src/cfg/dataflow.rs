@@ -1,7 +1,7 @@
 use crate::cfg::RegSets;
 use crate::cfg::{ecall_in_outs, is_ecall_exit, AvailableValue, ToRegBitmap, ToRegHashset};
-use crate::parser::ASTNode;
 use crate::parser::BasicType;
+use crate::parser::Node;
 use crate::parser::Register;
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
@@ -21,14 +21,14 @@ impl DirectionalWrapper {
     pub fn live_analysis(&mut self, avail: &AvailableValueResult) -> LiveAnalysisResult {
         #[derive(Clone)]
         struct LiveAnalysisNodeData {
-            node: Rc<ASTNode>,
+            node: Rc<Node>,
             kill: u32,
             gen: u32,
             live_in: u32,
             live_out: u32,
             u_def: u32,
-            nexts: HashSet<Rc<ASTNode>>,
-            prevs: HashSet<Rc<ASTNode>>,
+            nexts: HashSet<Rc<Node>>,
+            prevs: HashSet<Rc<Node>>,
         }
 
         let mut nodes = Vec::new();
@@ -39,7 +39,7 @@ impl DirectionalWrapper {
         for block in &self.cfg.blocks {
             for node in &block.0 {
                 // HACK - if ecall is an exit call, then remove nexts
-                if let ASTNode::Basic(basic) = &(**node) {
+                if let Node::Basic(basic) = &(**node) {
                     if basic.inst.data == BasicType::Ecall {
                         if let Some(call_val) = avail.avail_in.get(idx).unwrap().get(&Register::X17)
                         {
@@ -68,7 +68,7 @@ impl DirectionalWrapper {
                 });
 
                 astidx.insert(node.clone(), idx);
-                if let ASTNode::FuncEntry(entry) = node.borrow() {
+                if let Node::FuncEntry(entry) = node.borrow() {
                     funcidx.insert(entry.name.data.clone(), idx);
                 }
                 idx += 1;
@@ -145,7 +145,7 @@ impl DirectionalWrapper {
 
                     // else if ecall (similar logic to function call, but we don't
                     // need to markup inside a function
-                } else if let ASTNode::Basic(_x) = node.node.borrow() {
+                } else if let Node::Basic(_x) = node.node.borrow() {
                     // if we have access to a constant value for the ecall
 
                     node.u_def = node.live_out;
@@ -179,7 +179,7 @@ impl DirectionalWrapper {
                         }
                     }
                     node.u_def = new_u_def;
-                } else if let ASTNode::FuncEntry(_) = node.node.borrow() {
+                } else if let Node::FuncEntry(_) = node.node.borrow() {
                     // if this is the entry of a function, then the unconditional
                     // defs are the IN of the function
                     node.live_in = node.gen | (node.live_out & !node.kill);

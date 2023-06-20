@@ -1,5 +1,5 @@
 use super::BasicBlock;
-use crate::parser::ASTNode;
+use crate::parser::Node;
 use crate::parser::Parser;
 use crate::parser::Register;
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use std::str::FromStr;
 #[derive(Debug, PartialEq, Eq)]
 pub struct CFG {
     pub blocks: Vec<Rc<BasicBlock>>,
-    pub nodes: Vec<Rc<ASTNode>>,
+    pub nodes: Vec<Rc<Node>>,
     pub labels: HashMap<String, Rc<BasicBlock>>,
     pub labels_for_branch: Vec<Vec<String>>,
 }
@@ -21,13 +21,13 @@ impl FromStr for CFG {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parser = Parser::new(s);
-        let ast = parser.collect::<Vec<ASTNode>>();
+        let ast = parser.collect::<Vec<Node>>();
         CFG::new(ast)
     }
 }
 // todo move to cfg.into_nodes_iter() with separate struct wrapper
 impl IntoIterator for CFG {
-    type Item = Rc<ASTNode>;
+    type Item = Rc<Node>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     // nested iterator for blocks
@@ -67,7 +67,7 @@ impl Display for CFG {
 }
 
 impl CFG {
-    pub fn new(nodes: Vec<ASTNode>) -> Result<CFG, CFGError> {
+    pub fn new(nodes: Vec<Node>) -> Result<CFG, CFGError> {
         // TODO transition nodes/blocks to iterator of single type
         let mut labels = HashMap::new();
         let mut blocks = Vec::new();
@@ -81,7 +81,7 @@ impl CFG {
         // FIND ALL POTENTIAL FUNCTION LABELS
         for node in &nodes {
             match node {
-                ASTNode::JumpLink(x) => {
+                Node::JumpLink(x) => {
                     // TODO determine if ra is set to some value
                     // if the inst sets the ra, then it is a function
                     if x.rd == Register::X1 {
@@ -90,7 +90,7 @@ impl CFG {
                         non_func_labels.insert(x.name.clone());
                     }
                 }
-                ASTNode::Branch(x) => {
+                Node::Branch(x) => {
                     non_func_labels.insert(x.name.clone());
                 }
                 _ => (),
@@ -98,13 +98,13 @@ impl CFG {
         }
 
         // ADD PROGRAM START NODE
-        let start_node = Rc::new(ASTNode::new_program_entry());
+        let start_node = Rc::new(Node::new_program_entry());
         current_block.push(start_node.clone());
         new_nodes.push(start_node);
 
         for node in nodes {
             match node {
-                ASTNode::Label(s) => {
+                Node::Label(s) => {
                     if current_block.len() > 0 {
                         let rc = Rc::new(current_block);
                         for label in &last_labels {
@@ -120,7 +120,7 @@ impl CFG {
                     }
                     // if label is a function label, add it to the block
                     if func_labels.contains(&s.name) {
-                        let current_node = Rc::new(ASTNode::new_func_entry(s.name.clone()));
+                        let current_node = Rc::new(Node::new_func_entry(s.name.clone()));
                         current_block.push(current_node.clone());
                         new_nodes.push(current_node);
                     }

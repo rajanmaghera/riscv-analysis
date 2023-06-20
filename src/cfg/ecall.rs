@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use crate::parser::Register;
 
+#[allow(clippy::match_same_arms)]
 pub fn ecall_in_outs(call_num: i32) -> Option<(HashSet<Register>, HashSet<Register>)> {
     use crate::parser::Register::{X10, X11, X12, X13};
     let vecs = match call_num {
@@ -47,8 +48,8 @@ pub fn ecall_in_outs(call_num: i32) -> Option<(HashSet<Register>, HashSet<Regist
     };
 
     Some((
-        HashSet::from_iter(vecs.0.into_iter()),
-        HashSet::from_iter(vecs.1.into_iter()),
+        vecs.0.into_iter().collect::<HashSet<_>>(),
+        vecs.1.into_iter().collect::<HashSet<_>>(),
     ))
 }
 

@@ -10,8 +10,8 @@ pub use inst::*;
 mod lexer;
 pub use lexer::*;
 
-mod parser;
-pub use parser::*;
+mod parsing;
+pub use parsing::*;
 
 mod register;
 pub use register::*;

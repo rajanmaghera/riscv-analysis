@@ -1,11 +1,11 @@
-use crate::parser::ASTNode;
 use crate::parser::EqNodeDataVec;
+use crate::parser::Node;
 
 use std::rc::Rc;
 use uuid::Uuid;
 
 #[derive(Debug)]
-pub struct BasicBlock(pub Vec<Rc<ASTNode>>, pub Uuid);
+pub struct BasicBlock(pub Vec<Rc<Node>>, pub Uuid);
 impl PartialEq for BasicBlock {
     fn eq(&self, other: &Self) -> bool {
         self.1 == other.1
@@ -60,11 +60,11 @@ impl VecBlockWrapper for Vec<Rc<BasicBlock>> {
 // -- BASIC BLOCK IMPLEMENTATION --
 
 impl BasicBlock {
-    pub fn new(nodes: Vec<Rc<ASTNode>>) -> BasicBlock {
+    pub fn new(nodes: Vec<Rc<Node>>) -> BasicBlock {
         BasicBlock(nodes, Uuid::new_v4())
     }
 
-    pub fn push(&mut self, node: Rc<ASTNode>) {
+    pub fn push(&mut self, node: Rc<Node>) {
         self.0.push(node);
     }
 
@@ -74,7 +74,7 @@ impl BasicBlock {
 }
 
 impl IntoIterator for BasicBlock {
-    type Item = Rc<ASTNode>;
+    type Item = Rc<Node>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {

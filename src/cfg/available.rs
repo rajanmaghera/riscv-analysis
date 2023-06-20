@@ -15,7 +15,7 @@ use std::rc::Rc;
 
 use crate::parser::IArithType;
 use crate::parser::LabelString;
-use crate::parser::{ASTNode, Register};
+use crate::parser::{Node, Register};
 
 use super::DirectionalWrapper;
 
@@ -69,10 +69,10 @@ impl Display for AvailableValue {
     }
 }
 
-impl ASTNode {
+impl Node {
     pub fn gen_stack(&self) -> Option<(i32, AvailableValue)> {
         match self {
-            ASTNode::Store(expr) => {
+            Node::Store(expr) => {
                 if expr.rs1 == Register::X2 {
                     Some((
                         expr.imm.data.0,
@@ -88,15 +88,15 @@ impl ASTNode {
     pub fn gen_value(&self) -> Option<(Register, AvailableValue)> {
         match self {
             // function entry case is handled separately
-            ASTNode::LoadAddr(expr) => Some((
+            Node::LoadAddr(expr) => Some((
                 expr.rd.data,
                 AvailableValue::MemAddr(expr.name.data.clone()),
             )),
-            ASTNode::Load(expr) => Some((
+            Node::Load(expr) => Some((
                 expr.rd.data,
                 AvailableValue::CurrMemReg(expr.rs1.data, expr.imm.data.0),
             )),
-            ASTNode::IArith(expr) => {
+            Node::IArith(expr) => {
                 if expr.rs1 == Register::X0 {
                     match expr.inst.data {
                         IArithType::Addi
@@ -120,7 +120,7 @@ impl ASTNode {
                     None
                 }
             }
-            ASTNode::Arith(expr) => {
+            Node::Arith(expr) => {
                 if expr.rs1 == Register::X0 && expr.rs2 == Register::X0 {
                     Some((expr.rd.data, AvailableValue::Constant(0)))
                 } else {
@@ -148,12 +148,12 @@ impl DirectionalWrapper {
     pub fn available_value_analysis(&self) -> AvailableValueResult {
         #[derive(Clone)]
         struct AvailableValueNodeData {
-            node: Rc<ASTNode>,
+            node: Rc<Node>,
             ins: HashMap<Register, AvailableValue>,
             outs: HashMap<Register, AvailableValue>,
             stack_ins: HashMap<i32, AvailableValue>,
             stack_outs: HashMap<i32, AvailableValue>,
-            prevs: HashSet<Rc<ASTNode>>,
+            prevs: HashSet<Rc<Node>>,
         }
 
         let mut nodes = Vec::new();
@@ -243,7 +243,7 @@ impl DirectionalWrapper {
                         }
                     }
                 }
-                if let ASTNode::FuncEntry(_) | ASTNode::ProgramEntry(_) = &*(node.node) {
+                if let Node::FuncEntry(_) | Node::ProgramEntry(_) = &*(node.node) {
                     use Register::{
                         X1, X18, X19, X2, X20, X21, X22, X23, X24, X25, X26, X27, X8, X9,
                     };
@@ -335,9 +335,9 @@ impl DirectionalWrapper {
 // statically perform operation and return new available value
 fn perform_operation(
     ins: &HashMap<Register, AvailableValue>,
-    node: &ASTNode,
+    node: &Node,
 ) -> Option<AvailableValue> {
-    if let ASTNode::Load(load) = node {
+    if let Node::Load(load) = node {
         if let Some(AvailableValue::OrigScalarOffset(reg, off)) = ins.get(&load.rs1.data) {
             return Some(AvailableValue::OrigMemReg(*reg, *off + load.imm.data.0));
         } else if let Some(AvailableValue::MemAddr(label)) = ins.get(&load.rs1.data) {
@@ -347,14 +347,14 @@ fn perform_operation(
     }
 
     let lhs = match node {
-        ASTNode::Arith(expr) => ins.get(&expr.rs1.data).map(std::clone::Clone::clone),
-        ASTNode::IArith(expr) => ins.get(&expr.rs1.data).map(std::clone::Clone::clone),
+        Node::Arith(expr) => ins.get(&expr.rs1.data).map(std::clone::Clone::clone),
+        Node::IArith(expr) => ins.get(&expr.rs1.data).map(std::clone::Clone::clone),
         _ => None,
     };
 
     let rhs = match node {
-        ASTNode::Arith(expr) => ins.get(&expr.rs2.data).map(std::clone::Clone::clone),
-        ASTNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
+        Node::Arith(expr) => ins.get(&expr.rs2.data).map(std::clone::Clone::clone),
+        Node::IArith(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
         _ => None,
     };
 

@@ -6,7 +6,7 @@ use crate::parser::Range;
 use crate::parser::Register;
 use crate::{
     cfg::{AnnotatedCFG, AvailableValue},
-    parser::ASTNode,
+    parser::Node,
 };
 use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;
@@ -18,7 +18,7 @@ use super::{Pass, PassError};
 // that need to be annotated. If it cannot find any, then it will return the original
 // node's range.
 impl AnnotatedCFG {
-    fn error_ranges_for_first_usage(&self, node: &Rc<ASTNode>, item: Register) -> Vec<Range> {
+    fn error_ranges_for_first_usage(&self, node: &Rc<Node>, item: Register) -> Vec<Range> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the next nodes onto the queue
@@ -132,7 +132,7 @@ impl Pass for ControlFlowCheck {
     fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
         for (i, node) in cfg.clone().into_iter().enumerate() {
             match node.as_ref() {
-                ASTNode::FuncEntry(x) => {
+                Node::FuncEntry(x) => {
                     if i == 0 || !cfg.prev_ast_map.get(&node).unwrap().is_empty() {
                         errors.push(PassError::ImproperFuncEntry(
                             x.name.get_range().clone(),
@@ -156,7 +156,7 @@ pub struct EcallCheck;
 impl Pass for EcallCheck {
     fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
         for (i, node) in cfg.clone().into_iter().enumerate() {
-            if let ASTNode::Basic(x) = &(*node) {
+            if let Node::Basic(x) = &(*node) {
                 if x.inst == BasicType::Ecall
                     && cfg
                         .available
@@ -202,7 +202,7 @@ impl Pass for GarbageInputValueCheck {
                             errors.push(PassError::InvalidUseBeforeAssignment(range.clone()));
                         }
                     }
-                } else if let ASTNode::FuncEntry(x) = &(*node) {
+                } else if let Node::FuncEntry(x) = &(*node) {
                     let args = cfg.function_args(x.name.data.0.as_str()).unwrap();
                     let mut garbage = cfg
                         .liveness

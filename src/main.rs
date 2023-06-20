@@ -52,8 +52,8 @@ mod tests {
     use crate::parser::Imm;
     use crate::parser::Parser;
     use crate::parser::Register;
-    use crate::parser::{ASTNode, EqNodeDataVec};
     use crate::parser::{ArithType, IArithType, LoadType, StoreType};
+    use crate::parser::{EqNodeDataVec, Node};
     use crate::parser::{Token, With};
     use crate::passes::Manager;
 
@@ -145,7 +145,7 @@ mod tests {
         let parser = Parser::new(
             "addi s0, s0, 0x1234\naddi s0, s0, 0b1010\naddi s0, s0, 1234\naddi s0, s0, -222",
         );
-        let ast = parser.collect::<Vec<ASTNode>>();
+        let ast = parser.collect::<Vec<Node>>();
 
         assert_eq!(
             vec![
@@ -162,18 +162,18 @@ mod tests {
     #[test]
     fn parse_instruction() {
         let parser = Parser::new("add s0, s0, s2");
-        let ast = parser.collect::<Vec<ASTNode>>();
+        let ast = parser.collect::<Vec<Node>>();
         assert_eq!(vec![arith!(Add X8 X8 X18)].data(), ast.data());
     }
 
     #[test]
     fn linear_block() {
         let parser = Parser::new("my_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1");
-        let ast = parser.collect::<Vec<ASTNode>>();
+        let ast = parser.collect::<Vec<Node>>();
         let blocks = CFG::new(ast).expect("unable to create cfg");
         assert_eq!(
             vec![
-                basic_block_from_nodes(vec![ASTNode::new_program_entry()]),
+                basic_block_from_nodes(vec![Node::new_program_entry()]),
                 basic_block_from_nodes(vec![
                     arith!(Add X8 X8 X18),
                     arith!(Add X8 X8 X18),
@@ -190,11 +190,11 @@ mod tests {
         let parser = Parser::new(
             "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1",
         );
-        let ast = parser.collect::<Vec<ASTNode>>();
+        let ast = parser.collect::<Vec<Node>>();
         let blocks = CFG::new(ast).expect("unable to create cfg");
         assert_eq!(
             vec![
-                basic_block_from_nodes(vec![ASTNode::new_program_entry(), arith!(Add X2 X2 X3),]),
+                basic_block_from_nodes(vec![Node::new_program_entry(), arith!(Add X2 X2 X3),]),
                 basic_block_from_nodes(vec![arith!(Sub X10 X10 X11),]),
                 basic_block_from_nodes(vec![
                     arith!(Add X8 X8 X18),
@@ -292,7 +292,7 @@ mod tests {
         let str = "lw x10, 10(x10)\n  lw  x10, 10  (  x10  )  \n lw x10, 10 (x10)\n lw x10, 10(  x10)\n lw x10, 10(x10 )";
 
         let parser = Parser::new(str);
-        let ast = parser.collect::<Vec<ASTNode>>();
+        let ast = parser.collect::<Vec<Node>>();
 
         assert_eq!(
             ast.data(),
@@ -313,7 +313,7 @@ mod tests {
             CFG::from_str("\nhello_world:\n    addi x0, x2 12").expect("unable to create cfg");
         assert_eq!(
             vec![
-                basic_block_from_nodes(vec![ASTNode::new_program_entry()]),
+                basic_block_from_nodes(vec![Node::new_program_entry()]),
                 basic_block_from_nodes(vec![iarith!(Addi X0 X2 12),])
             ]
             .data(),
@@ -330,7 +330,7 @@ mod tests {
             .expect("unable to create cfg");
         assert_eq!(
             vec![
-                basic_block_from_nodes(vec![ASTNode::new_program_entry()]),
+                basic_block_from_nodes(vec![Node::new_program_entry()]),
                 basic_block_from_nodes(vec![iarith!(Addi X1 X2 12), arith!(Add X1 X2 X3),])
             ]
             .data(),
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn no_imm_num() {
         let str = "addi    sp, sp, -16 \nsw      ra, (sp)";
-        let ast = Parser::new(str).collect::<Vec<ASTNode>>();
+        let ast = Parser::new(str).collect::<Vec<Node>>();
 
         assert_eq!(
             ast.data(),

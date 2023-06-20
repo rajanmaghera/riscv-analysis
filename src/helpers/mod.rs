@@ -4,11 +4,11 @@ use std::rc::Rc;
 use uuid::Uuid;
 
 use crate::cfg::BasicBlock;
-use crate::parser::ASTNode;
 use crate::parser::Lexer;
+use crate::parser::Node;
 use crate::parser::{Info, Position, Range, Token, With};
 
-pub fn basic_block_from_nodes(nodes: Vec<ASTNode>) -> Rc<BasicBlock> {
+pub fn basic_block_from_nodes(nodes: Vec<Node>) -> Rc<BasicBlock> {
     let mut rc_nodes = Vec::new();
     for node in nodes {
         rc_nodes.push(Rc::new(node));
@@ -42,7 +42,7 @@ where
 #[macro_export]
 macro_rules! arith {
     ($inst:ident $rd:ident $rs1:ident $rs2:ident) => {
-        ASTNode::new_arith(
+        Node::new_arith(
             With::blank(ArithType::$inst),
             With::blank(Register::$rd),
             With::blank(Register::$rs1),
@@ -54,7 +54,7 @@ macro_rules! arith {
 #[macro_export]
 macro_rules! iarith {
     ($inst:ident $rd:ident $rs1:ident $imm:expr) => {
-        ASTNode::new_iarith(
+        Node::new_iarith(
             With::blank(IArithType::$inst),
             With::blank(Register::$rd),
             With::blank(Register::$rs1),
@@ -66,7 +66,7 @@ macro_rules! iarith {
 #[macro_export]
 macro_rules! load {
     ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
-        ASTNode::new_load(
+        Node::new_load(
             With::blank(LoadType::$inst),
             With::blank(Register::$rd),
             With::blank(Register::$rs1),
@@ -78,7 +78,7 @@ macro_rules! load {
 #[macro_export]
 macro_rules! store {
     ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
-        ASTNode::new_store(
+        Node::new_store(
             With::blank(StoreType::$inst),
             With::blank(Register::$rd),
             With::blank(Register::$rs1),

@@ -6,7 +6,7 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::parser::{ASTNode, BasicType, Register};
+use crate::parser::{BasicType, Node, Register};
 
 use super::{
     regset::RegSets, AvailableValue, AvailableValueResult, BasicBlock, DirectionMap,
@@ -122,7 +122,7 @@ pub struct AnnotatedCFG {
     // TODO convert each map that is from a function to a struct so that all of them
     // share the same struct from one call, same with direction
     pub blocks: Vec<Rc<BasicBlock>>,
-    pub nodes: Vec<Rc<ASTNode>>,
+    pub nodes: Vec<Rc<Node>>,
     pub labels: HashMap<String, Rc<BasicBlock>>,
     pub labels_for_branch: Vec<Vec<String>>,
     pub directions: DirectionMap,
@@ -137,7 +137,7 @@ pub struct AnnotatedCFG {
 }
 
 impl IntoIterator for AnnotatedCFG {
-    type Item = Rc<ASTNode>;
+    type Item = Rc<Node>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -323,9 +323,9 @@ impl AnnotatedCFG {
         Some(node)
     }
 
-    pub fn _is_program_exit(&self, node: &Rc<ASTNode>) -> bool {
+    pub fn _is_program_exit(&self, node: &Rc<Node>) -> bool {
         match &*(*node) {
-            ASTNode::Basic(x) => {
+            Node::Basic(x) => {
                 let idx = self.nodes.iter().position(|x| x == node).unwrap();
 
                 let avail_a7 = self

@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     cfg::regset::RegSets,
-    parser::{ASTNode, Register},
+    parser::{Node, Register},
 };
 
 use super::{
@@ -35,13 +35,13 @@ pub struct DirectionalWrapper {
 // TODO deprecate most of these
 // TODO remove all "blocks" and treat each AST as their own block
 // TODO if a node has previous nodes and it is not a func start or program start, remove its nexts. That way, we can see if code is unreachable based on if nexts/prevs are empty
-impl ASTNode {
+impl Node {
     // TODO BIG FIX for all different types of conditional/unconditional jumps
     // These defs are used to help start some functional analysis
     pub fn kill_available_value(&self) -> HashSet<Register> {
         match self.clone() {
-            ASTNode::FuncEntry(_) => RegSets::caller_saved(),
-            ASTNode::JumpLink(x) => {
+            Node::FuncEntry(_) => RegSets::caller_saved(),
+            Node::JumpLink(x) => {
                 let mut set = RegSets::caller_saved();
                 set.insert(x.rd.data);
                 set
@@ -52,8 +52,8 @@ impl ASTNode {
 
     pub fn kill(&self) -> HashSet<Register> {
         let regs: HashSet<Register> = match self.clone() {
-            ASTNode::FuncEntry(_) => RegSets::callee_saved(),
-            ASTNode::JumpLink(_) if self.is_function_call() => HashSet::new(),
+            Node::FuncEntry(_) => RegSets::callee_saved(),
+            Node::JumpLink(_) if self.is_function_call() => HashSet::new(),
             _ => self
                 .stores_to()
                 .map(|x| vec![x.data].into_iter().collect())
@@ -66,7 +66,7 @@ impl ASTNode {
 
     pub fn gen(&self) -> HashSet<Register> {
         let regs: HashSet<Register> = match self {
-            ASTNode::JumpLinkR(_) if self.is_return() => RegSets::callee_saved(),
+            Node::JumpLinkR(_) if self.is_return() => RegSets::callee_saved(),
             _ => self.reads_from().into_iter().map(|x| x.data).collect(),
         };
         regs.into_iter()
@@ -81,8 +81,8 @@ impl CFG {
         &self,
         direction_map: &HashMap<Rc<BasicBlock>, Direction>,
     ) -> (
-        HashMap<Rc<ASTNode>, HashSet<Rc<ASTNode>>>,
-        HashMap<Rc<ASTNode>, HashSet<Rc<ASTNode>>>,
+        HashMap<Rc<Node>, HashSet<Rc<Node>>>,
+        HashMap<Rc<Node>, HashSet<Rc<Node>>>,
     ) {
         let mut nexts = HashMap::new();
         let mut prevs = HashMap::new();
@@ -209,7 +209,7 @@ impl From<CFG> for DirectionalWrapper {
                         walked.insert(n.clone());
                         // if we find a function start, we're done
                         match n.as_ref() {
-                            ASTNode::FuncEntry(x) => {
+                            Node::FuncEntry(x) => {
                                 label_entry_map.insert(x.name.data.clone(), n.clone());
                                 return_label_map.insert(node.clone(), x.name.clone());
                                 match label_return_map.get_mut(&x.name.data) {
@@ -266,7 +266,7 @@ impl From<CFG> for DirectionalWrapper {
         let mut label_call_map = HashMap::new();
         for block in cfg.blocks.clone() {
             for node in &block.0.clone() {
-                if let ASTNode::JumpLink(x) = node.as_ref() {
+                if let Node::JumpLink(x) = node.as_ref() {
                     match label_call_map.get_mut(&x.name.data) {
                         None => {
                             let mut new_set = HashSet::new();
