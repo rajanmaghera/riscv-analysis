@@ -19,18 +19,35 @@ use crate::parser::{ast::ASTNode, register::Register};
 
 use super::DirectionalWrapper;
 
-// TODO FUNCTION PROPOGATION
+// TODO FUNCTION PROPOGATION???
 
-// Option/None represents a value that does not get overwritten
-// UNKNOWN represents a value that is not known, and is GARBAGE
-#[derive(Clone, Debug, PartialEq, Eq)]
+// TODO memory mapping
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AvailableValue {
     // TODO constant to scalar value + ZERO?
     Constant(i32),
-    MemAddr(LabelString),        // Address of some memory location (ex. la ___)
-    Memory(LabelString, i32),    // Actual bit of memory + offset (ex. lw ___)
-    ScalarOffset(Register, i32), // Value of register + SCALAR offset (ex. addi ___)
-    MemReg(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we do not know the label
+    MemAddr(LabelString),     // Address of some memory location (ex. la ___)
+    Memory(LabelString, i32), // Actual bit of memory + offset (ex. lw ___)
+    CurrScalarOffset(Register, i32), // Value of register currently + SCALAR offset (ex. addi ___)
+    OrigScalarOffset(Register, i32), // Value of register at function entrance or start of main program+ SCALAR offset (ex. addi ___)
+    CurrMemReg(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we do not know the label
+    OrigMemReg(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we are sure it is the same as the original
+}
+
+pub trait AvailableRegisterValues {
+    fn is_original_value(&self, reg: &Register) -> bool;
+}
+
+impl AvailableRegisterValues for &HashMap<Register, AvailableValue> {
+    fn is_original_value(&self, reg: &Register) -> bool {
+        self.get(reg)
+            .map(|x| match x {
+                AvailableValue::OrigScalarOffset(reg2, offset) => reg == reg2 && offset == &0,
+                _ => false,
+            })
+            .unwrap_or(false)
+    }
 }
 
 impl Display for AvailableValue {
@@ -39,26 +56,55 @@ impl Display for AvailableValue {
             AvailableValue::Constant(v) => write!(f, "{}", v),
             AvailableValue::MemAddr(a) => write!(f, "{}", a),
             AvailableValue::Memory(a, off) => write!(f, "{}({})", off, a),
-            AvailableValue::MemReg(reg, off) => write!(f, "{}({})", off, reg),
-            AvailableValue::ScalarOffset(reg, off) => write!(f, "{} + {}", reg, off),
+            AvailableValue::CurrMemReg(reg, off) => write!(f, "{}(<{}>?)", off, reg),
+            AvailableValue::CurrScalarOffset(reg, off) => {
+                if off == &0 {
+                    write!(f, "<{}>?", reg)
+                } else {
+                    write!(f, "<{}>? + {}", reg, off)
+                }
+            }
+            AvailableValue::OrigScalarOffset(reg, off) => {
+                if off == &0 {
+                    write!(f, "{}", reg)
+                } else {
+                    write!(f, "{} + {}", reg, off)
+                }
+            }
+            AvailableValue::OrigMemReg(reg, off) => write!(f, "{}({})", off, reg),
         }
     }
 }
 
 impl ASTNode {
+    // TODO stack stores should all be 4, stack offset should all be 4
+    // TODO after a function call, the stack pointer should only be what it was before
+    // TODO figure out how to handle stack pointer values that may overlap
+    pub fn gen_stack(&self) -> Option<(i32, AvailableValue)> {
+        match self {
+            ASTNode::Store(expr) => {
+                if expr.rs1.data == Register::X2 {
+                    Some((
+                        expr.imm.data.0,
+                        AvailableValue::CurrScalarOffset(expr.rs2.data, 0),
+                    ))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
     pub fn gen_value(&self) -> Option<(Register, AvailableValue)> {
         match self {
-            // TODO include all saved registers
-            ASTNode::FuncEntry(_) => {
-                Some((Register::X2, AvailableValue::ScalarOffset(Register::X2, 0)))
-            }
+            // function entry case is handled separately
             ASTNode::LoadAddr(expr) => Some((
                 expr.rd.data,
                 AvailableValue::MemAddr(expr.name.data.clone()),
             )),
             ASTNode::Load(expr) => Some((
                 expr.rd.data,
-                AvailableValue::MemReg(expr.rs1.data, expr.imm.data.0),
+                AvailableValue::CurrMemReg(expr.rs1.data, expr.imm.data.0),
             )),
             ASTNode::IArith(expr) => {
                 if expr.rs1 == Register::X0 {
@@ -103,6 +149,11 @@ impl ASTNode {
 pub struct AvailableValueResult {
     pub avail_in: Vec<HashMap<Register, AvailableValue>>,
     pub avail_out: Vec<HashMap<Register, AvailableValue>>,
+    // for now, we are specializing to the stack only, but we could generalize to any
+    // memory location
+    // TODO This is not correct for all cases, we need to be ANDING the stack results
+    pub stack_in: Vec<HashMap<i32, AvailableValue>>,
+    pub stack_out: Vec<HashMap<i32, AvailableValue>>,
 }
 
 impl DirectionalWrapper {
@@ -112,6 +163,8 @@ impl DirectionalWrapper {
             node: Rc<ASTNode>,
             ins: HashMap<Register, AvailableValue>,
             outs: HashMap<Register, AvailableValue>,
+            stack_ins: HashMap<i32, AvailableValue>,
+            stack_outs: HashMap<i32, AvailableValue>,
             prevs: HashSet<Rc<ASTNode>>,
         }
 
@@ -122,15 +175,12 @@ impl DirectionalWrapper {
         let mut idx = 0;
         for block in &self.cfg.blocks {
             for node in block.0.iter() {
-                let mut out_vals = HashMap::new();
-                if let Some((reg, val)) = node.gen_value() {
-                    out_vals.insert(reg, val);
-                }
-
                 nodes.push(AvailableValueNodeData {
                     node: node.clone(),
                     ins: HashMap::new(),
-                    outs: out_vals,
+                    outs: HashMap::new(),
+                    stack_ins: HashMap::new(),
+                    stack_outs: HashMap::new(),
                     prevs: self.prev_ast_map.get(node).unwrap().clone(),
                 });
                 astidx.insert(node.clone(), idx);
@@ -138,86 +188,138 @@ impl DirectionalWrapper {
             }
         }
 
+        // TODO add check for RA
         let mut changed = true;
         while changed {
             changed = false;
             for i in (0..nodes.len()).rev() {
                 let mut node = nodes.get(i).unwrap().clone();
 
+                // TODO function for iterator intersection
+                // TODO traits for most common check intos
                 // in[n] = AND out[p] for all p in prev[n]
                 let mut in_vals = HashMap::new();
-                if node.prevs.len() > 0 {
-                    let prev = node.prevs.iter().next().unwrap();
-                    in_vals = nodes
-                        .get(astidx.get(prev).unwrap().clone())
-                        .unwrap()
-                        .outs
-                        .clone();
-                    for prev in &node.prevs {
-                        let prev = nodes.get(astidx.get(prev).unwrap().clone()).unwrap();
-                        for (reg, val) in &prev.outs {
-                            if let Some(prev_val) = in_vals.get(reg) {
-                                if prev_val != val {
-                                    in_vals.remove(reg);
-                                }
-                            } else {
-                                in_vals.insert(reg.clone(), val.clone());
+                let mut prev_vals = node.prevs.clone().into_iter().map(|x| {
+                    let prev = nodes.get(astidx.get(&x).unwrap().clone()).unwrap();
+                    prev.outs
+                        .clone()
+                        .into_iter()
+                        .map(|(x, y)| (x, y.clone()))
+                        .collect::<HashSet<_>>()
+                });
+
+                if let Some(s) = prev_vals.next() {
+                    let mut s = s;
+                    for x in prev_vals {
+                        s = s.intersection(&x).cloned().collect();
+                    }
+                    in_vals = s.into_iter().collect();
+                }
+
+                let mut in_stacks = HashMap::new();
+                let mut prev_stacks = node.prevs.clone().into_iter().map(|x| {
+                    let prev = nodes.get(astidx.get(&x).unwrap().clone()).unwrap();
+                    prev.stack_outs
+                        .clone()
+                        .into_iter()
+                        .map(|(x, y)| (x, y.clone()))
+                        .collect::<HashSet<_>>()
+                });
+
+                if let Some(s) = prev_stacks.next() {
+                    let mut s = s;
+                    for x in prev_stacks {
+                        s = s.intersection(&x).cloned().collect();
+                    }
+                    in_stacks = s.into_iter().collect();
+                }
+                node.ins = in_vals;
+                node.stack_ins = in_stacks;
+
+                // out[n] = gen[n] U (in[n] - kill[n])
+                let mut out_vals = node.ins.clone();
+                let mut out_stacks = node.stack_ins.clone();
+
+                // take out kill value
+                for reg in node.node.kill_available_value() {
+                    out_vals.remove(&reg);
+                }
+
+                if let Some((reg, val)) = node.node.gen_value() {
+                    out_vals.insert(reg, val);
+                }
+                if let Some((off, val)) = node.node.gen_stack() {
+                    if let Some(sp) = node.ins.get(&Register::X2) {
+                        if let AvailableValue::OrigScalarOffset(reg, x) = sp {
+                            if reg == &Register::X2 {
+                                out_stacks.insert(*x + off, val);
                             }
                         }
                     }
                 }
-                node.ins = in_vals;
-                // TODO separate AvailableValue into two structs
-                // with GenValue (ex. Unavailable)
-
-                // out[n] = gen[n] U (in[n] - kill[n])
-                let mut out_vals = node.ins.clone();
-                // take out kill value
-                for reg in node.node.kill_value() {
-                    out_vals.remove(&reg);
+                if let ASTNode::FuncEntry(_) | ASTNode::ProgramEntry(_) = &*(node.node) {
+                    use Register::*;
+                    for reg in vec![
+                        X1, X2, X8, X9, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27,
+                    ] {
+                        out_vals.insert(reg, AvailableValue::OrigScalarOffset(reg, 0));
+                    }
+                    out_stacks.clear();
                 }
                 // perform operation estimate
-                if let Some((reg, val)) = node.node.gen_value() {
-                    match val {
-                        AvailableValue::Constant(v) => {
-                            out_vals.insert(reg, AvailableValue::Constant(v));
-                        }
-                        AvailableValue::MemAddr(a) => {
-                            out_vals.insert(reg, AvailableValue::MemAddr(a));
-                        }
-                        AvailableValue::Memory(l, off) => {
-                            out_vals.insert(reg, AvailableValue::Memory(l, off));
-                        }
-                        AvailableValue::MemReg(src, off) => {
-                            if let Some(val) = node.ins.get(&src) {
-                                match val {
-                                    AvailableValue::MemAddr(a) => {
-                                        out_vals
-                                            .insert(reg, AvailableValue::Memory(a.clone(), off));
-                                    }
-                                    AvailableValue::Constant(v) => {
-                                        out_vals.insert(reg, AvailableValue::Constant(v + off));
-                                    }
-                                    _ => {
-                                        out_vals.insert(reg, AvailableValue::MemReg(src, off));
-                                    }
-                                };
-                            }
-                        }
-                        AvailableValue::ScalarOffset(src, off) => {
-                            out_vals.insert(reg, AvailableValue::ScalarOffset(src, off));
-                        }
-                    };
-                }
                 if let Some(reg) = node.node.stores_to() {
                     if let Some(val) = perform_operation(&node.ins, &node.node) {
                         out_vals.insert(reg.data, val);
                     }
+
+                    if let Some(val) = out_vals.get(&reg.data) {
+                        match val {
+                            AvailableValue::OrigMemReg(psp, off) => {
+                                if psp == &Register::X2 {
+                                    if let Some(stack_val) = node.stack_ins.get(&off) {
+                                        out_vals.insert(
+                                            reg.data,
+                                            stack_val.clone(), // TODO good idea? or should I go case by case
+                                        );
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
                 }
+
+                // perform stack operation estimates
+                for (pos, val) in out_stacks.clone() {
+                    match val {
+                        AvailableValue::CurrScalarOffset(reg, off) => {
+                            if let Some(item) = node.ins.get(&reg) {
+                                match item {
+                                    AvailableValue::Constant(x) => {
+                                        out_stacks.insert(pos, AvailableValue::Constant(*x + off));
+                                    }
+                                    AvailableValue::OrigScalarOffset(reg2, off3) => {
+                                        out_stacks.insert(
+                                            pos,
+                                            AvailableValue::OrigScalarOffset(*reg2, *off3 + off),
+                                        );
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                // TODO
 
                 if out_vals != node.outs {
                     changed = true;
                     node.outs = out_vals;
+                }
+                if out_stacks != node.stack_outs {
+                    changed = true;
+                    node.stack_outs = out_stacks;
                 }
 
                 nodes[i] = node;
@@ -226,13 +328,19 @@ impl DirectionalWrapper {
 
         let mut avail_in = Vec::new();
         let mut avail_out = Vec::new();
+        let mut stack_in = Vec::new();
+        let mut stack_out = Vec::new();
         for node in nodes {
             avail_in.push(node.ins);
             avail_out.push(node.outs);
+            stack_in.push(node.stack_ins);
+            stack_out.push(node.stack_outs);
         }
         AvailableValueResult {
             avail_in,
             avail_out,
+            stack_in,
+            stack_out,
         }
     }
 }
@@ -242,25 +350,24 @@ fn perform_operation(
     ins: &HashMap<Register, AvailableValue>,
     node: &ASTNode,
 ) -> Option<AvailableValue> {
+    if let ASTNode::Load(load) = node {
+        if let Some(AvailableValue::OrigScalarOffset(reg, off)) = ins.get(&load.rs1.data) {
+            return Some(AvailableValue::OrigMemReg(*reg, *off + load.imm.data.0));
+        }
+        return None;
+    }
+
     let lhs = match node {
         ASTNode::Arith(expr) => ins.get(&expr.rs1.data).map(|x| x.clone()),
         ASTNode::IArith(expr) => ins.get(&expr.rs1.data).map(|x| x.clone()),
-        ASTNode::Load(expr) => ins.get(&expr.rs1.data).map(|x| x.clone()),
-        ASTNode::LoadAddr(expr) => Some(AvailableValue::MemAddr(expr.name.data.clone())),
         _ => None,
     };
 
     let rhs = match node {
         ASTNode::Arith(expr) => ins.get(&expr.rs2.data).map(|x| x.clone()),
         ASTNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
-        ASTNode::Load(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
-        ASTNode::LoadAddr(_) => Some(AvailableValue::Constant(0)),
         _ => None,
     };
-
-    if node.inst().data == Inst::Addi {
-        dbg!(&lhs, &rhs);
-    }
 
     match (lhs, rhs) {
         (Some(AvailableValue::Constant(x)), Some(AvailableValue::Constant(y))) => node
@@ -269,13 +376,14 @@ fn perform_operation(
             .math_op()
             .map(|op| op.operate(x, y))
             .map(|x| AvailableValue::Constant(x)),
-        (Some(AvailableValue::ScalarOffset(reg, x)), Some(AvailableValue::Constant(y)))
-        | (Some(AvailableValue::Constant(x)), Some(AvailableValue::ScalarOffset(reg, y))) => node
-            .inst()
-            .data
-            .scalar_op()
-            .map(|op| op.operate(x, y))
-            .map(|z| AvailableValue::ScalarOffset(reg, z)),
+        (Some(AvailableValue::OrigScalarOffset(reg, x)), Some(AvailableValue::Constant(y)))
+        | (Some(AvailableValue::Constant(x)), Some(AvailableValue::OrigScalarOffset(reg, y))) => {
+            node.inst()
+                .data
+                .scalar_op()
+                .map(|op| op.operate(x, y))
+                .map(|z| AvailableValue::OrigScalarOffset(reg, z))
+        }
         (_, _) => None,
     }
 }
