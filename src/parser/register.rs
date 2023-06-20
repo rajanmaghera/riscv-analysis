@@ -1,13 +1,12 @@
 use crate::parser::token::{Token, TokenInfo};
 use std::{
-    collections::HashSet,
     convert::TryFrom,
     fmt::Display,
     hash::{Hash, Hasher},
     str::FromStr,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Register {
     X0,
     X1,
@@ -171,78 +170,6 @@ impl Register {
             Register::X31 => 31,
         }
     }
-
-    pub fn is_garbaged(&self) -> bool {
-        match self {
-            // t-regs and a-regs
-            Register::X5
-            | Register::X6
-            | Register::X7
-            | Register::X28
-            | Register::X29
-            | Register::X30
-            | Register::X31
-            | Register::X10
-            | Register::X11
-            | Register::X12
-            | Register::X13
-            | Register::X14
-            | Register::X15
-            | Register::X16
-            | Register::X17 => true,
-            _ => false,
-        }
-    }
-
-    pub fn garbages() -> HashSet<Register> {
-        HashSet::from_iter(
-            vec![
-                Register::X5,
-                Register::X6,
-                Register::X7,
-                Register::X28,
-                Register::X29,
-                Register::X30,
-                Register::X31,
-                Register::X10,
-                Register::X11,
-                Register::X12,
-                Register::X13,
-                Register::X14,
-                Register::X15,
-                Register::X16,
-                Register::X17,
-            ]
-            .into_iter(),
-        )
-    }
-
-    pub fn is_temporary(&self) -> bool {
-        match self {
-            Register::X5
-            | Register::X6
-            | Register::X7
-            | Register::X28
-            | Register::X29
-            | Register::X30
-            | Register::X31 => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_argument(&self) -> bool {
-        match self {
-            Register::X10
-            | Register::X11
-            | Register::X12
-            | Register::X13
-            | Register::X14
-            | Register::X15
-            | Register::X16
-            | Register::X17 => true,
-            _ => false,
-        }
-    }
 }
 
 impl Hash for Register {
@@ -251,42 +178,83 @@ impl Hash for Register {
     }
 }
 
+// impl Display for Register {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         let mstr = match self {
+//             Register::X0 => "x0".to_owned(),
+//             Register::X1 => "x1".to_owned(),
+//             Register::X2 => "x2".to_owned(),
+//             Register::X3 => "x3".to_owned(),
+//             Register::X4 => "x4".to_owned(),
+//             Register::X5 => "x5".to_owned(),
+//             Register::X6 => "x6".to_owned(),
+//             Register::X7 => "x7".to_owned(),
+//             Register::X8 => "x8".to_owned(),
+//             Register::X9 => "x9".to_owned(),
+//             Register::X10 => "x10".to_owned(),
+//             Register::X11 => "x11".to_owned(),
+//             Register::X12 => "x12".to_owned(),
+//             Register::X13 => "x13".to_owned(),
+//             Register::X14 => "x14".to_owned(),
+//             Register::X15 => "x15".to_owned(),
+//             Register::X16 => "x16".to_owned(),
+//             Register::X17 => "x17".to_owned(),
+//             Register::X18 => "x18".to_owned(),
+//             Register::X19 => "x19".to_owned(),
+//             Register::X20 => "x20".to_owned(),
+//             Register::X21 => "x21".to_owned(),
+//             Register::X22 => "x22".to_owned(),
+//             Register::X23 => "x23".to_owned(),
+//             Register::X24 => "x24".to_owned(),
+//             Register::X25 => "x25".to_owned(),
+//             Register::X26 => "x26".to_owned(),
+//             Register::X27 => "x27".to_owned(),
+//             Register::X28 => "x28".to_owned(),
+//             Register::X29 => "x29".to_owned(),
+//             Register::X30 => "x30".to_owned(),
+//             Register::X31 => "x31".to_owned(),
+//         };
+//         f.write_str(&mstr)
+//     }
+// }
+
 impl Display for Register {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mstr = match self {
-            Register::X0 => "x0".to_owned(),
-            Register::X1 => "x1".to_owned(),
-            Register::X2 => "x2".to_owned(),
-            Register::X3 => "x3".to_owned(),
-            Register::X4 => "x4".to_owned(),
-            Register::X5 => "x5".to_owned(),
-            Register::X6 => "x6".to_owned(),
-            Register::X7 => "x7".to_owned(),
-            Register::X8 => "x8".to_owned(),
-            Register::X9 => "x9".to_owned(),
-            Register::X10 => "x10".to_owned(),
-            Register::X11 => "x11".to_owned(),
-            Register::X12 => "x12".to_owned(),
-            Register::X13 => "x13".to_owned(),
-            Register::X14 => "x14".to_owned(),
-            Register::X15 => "x15".to_owned(),
-            Register::X16 => "x16".to_owned(),
-            Register::X17 => "x17".to_owned(),
-            Register::X18 => "x18".to_owned(),
-            Register::X19 => "x19".to_owned(),
-            Register::X20 => "x20".to_owned(),
-            Register::X21 => "x21".to_owned(),
-            Register::X22 => "x22".to_owned(),
-            Register::X23 => "x23".to_owned(),
-            Register::X24 => "x24".to_owned(),
-            Register::X25 => "x25".to_owned(),
-            Register::X26 => "x26".to_owned(),
-            Register::X27 => "x27".to_owned(),
-            Register::X28 => "x28".to_owned(),
-            Register::X29 => "x29".to_owned(),
-            Register::X30 => "x30".to_owned(),
-            Register::X31 => "x31".to_owned(),
+        use Register::*;
+        let res = match self {
+            X0 => "zero",
+            X1 => "ra",
+            X2 => "sp",
+            X3 => "gp",
+            X4 => "tp",
+            X5 => "t0",
+            X6 => "t1",
+            X7 => "t2",
+            X8 => "s0",
+            X9 => "s1",
+            X10 => "a0",
+            X11 => "a1",
+            X12 => "a2",
+            X13 => "a3",
+            X14 => "a4",
+            X15 => "a5",
+            X16 => "a6",
+            X17 => "a7",
+            X18 => "s2",
+            X19 => "s3",
+            X20 => "s4",
+            X21 => "s5",
+            X22 => "s6",
+            X23 => "s7",
+            X24 => "s8",
+            X25 => "s9",
+            X26 => "s10",
+            X27 => "s11",
+            X28 => "t3",
+            X29 => "t4",
+            X30 => "t5",
+            X31 => "t6",
         };
-        f.write_str(&mstr)
+        f.write_str(res)
     }
 }
