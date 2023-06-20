@@ -2,7 +2,6 @@ use crate::parser::imm::*;
 use crate::parser::inst::Inst;
 use crate::parser::inst::*;
 
-
 use crate::parser::register::Register;
 use crate::parser::token::{LineDisplay, Range, Token, WithToken};
 
@@ -18,7 +17,7 @@ use uuid::Uuid;
 // TODO make a test case with every supported RARS instruction
 // TODO set all returns to a jump to a special label
 
-use super::token::{Position};
+use super::token::Position;
 
 // Since we use equality as a way to compare uuids of nodes, this trait is a
 // way to check that the contents of an ast node are equal. This is used in
@@ -29,21 +28,22 @@ pub trait NodeData {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DirectiveType {
-    Include(WithToken<String>),
-    Align(WithToken<i32>),
-    Space(WithToken<i32>),
-    Text,
-    Data, // TODO include more
+    Nop, // Include(WithToken<String>),
+         // Align(WithToken<i32>),
+         // Space(WithToken<i32>),
+         // Text,
+         // Data, // TODO include more
 }
 
 impl Display for DirectiveType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DirectiveType::Include(_) => write!(f, ".include"),
-            DirectiveType::Align(_) => write!(f, ".align"),
-            DirectiveType::Space(_) => write!(f, ".space"),
-            DirectiveType::Text => write!(f, ".text"),
-            DirectiveType::Data => write!(f, ".data"),
+            // DirectiveType::Include(_) => write!(f, ".include"),
+            // DirectiveType::Align(_) => write!(f, ".align"),
+            // DirectiveType::Space(_) => write!(f, ".space"),
+            // DirectiveType::Text => write!(f, ".text"),
+            // DirectiveType::Data => write!(f, ".data"),
+            _ => write!(f, ""),
         }
     }
 }

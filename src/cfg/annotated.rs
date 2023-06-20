@@ -1,18 +1,12 @@
 use std::{
-    cell::RefCell,
     collections::{HashMap, HashSet},
-    fmt::{Display},
-    hash::{Hash, Hasher},
+    fmt::Display,
     rc::Rc,
 };
 
 use itertools::Itertools;
 
-use crate::parser::{
-    ast::{ASTNode, Label, LabelString},
-    inst::BasicType,
-    register::Register,
-};
+use crate::parser::{ast::ASTNode, inst::BasicType, register::Register};
 
 use super::{
     regset::RegSets, AvailableValue, AvailableValueResult, BasicBlock, DirectionMap,
@@ -20,106 +14,106 @@ use super::{
     NodeToPotentialLabel, CFG,
 };
 
-struct AnnotatedNode {
-    node: ASTNode,
-    live_in: HashSet<Register>,
-    live_out: HashSet<Register>,
-    u_def: HashSet<Register>,
-    values_in: HashMap<Register, AvailableValue>,
-    values_out: HashMap<Register, AvailableValue>,
-    stack_in: HashMap<i32, AvailableValue>,
-    stack_out: HashMap<i32, AvailableValue>,
-    function: RefCell<Option<Rc<AnnotatedFunction>>>,
-    next: RefCell<HashSet<Rc<AnnotatedNode>>>,
-    prev: RefCell<HashSet<Rc<AnnotatedNode>>>,
-}
+// struct AnnotatedNode {
+//     node: ASTNode,
+//     live_in: HashSet<Register>,
+//     live_out: HashSet<Register>,
+//     u_def: HashSet<Register>,
+//     values_in: HashMap<Register, AvailableValue>,
+//     values_out: HashMap<Register, AvailableValue>,
+//     stack_in: HashMap<i32, AvailableValue>,
+//     stack_out: HashMap<i32, AvailableValue>,
+//     function: RefCell<Option<Rc<AnnotatedFunction>>>,
+//     next: RefCell<HashSet<Rc<AnnotatedNode>>>,
+//     prev: RefCell<HashSet<Rc<AnnotatedNode>>>,
+// }
 
-impl Hash for AnnotatedNode {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.node.hash(state);
-    }
-}
-impl PartialEq for AnnotatedNode {
-    fn eq(&self, other: &Self) -> bool {
-        self.node == other.node
-    }
-}
-impl Eq for AnnotatedNode {}
+// impl Hash for AnnotatedNode {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         self.node.hash(state);
+//     }
+// }
+// impl PartialEq for AnnotatedNode {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.node == other.node
+//     }
+// }
+// impl Eq for AnnotatedNode {}
 
-impl AnnotatedNode {
-    fn next(&self) -> HashSet<Rc<AnnotatedNode>> {
-        self.next.borrow().clone()
-    }
-    fn prev(&self) -> HashSet<Rc<AnnotatedNode>> {
-        self.prev.borrow().clone()
-    }
-    fn function(&self) -> Option<Rc<AnnotatedFunction>> {
-        self.function.borrow().clone()
-    }
-}
+// impl AnnotatedNode {
+//     fn next(&self) -> HashSet<Rc<AnnotatedNode>> {
+//         self.next.borrow().clone()
+//     }
+//     fn prev(&self) -> HashSet<Rc<AnnotatedNode>> {
+//         self.prev.borrow().clone()
+//     }
+//     fn function(&self) -> Option<Rc<AnnotatedFunction>> {
+//         self.function.borrow().clone()
+//     }
+// }
 
-struct AnnotatedFunction {
-    id: uuid::Uuid,
-    nodes: Vec<Rc<AnnotatedNode>>,
-    names: HashSet<Label>,
-    entry: Rc<AnnotatedNode>,
-    exit: Rc<AnnotatedNode>,
-    called_from: HashSet<Rc<AnnotatedNode>>,
-    //
-}
+// struct AnnotatedFunction {
+//     id: uuid::Uuid,
+//     nodes: Vec<Rc<AnnotatedNode>>,
+//     names: HashSet<Label>,
+//     entry: Rc<AnnotatedNode>,
+//     exit: Rc<AnnotatedNode>,
+//     called_from: HashSet<Rc<AnnotatedNode>>,
+//     //
+// }
 
-struct NewAnnotatedCFG {
-    nodes: Vec<Rc<AnnotatedNode>>,
-    functions: HashMap<LabelString, Rc<AnnotatedFunction>>,
-    //
-}
+// struct NewAnnotatedCFG {
+//     nodes: Vec<Rc<AnnotatedNode>>,
+//     functions: HashMap<LabelString, Rc<AnnotatedFunction>>,
+//     //
+// }
 
-impl AnnotatedCFG {
-    fn to_new(&self) -> NewAnnotatedCFG {
-        let mut nodes = Vec::new();
-        let mut old_new_map = HashMap::new();
+// impl AnnotatedCFG {
+//     fn to_new(&self) -> NewAnnotatedCFG {
+//         let mut nodes = Vec::new();
+//         let mut old_new_map = HashMap::new();
 
-        for (i, orig_node) in self.nodes.clone().into_iter().enumerate() {
-            let node = AnnotatedNode {
-                node: orig_node.as_ref().clone(),
-                live_in: self.liveness.live_in[i].clone(),
-                live_out: self.liveness.live_out[i].clone(),
-                u_def: self.liveness.uncond_defs[i].clone(),
-                values_in: self.available.avail_in[i].clone(),
-                values_out: self.available.avail_out[i].clone(),
-                stack_in: self.available.stack_in[i].clone(),
-                stack_out: self.available.stack_out[i].clone(),
-                function: RefCell::new(None),
-                next: RefCell::new(HashSet::new()),
-                prev: RefCell::new(HashSet::new()),
-            };
-            let new_node = Rc::new(node);
-            old_new_map.insert(orig_node.clone(), new_node.clone());
-            nodes.push(new_node);
-        }
+//         for (i, orig_node) in self.nodes.clone().into_iter().enumerate() {
+//             let node = AnnotatedNode {
+//                 node: orig_node.as_ref().clone(),
+//                 live_in: self.liveness.live_in[i].clone(),
+//                 live_out: self.liveness.live_out[i].clone(),
+//                 u_def: self.liveness.uncond_defs[i].clone(),
+//                 values_in: self.available.avail_in[i].clone(),
+//                 values_out: self.available.avail_out[i].clone(),
+//                 stack_in: self.available.stack_in[i].clone(),
+//                 stack_out: self.available.stack_out[i].clone(),
+//                 function: RefCell::new(None),
+//                 next: RefCell::new(HashSet::new()),
+//                 prev: RefCell::new(HashSet::new()),
+//             };
+//             let new_node = Rc::new(node);
+//             old_new_map.insert(orig_node.clone(), new_node.clone());
+//             nodes.push(new_node);
+//         }
 
-        for (i, new_node) in nodes.clone().into_iter().enumerate() {
-            let node = self.nodes[i].clone();
-            let nexts = self.next_ast_map.get(&node).unwrap();
-            let prevs = self.prev_ast_map.get(&node).unwrap();
-            for next in nexts {
-                let next = old_new_map.get(next).unwrap();
-                new_node.next.borrow_mut().insert(next.clone());
-                next.prev.borrow_mut().insert(new_node.clone());
-            }
-            for prev in prevs {
-                let prev = old_new_map.get(prev).unwrap();
-                new_node.prev.borrow_mut().insert(prev.clone());
-                prev.next.borrow_mut().insert(new_node.clone());
-            }
-        }
+//         for (i, new_node) in nodes.clone().into_iter().enumerate() {
+//             let node = self.nodes[i].clone();
+//             let nexts = self.next_ast_map.get(&node).unwrap();
+//             let prevs = self.prev_ast_map.get(&node).unwrap();
+//             for next in nexts {
+//                 let next = old_new_map.get(next).unwrap();
+//                 new_node.next.borrow_mut().insert(next.clone());
+//                 next.prev.borrow_mut().insert(new_node.clone());
+//             }
+//             for prev in prevs {
+//                 let prev = old_new_map.get(prev).unwrap();
+//                 new_node.prev.borrow_mut().insert(prev.clone());
+//                 prev.next.borrow_mut().insert(new_node.clone());
+//             }
+//         }
 
-        NewAnnotatedCFG {
-            nodes,
-            functions: HashMap::new(),
-        }
-    }
-}
+//         NewAnnotatedCFG {
+//             nodes,
+//             functions: HashMap::new(),
+//         }
+//     }
+// }
 // TODO annotation that tells every node what function it's in
 pub struct AnnotatedCFG {
     // TODO convert all maps from nodes/indices to fields on the node, so there's
@@ -324,7 +318,7 @@ impl AnnotatedCFG {
         Some(node)
     }
 
-    pub fn is_program_exit(&self, node: &Rc<ASTNode>) -> bool {
+    pub fn _is_program_exit(&self, node: &Rc<ASTNode>) -> bool {
         match &*(*node) {
             ASTNode::Basic(x) => {
                 let idx = self.nodes.iter().position(|x| x == node).unwrap();

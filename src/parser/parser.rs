@@ -1,4 +1,4 @@
-use crate::parser::ast::ASTNode;
+use crate::parser::ast::{ASTNode, DirectiveType};
 use crate::parser::inst::*;
 use crate::parser::lexer::Lexer;
 use crate::parser::register::Register;
@@ -742,7 +742,19 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                 })?,
                 next_node,
             ))),
-            Token::Directive(_) => Err(Ignored(next_node)),
+            Token::Directive(_) => {
+                let node = next_node.clone();
+                // skip to the next line
+                while let Some(token) = value.next() {
+                    if token == Token::Newline {
+                        break;
+                    }
+                }
+                Ok(ASTNode::new_directive(WithToken::new(
+                    DirectiveType::Nop,
+                    node,
+                )))
+            }
             Token::Newline => Err(IsNewline(next_node)),
             _ => unimplemented!(),
         }

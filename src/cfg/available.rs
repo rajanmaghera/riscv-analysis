@@ -14,18 +14,13 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::parser::ast::LabelString;
-use crate::parser::inst::{IArithType};
+use crate::parser::inst::IArithType;
 use crate::parser::{ast::ASTNode, register::Register};
 
 use super::DirectionalWrapper;
 
-// TODO FUNCTION PROPOGATION???
-
-// TODO memory mapping
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AvailableValue {
-    // TODO constant to scalar value + ZERO?
     Constant(i32),
     MemAddr(LabelString),     // Address of some memory location (ex. la ___)
     Memory(LabelString, i32), // Actual bit of memory + offset (ex. lw ___)
@@ -142,16 +137,13 @@ impl ASTNode {
     }
 }
 
-// Memory locations/stack and values are tracked separately
-
 // --- VALUES ---
 
 pub struct AvailableValueResult {
     pub avail_in: Vec<HashMap<Register, AvailableValue>>,
     pub avail_out: Vec<HashMap<Register, AvailableValue>>,
-    // for now, we are specializing to the stack only, but we could generalize to any
+    // For now, we are specializing to the stack only, but we could generalize to any
     // memory location
-    // TODO This is not correct for all cases, we need to be ANDING the stack results
     pub stack_in: Vec<HashMap<i32, AvailableValue>>,
     pub stack_out: Vec<HashMap<i32, AvailableValue>>,
 }
@@ -168,7 +160,6 @@ impl DirectionalWrapper {
             prevs: HashSet<Rc<ASTNode>>,
         }
 
-        // TODO differenciate between unknown value and no value
         let mut nodes = Vec::new();
         let mut astidx = HashMap::new();
 
@@ -188,7 +179,6 @@ impl DirectionalWrapper {
             }
         }
 
-        // TODO add check for RA
         let mut changed = true;
         while changed {
             changed = false;
@@ -353,6 +343,8 @@ fn perform_operation(
     if let ASTNode::Load(load) = node {
         if let Some(AvailableValue::OrigScalarOffset(reg, off)) = ins.get(&load.rs1.data) {
             return Some(AvailableValue::OrigMemReg(*reg, *off + load.imm.data.0));
+        } else if let Some(AvailableValue::MemAddr(label)) = ins.get(&load.rs1.data) {
+            return Some(AvailableValue::Memory(label.clone(), load.imm.data.0));
         }
         return None;
     }

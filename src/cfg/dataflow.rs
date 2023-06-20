@@ -1,5 +1,5 @@
 use crate::cfg::regset::RegSets;
-use crate::cfg::{ecall_in_outs, AvailableValue, ToRegBitmap, ToRegHashset};
+use crate::cfg::{ecall_in_outs, is_ecall_exit, AvailableValue, ToRegBitmap, ToRegHashset};
 use crate::parser::ast::ASTNode;
 use crate::parser::inst::BasicType;
 use crate::parser::register::Register;
@@ -43,7 +43,7 @@ impl DirectionalWrapper {
                         if let Some(call_val) = avail.avail_in.get(idx).unwrap().get(&Register::X17)
                         {
                             if let AvailableValue::Constant(call_num) = call_val {
-                                if call_num == &10 {
+                                if is_ecall_exit(call_num.clone()) {
                                     // for all nexts, remove their prev counterparts
                                     for next in self.next_ast_map.get(node).unwrap().clone() {
                                         self.prev_ast_map.get_mut(&next).unwrap().remove(node);

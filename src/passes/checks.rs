@@ -158,7 +158,6 @@ impl Pass for ControlFlowCheck {
         let mut errors = Vec::new();
         let mut bigidx = 0;
         for block in cfg.blocks.clone() {
-            let mut littleidx = 0;
             for node in block.0.clone() {
                 match &(*node) {
                     ASTNode::FuncEntry(x) => {
@@ -176,7 +175,6 @@ impl Pass for ControlFlowCheck {
                     }
                 }
                 bigidx += 1;
-                littleidx += 1;
             }
         }
 
@@ -196,7 +194,6 @@ impl Pass for EcallCheck {
         let mut errors = Vec::new();
         let mut bigidx = 0;
         for block in cfg.blocks.clone() {
-            let mut littleidx = 0;
             for node in block.0.clone() {
                 match &(*node) {
                     ASTNode::Basic(x) => {
@@ -216,7 +213,6 @@ impl Pass for EcallCheck {
                     _ => {}
                 }
                 bigidx += 1;
-                littleidx += 1;
             }
         }
 
@@ -237,7 +233,6 @@ impl Pass for GarbageInputValueCheck {
         let mut errors = Vec::new();
         let mut bigidx = 0;
         for block in cfg.blocks.clone() {
-            let mut littleidx = 0;
             for node in block.0.clone() {
                 if bigidx == 0 {
                     let mut garbage = cfg
@@ -290,7 +285,6 @@ impl Pass for GarbageInputValueCheck {
                     }
                 }
                 bigidx += 1;
-                littleidx += 1;
             }
         }
 
@@ -313,7 +307,6 @@ impl Pass for StackCheckPass {
         // check that the stack is never in an invalid position
         let mut bigidx = 0;
         for block in cfg.blocks.clone() {
-            let mut littleidx = 0;
             for node in block.0.clone() {
                 let values = cfg.available.avail_out.get(bigidx).unwrap();
                 match values.get(&Register::X2) {
@@ -343,7 +336,6 @@ impl Pass for StackCheckPass {
                     },
                 }
                 bigidx += 1;
-                littleidx += 1;
             }
         }
 
