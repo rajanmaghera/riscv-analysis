@@ -26,15 +26,14 @@ impl From<&MyRange> for Range {
 impl From<WarningLevel> for DiagnosticSeverity {
     fn from(w: WarningLevel) -> Self {
         match w {
-            WarningLevel::Suggestion => DiagnosticSeverity::INFORMATION,
             WarningLevel::Warning => DiagnosticSeverity::WARNING,
             WarningLevel::Error => DiagnosticSeverity::ERROR,
         }
     }
 }
 
-impl From<PassError> for Diagnostic {
-    fn from(e: PassError) -> Self {
+impl From<&PassError> for Diagnostic {
+    fn from(e: &PassError) -> Self {
         let range = e.range();
         let related = match &e {
             InvalidUseAfterCall(_, label) => Some(vec![DiagnosticRelatedInformation {
@@ -51,7 +50,7 @@ impl From<PassError> for Diagnostic {
             _ => None,
         };
 
-        let warning_level: WarningLevel = (&e).into();
+        let warning_level: WarningLevel = e.into();
         Diagnostic {
             range: (&range).into(),
             severity: Some(warning_level.into()),

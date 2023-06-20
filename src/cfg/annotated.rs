@@ -115,6 +115,7 @@ use super::{
 //     }
 // }
 // TODO annotation that tells every node what function it's in
+#[derive(Clone)]
 pub struct AnnotatedCFG {
     // TODO convert all maps from nodes/indices to fields on the node, so there's
     // no get nonsense
@@ -133,6 +134,15 @@ pub struct AnnotatedCFG {
     pub prev_ast_map: NodeToNodes,
     pub liveness: LiveAnalysisResult,
     pub available: AvailableValueResult,
+}
+
+impl IntoIterator for AnnotatedCFG {
+    type Item = Rc<ASTNode>;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.nodes.into_iter()
+    }
 }
 
 impl From<CFG> for AnnotatedCFG {
@@ -331,7 +341,7 @@ impl AnnotatedCFG {
                     .get(&Register::X17)
                     .unwrap();
                 match avail_a7 {
-                    AvailableValue::Constant(y) => x.inst.data == BasicType::Ecall && y == &10,
+                    AvailableValue::Constant(y) => x.inst == BasicType::Ecall && y == &10,
                     _ => false,
                 }
             }

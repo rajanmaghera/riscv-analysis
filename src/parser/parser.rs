@@ -467,7 +467,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                     return Ok(ASTNode::new_iarith(
                                         WithToken::new(IArithType::Addi, next_node.clone()),
                                         rd,
-                                        WithToken::new(Register::X0, imm.clone().into()),
+                                        WithToken::new(Register::X0, imm.info()),
                                         imm,
                                     ));
                                 }
@@ -517,7 +517,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         label,
                                     ));
                                 }
-                                PseudoType::Bltz => {
+                                PseudoType::Bltz | PseudoType::Bgtz => {
                                     let rs1 = get_reg(value.next())?;
                                     let label = get_label(value.next())?;
                                     return Ok(ASTNode::new_branch(
@@ -575,7 +575,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         WithToken::new(Imm(0), next_node.clone()),
                                     ));
                                 }
-                                PseudoType::Bgez => {
+                                PseudoType::Bgez | PseudoType::Blez => {
                                     let rs1 = get_reg(value.next())?;
                                     let label = get_label(value.next())?;
                                     return Ok(ASTNode::new_branch(
@@ -667,26 +667,6 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
                                         label,
                                     ));
                                 }
-                                PseudoType::Bgtz => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ASTNode::new_branch(
-                                        WithToken::new(BranchType::Blt, next_node.clone()),
-                                        rs1,
-                                        WithToken::new(Register::X0, next_node.clone()),
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Blez => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ASTNode::new_branch(
-                                        WithToken::new(BranchType::Bge, next_node.clone()),
-                                        rs1,
-                                        WithToken::new(Register::X0, next_node.clone()),
-                                        label,
-                                    ));
-                                }
                                 PseudoType::Csrci | PseudoType::Csrsi | PseudoType::Csrwi => {
                                     let csr = get_csrimm(value.next())?;
                                     let imm = get_imm(value.next())?;
@@ -745,7 +725,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ASTNode {
             Token::Directive(_) => {
                 let node = next_node.clone();
                 // skip to the next line
-                while let Some(token) = value.next() {
+                for token in value.by_ref() {
                     if token == Token::Newline {
                         break;
                     }

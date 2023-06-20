@@ -2,20 +2,20 @@ use crate::cfg::AnnotatedCFG;
 
 use super::{
     CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
-    EcallCheck, GarbageInputValueCheck, PassErrors, SaveToZeroCheck, StackCheckPass,
+    EcallCheck, GarbageInputValueCheck, PassError, SaveToZeroCheck, StackCheckPass,
 };
 
 pub trait Pass {
-    fn run(&self, cfg: &AnnotatedCFG) -> Result<(), PassErrors>;
+    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>);
 }
 
-pub struct PassManager {
+pub struct Manager {
     passes: Vec<Box<dyn Pass>>,
 }
 
-impl PassManager {
-    pub fn new() -> PassManager {
-        PassManager {
+impl Manager {
+    pub fn new() -> Manager {
+        Manager {
             passes: vec![
                 Box::new(SaveToZeroCheck),
                 Box::new(DeadValueCheck),
@@ -29,20 +29,11 @@ impl PassManager {
         }
     }
 
-    pub fn run(&self, cfg: AnnotatedCFG) -> Result<(), PassErrors> {
+    pub fn run(&self, cfg: &AnnotatedCFG) -> Vec<PassError> {
         let mut errors = Vec::new();
-        for pass in self.passes.iter() {
-            match pass.run(&cfg) {
-                Ok(_) => (),
-                Err(mut pass_errors) => {
-                    errors.append(&mut pass_errors.errors);
-                }
-            }
+        for pass in &self.passes {
+            pass.run(&cfg, &mut errors);
         }
-        if errors.len() > 0 {
-            Err(PassErrors { errors })
-        } else {
-            Ok(())
-        }
+        errors
     }
 }

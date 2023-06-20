@@ -1,5 +1,7 @@
+#![deny(clippy::all, clippy::pedantic, clippy::cargo)]
+
 use crate::cfg::{AnnotatedCFG, CFG};
-use crate::passes::PassManager;
+use crate::passes::Manager;
 use std::str::FromStr;
 
 mod cfg;
@@ -32,17 +34,12 @@ fn main() {
     let cfg = CFG::from_str(file.as_str()).expect("Unable to parse file");
     let acfg = AnnotatedCFG::from(cfg);
 
-    println!("{}", acfg);
+    println!("{acfg}");
 
-    let res = PassManager::new().run(acfg);
+    let res = Manager::new().run(&acfg);
 
-    if res.is_err() {
-        println!("Errors found:");
-        for err in res.err().unwrap().errors {
-            println!("{}({}): {}", err, err.range(), err.long_description());
-        }
-    } else {
-        println!("No errors found");
+    for err in res {
+        println!("{}({}): {}", err, err.range(), err.long_description());
     }
 }
 
@@ -58,7 +55,7 @@ mod tests {
     use crate::parser::parser::Parser;
     use crate::parser::register::Register;
     use crate::parser::token::{Token, WithToken};
-    use crate::passes::PassManager;
+    use crate::passes::Manager;
 
     // A trait on strings to clean up some code for lexing
 
@@ -323,7 +320,8 @@ mod tests {
             blocks.blocks.data()
         );
         let blocks = AnnotatedCFG::from(blocks);
-        PassManager::new().run(blocks).unwrap_err();
+        let errs = Manager::new().run(&blocks);
+        assert_ne!(errs.len(), 0);
     }
 
     #[test]

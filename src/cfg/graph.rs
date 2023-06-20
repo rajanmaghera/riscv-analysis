@@ -84,7 +84,7 @@ impl CFG {
                 ASTNode::JumpLink(x) => {
                     // TODO determine if ra is set to some value
                     // if the inst sets the ra, then it is a function
-                    if x.rd.data == Register::X1 {
+                    if x.rd == Register::X1 {
                         func_labels.insert(x.name.clone());
                     } else {
                         non_func_labels.insert(x.name.clone());

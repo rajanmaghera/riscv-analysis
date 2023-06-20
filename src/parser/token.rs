@@ -56,11 +56,20 @@ impl PartialEq<Token> for TokenInfo {
     }
 }
 
-impl<T> From<WithToken<T>> for TokenInfo {
-    fn from(w: WithToken<T>) -> Self {
+// impl<T> From<WithToken<T>> for TokenInfo {
+//     fn from(w: WithToken<T>) -> Self {
+//         TokenInfo {
+//             token: w.token,
+//             pos: w.pos,
+//         }
+//     }
+// }
+
+impl<T> WithToken<T> {
+    pub fn info(&self) -> TokenInfo {
         TokenInfo {
-            token: w.token,
-            pos: w.pos,
+            token: self.token.clone(),
+            pos: self.pos.clone(),
         }
     }
 }
@@ -99,11 +108,11 @@ impl Display for TokenInfo {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Label(s) => write!(f, "[label: {}]\n", s),
-            Token::Symbol(s) => write!(f, "<{}> ", s),
-            Token::Directive(s) => write!(f, "[directive: {}] ", s),
-            Token::String(s) => write!(f, "\"{}\"", s),
-            Token::Newline => write!(f, "<NL>\n"),
+            Token::Label(s) => writeln!(f, "[label: {s}]"),
+            Token::Symbol(s) => write!(f, "<{s}> "),
+            Token::Directive(s) => write!(f, "[directive: {s}] "),
+            Token::String(s) => write!(f, "\"{s}\""),
+            Token::Newline => writeln!(f, "<NL>"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
         }
@@ -114,17 +123,17 @@ pub struct VecTokenDisplayWrapper<'a>(&'a Vec<TokenInfo>);
 impl<'a> Display for VecTokenDisplayWrapper<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for t in self.0 {
-            write!(f, "{}", t)?;
+            write!(f, "{t}")?;
         }
         Ok(())
     }
 }
 
-pub trait ToDisplayForVecToken {
+pub trait ToDisplayForTokenVec {
     fn to_display(&self) -> VecTokenDisplayWrapper;
 }
 
-impl ToDisplayForVecToken for Vec<TokenInfo> {
+impl ToDisplayForTokenVec for Vec<TokenInfo> {
     fn to_display(&self) -> VecTokenDisplayWrapper {
         VecTokenDisplayWrapper(self)
     }
@@ -132,13 +141,6 @@ impl ToDisplayForVecToken for Vec<TokenInfo> {
 
 pub trait LineDisplay {
     fn get_range(&self) -> Range;
-    fn get_str(&self) -> String {
-        let s = self.get_range();
-        format!(
-            "{}:{} - {}:{}",
-            s.start.line, s.start.column, s.end.line, s.end.column
-        )
-    }
 }
 
 // implement display for Range
@@ -151,12 +153,6 @@ impl std::fmt::Display for Range {
         )
     }
 }
-
-// impl LineDisplay for WithToken<Register> {
-//     fn get_range(&self) -> Range {
-//         self.pos.clone()
-//     }
-// }
 
 impl<T> LineDisplay for WithToken<T> {
     fn get_range(&self) -> Range {
@@ -231,8 +227,8 @@ impl TokenExpression for Vec<Token> {
     fn debug_tokens(&self) {
         print!("Tokens: ");
         for item in self {
-            print!("[{:?}]", item);
+            print!("[{item}]");
         }
-        println!("");
+        println!();
     }
 }

@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use super::{AvailableValueResult, DirectionalWrapper};
 
+#[derive(Clone)]
 pub struct LiveAnalysisResult {
     pub live_in: Vec<HashSet<Register>>,
     pub live_out: Vec<HashSet<Register>>,

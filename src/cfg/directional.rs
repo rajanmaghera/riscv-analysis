@@ -14,6 +14,7 @@ use super::{
     NodeToPotentialLabel, CFG,
 };
 
+#[derive(Clone)]
 pub struct Direction {
     pub next: BlockSet,
     pub prev: BlockSet,

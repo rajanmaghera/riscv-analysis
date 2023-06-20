@@ -1,8 +1,7 @@
 use crate::cfg::CFG;
-use crate::passes::PassManager;
+use crate::passes::Manager;
 use cfg::AnnotatedCFG;
 use lsp_types::{Diagnostic, Position, Range};
-use passes::PassErrors;
 use serde_wasm_bindgen::to_value;
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
@@ -51,15 +50,15 @@ impl Default for WrapperDiag {
     }
 }
 
-impl From<PassErrors> for WrapperDiag {
-    fn from(e: PassErrors) -> Self {
-        let mut diag = Vec::new();
-        for err in e.errors {
-            diag.push(Diagnostic::from(err));
-        }
-        WrapperDiag(diag)
-    }
-}
+// impl From<Vec<>> for WrapperDiag {
+//     fn from(e: PassErrors) -> Self {
+//         let mut diag = Vec::new();
+//         for err in e.errors {
+//             diag.push(Diagnostic::from(err));
+//         }
+//         WrapperDiag(diag)
+//     }
+// }
 
 #[wasm_bindgen]
 pub fn riscv_get_diagnostics(input: &str) -> JsValue {
@@ -68,9 +67,9 @@ pub fn riscv_get_diagnostics(input: &str) -> JsValue {
         return WrapperDiag::new(&cfg.unwrap_err()).into();
     }
     let cfg = AnnotatedCFG::from(cfg.unwrap());
-    let res = PassManager::new().run(cfg);
-    match res {
-        Ok(_) => WrapperDiag::default().into(),
-        Err(e) => WrapperDiag::from(e).into(),
+    let res = Manager::new().run(&cfg);
+    WrapperDiag {
+        0: res.iter().map(|x| x.to_owned().into()).collect(),
     }
+    .into()
 }

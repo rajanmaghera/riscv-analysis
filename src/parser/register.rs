@@ -134,7 +134,7 @@ impl Register {
         }
     }
 
-    pub fn to_num(&self) -> u8 {
+    pub fn to_num(self) -> u8 {
         match self {
             Register::X0 => 0,
             Register::X1 => 1,
@@ -220,7 +220,10 @@ impl Hash for Register {
 
 impl Display for Register {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Register::*;
+        use Register::{
+            X0, X1, X10, X11, X12, X13, X14, X15, X16, X17, X18, X19, X2, X20, X21, X22, X23, X24,
+            X25, X26, X27, X28, X29, X3, X30, X31, X4, X5, X6, X7, X8, X9,
+        };
         let res = match self {
             X0 => "zero",
             X1 => "ra",

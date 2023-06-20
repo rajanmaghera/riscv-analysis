@@ -75,7 +75,7 @@ impl ASTNode {
     pub fn gen_stack(&self) -> Option<(i32, AvailableValue)> {
         match self {
             ASTNode::Store(expr) => {
-                if expr.rs1.data == Register::X2 {
+                if expr.rs1 == Register::X2 {
                     Some((
                         expr.imm.data.0,
                         AvailableValue::CurrScalarOffset(expr.rs2.data, 0),
@@ -136,6 +136,7 @@ impl ASTNode {
 
 // --- VALUES ---
 
+#[derive(Clone)]
 pub struct AvailableValueResult {
     pub avail_in: Vec<HashMap<Register, AvailableValue>>,
     pub avail_out: Vec<HashMap<Register, AvailableValue>>,
