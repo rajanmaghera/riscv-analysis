@@ -1,6 +1,9 @@
 use crate::cfg::AnnotatedCFG;
 
-use super::{ControlFlowCheck, DeadValueCheck, EcallCheck, PassErrors, SaveToZeroCheck};
+use super::{
+    CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
+    EcallCheck, GarbageInputValueCheck, PassErrors, SaveToZeroCheck, StackCheckPass,
+};
 
 pub trait Pass {
     fn run(&self, cfg: &AnnotatedCFG) -> Result<(), PassErrors>;
@@ -18,6 +21,10 @@ impl PassManager {
                 Box::new(DeadValueCheck),
                 Box::new(EcallCheck),
                 Box::new(ControlFlowCheck),
+                Box::new(GarbageInputValueCheck),
+                Box::new(StackCheckPass),
+                Box::new(CalleeSavedRegisterCheck),
+                Box::new(CalleeSavedGarbageReadCheck),
             ],
         }
     }
