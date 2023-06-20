@@ -57,8 +57,8 @@ impl DirectionalWrapper {
 
                 nodes.push(LiveAnalysisNodeData {
                     node: node.clone(),
-                    kill: node.defs().to_bitmap(),
-                    gen: node.uses().to_bitmap(),
+                    kill: node.kill().to_bitmap(),
+                    gen: node.gen().to_bitmap(),
                     live_in: 0,
                     live_out: 0,
                     u_def: 0,
@@ -92,8 +92,21 @@ impl DirectionalWrapper {
                 let u_def_old = node.u_def;
 
                 // if call to a function
-                if let Some(name) = node.node.call_name() {
+                if let Some(name) = node.node.calls_func_to() {
+                    // BUG FUNCTION RETURN VALUES ARE PART OF U_DEFS OF FUNCTION
+
                     // TODO ensure we are mutating values correctly
+
+                    let mut new_u_def = u32::MAX;
+                    if node.prevs.len() == 0 {
+                        new_u_def = 0;
+                    } else {
+                        for prev in node.prevs.clone() {
+                            let idx = astidx.get(&prev).unwrap();
+                            new_u_def &= nodes[*idx].u_def;
+                        }
+                    }
+
                     let func_entry = self.label_entry_map.get(&name.data).unwrap();
                     let func_return = self
                         .label_return_map
@@ -102,25 +115,41 @@ impl DirectionalWrapper {
                         .iter()
                         .next()
                         .unwrap();
-                    let func_entry_idx = astidx.get(&func_entry.clone()).unwrap();
+
+                    let func_entry_idx = astidx.get(func_entry).unwrap();
                     let func_entry_data = nodes.get(*func_entry_idx).unwrap().clone();
 
-                    let func_return_idx = astidx.get(&func_return.clone()).unwrap();
+                    let func_return_idx = astidx.get(func_return).unwrap();
                     let func_return_data = nodes.get_mut(*func_return_idx).unwrap();
 
-                    node.u_def = node.live_out;
-                    node.live_in = func_entry_data.live_in
-                        | (node.live_out & !super::caller_saved_registers());
-                    func_return_data.live_in =
-                        func_return_data.live_in | (node.live_out & func_return_data.u_def);
-                // else if ecall (similar logic to function call, but we don't
-                // need to markup inside a function
+                    let old = func_return_data.live_in;
+                    func_return_data.live_in = func_return_data.gen
+                        | func_return_data.live_in
+                        | (node.live_out & func_return_data.u_def);
+                    if old != func_return_data.live_in {
+                        changed = true;
+                    }
+                    // UDEF = (Union of all prevs - kill (caller saved)) | UDEF_f
+                    // NOTE: we use the UDEF_f because the udefs are all "candidates"
+                    // for returns. If one happens to be the return, we can be sure
+                    // that it is always defined. Otherwise, it is an error becuase
+                    // we don't know if it is defined or not, so we could be reading
+                    // a garbage value.
+                    // TLDR: udef -> return values are a safeguard that the value
+                    // has to come from the function.
+                    node.u_def =
+                        (new_u_def & !RegSets::caller_saved().to_bitmap()) | func_return_data.u_def;
+                    node.live_in = (func_entry_data.live_in & RegSets::argument().to_bitmap())
+                        | (node.live_out & !RegSets::caller_saved().to_bitmap());
+
+                    // else if ecall (similar logic to function call, but we don't
+                    // need to markup inside a function
                 } else if let ASTNode::Basic(_x) = node.node.borrow() {
                     // if we have access to a constant value for the ecall
 
                     node.u_def = node.live_out;
                     node.live_in = HashSet::from_iter(vec![Register::X17]).to_bitmap()
-                        | (node.live_out & !super::caller_saved_registers());
+                        | (node.live_out & !RegSets::caller_saved().to_bitmap());
 
                     if let Some(call_val) = avail.avail_in.get(i).unwrap().get(&Register::X17) {
                         if let AvailableValue::Constant(call_num) = call_val {
@@ -150,6 +179,11 @@ impl DirectionalWrapper {
                         }
                     }
                     node.u_def = new_u_def;
+                } else if let ASTNode::FuncEntry(_) = node.node.borrow() {
+                    // if this is the entry of a function, then the unconditional
+                    // defs are the IN of the function
+                    node.live_in = node.gen | (node.live_out & !node.kill);
+                    node.u_def = node.live_in;
                 } else {
                     let mut new_u_def = u32::MAX;
                     if node.prevs.len() == 0 {
@@ -165,7 +199,10 @@ impl DirectionalWrapper {
                     node.live_in = node.gen | (node.live_out & !node.kill);
                 }
 
-                if live_in_old != node.live_in || u_def_old != node.u_def {
+                if live_in_old != node.live_in {
+                    changed = true;
+                }
+                if u_def_old != node.u_def {
                     changed = true;
                 }
 
