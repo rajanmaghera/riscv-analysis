@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
-    fmt::{format, Display},
+    fmt::{Display},
     hash::{Hash, Hasher},
     rc::Rc,
 };
@@ -12,7 +12,6 @@ use crate::parser::{
     ast::{ASTNode, Label, LabelString},
     inst::BasicType,
     register::Register,
-    token::WithToken,
 };
 
 use super::{
@@ -81,7 +80,7 @@ impl AnnotatedCFG {
         let mut old_new_map = HashMap::new();
 
         for (i, orig_node) in self.nodes.clone().into_iter().enumerate() {
-            let mut node = AnnotatedNode {
+            let node = AnnotatedNode {
                 node: orig_node.as_ref().clone(),
                 live_in: self.liveness.live_in[i].clone(),
                 live_out: self.liveness.live_out[i].clone(),

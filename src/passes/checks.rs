@@ -46,7 +46,7 @@ impl AnnotatedCFG {
                         break;
                     }
                 }
-                if let Some(reg) = it {
+                if let Some(_reg) = it {
                     // TODO fix range of token register
                     ranges.push(next.get_range().clone());
                     break;
@@ -397,7 +397,7 @@ impl Pass for CalleeSavedRegisterCheck {
         let mut errors = Vec::new();
 
         // for all functions
-        for (func_name, func_ret) in &cfg.label_return_map {
+        for (_func_name, func_ret) in &cfg.label_return_map {
             // TODO scan function to find all "first" definitions of function,
             // then mark those up
 

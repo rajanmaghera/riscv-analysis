@@ -1,24 +1,24 @@
 use crate::parser::imm::*;
 use crate::parser::inst::Inst;
 use crate::parser::inst::*;
-use crate::parser::lexer::Lexer;
+
 
 use crate::parser::register::Register;
 use crate::parser::token::{LineDisplay, Range, Token, WithToken};
 
 use std::collections::HashSet;
-use std::convert::TryFrom;
+
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
-use std::iter::Peekable;
+
 use std::rc::Rc;
 use std::str::FromStr;
 use uuid::Uuid;
 
 // TODO make a test case with every supported RARS instruction
 // TODO set all returns to a jump to a special label
-use super::inst::InstType;
-use super::token::{Position, TokenInfo};
+
+use super::token::{Position};
 
 // Since we use equality as a way to compare uuids of nodes, this trait is a
 // way to check that the contents of an ast node are equal. This is used in
@@ -243,7 +243,7 @@ impl PartialEq for EqNodeWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
             (ASTNode::FuncEntry(a), ASTNode::FuncEntry(b)) => a.name == b.name,
-            (ASTNode::ProgramEntry(a), ASTNode::ProgramEntry(b)) => true,
+            (ASTNode::ProgramEntry(_a), ASTNode::ProgramEntry(_b)) => true,
             (ASTNode::Arith(a), ASTNode::Arith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
             }

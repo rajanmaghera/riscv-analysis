@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     cfg::regset::RegSets,
-    parser::{ast::ASTNode, register::Register, token::WithToken},
+    parser::{ast::ASTNode, register::Register},
 };
 
 use super::{

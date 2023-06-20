@@ -14,7 +14,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::parser::ast::LabelString;
-use crate::parser::inst::{IArithType, Inst};
+use crate::parser::inst::{IArithType};
 use crate::parser::{ast::ASTNode, register::Register};
 
 use super::DirectionalWrapper;
