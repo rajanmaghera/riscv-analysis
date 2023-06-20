@@ -72,9 +72,6 @@ impl Display for AvailableValue {
 }
 
 impl ASTNode {
-    // TODO stack stores should all be 4, stack offset should all be 4
-    // TODO after a function call, the stack pointer should only be what it was before
-    // TODO figure out how to handle stack pointer values that may overlap
     pub fn gen_stack(&self) -> Option<(i32, AvailableValue)> {
         match self {
             ASTNode::Store(expr) => {
@@ -301,7 +298,6 @@ impl DirectionalWrapper {
                         _ => {}
                     }
                 }
-                // TODO
 
                 if out_vals != node.outs {
                     changed = true;
