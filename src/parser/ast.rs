@@ -6,6 +6,7 @@ use crate::parser::lexer::Lexer;
 use crate::parser::register::Register;
 use crate::parser::token::{LineDisplay, Range, Token, WithToken};
 
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::hash::{Hash, Hasher};
@@ -15,8 +16,9 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 // TODO make a test case with every supported RARS instruction
+// TODO set all returns to a jump to a special label
 use super::inst::InstType;
-use super::token::TokenInfo;
+use super::token::{Position, TokenInfo};
 
 // Since we use equality as a way to compare uuids of nodes, this trait is a
 // way to check that the contents of an ast node are equal. This is used in
@@ -206,7 +208,16 @@ pub struct FuncEntry {
 }
 
 #[derive(Debug, Clone)]
+pub struct ProgramEntry {
+    pub key: Uuid,
+}
+
+// TODO change optional fields to Option<T> instead of T
+// then, implement TokenInfo for the options on a case by case basis
+
+#[derive(Debug, Clone)]
 pub enum ASTNode {
+    ProgramEntry(ProgramEntry),
     FuncEntry(FuncEntry),
     Arith(Arith),
     IArith(IArith),
@@ -232,6 +243,7 @@ impl PartialEq for EqNodeWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
             (ASTNode::FuncEntry(a), ASTNode::FuncEntry(b)) => a.name == b.name,
+            (ASTNode::ProgramEntry(a), ASTNode::ProgramEntry(b)) => true,
             (ASTNode::Arith(a), ASTNode::Arith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
             }
@@ -310,6 +322,7 @@ impl NodeData for ASTNode {
             ASTNode::CSRImm(a) => a.key,
             ASTNode::LoadAddr(a) => a.key,
             ASTNode::FuncEntry(a) => a.key,
+            ASTNode::ProgramEntry(a) => a.key,
         }
     }
 }
@@ -358,6 +371,7 @@ impl ASTNode {
             ASTNode::CSRImm(x) => x.inst.token.clone(),
             ASTNode::LoadAddr(x) => x.inst.token.clone(),
             ASTNode::FuncEntry(x) => x.name.token.clone(),
+            ASTNode::ProgramEntry(_) => Token::Symbol("".to_string()),
         };
         let inst: Inst = match self {
             ASTNode::Arith(x) => (&x.inst.data).into(),
@@ -375,6 +389,7 @@ impl ASTNode {
             ASTNode::CSRImm(x) => (&x.inst.data).into(),
             ASTNode::LoadAddr(_x) => Inst::La,
             ASTNode::FuncEntry(_) => Inst::Nop,
+            ASTNode::ProgramEntry(_) => Inst::Nop,
         };
         let pos = match self {
             ASTNode::Arith(x) => x.inst.pos.clone(),
@@ -392,6 +407,10 @@ impl ASTNode {
             ASTNode::CSRImm(x) => x.inst.pos.clone(),
             ASTNode::LoadAddr(x) => x.inst.pos.clone(),
             ASTNode::FuncEntry(x) => x.name.pos.clone(),
+            ASTNode::ProgramEntry(_) => Range {
+                start: Position { line: 0, column: 0 },
+                end: Position { line: 0, column: 0 },
+            },
         };
         WithToken {
             token,
@@ -552,6 +571,12 @@ impl ASTNode {
         })
     }
 
+    pub fn new_program_entry() -> ASTNode {
+        ASTNode::ProgramEntry(ProgramEntry {
+            key: Uuid::new_v4(),
+        })
+    }
+
     pub fn new_csri(
         inst: WithToken<CSRIType>,
         rd: WithToken<Register>,
@@ -587,45 +612,8 @@ impl ASTNode {
         })
     }
 
-    pub fn is_entry(&self) -> bool {
-        match self {
-            ASTNode::Label(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_func_start(&self) -> bool {
-        match self {
-            ASTNode::FuncEntry(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_exit(&self) -> bool {
-        match self {
-            ASTNode::JumpLink(_) => true,
-            ASTNode::JumpLinkR(_) => true,
-            ASTNode::Branch(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_call(&self) -> bool {
-        match self {
-            ASTNode::JumpLink(_) => true,
-            ASTNode::Basic(x) => x.inst == BasicType::Ecall,
-            _ => false,
-        }
-    }
-
-    pub fn call_name(&self) -> Option<WithToken<LabelString>> {
-        match self {
-            ASTNode::JumpLink(x) => Some(x.name.to_owned()),
-            _ => None,
-        }
-    }
-
     // right now only checks if this is specific return statement
+    // TODO attach to jumplinkr only?
     pub fn is_return(&self) -> bool {
         match self {
             ASTNode::JumpLinkR(x) => {
@@ -638,23 +626,88 @@ impl ASTNode {
         }
     }
 
+    pub fn is_function_call(&self) -> bool {
+        match self {
+            ASTNode::JumpLink(x) => x.rd == Register::X1,
+            _ => false,
+        }
+    }
+
+    // TODO move into Load/Store ast node info
+    pub fn _is_stack_access(&self) -> bool {
+        match self {
+            ASTNode::Load(x) => x.rs1 == Register::X2,
+            ASTNode::Store(x) => x.rs1 == Register::X2,
+            _ => false,
+        }
+    }
+
+    pub fn is_memory_access(&self) -> bool {
+        match self {
+            ASTNode::Load(_) => true,
+            ASTNode::Store(_) => true,
+            _ => false,
+        }
+    }
+
     // checks if a node jumps to another INTERNAL node
-    pub fn jumps_to(&self) -> Option<WithToken<LabelString>> {
+    // TODO SEPARATE FROM FUNCTION CALLS
+    // TODO make uncond_jumps_to
+    pub fn potential_jumps_to(&self) -> Option<WithToken<LabelString>> {
         match self {
             ASTNode::Branch(x) => Some(x.name.to_owned()),
             _ => None,
         }
     }
 
+    pub fn calls_func_to(&self) -> Option<WithToken<LabelString>> {
+        match self {
+            ASTNode::JumpLink(x) if x.rd == Register::X1 => Some(x.name.to_owned()),
+            _ => None,
+        }
+    }
     // NOTE: This is in context to a register store, not a memory store
     pub fn stores_to(&self) -> Option<WithToken<Register>> {
         match self {
             ASTNode::Load(load) => Some(load.rd.clone()),
+            ASTNode::LoadAddr(load) => Some(load.rd.clone()),
             ASTNode::Arith(arith) => Some(arith.rd.clone()),
             ASTNode::IArith(iarith) => Some(iarith.rd.clone()),
+            ASTNode::UpperArith(upper_arith) => Some(upper_arith.rd.clone()),
+            ASTNode::JumpLink(jump_link) => Some(jump_link.rd.clone()),
+            ASTNode::JumpLinkR(jump_link_r) => Some(jump_link_r.rd.clone()),
             ASTNode::CSR(csr) => Some(csr.rd.clone()),
-            _ => None,
+            ASTNode::CSRImm(csri) => Some(csri.rd.clone()),
+            ASTNode::ProgramEntry(_) => None,
+            ASTNode::FuncEntry(_) => None,
+            ASTNode::Label(_) => None,
+            ASTNode::Basic(_) => None,
+            ASTNode::Directive(_) => None,
+            ASTNode::Branch(_) => None,
+            ASTNode::Store(_) => None,
         }
+    }
+
+    pub fn reads_from(&self) -> HashSet<WithToken<Register>> {
+        let vector = match self {
+            ASTNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()],
+            ASTNode::IArith(x) => vec![x.rs1.clone()],
+            ASTNode::JumpLinkR(x) => vec![x.rs1.clone()],
+            ASTNode::Branch(x) => vec![x.rs1.clone(), x.rs2.clone()],
+            ASTNode::Store(x) => vec![x.rs1.clone(), x.rs2.clone()],
+            ASTNode::Load(x) => vec![x.rs1.clone()],
+            ASTNode::CSR(x) => vec![x.rs1.clone()],
+            ASTNode::ProgramEntry(_) => vec![],
+            ASTNode::FuncEntry(_) => vec![],
+            ASTNode::UpperArith(_) => vec![],
+            ASTNode::Label(_) => vec![],
+            ASTNode::JumpLink(_) => vec![],
+            ASTNode::Basic(_) => vec![],
+            ASTNode::Directive(_) => vec![],
+            ASTNode::LoadAddr(_) => vec![],
+            ASTNode::CSRImm(_) => vec![],
+        };
+        vector.into_iter().collect()
     }
 }
 
@@ -671,6 +724,7 @@ impl ToDisplayForVecASTNode for Vec<ASTNode> {
 impl Display for ASTNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let res = match &self {
+            ASTNode::ProgramEntry(_) => format!("---[PROGRAM ENTRY]---"),
             ASTNode::FuncEntry(x) => {
                 let name = x.name.data.0.to_string();
                 format!("FUNC ENTRY: {}", name)
@@ -776,10 +830,25 @@ impl<'a> fmt::Display for VecASTDisplayWrapper<'a> {
     }
 }
 
+impl ASTNode {
+    pub fn get_store_range(&self) -> Range {
+        if let Some(item) = self.stores_to() {
+            item.pos.clone()
+        } else {
+            self.get_range()
+        }
+    }
+}
+
 // TODO this might differ based on how the nodes are made
+// TODO store whole range for each ASTNode as field
 impl LineDisplay for ASTNode {
     fn get_range(&self) -> Range {
         match &self {
+            ASTNode::ProgramEntry(_) => Range {
+                start: Position { line: 0, column: 0 },
+                end: Position { line: 0, column: 0 },
+            },
             ASTNode::FuncEntry(x) => x.name.pos.clone(),
             ASTNode::UpperArith(x) => {
                 let mut range = x.inst.pos.clone();
