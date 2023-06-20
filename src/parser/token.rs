@@ -3,8 +3,6 @@
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
-
-
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Position {
     pub line: usize,
@@ -67,11 +65,20 @@ impl<T> From<WithToken<T>> for TokenInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct WithToken<T> {
     pub token: Token,
     pub pos: Range,
     pub data: T,
+}
+
+impl<T> std::fmt::Debug for WithToken<T>
+where
+    T: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self.data)
+    }
 }
 
 impl<T> Hash for WithToken<T>
