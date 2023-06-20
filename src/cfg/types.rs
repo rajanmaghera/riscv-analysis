@@ -3,10 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::parser::{
-    ast::{ASTNode, LabelString},
-    token::WithToken,
-};
+use crate::parser::{ASTNode, LabelString, WithToken};
 
 use super::{BasicBlock, Direction};
 

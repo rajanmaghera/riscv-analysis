@@ -1,8 +1,8 @@
-use crate::cfg::regset::RegSets;
+use crate::cfg::RegSets;
 use crate::cfg::{ecall_in_outs, is_ecall_exit, AvailableValue, ToRegBitmap, ToRegHashset};
-use crate::parser::ast::ASTNode;
-use crate::parser::inst::BasicType;
-use crate::parser::register::Register;
+use crate::parser::ASTNode;
+use crate::parser::BasicType;
+use crate::parser::Register;
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;

@@ -3,7 +3,7 @@
 use std::borrow::Borrow;
 use std::convert::From;
 
-use crate::parser::token::Range as MyRange;
+use crate::parser::Range as MyRange;
 use crate::passes::PassError::*;
 use crate::passes::{PassError, WarningLevel};
 use lsp_types::{Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Position, Range};

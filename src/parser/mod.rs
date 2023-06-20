@@ -1,9 +1,20 @@
-pub mod ast;
-pub mod imm;
-pub mod inst;
-pub mod lexer;
-pub mod parser;
-pub mod register;
-pub mod token;
+mod ast;
+pub use ast::*;
 
-// TODO add context to all levels
+mod imm;
+pub use imm::*;
+
+mod inst;
+pub use inst::*;
+
+mod lexer;
+pub use lexer::*;
+
+mod parser;
+pub use parser::*;
+
+mod register;
+pub use register::*;
+
+mod token;
+pub use token::*;

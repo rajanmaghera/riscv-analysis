@@ -1,7 +1,7 @@
 use super::BasicBlock;
-use crate::parser::ast::ASTNode;
-use crate::parser::parser::Parser;
-use crate::parser::register::Register;
+use crate::parser::ASTNode;
+use crate::parser::Parser;
+use crate::parser::Register;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Display;

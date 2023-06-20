@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use crate::parser::register::Register;
+use crate::parser::Register;
 
 pub fn ecall_in_outs(call_num: i32) -> Option<(HashSet<Register>, HashSet<Register>)> {
-    use crate::parser::register::Register::{X10, X11, X12, X13};
+    use crate::parser::Register::{X10, X11, X12, X13};
     let vecs = match call_num {
         1 => (vec![X10], vec![]),
         // 2 => (vec![], vec![]), Not supporting floating point yet

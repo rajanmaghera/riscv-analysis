@@ -4,9 +4,9 @@ use std::rc::Rc;
 use uuid::Uuid;
 
 use crate::cfg::BasicBlock;
-use crate::parser::ast::ASTNode;
-use crate::parser::lexer::Lexer;
-use crate::parser::token::{Position, Range, Token, TokenInfo, WithToken};
+use crate::parser::ASTNode;
+use crate::parser::Lexer;
+use crate::parser::{Position, Range, Token, TokenInfo, WithToken};
 
 pub fn basic_block_from_nodes(nodes: Vec<ASTNode>) -> Rc<BasicBlock> {
     let mut rc_nodes = Vec::new();

@@ -1,4 +1,4 @@
-use crate::parser::inst::Inst;
+use crate::parser::Inst;
 
 pub enum MathOp {
     Add,

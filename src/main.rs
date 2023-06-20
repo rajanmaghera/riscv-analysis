@@ -49,12 +49,12 @@ mod tests {
     use super::*;
     use crate::cfg::{VecBlockWrapper, CFG};
     use crate::helpers::{basic_block_from_nodes, tokenize};
-    use crate::parser::ast::{ASTNode, EqNodeDataVec};
-    use crate::parser::imm::Imm;
-    use crate::parser::inst::{ArithType, IArithType, LoadType, StoreType};
-    use crate::parser::parser::Parser;
-    use crate::parser::register::Register;
-    use crate::parser::token::{Token, WithToken};
+    use crate::parser::Imm;
+    use crate::parser::Parser;
+    use crate::parser::Register;
+    use crate::parser::{ASTNode, EqNodeDataVec};
+    use crate::parser::{ArithType, IArithType, LoadType, StoreType};
+    use crate::parser::{Token, WithToken};
     use crate::passes::Manager;
 
     // A trait on strings to clean up some code for lexing

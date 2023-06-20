@@ -1,10 +1,12 @@
-use crate::cfg::{AvailableRegisterValues, RegSets};
-use crate::parser::inst::BasicType;
-use crate::parser::register::Register;
-use crate::parser::token::{LineDisplay, Range};
+use crate::cfg::AvailableRegisterValues;
+use crate::cfg::RegSets;
+use crate::parser::BasicType;
+use crate::parser::LineDisplay;
+use crate::parser::Range;
+use crate::parser::Register;
 use crate::{
     cfg::{AnnotatedCFG, AvailableValue},
-    parser::ast::ASTNode,
+    parser::ASTNode,
 };
 use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;

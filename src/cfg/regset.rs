@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::parser::register::Register;
+use crate::parser::Register;
 
 // This file contains functions to convert register sets between bitmaps and
 // hashsets. Hashsets allow for easy manipulation of register sets, while bitmaps

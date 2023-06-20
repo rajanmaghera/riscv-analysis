@@ -6,7 +6,7 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::parser::{ast::ASTNode, inst::BasicType, register::Register};
+use crate::parser::{ASTNode, BasicType, Register};
 
 use super::{
     regset::RegSets, AvailableValue, AvailableValueResult, BasicBlock, DirectionMap,
@@ -304,7 +304,7 @@ impl AnnotatedCFG {
     pub fn function_args(&self, name: &str) -> Option<HashSet<Register>> {
         let val = self
             .label_entry_map
-            .get(&crate::parser::ast::LabelString(name.to_owned()))?;
+            .get(&crate::parser::LabelString(name.to_owned()))?;
         let idx = self.nodes.iter().position(|x| x == val)?;
         let node = self.liveness.live_in.get(idx)?.clone();
         let node = node.intersection(&RegSets::argument()).copied().collect();
@@ -314,7 +314,7 @@ impl AnnotatedCFG {
     pub fn function_rets(&self, name: &str) -> Option<HashSet<Register>> {
         let val = self
             .label_return_map
-            .get(&crate::parser::ast::LabelString(name.to_owned()))?
+            .get(&crate::parser::LabelString(name.to_owned()))?
             .iter()
             .next()?;
         let idx = self.nodes.iter().position(|x| x == val)?;

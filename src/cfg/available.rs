@@ -13,9 +13,9 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::rc::Rc;
 
-use crate::parser::ast::LabelString;
-use crate::parser::inst::IArithType;
-use crate::parser::{ast::ASTNode, register::Register};
+use crate::parser::IArithType;
+use crate::parser::LabelString;
+use crate::parser::{ASTNode, Register};
 
 use super::DirectionalWrapper;
 
@@ -36,11 +36,10 @@ pub trait AvailableRegisterValues {
 
 impl AvailableRegisterValues for &HashMap<Register, AvailableValue> {
     fn is_original_value(&self, reg: &Register) -> bool {
-        self.get(reg)
-            .map_or(false, |x| match x {
-                AvailableValue::OrigScalarOffset(reg2, offset) => reg == reg2 && offset == &0,
-                _ => false,
-            })
+        self.get(reg).map_or(false, |x| match x {
+            AvailableValue::OrigScalarOffset(reg2, offset) => reg == reg2 && offset == &0,
+            _ => false,
+        })
     }
 }
 
@@ -245,8 +244,12 @@ impl DirectionalWrapper {
                     }
                 }
                 if let ASTNode::FuncEntry(_) | ASTNode::ProgramEntry(_) = &*(node.node) {
-                    use Register::{X1, X18, X19, X2, X20, X21, X22, X23, X24, X25, X26, X27, X8, X9};
-                    for reg in &[X1, X2, X8, X9, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27] {
+                    use Register::{
+                        X1, X18, X19, X2, X20, X21, X22, X23, X24, X25, X26, X27, X8, X9,
+                    };
+                    for reg in &[
+                        X1, X2, X8, X9, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27,
+                    ] {
                         out_vals.insert(*reg, AvailableValue::OrigScalarOffset(*reg, 0));
                     }
                     out_stacks.clear();

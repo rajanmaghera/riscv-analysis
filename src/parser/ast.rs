@@ -676,13 +676,13 @@ impl ASTNode {
             ASTNode::JumpLinkR(jump_link_r) => Some(jump_link_r.rd.clone()),
             ASTNode::CSR(csr) => Some(csr.rd.clone()),
             ASTNode::CSRImm(csri) => Some(csri.rd.clone()),
-            ASTNode::ProgramEntry(_) => None,
-            ASTNode::FuncEntry(_) => None,
-            ASTNode::Label(_) => None,
-            ASTNode::Basic(_) => None,
-            ASTNode::Directive(_) => None,
-            ASTNode::Branch(_) => None,
-            ASTNode::Store(_) => None,
+            ASTNode::ProgramEntry(_)
+            | ASTNode::FuncEntry(_)
+            | ASTNode::Label(_)
+            | ASTNode::Basic(_)
+            | ASTNode::Directive(_)
+            | ASTNode::Branch(_)
+            | ASTNode::Store(_) => None,
         }
     }
 
@@ -695,15 +695,15 @@ impl ASTNode {
             ASTNode::Store(x) => vec![x.rs1.clone(), x.rs2.clone()],
             ASTNode::Load(x) => vec![x.rs1.clone()],
             ASTNode::CSR(x) => vec![x.rs1.clone()],
-            ASTNode::ProgramEntry(_) => vec![],
-            ASTNode::FuncEntry(_) => vec![],
-            ASTNode::UpperArith(_) => vec![],
-            ASTNode::Label(_) => vec![],
-            ASTNode::JumpLink(_) => vec![],
-            ASTNode::Basic(_) => vec![],
-            ASTNode::Directive(_) => vec![],
-            ASTNode::LoadAddr(_) => vec![],
-            ASTNode::CSRImm(_) => vec![],
+            ASTNode::ProgramEntry(_)
+            | ASTNode::FuncEntry(_)
+            | ASTNode::UpperArith(_)
+            | ASTNode::Label(_)
+            | ASTNode::JumpLink(_)
+            | ASTNode::Basic(_)
+            | ASTNode::Directive(_)
+            | ASTNode::LoadAddr(_)
+            | ASTNode::CSRImm(_) => vec![],
         };
         vector.into_iter().collect()
     }

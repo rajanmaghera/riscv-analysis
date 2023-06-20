@@ -1,7 +1,7 @@
-use crate::parser::ast::LabelString;
+use crate::parser::LabelString;
 
-use crate::parser::register::Register;
-use crate::parser::token::{Range, WithToken};
+use crate::parser::Register;
+use crate::parser::{Range, WithToken};
 
 #[derive(Debug)]
 // Read/write within the text section

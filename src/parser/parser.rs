@@ -62,8 +62,8 @@ impl Iterator for Parser {
             }
 
             // print debug info for errors
-            match &item {
-                Err(err) => match err {
+            if let Err(err) = &item {
+                match err {
                     ParseError::Expected(tokens, found) => {
                         println!("Expected {tokens:?}, found {found:?}");
                     }
@@ -71,8 +71,7 @@ impl Iterator for Parser {
                         println!("line {}: Unexpected token {:?}", x.pos.start.line, x.token);
                     }
                     _ => {}
-                },
-                _ => {}
+                }
             }
             return match item {
                 Ok(ast) => Some(ast),
