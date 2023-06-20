@@ -65,7 +65,7 @@ impl PartialEq<Token> for TokenInfo {
 //     }
 // }
 
-impl<T> WithToken<T> {
+impl<T> With<T> {
     pub fn info(&self) -> TokenInfo {
         TokenInfo {
             token: self.token.clone(),
@@ -75,13 +75,13 @@ impl<T> WithToken<T> {
 }
 
 #[derive(Clone)]
-pub struct WithToken<T> {
+pub struct With<T> {
     pub token: Token,
     pub pos: Range,
     pub data: T,
 }
 
-impl<T> std::fmt::Debug for WithToken<T>
+impl<T> std::fmt::Debug for With<T>
 where
     T: std::fmt::Debug,
 {
@@ -90,7 +90,7 @@ where
     }
 }
 
-impl<T> Hash for WithToken<T>
+impl<T> Hash for With<T>
 where
     T: Hash,
 {
@@ -154,29 +154,29 @@ impl std::fmt::Display for Range {
     }
 }
 
-impl<T> LineDisplay for WithToken<T> {
+impl<T> LineDisplay for With<T> {
     fn get_range(&self) -> Range {
         self.pos.clone()
     }
 }
 
-impl<T> PartialEq<WithToken<T>> for WithToken<T>
+impl<T> PartialEq<With<T>> for With<T>
 where
     T: PartialEq<T>,
 {
-    fn eq(&self, other: &WithToken<T>) -> bool {
+    fn eq(&self, other: &With<T>) -> bool {
         self.data == other.data
     }
 }
 
-impl<T> Eq for WithToken<T> where T: Eq {}
+impl<T> Eq for With<T> where T: Eq {}
 
-impl<T> WithToken<T>
+impl<T> With<T>
 where
     T: PartialEq<T>,
 {
     pub fn new(data: T, info: TokenInfo) -> Self {
-        WithToken {
+        With {
             token: info.token,
             pos: info.pos,
             data,
@@ -184,14 +184,14 @@ where
     }
 }
 
-impl<T> TryFrom<TokenInfo> for WithToken<T>
+impl<T> TryFrom<TokenInfo> for With<T>
 where
     T: TryFrom<TokenInfo>,
 {
     type Error = T::Error;
 
     fn try_from(value: TokenInfo) -> Result<Self, Self::Error> {
-        Ok(WithToken {
+        Ok(With {
             pos: value.pos.clone(),
             token: value.token.clone(),
             data: T::try_from(value)?,
@@ -210,7 +210,7 @@ impl TryFrom<TokenInfo> for String {
     }
 }
 
-impl<T> PartialEq<T> for WithToken<T>
+impl<T> PartialEq<T> for With<T>
 where
     T: PartialEq<T>,
 {

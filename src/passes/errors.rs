@@ -1,19 +1,19 @@
 use crate::parser::LabelString;
 
 use crate::parser::Register;
-use crate::parser::{Range, WithToken};
+use crate::parser::{Range, With};
 
 #[derive(Debug)]
 // Read/write within the text section
 pub enum PassError {
     // if a loop variable does not change, then it will infinitely run
     // if a branch is always going to execute (i.e. if true) using constants and zero register
-    InvalidUseAfterCall(Range, WithToken<LabelString>),
+    InvalidUseAfterCall(Range, With<LabelString>),
     InvalidUseBeforeAssignment(Range),
     // TODO add tokens/registers to all
     // separate into invalid use
     OverwriteCalleeSavedRegister(Range, Register),
-    ImproperFuncEntry(Range, WithToken<LabelString>), // if a function has any prev items, (including program entry)
+    ImproperFuncEntry(Range, With<LabelString>), // if a function has any prev items, (including program entry)
     DeadAssignment(Range),
     SaveToZero(Range),
     UnknownEcall(Range),

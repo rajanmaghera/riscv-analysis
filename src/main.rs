@@ -54,7 +54,7 @@ mod tests {
     use crate::parser::Register;
     use crate::parser::{ASTNode, EqNodeDataVec};
     use crate::parser::{ArithType, IArithType, LoadType, StoreType};
-    use crate::parser::{Token, WithToken};
+    use crate::parser::{Token, With};
     use crate::passes::Manager;
 
     // A trait on strings to clean up some code for lexing

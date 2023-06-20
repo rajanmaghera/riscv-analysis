@@ -6,7 +6,7 @@ use crate::parser::inst::{
 };
 
 use crate::parser::register::Register;
-use crate::parser::token::{LineDisplay, Range, Token, WithToken};
+use crate::parser::token::{LineDisplay, Range, Token, With};
 
 use std::collections::HashSet;
 
@@ -46,19 +46,19 @@ impl Display for DirectiveType {
 
 #[derive(Debug, Clone)]
 pub struct Arith {
-    pub inst: WithToken<ArithType>,
-    pub rd: WithToken<Register>,
-    pub rs1: WithToken<Register>,
-    pub rs2: WithToken<Register>,
+    pub inst: With<ArithType>,
+    pub rd: With<Register>,
+    pub rs1: With<Register>,
+    pub rs2: With<Register>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct IArith {
-    pub inst: WithToken<IArithType>,
-    pub rd: WithToken<Register>,
-    pub rs1: WithToken<Register>,
-    pub imm: WithToken<Imm>,
+    pub inst: With<IArithType>,
+    pub rd: With<Register>,
+    pub rs1: With<Register>,
+    pub imm: With<Imm>,
     pub key: Uuid,
 }
 
@@ -98,108 +98,108 @@ impl Display for LabelString {
 
 #[derive(Debug, Clone)]
 pub struct Label {
-    pub name: WithToken<LabelString>,
+    pub name: With<LabelString>,
     pub key: Uuid,
 }
 #[derive(Debug, Clone)]
 pub struct JumpLink {
-    pub inst: WithToken<JumpLinkType>,
-    pub rd: WithToken<Register>,
-    pub name: WithToken<LabelString>,
+    pub inst: With<JumpLinkType>,
+    pub rd: With<Register>,
+    pub name: With<LabelString>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct JumpLinkR {
-    pub inst: WithToken<JumpLinkRType>,
-    pub rd: WithToken<Register>,
-    pub rs1: WithToken<Register>,
-    pub imm: WithToken<Imm>,
+    pub inst: With<JumpLinkRType>,
+    pub rd: With<Register>,
+    pub rs1: With<Register>,
+    pub imm: With<Imm>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct Basic {
-    pub inst: WithToken<BasicType>,
+    pub inst: With<BasicType>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct Branch {
-    pub inst: WithToken<BranchType>,
-    pub rs1: WithToken<Register>,
-    pub rs2: WithToken<Register>,
-    pub name: WithToken<LabelString>,
+    pub inst: With<BranchType>,
+    pub rs1: With<Register>,
+    pub rs2: With<Register>,
+    pub name: With<LabelString>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct Load {
-    pub inst: WithToken<LoadType>,
-    pub rd: WithToken<Register>,
-    pub rs1: WithToken<Register>,
-    pub imm: WithToken<Imm>,
+    pub inst: With<LoadType>,
+    pub rd: With<Register>,
+    pub rs1: With<Register>,
+    pub imm: With<Imm>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct Store {
-    pub inst: WithToken<StoreType>,
-    pub rs1: WithToken<Register>,
-    pub rs2: WithToken<Register>,
-    pub imm: WithToken<Imm>,
+    pub inst: With<StoreType>,
+    pub rs1: With<Register>,
+    pub rs2: With<Register>,
+    pub imm: With<Imm>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct Directive {
-    pub dir: WithToken<DirectiveType>,
+    pub dir: With<DirectiveType>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct CSR {
-    pub inst: WithToken<CSRType>,
-    pub rd: WithToken<Register>,
-    pub csr: WithToken<CSRImm>,
-    pub rs1: WithToken<Register>,
+    pub inst: With<CSRType>,
+    pub rd: With<Register>,
+    pub csr: With<CSRImm>,
+    pub rs1: With<Register>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct CSRI {
-    pub inst: WithToken<CSRIType>,
-    pub rd: WithToken<Register>,
-    pub csr: WithToken<CSRImm>,
-    pub imm: WithToken<Imm>,
+    pub inst: With<CSRIType>,
+    pub rd: With<Register>,
+    pub csr: With<CSRImm>,
+    pub imm: With<Imm>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct Ignore {
-    pub inst: WithToken<IgnoreType>,
+    pub inst: With<IgnoreType>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct LoadAddr {
-    pub inst: WithToken<PseudoType>,
-    pub rd: WithToken<Register>,
-    pub name: WithToken<LabelString>,
+    pub inst: With<PseudoType>,
+    pub rd: With<Register>,
+    pub name: With<LabelString>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct UpperArith {
-    pub inst: WithToken<UpperArithType>,
-    pub rd: WithToken<Register>,
-    pub imm: WithToken<Imm>,
+    pub inst: With<UpperArithType>,
+    pub rd: With<Register>,
+    pub imm: With<Imm>,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct FuncEntry {
-    pub name: WithToken<LabelString>,
+    pub name: With<LabelString>,
     pub key: Uuid,
 }
 
@@ -352,7 +352,7 @@ impl Hash for ASTNode {
 impl ASTNode {
     // TODO derive AST new funcs using procedural macros
 
-    pub fn inst(&self) -> WithToken<Inst> {
+    pub fn inst(&self) -> With<Inst> {
         let token = match self {
             ASTNode::Arith(x) => x.inst.token.clone(),
             ASTNode::IArith(x) => x.inst.token.clone(),
@@ -410,7 +410,7 @@ impl ASTNode {
                 end: Position { line: 0, column: 0 },
             },
         };
-        WithToken {
+        With {
             token,
             data: inst,
             pos,
@@ -418,10 +418,10 @@ impl ASTNode {
     }
 
     pub fn new_arith(
-        inst: WithToken<ArithType>,
-        rd: WithToken<Register>,
-        rs1: WithToken<Register>,
-        rs2: WithToken<Register>,
+        inst: With<ArithType>,
+        rd: With<Register>,
+        rs1: With<Register>,
+        rs2: With<Register>,
     ) -> ASTNode {
         ASTNode::Arith(Arith {
             inst,
@@ -433,10 +433,10 @@ impl ASTNode {
     }
 
     pub fn new_iarith(
-        inst: WithToken<IArithType>,
-        rd: WithToken<Register>,
-        rs1: WithToken<Register>,
-        imm: WithToken<Imm>,
+        inst: With<IArithType>,
+        rd: With<Register>,
+        rs1: With<Register>,
+        imm: With<Imm>,
     ) -> ASTNode {
         ASTNode::IArith(IArith {
             inst,
@@ -448,9 +448,9 @@ impl ASTNode {
     }
 
     pub fn new_upper_arith(
-        inst: WithToken<UpperArithType>,
-        rd: WithToken<Register>,
-        imm: WithToken<Imm>,
+        inst: With<UpperArithType>,
+        rd: With<Register>,
+        imm: With<Imm>,
     ) -> ASTNode {
         ASTNode::UpperArith(UpperArith {
             inst,
@@ -461,9 +461,9 @@ impl ASTNode {
     }
 
     pub fn new_jump_link(
-        inst: WithToken<JumpLinkType>,
-        rd: WithToken<Register>,
-        name: WithToken<LabelString>,
+        inst: With<JumpLinkType>,
+        rd: With<Register>,
+        name: With<LabelString>,
     ) -> ASTNode {
         ASTNode::JumpLink(JumpLink {
             inst,
@@ -474,10 +474,10 @@ impl ASTNode {
     }
 
     pub fn new_jump_link_r(
-        inst: WithToken<JumpLinkRType>,
-        rd: WithToken<Register>,
-        rs1: WithToken<Register>,
-        imm: WithToken<Imm>,
+        inst: With<JumpLinkRType>,
+        rd: With<Register>,
+        rs1: With<Register>,
+        imm: With<Imm>,
     ) -> ASTNode {
         ASTNode::JumpLinkR(JumpLinkR {
             inst,
@@ -488,14 +488,14 @@ impl ASTNode {
         })
     }
 
-    pub fn new_basic(inst: WithToken<BasicType>) -> ASTNode {
+    pub fn new_basic(inst: With<BasicType>) -> ASTNode {
         ASTNode::Basic(Basic {
             inst,
             key: Uuid::new_v4(),
         })
     }
 
-    pub fn new_directive(dir: WithToken<DirectiveType>) -> ASTNode {
+    pub fn new_directive(dir: With<DirectiveType>) -> ASTNode {
         ASTNode::Directive(Directive {
             dir,
             key: Uuid::new_v4(),
@@ -503,10 +503,10 @@ impl ASTNode {
     }
 
     pub fn new_branch(
-        inst: WithToken<BranchType>,
-        rs1: WithToken<Register>,
-        rs2: WithToken<Register>,
-        name: WithToken<LabelString>,
+        inst: With<BranchType>,
+        rs1: With<Register>,
+        rs2: With<Register>,
+        name: With<LabelString>,
     ) -> ASTNode {
         ASTNode::Branch(Branch {
             inst,
@@ -518,10 +518,10 @@ impl ASTNode {
     }
 
     pub fn new_store(
-        inst: WithToken<StoreType>,
-        rs1: WithToken<Register>,
-        rs2: WithToken<Register>,
-        imm: WithToken<Imm>,
+        inst: With<StoreType>,
+        rs1: With<Register>,
+        rs2: With<Register>,
+        imm: With<Imm>,
     ) -> ASTNode {
         ASTNode::Store(Store {
             inst,
@@ -533,10 +533,10 @@ impl ASTNode {
     }
 
     pub fn new_load(
-        inst: WithToken<LoadType>,
-        rd: WithToken<Register>,
-        rs1: WithToken<Register>,
-        imm: WithToken<Imm>,
+        inst: With<LoadType>,
+        rd: With<Register>,
+        rs1: With<Register>,
+        imm: With<Imm>,
     ) -> ASTNode {
         ASTNode::Load(Load {
             inst,
@@ -548,10 +548,10 @@ impl ASTNode {
     }
 
     pub fn new_csr(
-        inst: WithToken<CSRType>,
-        rd: WithToken<Register>,
-        csr: WithToken<CSRImm>,
-        rs1: WithToken<Register>,
+        inst: With<CSRType>,
+        rd: With<Register>,
+        csr: With<CSRImm>,
+        rs1: With<Register>,
     ) -> ASTNode {
         ASTNode::CSR(CSR {
             inst,
@@ -562,7 +562,7 @@ impl ASTNode {
         })
     }
 
-    pub fn new_func_entry(name: WithToken<LabelString>) -> ASTNode {
+    pub fn new_func_entry(name: With<LabelString>) -> ASTNode {
         ASTNode::FuncEntry(FuncEntry {
             name,
             key: Uuid::new_v4(),
@@ -576,10 +576,10 @@ impl ASTNode {
     }
 
     pub fn new_csri(
-        inst: WithToken<CSRIType>,
-        rd: WithToken<Register>,
-        csr: WithToken<CSRImm>,
-        imm: WithToken<Imm>,
+        inst: With<CSRIType>,
+        rd: With<Register>,
+        csr: With<CSRImm>,
+        imm: With<Imm>,
     ) -> ASTNode {
         ASTNode::CSRImm(CSRI {
             inst,
@@ -590,7 +590,7 @@ impl ASTNode {
         })
     }
 
-    pub fn new_label(name: WithToken<LabelString>) -> ASTNode {
+    pub fn new_label(name: With<LabelString>) -> ASTNode {
         ASTNode::Label(Label {
             name,
             key: Uuid::new_v4(),
@@ -598,9 +598,9 @@ impl ASTNode {
     }
 
     pub fn new_load_addr(
-        inst: WithToken<PseudoType>,
-        rd: WithToken<Register>,
-        name: WithToken<LabelString>,
+        inst: With<PseudoType>,
+        rd: With<Register>,
+        name: With<LabelString>,
     ) -> ASTNode {
         ASTNode::LoadAddr(LoadAddr {
             inst,
@@ -651,21 +651,21 @@ impl ASTNode {
     // checks if a node jumps to another INTERNAL node
     // TODO SEPARATE FROM FUNCTION CALLS
     // TODO make uncond_jumps_to
-    pub fn potential_jumps_to(&self) -> Option<WithToken<LabelString>> {
+    pub fn potential_jumps_to(&self) -> Option<With<LabelString>> {
         match self {
             ASTNode::Branch(x) => Some(x.name.clone()),
             _ => None,
         }
     }
 
-    pub fn calls_func_to(&self) -> Option<WithToken<LabelString>> {
+    pub fn calls_func_to(&self) -> Option<With<LabelString>> {
         match self {
             ASTNode::JumpLink(x) if x.rd == Register::X1 => Some(x.name.clone()),
             _ => None,
         }
     }
     // NOTE: This is in context to a register store, not a memory store
-    pub fn stores_to(&self) -> Option<WithToken<Register>> {
+    pub fn stores_to(&self) -> Option<With<Register>> {
         match self {
             ASTNode::Load(load) => Some(load.rd.clone()),
             ASTNode::LoadAddr(load) => Some(load.rd.clone()),
@@ -686,7 +686,7 @@ impl ASTNode {
         }
     }
 
-    pub fn reads_from(&self) -> HashSet<WithToken<Register>> {
+    pub fn reads_from(&self) -> HashSet<With<Register>> {
         let vector = match self {
             ASTNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()],
             ASTNode::IArith(x) => vec![x.rs1.clone()],
