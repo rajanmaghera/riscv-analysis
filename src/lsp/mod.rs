@@ -1,12 +1,11 @@
 // Type conversions for LSP
 
-use std::borrow::Borrow;
 use std::convert::From;
 
 use crate::parser::Range as MyRange;
-use crate::passes::PassError::*;
-use crate::passes::{PassError, WarningLevel};
-use lsp_types::{Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Position, Range};
+use crate::passes::LintError::*;
+use crate::passes::{LintError, WarningLevel};
+use lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 
 impl From<&MyRange> for Range {
     fn from(r: &MyRange) -> Self {
@@ -32,21 +31,30 @@ impl From<WarningLevel> for DiagnosticSeverity {
     }
 }
 
-impl From<&PassError> for Diagnostic {
-    fn from(e: &PassError) -> Self {
+impl From<&LintError> for Diagnostic {
+    fn from(e: &LintError) -> Self {
         let range = e.range();
         let related = match &e {
-            InvalidUseAfterCall(_, label) => Some(vec![DiagnosticRelatedInformation {
-                location: lsp_types::Location {
-                    // TODO this is a hack, we need to get the file path from the parser
-                    uri: lsp_types::Url::parse("file:///").unwrap(),
-                    range: label.pos.borrow().into(),
-                },
-                message: format!(
-                    "The function call to [{}] invalidates any temporary registers afterwards.",
-                    label.data.0
-                ),
-            }]),
+            InvalidUseAfterCall(_, label) => Some(vec![
+                // TODO determine name/URI of function
+            //     DiagnosticRelatedInformation {
+            //     location: lsp_types::Location {
+            //         // TODO this is a hack, we need to get the file path from the parser
+            //         uri: lsp_types::Url::parse("file:///").unwrap(),
+            //         range: label.pos.borrow().into(),
+            //     },
+            //     message: format!(
+            //         "The function call to [{}] invalidates any temporary registers afterwards.",
+            //         label
+            //             .entry
+            //             .labels
+            //             .iter()
+            //             .map(|x| x.data.0.clone())
+            //             .collect::<Vec<_>>()
+            //             .join(", ")
+            //     ),
+            // }
+            ]),
             _ => None,
         };
 
