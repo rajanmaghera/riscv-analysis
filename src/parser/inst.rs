@@ -1,13 +1,13 @@
 use std::{fmt::Display, str::FromStr};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum BasicType {
     Ebreak,
     Ecall,
     Uret,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum ArithType {
     Add,
     Addw,
@@ -36,7 +36,7 @@ pub enum ArithType {
     Remuw,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum BranchType {
     Beq,
     Bge,
@@ -46,7 +46,7 @@ pub enum BranchType {
     Bne,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum IArithType {
     Addi,
     Addiw,
@@ -66,7 +66,7 @@ pub enum IArithType {
 
 // TODO how is pseudo instruction handled for the FromStr trait?
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum LoadType {
     Lb,
     Lbu,
@@ -76,44 +76,44 @@ pub enum LoadType {
     Lwu,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum StoreType {
     Sb,
     Sh,
     Sw,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum CSRType {
     Csrrw,
     Csrrs,
     Csrrc,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum CSRIType {
     Csrrwi,
     Csrrsi,
     Csrrci,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum IgnoreType {
     Fence,
     Fencei,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum JumpLinkType {
     Jal,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum JumpLinkRType {
     Jalr,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Inst {
     Ret,
     Ebreak,

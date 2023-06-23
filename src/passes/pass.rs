@@ -1,39 +1,17 @@
-use crate::cfg::AnnotatedCFG;
+// TODO need a way to make assert passes
 
-use super::{
-    CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
-    EcallCheck, GarbageInputValueCheck, PassError, SaveToZeroCheck, StackCheckPass,
-};
+use crate::cfg::BaseCFG;
 
-pub trait Pass {
-    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>);
+use super::{CFGError, LintError};
+
+pub trait GenerationPass {
+    fn run(cfg: &mut BaseCFG) -> Result<(), CFGError>;
 }
 
-pub struct Manager {
-    passes: Vec<Box<dyn Pass>>,
+pub trait AssertionPass {
+    fn run(cfg: &BaseCFG) -> Result<(), CFGError>;
 }
 
-impl Manager {
-    pub fn new() -> Manager {
-        Manager {
-            passes: vec![
-                Box::new(SaveToZeroCheck),
-                Box::new(DeadValueCheck),
-                Box::new(EcallCheck),
-                Box::new(ControlFlowCheck),
-                Box::new(GarbageInputValueCheck),
-                Box::new(StackCheckPass),
-                Box::new(CalleeSavedRegisterCheck),
-                Box::new(CalleeSavedGarbageReadCheck),
-            ],
-        }
-    }
-
-    pub fn run(&self, cfg: &AnnotatedCFG) -> Vec<PassError> {
-        let mut errors = Vec::new();
-        for pass in &self.passes {
-            pass.run(cfg, &mut errors);
-        }
-        errors
-    }
+pub trait LintPass {
+    fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>);
 }

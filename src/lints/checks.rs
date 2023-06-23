@@ -1,30 +1,31 @@
-use crate::cfg::AvailableRegisterValues;
-use crate::cfg::RegSets;
-use crate::parser::BasicType;
+use crate::analysis::AvailableRegisterValues;
+use crate::analysis::AvailableValue;
+use crate::analysis::CustomClonedSets;
+use crate::cfg::BaseCFG;
+use crate::cfg::CFGNode;
 use crate::parser::LineDisplay;
+use crate::parser::Node;
 use crate::parser::Range;
+use crate::parser::RegSets;
 use crate::parser::Register;
-use crate::{
-    cfg::{AnnotatedCFG, AvailableValue},
-    parser::Node,
-};
+use crate::passes::LintError;
+use crate::passes::LintPass;
 use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;
-
-use super::{Pass, PassError};
 
 // If we need to add an error to a register at its first use/store, we need to
 // know their ranges. This function will take a register and return the ranges
 // that need to be annotated. If it cannot find any, then it will return the original
 // node's range.
-impl AnnotatedCFG {
-    fn error_ranges_for_first_usage(&self, node: &Rc<Node>, item: Register) -> Vec<Range> {
+impl BaseCFG {
+    // TODO move to a more appropriate place
+    // TODO make better, what even is this?
+    fn error_ranges_for_first_usage(&self, node: &Rc<CFGNode>, item: Register) -> Vec<Range> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the next nodes onto the queue
-        for next in self.next_ast_map.get(node).unwrap() {
-            queue.push_back(Rc::clone(next));
-        }
+
+        queue.extend(node.nexts().clone().into_iter());
 
         // keep track of visited nodes
         let mut visited = HashSet::new();
@@ -38,9 +39,9 @@ impl AnnotatedCFG {
                 continue;
             }
             visited.insert(Rc::clone(&next));
-            if next.gen().contains(&item) {
+            if next.node.gen_reg().contains(&item) {
                 // find the use
-                let regs = next.gen();
+                let regs = next.node.gen_reg();
                 let mut it = None;
                 for reg in regs {
                     if reg == item {
@@ -50,14 +51,13 @@ impl AnnotatedCFG {
                 }
                 if let Some(_reg) = it {
                     // TODO fix range of token register
-                    ranges.push(next.get_range());
+                    ranges.push(next.node.get_range());
                     break;
                 }
                 break;
             }
-            for next_next in self.next_ast_map.get(&next).unwrap() {
-                queue.push_back(Rc::clone(next_next));
-            }
+
+            queue.extend(next.nexts().clone().into_iter());
         }
         ranges
     }
@@ -67,12 +67,12 @@ impl AnnotatedCFG {
 // during the CFG build. Then, the data is applied via a check.
 
 pub struct SaveToZeroCheck;
-impl Pass for SaveToZeroCheck {
-    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
+impl LintPass for SaveToZeroCheck {
+    fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
         for node in cfg.clone() {
-            if let Some(register) = (*node).stores_to() {
-                if register == Register::X0 && !node.is_return() {
-                    errors.push(PassError::SaveToZero(register.get_range()));
+            if let Some(register) = (*node).node.stores_to() {
+                if register == Register::X0 && !node.node.is_return() {
+                    errors.push(LintError::SaveToZero(register.get_range()));
                 }
             }
         }
@@ -80,34 +80,29 @@ impl Pass for SaveToZeroCheck {
 }
 
 pub struct DeadValueCheck;
-impl Pass for DeadValueCheck {
-    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
-        let live_data = &cfg.liveness;
-
+impl LintPass for DeadValueCheck {
+    fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
         for (i, node) in cfg.clone().into_iter().enumerate() {
             // check for any assignments that don't make it
             // to the end of the node
-            for def in node.kill() {
-                if !live_data.live_out.get(i).unwrap().contains(&def) {
+            for def in node.node.kill_reg() {
+                if !node.live_out().contains(&def) {
                     // TODO dead assignment register
                     // TODO darken variable in LSP
-                    errors.push(PassError::DeadAssignment(node.get_store_range().clone()));
+                    errors.push(LintError::DeadAssignment(
+                        node.node.get_store_range().clone(),
+                    ));
                 }
             }
 
             // check the out of the node for any uses that
             // should not be there (temporaries)
             // TODO merge with Callee saved register check
-            if let Some(name) = node.calls_func_to() {
+            if let Some(name) = node.calls_to(cfg) {
                 // check the expected return values of the function:
-                let returns = cfg.function_rets(name.data.0.as_str()).unwrap();
                 let out: HashSet<Register> = RegSets::caller_saved()
-                    .difference(&returns)
-                    .copied()
-                    .collect();
-                let out = out
-                    .intersection(live_data.live_out.get(i).unwrap())
-                    .copied();
+                    .difference_c(&name.returns())
+                    .intersection_c(&node.live_out());
 
                 // if there is anything left, then there is an error
                 // for each item, keep going to the next node until a use of
@@ -117,7 +112,7 @@ impl Pass for DeadValueCheck {
                     ranges.append(&mut cfg.error_ranges_for_first_usage(&node, item));
                 }
                 for item in ranges {
-                    errors.push(PassError::InvalidUseAfterCall(item, name.clone()));
+                    errors.push(LintError::InvalidUseAfterCall(item, name.clone()));
                 }
             }
         }
@@ -127,22 +122,26 @@ impl Pass for DeadValueCheck {
 // Check if you can enter a function through the first line of code
 // Check if you can enter a function through a jump (a previous exists)
 // Check if any code has no previous (except for the first line of code)
+// TODO fix for program entry
 pub struct ControlFlowCheck;
-impl Pass for ControlFlowCheck {
-    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
+impl LintPass for ControlFlowCheck {
+    fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
         for (i, node) in cfg.clone().into_iter().enumerate() {
-            match node.as_ref() {
-                Node::FuncEntry(x) => {
-                    if i == 0 || !cfg.prev_ast_map.get(&node).unwrap().is_empty() {
-                        errors.push(PassError::ImproperFuncEntry(
-                            x.name.get_range().clone(),
-                            x.name.clone(),
-                        ));
+            match node.node {
+                Node::FuncEntry(_) => {
+                    if i == 0 || !node.prevs().is_empty() {
+                        // TODO this should always be here, turn this into an assert pass
+                        if let Some(function) = node.function().clone() {
+                            errors.push(LintError::ImproperFuncEntry(
+                                node.node.get_range().clone(),
+                                function,
+                            ));
+                        }
                     }
                 }
                 _ => {
-                    if i != 0 && cfg.prev_ast_map.get(&node).unwrap().is_empty() {
-                        errors.push(PassError::UnreachableCode(node.get_range().clone()));
+                    if i != 0 && node.prevs().is_empty() {
+                        errors.push(LintError::UnreachableCode(node.node.get_range().clone()));
                     }
                 }
             }
@@ -151,23 +150,13 @@ impl Pass for ControlFlowCheck {
 }
 
 // Check if every ecall has a known call number
-// TODO Check if there are any instructions after an ecall to terminate the program
+// Check if there are any instructions after an ecall to terminate the program
 pub struct EcallCheck;
-impl Pass for EcallCheck {
-    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
+impl LintPass for EcallCheck {
+    fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
         for (i, node) in cfg.clone().into_iter().enumerate() {
-            if let Node::Basic(x) = &(*node) {
-                if x.inst == BasicType::Ecall
-                    && cfg
-                        .available
-                        .avail_in
-                        .get(i)
-                        .unwrap()
-                        .get(&Register::X17)
-                        .is_none()
-                {
-                    errors.push(PassError::UnknownEcall(x.inst.get_range()));
-                }
+            if node.node.is_ecall() && node.known_ecall().is_none() {
+                errors.push(LintError::UnknownEcall(node.node.get_range()));
             }
         }
     }
@@ -177,18 +166,11 @@ impl Pass for EcallCheck {
 // Check if there are any in values to the start of functions that are not args or saved registers
 // Check if there are any in values at the start of a program
 pub struct GarbageInputValueCheck;
-impl Pass for GarbageInputValueCheck {
-    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
-        for (i, node) in cfg.clone().into_iter().enumerate() {
-            if i == 0 {
-                let mut garbage = cfg
-                    .liveness
-                    .live_in
-                    .get(i)
-                    .unwrap()
-                    .clone()
-                    .into_iter()
-                    .collect::<Vec<_>>();
+impl LintPass for GarbageInputValueCheck {
+    fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
+        for node in cfg.clone().into_iter() {
+            if node.node.is_program_entry() {
+                let mut garbage = node.live_in().clone();
                 garbage.retain(|x| !RegSets::saved().contains(x));
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
@@ -197,19 +179,12 @@ impl Pass for GarbageInputValueCheck {
                         ranges.append(&mut ranges_tmp);
                     }
                     for range in ranges {
-                        errors.push(PassError::InvalidUseBeforeAssignment(range.clone()));
+                        errors.push(LintError::InvalidUseBeforeAssignment(range.clone()));
                     }
                 }
-            } else if let Node::FuncEntry(x) = &(*node) {
-                let args = cfg.function_args(x.name.data.0.as_str()).unwrap();
-                let mut garbage = cfg
-                    .liveness
-                    .live_in
-                    .get(i)
-                    .unwrap()
-                    .clone()
-                    .into_iter()
-                    .collect::<Vec<_>>();
+            } else if let Some(func) = node.is_function_entry() {
+                let args = func.arguments();
+                let mut garbage = node.live_in().clone();
                 garbage.retain(|reg| !args.contains(reg));
                 garbage.retain(|reg| !RegSets::saved().contains(reg));
                 if !garbage.is_empty() {
@@ -219,7 +194,7 @@ impl Pass for GarbageInputValueCheck {
                         ranges.append(&mut ranges_tmp);
                     }
                     for range in ranges {
-                        errors.push(PassError::InvalidUseBeforeAssignment(range.clone()));
+                        errors.push(LintError::InvalidUseBeforeAssignment(range.clone()));
                     }
                 }
             }
@@ -229,30 +204,32 @@ impl Pass for GarbageInputValueCheck {
 
 // Check that we know the stack position at every point in the program (aka. within scopes)
 pub struct StackCheckPass;
-impl Pass for StackCheckPass {
-    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
+impl LintPass for StackCheckPass {
+    fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
         // PASS 1
         // check that we know the stack position at every point in the program
         // check that the stack is never in an invalid position
+        // TODO move to impl methods
         'outer: for (i, node) in cfg.clone().into_iter().enumerate() {
-            let values = cfg.available.avail_out.get(i).unwrap();
+            let values = node.reg_values_out();
             match values.get(&Register::X2) {
                 None => {
-                    errors.push(PassError::UnknownStack(node.get_range()));
+                    errors.push(LintError::UnknownStack(node.node.get_range()));
                     break 'outer;
                 }
                 Some(x) => {
-                    if let AvailableValue::OrigScalarOffset(reg, off) = x {
+                    if let AvailableValue::OriginalRegisterWithScalar(reg, off) = x {
                         if reg != &Register::X2 {
-                            errors.push(PassError::InvalidStackPointer(node.get_range()));
+                            errors.push(LintError::InvalidStackPointer(node.node.get_range()));
                             break 'outer;
                         }
                         if off > &0 {
-                            errors.push(PassError::InvalidStackPosition(node.get_range(), *off));
+                            errors
+                                .push(LintError::InvalidStackPosition(node.node.get_range(), *off));
                             break 'outer;
                         }
                     } else {
-                        errors.push(PassError::InvalidStackPointer(node.get_range()));
+                        errors.push(LintError::InvalidStackPointer(node.node.get_range()));
                         break 'outer;
                     }
                 }
@@ -265,23 +242,18 @@ impl Pass for StackCheckPass {
 
 // check if the value of a calle-saved register is read as its original value
 pub struct CalleeSavedGarbageReadCheck;
-impl Pass for CalleeSavedGarbageReadCheck {
-    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
+impl LintPass for CalleeSavedGarbageReadCheck {
+    fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
         for (i, node) in cfg.nodes.clone().into_iter().enumerate() {
-            for read in node.reads_from() {
+            for read in node.node.reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
 
                 if RegSets::saved().contains(&read.data)
-                    && (!node.is_memory_access())
-                    && cfg
-                        .available
-                        .avail_in
-                        .get(i)
-                        .unwrap()
-                        .is_original_value(read.data)
+                    && (!node.node.is_memory_access())
+                    && node.reg_values_in().is_original_value(read.data)
                 {
-                    errors.push(PassError::InvalidUseBeforeAssignment(
+                    errors.push(LintError::InvalidUseBeforeAssignment(
                         read.get_range().clone(),
                     ));
                     // then we are reading a garbage value
@@ -292,36 +264,31 @@ impl Pass for CalleeSavedGarbageReadCheck {
 }
 
 pub struct CalleeSavedRegisterCheck;
-impl Pass for CalleeSavedRegisterCheck {
-    fn run(&self, cfg: &AnnotatedCFG, errors: &mut Vec<PassError>) {
+impl LintPass for CalleeSavedRegisterCheck {
+    fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
         use Register::{X1, X18, X19, X2, X20, X21, X22, X23, X24, X25, X26, X27, X8, X9};
         // for all functions
-        for func_ret in cfg.label_return_map.values() {
+        for func in cfg.label_function_map.values() {
             // TODO scan function to find all "first" definitions of function,
             // then mark those up
 
-            let func_ret = func_ret.iter().next().unwrap();
             // check if the original values for all calle saved are available at the end
-            let val = cfg
-                .available
-                .avail_in
-                .get(cfg.nodes.iter().position(|x| x == func_ret).unwrap())
-                .unwrap();
+            let val = func.exit.reg_values_in();
             for reg in [
                 X1, X2, X8, X9, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27,
             ] {
                 match val.get(&reg) {
-                    Some(AvailableValue::OrigScalarOffset(reg2, offset))
+                    Some(AvailableValue::OriginalRegisterWithScalar(reg2, offset))
                         if reg2 != &reg || offset != &0 =>
                     {
-                        errors.push(PassError::OverwriteCalleeSavedRegister(
-                            func_ret.get_range().clone(),
+                        errors.push(LintError::OverwriteCalleeSavedRegister(
+                            func.exit.node.get_range().clone(),
                             reg,
                         ));
                     }
-                    None | Some(_) => {
-                        errors.push(PassError::OverwriteCalleeSavedRegister(
-                            func_ret.get_range().clone(),
+                    _ => {
+                        errors.push(LintError::OverwriteCalleeSavedRegister(
+                            func.exit.node.get_range().clone(),
                             reg,
                         ));
                     }

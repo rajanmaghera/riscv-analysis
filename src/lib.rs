@@ -1,11 +1,13 @@
 use crate::cfg::BaseCFG;
 use crate::passes::Manager;
-use cfg::AnnotatedCFG;
 use lsp_types::{Diagnostic, Position, Range};
 use serde_wasm_bindgen::to_value;
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
+mod analysis;
 mod cfg;
+mod gen;
+mod lints;
 mod lsp;
 mod parser;
 mod passes;
@@ -60,9 +62,13 @@ pub fn riscv_get_diagnostics(input: &str) -> JsValue {
     let cfg = BaseCFG::from_str(input).map_err(|e| format!("{:#?}", e));
     match cfg {
         Ok(cfg) => {
-            let cfg = AnnotatedCFG::from(cfg);
-            let res = Manager::new().run(&cfg);
-            WrapperDiag(res.iter().map(|x| x.to_owned().into()).collect()).into()
+            let res = Manager::run(cfg);
+            match res {
+                Ok(new_res) => {
+                    WrapperDiag(new_res.iter().map(|x| x.to_owned().into()).collect()).into()
+                }
+                Err(e) => return WrapperDiag::new(&format!("{:#?}", e)).into(),
+            }
         }
         Err(e) => WrapperDiag::new(&e).into(),
     }

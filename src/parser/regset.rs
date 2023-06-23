@@ -77,4 +77,7 @@ impl RegSets {
         set.extend(RegSets::sp_ra());
         set
     }
+    pub fn ecall_always_argument() -> HashSet<Register> {
+        vec![Register::ecall_type()].into_iter().collect()
+    }
 }

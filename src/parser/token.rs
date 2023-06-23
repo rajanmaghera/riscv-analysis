@@ -1,5 +1,3 @@
-// TODO use copy over clone
-
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
