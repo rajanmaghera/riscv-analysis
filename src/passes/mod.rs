@@ -7,8 +7,11 @@
 mod pass;
 pub use pass::*;
 
-mod checks;
-pub use checks::*;
+mod lint_error;
+pub use lint_error::*;
 
-mod errors;
-pub use errors::*;
+mod cfg_error;
+pub use cfg_error::*;
+
+mod manager;
+pub use manager::*;
