@@ -65,6 +65,18 @@ pub struct IArith {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LabelString(pub String);
 
+impl PartialEq<str> for LabelString {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<&str> for LabelString {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
 impl FromStr for LabelString {
     type Err = ();
 
@@ -198,8 +210,8 @@ pub struct UpperArith {
 }
 
 #[derive(Debug, Clone)]
+// TODO add names here?
 pub struct FuncEntry {
-    pub name: With<LabelString>,
     pub key: Uuid,
 }
 
@@ -211,6 +223,8 @@ pub struct ProgramEntry {
 // TODO change optional fields to Option<T> instead of T
 // then, implement TokenInfo for the options on a case by case basis
 
+// TODO add FuncExit/ProgramExit nodes?
+// Rename to ParseNode
 #[derive(Debug, Clone)]
 pub enum Node {
     ProgramEntry(ProgramEntry),
@@ -238,7 +252,7 @@ pub struct EqNodeWrapper(pub Node);
 impl PartialEq for EqNodeWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
-            (Node::FuncEntry(a), Node::FuncEntry(b)) => a.name == b.name,
+            (Node::FuncEntry(a), Node::FuncEntry(b)) => true,
             (Node::ProgramEntry(_a), Node::ProgramEntry(_b)) => true,
             (Node::Arith(a), Node::Arith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
@@ -368,8 +382,7 @@ impl Node {
             Node::Csr(x) => x.inst.token.clone(),
             Node::CsrI(x) => x.inst.token.clone(),
             Node::LoadAddr(x) => x.inst.token.clone(),
-            Node::FuncEntry(x) => x.name.token.clone(),
-            Node::ProgramEntry(_) => Token::Symbol(String::new()),
+            Node::ProgramEntry(_) | Node::FuncEntry(_) => Token::Symbol(String::new()),
         };
         let inst: Inst = match self {
             Node::Arith(x) => (&x.inst.data).into(),
@@ -403,8 +416,8 @@ impl Node {
             Node::Csr(x) => x.inst.pos.clone(),
             Node::CsrI(x) => x.inst.pos.clone(),
             Node::LoadAddr(x) => x.inst.pos.clone(),
-            Node::FuncEntry(x) => x.name.pos.clone(),
-            Node::ProgramEntry(_) => Range {
+            Node::ProgramEntry(_) | Node::FuncEntry(_) => Range {
+                // TODO add position to ASTNodes
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
             },
@@ -557,9 +570,8 @@ impl Node {
         })
     }
 
-    pub fn new_func_entry(name: With<LabelString>) -> Node {
+    pub fn new_func_entry() -> Node {
         Node::FuncEntry(FuncEntry {
-            name,
             key: Uuid::new_v4(),
         })
     }
@@ -619,14 +631,6 @@ impl Node {
         }
     }
 
-    pub fn is_function_call(&self) -> bool {
-        if let Node::JumpLink(x) = self {
-            x.rd == Register::X1
-        } else {
-            false
-        }
-    }
-
     // TODO move into Load/Store ast node info
     pub fn _is_stack_access(&self) -> bool {
         match self {
@@ -640,22 +644,40 @@ impl Node {
         matches!(self, Node::Load(_) | Node::Store(_))
     }
 
-    // checks if a node jumps to another INTERNAL node
-    // TODO SEPARATE FROM FUNCTION CALLS
-    // TODO make uncond_jumps_to
-    pub fn potential_jumps_to(&self) -> Option<With<LabelString>> {
-        match self {
-            Node::Branch(x) => Some(x.name.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn calls_func_to(&self) -> Option<With<LabelString>> {
+    pub fn calls_to(&self) -> Option<With<LabelString>> {
         match self {
             Node::JumpLink(x) if x.rd == Register::X1 => Some(x.name.clone()),
             _ => None,
         }
     }
+
+    pub fn is_ecall(&self) -> bool {
+        match self {
+            Node::Basic(x) => x.inst == BasicType::Ecall,
+            _ => false,
+        }
+    }
+
+    pub fn jumps_to(&self) -> Option<With<LabelString>> {
+        match self {
+            Node::JumpLink(x) if x.rd != Register::X1 => Some(x.name.clone()),
+            Node::Branch(x) => Some(x.name.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn is_any_entry(&self) -> bool {
+        matches!(self, Node::ProgramEntry(_) | Node::FuncEntry(_))
+    }
+
+    pub fn is_function_entry(&self) -> bool {
+        matches!(self, Node::FuncEntry(_))
+    }
+
+    pub fn is_program_entry(&self) -> bool {
+        matches!(self, Node::ProgramEntry(_))
+    }
+
     // NOTE: This is in context to a register store, not a memory store
     pub fn stores_to(&self) -> Option<With<Register>> {
         match self {
@@ -714,10 +736,9 @@ impl ToDisplayForVecASTNode for Vec<Node> {
 impl Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let res = match &self {
-            Node::ProgramEntry(_) => "---[PROGRAM ENTRY]---".to_string(),
+            Node::ProgramEntry(_) => "--- [PROGRAM ENTRY] ---".to_string(),
             Node::FuncEntry(x) => {
-                let name = x.name.data.0.clone();
-                format!("FUNC ENTRY: {name}")
+                format!("--- FUNCTION ENTRY ---")
             }
             Node::UpperArith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
@@ -832,6 +853,7 @@ impl Node {
 
 // TODO this might differ based on how the nodes are made
 // TODO store whole range for each ASTNode as field
+// TODO only annotate CFGNode, not ASTNode
 impl LineDisplay for Node {
     fn get_range(&self) -> Range {
         match &self {
@@ -839,7 +861,6 @@ impl LineDisplay for Node {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
             },
-            Node::FuncEntry(x) => x.name.pos.clone(),
             Node::UpperArith(x) => {
                 let mut range = x.inst.pos.clone();
                 range.end = x.imm.pos.end;
@@ -898,6 +919,10 @@ impl LineDisplay for Node {
                 range
             }
             Node::Directive(directive) => directive.dir.pos.clone(),
+            Node::FuncEntry(_) => Range {
+                start: Position { line: 0, column: 0 },
+                end: Position { line: 0, column: 0 },
+            },
         }
     }
 }

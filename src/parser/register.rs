@@ -170,6 +170,14 @@ impl Register {
             Register::X31 => 31,
         }
     }
+
+    pub fn is_sp(self) -> bool {
+        self == Register::X2
+    }
+
+    pub fn ecall_type() -> Register {
+        Register::X17
+    }
 }
 
 impl Hash for Register {
