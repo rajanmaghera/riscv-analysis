@@ -1,20 +1,7 @@
 #![allow(dead_code)]
 
-use std::rc::Rc;
-use uuid::Uuid;
-
-use crate::cfg::BasicBlock;
 use crate::parser::Lexer;
-use crate::parser::Node;
 use crate::parser::{Info, Position, Range, Token, With};
-
-pub fn basic_block_from_nodes(nodes: Vec<Node>) -> Rc<BasicBlock> {
-    let mut rc_nodes = Vec::new();
-    for node in nodes {
-        rc_nodes.push(Rc::new(node));
-    }
-    Rc::new(BasicBlock(rc_nodes, Uuid::new_v4()))
-}
 
 pub fn tokenize<S: Into<String>>(input: S) -> Vec<Info> {
     Lexer::new(input).collect()
