@@ -19,32 +19,45 @@ pub struct Info {
     pub pos: Range,
 }
 
-/* TOKEN TYPES
- * Our token types are very simple. We have the following
- * basic tokens:
- * - LParen '('
- * - RParen ')'
- * - Newline '\n'
- *
- * We also have the following tokens to encapsulate extra data:
- * - Label: text ending in ':'
- * - Directive: text starting with '.'
- * - String: text enclosed in double quotes
- *
- * Finally, we have Symbol. This can include instructions, registers,
- * numbers, minus everything above. While parsing, we attempt to convert
- * these into the appropriate types, and based on those errors, we can
- * determine what the symbol is.
- */
-
+/// Token type for the parser
+///
+/// This is the token type for the parser. It is used to
+/// determine what the token is, and what to do with it.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
+    /// Left Parenthesis '('
     LParen,
+    /// Right Parenthesis ')'
     RParen,
+    /// Newline '\n'
     Newline,
+    /// Label: text ending in ':'
+    ///
+    /// This is used to mark a label entry point in the code.
+    /// It is used to mark the start of a function, or a jump
+    /// target.
     Label(String),
+    /// Symbol: text not matching any special token types
+    ///
+    /// This is used to mark a symbol. A symbol is a
+    /// generic token that can be converted into a
+    /// more specific type. The types include
+    /// instructions, registers, numbers, and special CSR numbers/regs.
     Symbol(String),
+    /// Directive: text starting with '.'
+    ///
+    /// This is used to mark a directive. A directive is a
+    /// command to the assembler to do something. For example,
+    /// the `.text` directive tells the assembler to start
+    /// assembling code into the text section.
+    ///
+    /// The most important directive is `.include`. This
+    /// directive tells the assembler to include the file
+    /// specified in the directive. This case has to be handled
+    /// specially, as the file is not parsed, but rather
+    /// included as is.
     Directive(String),
+    /// String: text enclosed in double quotes
     String(String),
 }
 
@@ -53,16 +66,6 @@ impl PartialEq<Token> for Info {
         self.token == *other
     }
 }
-
-// impl<T> From<WithToken<T>> for TokenInfo {
-//     fn from(w: WithToken<T>) -> Self {
-//         TokenInfo {
-//             token: w.token,
-//             pos: w.pos,
-//         }
-//     }
-// }
-
 impl<T> With<T> {
     pub fn info(&self) -> Info {
         Info {
