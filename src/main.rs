@@ -27,7 +27,6 @@ use crate::cfg::BaseCFG;
 use crate::passes::Manager;
 
 mod analysis;
-mod ast;
 mod cfg;
 mod gen;
 mod helpers;
@@ -66,7 +65,7 @@ fn main() {
         return;
     };
 
-    println!("{cfg}");
+    // println!("{cfg}");
 
     let res = Manager::run(cfg);
     match res {
@@ -88,9 +87,10 @@ mod tests {
     use crate::helpers::tokenize;
     use crate::parser::Imm;
     use crate::parser::Parser;
+    use crate::parser::ParserNode;
     use crate::parser::Register;
+    use crate::parser::VecParserNodeData;
     use crate::parser::{ArithType, IArithType, LoadType, StoreType};
-    use crate::parser::{EqNodeDataVec, Node};
     use crate::parser::{Token, With};
 
     // A trait on strings to clean up some code for lexing
@@ -221,7 +221,7 @@ mod tests {
         let parser = Parser::new(
             "addi s0, s0, 0x1234\naddi s0, s0, 0b1010\naddi s0, s0, 1234\naddi s0, s0, -222",
         );
-        let ast = parser.collect::<Vec<Node>>();
+        let ast = parser.collect::<Vec<ParserNode>>();
 
         assert_eq!(
             vec![
@@ -238,14 +238,14 @@ mod tests {
     #[test]
     fn parse_instruction() {
         let parser = Parser::new("add s0, s0, s2");
-        let ast = parser.collect::<Vec<Node>>();
+        let ast = parser.collect::<Vec<ParserNode>>();
         assert_eq!(vec![arith!(Add X8 X8 X18)].data(), ast.data());
     }
 
     #[test]
     fn parse_no_imm_num() {
         let str = "addi    sp, sp, -16 \nsw      ra, (sp)";
-        let ast = Parser::new(str).collect::<Vec<Node>>();
+        let ast = Parser::new(str).collect::<Vec<ParserNode>>();
 
         assert_eq!(
             ast.data(),
@@ -257,7 +257,7 @@ mod tests {
         let str = "lw x10, 10(x10)\n  lw  x10, 10  (  x10  )  \n lw x10, 10 (x10)\n lw x10, 10(  x10)\n lw x10, 10(x10 )";
 
         let parser = Parser::new(str);
-        let ast = parser.collect::<Vec<Node>>();
+        let ast = parser.collect::<Vec<ParserNode>>();
 
         assert_eq!(
             ast.data(),
@@ -275,7 +275,7 @@ mod tests {
     // #[test]
     // fn linear_block() {
     //     let parser = Parser::new("my_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1");
-    //     let ast = parser.collect::<Vec<Node>>();
+    //     let ast = parser.collect::<Vec<ParserNode>>();
     //     let blocks = BaseCFG::new(ast).expect("unable to create cfg");
     //     assert_eq!(
     //         vec![
@@ -296,7 +296,7 @@ mod tests {
     //     let parser = Parser::new(
     //         "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1",
     //     );
-    //     let ast = parser.collect::<Vec<Node>>();
+    //     let ast = parser.collect::<Vec<ParserNode>>();
     //     let blocks = BaseCFG::new(ast).expect("unable to create cfg");
     //     assert_eq!(
     //         vec![

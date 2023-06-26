@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     analysis::CustomClonedSets,
-    parser::{LabelString, Node, RegSets, Register, With},
+    parser::{LabelString, ParserNode, RegSets, Register, With},
     passes::{CFGError, GenerationPass},
 };
 

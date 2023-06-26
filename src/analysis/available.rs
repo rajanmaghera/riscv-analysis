@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use crate::parser::{LabelString, RegSets};
-use crate::parser::{Node, Register};
+use crate::parser::{ParserNode, Register};
 use crate::passes::{CFGError, GenerationPass};
 
 use super::{CustomDifference, CustomIntersection, CustomInto, CustomUnion, CustomUnionFilterMap};
@@ -204,12 +204,12 @@ impl GenerationPass for AvailableValuePass {
 /// a reference to a register value or memory address, then replace the loaded value
 /// with a reference to the specific memory location.
 fn rule_expand_address_for_load(
-    node: &Node,
+    node: &ParserNode,
     available_out: &mut HashMap<Register, AvailableValue>,
     available_in: &HashMap<Register, AvailableValue>,
 ) {
     if let Some(reg) = node.stores_to() {
-        if let Node::Load(load) = node {
+        if let ParserNode::Load(load) = node {
             if let Some(AvailableValue::OriginalRegisterWithScalar(reg, off)) =
                 available_in.get(&load.rs1.data)
             {
@@ -232,26 +232,26 @@ fn rule_expand_address_for_load(
 /// If a register is stored to and we can determine the new value based on the
 /// values before and known math operations, store the new value in the register.
 fn rule_perform_math_ops(
-    node: &Node,
+    node: &ParserNode,
     available_out: &mut HashMap<Register, AvailableValue>,
     available_in: &HashMap<Register, AvailableValue>,
 ) {
     if let Some(reg) = node.stores_to() {
         let lhs = match node {
-            Node::Arith(expr) => available_in
+            ParserNode::Arith(expr) => available_in
                 .get(&expr.rs1.data)
                 .map(std::clone::Clone::clone),
-            Node::IArith(expr) => available_in
+            ParserNode::IArith(expr) => available_in
                 .get(&expr.rs1.data)
                 .map(std::clone::Clone::clone),
             _ => None,
         };
 
         let rhs = match node {
-            Node::Arith(expr) => available_in
+            ParserNode::Arith(expr) => available_in
                 .get(&expr.rs2.data)
                 .map(std::clone::Clone::clone),
-            Node::IArith(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
+            ParserNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
             _ => None,
         };
 
@@ -289,7 +289,7 @@ fn rule_perform_math_ops(
 /// the stack contains a value at the offset, then store the value from the
 /// stack into the register.
 fn rule_value_from_stack(
-    node: &Node,
+    node: &ParserNode,
     available_out: &mut HashMap<Register, AvailableValue>,
     stack_in: &HashMap<i32, AvailableValue>,
 ) {
@@ -312,7 +312,7 @@ fn rule_value_from_stack(
 /// but that register value is either a constant or the guaranteed register
 /// value at the entry of the function (B), then replace A with B.
 fn rule_known_values_to_stack(
-    node: &Node,
+    node: &ParserNode,
     stack_out: &mut HashMap<i32, AvailableValue>,
     available_in: HashMap<Register, AvailableValue>,
 ) {

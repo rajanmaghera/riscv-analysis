@@ -4,7 +4,7 @@ use crate::analysis::CustomClonedSets;
 use crate::cfg::BaseCFG;
 use crate::cfg::CFGNode;
 use crate::parser::LineDisplay;
-use crate::parser::Node;
+use crate::parser::ParserNode;
 use crate::parser::Range;
 use crate::parser::RegSets;
 use crate::parser::Register;
@@ -128,7 +128,7 @@ impl LintPass for ControlFlowCheck {
     fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
         for (i, node) in cfg.clone().into_iter().enumerate() {
             match node.node {
-                Node::FuncEntry(_) => {
+                ParserNode::FuncEntry(_) => {
                     if i == 0 || !node.prevs().is_empty() {
                         // TODO this should always be here, turn this into an assert pass
                         if let Some(function) = node.function().clone() {

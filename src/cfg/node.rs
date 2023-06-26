@@ -1,6 +1,6 @@
 use crate::analysis::AvailableValue;
 use crate::parser::LabelString;
-use crate::parser::Node;
+use crate::parser::ParserNode;
 use crate::parser::Register;
 use crate::parser::With;
 use std::cell::Ref;
@@ -18,7 +18,7 @@ use super::Function;
 // TODO don't publish node, only publish methods as inlines
 #[derive(Debug)]
 pub struct CFGNode {
-    pub node: Node,
+    pub node: ParserNode,
     pub labels: HashSet<With<LabelString>>,
     nexts: RefCell<HashSet<Rc<CFGNode>>>,
     prevs: RefCell<HashSet<Rc<CFGNode>>>,
@@ -33,7 +33,7 @@ pub struct CFGNode {
 }
 
 impl CFGNode {
-    pub fn new(node: Node, labels: HashSet<With<LabelString>>) -> Self {
+    pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>) -> Self {
         CFGNode {
             node,
             labels,

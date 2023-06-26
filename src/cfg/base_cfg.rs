@@ -1,6 +1,6 @@
 use crate::parser::LabelString;
-use crate::parser::Node;
 use crate::parser::Parser;
+use crate::parser::ParserNode;
 use crate::parser::With;
 use crate::passes::CFGError;
 use std::collections::HashMap;
@@ -22,7 +22,7 @@ impl FromStr for BaseCFG {
     type Err = CFGError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parser = Parser::new(s);
-        let ast = parser.collect::<Vec<Node>>();
+        let ast = parser.collect::<Vec<ParserNode>>();
         BaseCFG::new(ast)
     }
 }
@@ -43,7 +43,7 @@ trait BaseCFGGen {
     fn label_names(&self) -> HashSet<With<LabelString>>;
 }
 
-impl BaseCFGGen for Vec<Node> {
+impl BaseCFGGen for Vec<ParserNode> {
     fn call_names(&self) -> HashSet<With<LabelString>> {
         self.iter().filter_map(|x| x.calls_to()).collect()
     }
@@ -55,14 +55,14 @@ impl BaseCFGGen for Vec<Node> {
     fn label_names(&self) -> HashSet<With<LabelString>> {
         self.iter()
             .filter_map(|x| match x {
-                Node::Label(s) => Some(s.name.clone()),
+                ParserNode::Label(s) => Some(s.name.clone()),
                 _ => None,
             })
             .collect()
     }
 }
 impl BaseCFG {
-    pub fn new(old_nodes: Vec<Node>) -> Result<BaseCFG, CFGError> {
+    pub fn new(old_nodes: Vec<ParserNode>) -> Result<BaseCFG, CFGError> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
         let mut current_labels = HashSet::new();
@@ -84,7 +84,7 @@ impl BaseCFG {
 
         // Add program entry node
         nodes.push(Rc::new(CFGNode::new(
-            Node::new_program_entry(),
+            ParserNode::new_program_entry(),
             HashSet::new(),
         )));
 
@@ -94,7 +94,7 @@ impl BaseCFG {
 
         for node in old_nodes {
             match node {
-                Node::Label(s) => {
+                ParserNode::Label(s) => {
                     current_labels.insert(s.name.clone());
 
                     // Check for duplicate labels
@@ -110,8 +110,10 @@ impl BaseCFG {
                         .next()
                         .is_some()
                     {
-                        let rc_node =
-                            Rc::new(CFGNode::new(Node::new_func_entry(), current_labels.clone()));
+                        let rc_node = Rc::new(CFGNode::new(
+                            ParserNode::new_func_entry(),
+                            current_labels.clone(),
+                        ));
 
                         // Add the node to the graph
                         nodes.push(rc_node.clone());

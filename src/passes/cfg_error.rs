@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::parser::{LabelString, Node, With};
+use crate::parser::{LabelString, ParserNode, With};
 
 #[derive(Debug)]
 
@@ -8,10 +8,10 @@ use crate::parser::{LabelString, Node, With};
 pub enum CFGError {
     LabelsNotDefined(HashSet<With<LabelString>>),
     DuplicateLabel(With<LabelString>),
-    MultipleLabelsForReturn(Node, HashSet<With<LabelString>>),
-    ReturnFromProgramStart(Node),
-    NoLabelForReturn(Node),
-    MultipleReturnsForLabel(HashSet<With<LabelString>>, HashSet<Node>),
+    MultipleLabelsForReturn(ParserNode, HashSet<With<LabelString>>),
+    ReturnFromProgramStart(ParserNode),
+    NoLabelForReturn(ParserNode),
+    MultipleReturnsForLabel(HashSet<With<LabelString>>, HashSet<ParserNode>),
     UnexpectedError,
     AssertionError,
 }

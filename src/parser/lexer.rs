@@ -3,19 +3,14 @@ use crate::parser::token::{Info, Position, Range};
 
 const EOF_CONST: char = 3 as char;
 
+/// Lexer for RISC-V assembly
 pub struct Lexer {
-    // TODO use bytes (u8array) for everything here
-    // TODO switch to iter methods on bytes
     source: String,
     ch: char,
     pos: usize,
     row: usize,
     col: usize,
 }
-
-// While this is not necessary, it is used to skip directives that are
-// not text. We should eventually have data directives, but for now
-// we will just skip them.
 
 impl Lexer {
     pub fn new<S: Into<String>>(source: S) -> Lexer {
@@ -30,6 +25,17 @@ impl Lexer {
         lex
     }
 
+    /// Get the next character in the source
+    ///
+    /// # Example
+    /// ```
+    /// use crate::parser::Lexer;
+    ///
+    /// let mut lex = Lexer::new("hello");
+    /// assert_eq!(lex.next_char(), 'h');
+    /// assert_eq!(lex.next_char(), 'e');
+    /// assert_eq!(lex.next_char(), 'l');
+    /// ```
     fn next_char(&mut self) {
         let b = self.source.as_bytes();
 

@@ -3,9 +3,9 @@ use std::{
     rc::Rc,
 };
 
-use crate::parser::{LabelString, Node, With};
+use crate::parser::{LabelString, ParserNode, With};
 
-pub type LabelToNode = HashMap<LabelString, Rc<Node>>;
-pub type LabelToNodes = HashMap<LabelString, HashSet<Rc<Node>>>;
-pub type NodeToNodes = HashMap<Rc<Node>, HashSet<Rc<Node>>>;
-pub type NodeToPotentialLabel = HashMap<Rc<Node>, With<LabelString>>;
+pub type LabelToNode = HashMap<LabelString, Rc<ParserNode>>;
+pub type LabelToNodes = HashMap<LabelString, HashSet<Rc<ParserNode>>>;
+pub type NodeToNodes = HashMap<Rc<ParserNode>, HashSet<Rc<ParserNode>>>;
+pub type NodeToPotentialLabel = HashMap<Rc<ParserNode>, With<LabelString>>;
