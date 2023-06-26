@@ -4,16 +4,6 @@ use crate::parser::Inst;
 
 use super::{LineDisplay, ParserNode, Position, Range};
 
-pub struct VecASTDisplayWrapper<'a>(&'a Vec<ParserNode>);
-pub trait ToDisplayForVecASTNode {
-    fn to_display(&self) -> VecASTDisplayWrapper;
-}
-impl ToDisplayForVecASTNode for Vec<ParserNode> {
-    fn to_display(&self) -> VecASTDisplayWrapper {
-        VecASTDisplayWrapper(self)
-    }
-}
-
 impl Display for ParserNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let res = match &self {
@@ -104,20 +94,6 @@ impl Display for ParserNode {
             }
         };
         write!(f, "{res}")
-    }
-}
-
-impl<'a> std::fmt::Display for VecASTDisplayWrapper<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut last = false;
-        for node in self.0 {
-            if last {
-                writeln!(f)?;
-            }
-            write!(f, "{node}")?;
-            last = true;
-        }
-        Ok(())
     }
 }
 

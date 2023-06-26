@@ -201,7 +201,7 @@ mod tests {
         let parser = Parser::new(
             "addi s0, s0, 0x1234\naddi s0, s0, 0b1010\naddi s0, s0, 1234\naddi s0, s0, -222",
         );
-        let ast = parser.collect::<Vec<ParserNode>>();
+        let nodes = parser.collect::<Vec<ParserNode>>();
 
         assert_eq!(
             vec![
@@ -211,24 +211,24 @@ mod tests {
                 iarith!(Addi X8 X8 -222),
             ]
             .data(),
-            ast.data()
+            nodes.data()
         );
     }
 
     #[test]
     fn parse_instruction() {
         let parser = Parser::new("add s0, s0, s2");
-        let ast = parser.collect::<Vec<ParserNode>>();
-        assert_eq!(vec![arith!(Add X8 X8 X18)].data(), ast.data());
+        let nodes = parser.collect::<Vec<ParserNode>>();
+        assert_eq!(vec![arith!(Add X8 X8 X18)].data(), nodes.data());
     }
 
     #[test]
     fn parse_no_imm_num() {
         let str = "addi    sp, sp, -16 \nsw      ra, (sp)";
-        let ast = Parser::new(str).collect::<Vec<ParserNode>>();
+        let nodes = Parser::new(str).collect::<Vec<ParserNode>>();
 
         assert_eq!(
-            ast.data(),
+            nodes.data(),
             vec![iarith!(Addi X2 X2 -16), store!(Sw X2 X1 0),].data()
         );
     }
@@ -237,10 +237,10 @@ mod tests {
         let str = "lw x10, 10(x10)\n  lw  x10, 10  (  x10  )  \n lw x10, 10 (x10)\n lw x10, 10(  x10)\n lw x10, 10(x10 )";
 
         let parser = Parser::new(str);
-        let ast = parser.collect::<Vec<ParserNode>>();
+        let nodes = parser.collect::<Vec<ParserNode>>();
 
         assert_eq!(
-            ast.data(),
+            nodes.data(),
             vec![
                 load!(Lw X10 X10 10),
                 load!(Lw X10 X10 10),
@@ -255,8 +255,8 @@ mod tests {
     // #[test]
     // fn linear_block() {
     //     let parser = Parser::new("my_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1");
-    //     let ast = parser.collect::<Vec<ParserNode>>();
-    //     let blocks = BaseCFG::new(ast).expect("unable to create cfg");
+    //     let nodes = parser.collect::<Vec<ParserNode>>();
+    //     let blocks = BaseCFG::new(nodes).expect("unable to create cfg");
     //     assert_eq!(
     //         vec![
     //             basic_block_from_nodes(vec![Node::new_program_entry()]),
@@ -276,8 +276,8 @@ mod tests {
     //     let parser = Parser::new(
     //         "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1",
     //     );
-    //     let ast = parser.collect::<Vec<ParserNode>>();
-    //     let blocks = BaseCFG::new(ast).expect("unable to create cfg");
+    //     let nodes = parser.collect::<Vec<ParserNode>>();
+    //     let blocks = BaseCFG::new(nodes).expect("unable to create cfg");
     //     assert_eq!(
     //         vec![
     //             basic_block_from_nodes(vec![Node::new_program_entry(), arith!(Add X2 X2 X3),]),

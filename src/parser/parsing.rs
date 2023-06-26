@@ -53,7 +53,7 @@ impl Iterator for Parser {
         loop {
             let mut item = ParserNode::try_from(&mut self.lexer);
 
-            // if item is an ast parse error, then keep trying
+            // if item is a parse error, then keep trying
             while let Err(ParseError::IsNewline(_)) = item {
                 item = ParserNode::try_from(&mut self.lexer);
             }
@@ -78,7 +78,7 @@ impl Iterator for Parser {
             //     }
             // }
             return match item {
-                Ok(ast) => Some(ast),
+                Ok(x) => Some(x),
                 Err(err) => match err {
                     ParseError::NeedTwoNodes(node1, node2) => {
                         self.queue.push_back(*node2);

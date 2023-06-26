@@ -23,7 +23,7 @@ where
     }
 }
 
-// to make prototyping easier, use the macro to create AST nodes
+// to make prototyping easier, use the macro to create parser nodes
 // example macro usage rtype!(Add X0 X1 X2)
 #[macro_export]
 macro_rules! arith {

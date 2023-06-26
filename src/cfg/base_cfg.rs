@@ -22,8 +22,8 @@ impl FromStr for CFG {
     type Err = CFGError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parser = Parser::new(s);
-        let ast = parser.collect::<Vec<ParserNode>>();
-        CFG::new(ast)
+        let nodes = parser.collect::<Vec<ParserNode>>();
+        CFG::new(nodes)
     }
 }
 
