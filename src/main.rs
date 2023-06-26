@@ -25,6 +25,8 @@
 use std::str::FromStr;
 
 use cfg::Cfg;
+use clap::{Args, Parser, Subcommand};
+use std::path::PathBuf;
 
 use crate::passes::Manager;
 
@@ -36,31 +38,55 @@ mod lints;
 mod parser;
 mod passes;
 
-fn main() {
-    // read argument from command line as filename
-    // let filename = std::env::args().nth(1).expect("No filename provided");
+#[derive(Parser)]
+#[command(author, version, about)]
+struct Cli {
+    #[clap(subcommand)]
+    command: Commands,
+}
 
-    let filename = "/Users/rajanmaghera/Documents/GitHub/riscv-analysis/tmp/saved-reg.s";
-    let Ok(file) = std::fs::read_to_string(filename) else {
+#[derive(Subcommand)]
+enum Commands {
+    /// Lint a file
+    #[clap(name = "lint")]
+    Lint(Lint),
+}
+
+#[derive(Args)]
+struct Lint {
+    /// Input file
+    input: PathBuf,
+    /// Strict mode
+    #[clap(short, long)]
+    strict: bool,
+}
+
+fn main() {
+    let args = Cli::parse();
+    match args.command {
+        Commands::Lint(lint) => {
+            let Ok(file) = std::fs::read_to_string(lint.input) else {
         println!("Unable to read file");
         return;
     };
 
-    let Ok(cfg) = Cfg::from_str(file.as_str()) else {
+            let Ok(cfg) = Cfg::from_str(file.as_str()) else {
         println!("Unable to parse file");
         return;
     };
 
-    // println!("{cfg}");
+            // println!("{cfg}");
 
-    let res = Manager::run(cfg);
-    match res {
-        Ok(lints) => {
-            for err in lints {
-                println!("{}({}): {}", err, err.range(), err.long_description());
+            let res = Manager::run(cfg);
+            match res {
+                Ok(lints) => {
+                    for err in lints {
+                        println!("{}({}): {}", err, err.range(), err.long_description());
+                    }
+                }
+                Err(_) => println!("Errors found"),
             }
         }
-        Err(_) => println!("Errors found"),
     }
 }
 
