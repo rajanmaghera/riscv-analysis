@@ -14,8 +14,6 @@ use super::environment_in_outs;
 use super::BaseCFG;
 use super::Function;
 
-// TODO use Some/None to denote that the value was set by pass properly OR type-state
-// TODO don't publish node, only publish methods as inlines
 #[derive(Debug)]
 pub struct CFGNode {
     pub node: ParserNode,
@@ -170,8 +168,7 @@ impl CFGNode {
     }
 
     pub fn is_program_exit(&self) -> bool {
-        // TODO add all program exits
-        self.known_ecall() == Some(10)
+        self.known_ecall() == Some(10) || self.known_ecall() == Some(93)
     }
 
     #[inline(always)]

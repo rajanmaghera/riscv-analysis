@@ -1,8 +1,8 @@
 use crate::parser::imm::{CSRImm, Imm};
 use crate::parser::inst::Inst;
 use crate::parser::inst::{
-    ArithType, BasicType, BranchType, CSRIType, CSRType, IArithType, JumpLinkRType,
-    JumpLinkType, LoadType, PseudoType, StoreType, UpperArithType,
+    ArithType, BasicType, BranchType, CSRIType, CSRType, IArithType, JumpLinkRType, JumpLinkType,
+    LoadType, PseudoType, StoreType, UpperArithType,
 };
 
 use crate::parser::register::Register;
@@ -10,9 +10,7 @@ use crate::parser::token::{Range, Token, With};
 
 use std::collections::HashSet;
 
-
 use std::hash::{Hash, Hasher};
-
 
 use uuid::Uuid;
 
@@ -22,11 +20,6 @@ use super::{
     JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, Store, UpperArith,
 };
 
-// TODO change optional fields to Option<T> instead of T
-// then, implement TokenInfo for the options on a case by case basis
-
-// TODO add FuncExit/ProgramExit nodes?
-// Rename to ParseNode
 #[derive(Debug, Clone)]
 pub enum ParserNode {
     ProgramEntry(ProgramEntry),
@@ -135,7 +128,6 @@ impl ParserNode {
             ParserNode::CsrI(x) => x.inst.pos.clone(),
             ParserNode::LoadAddr(x) => x.inst.pos.clone(),
             ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_) => Range {
-                // TODO add position to ASTNodes
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
             },

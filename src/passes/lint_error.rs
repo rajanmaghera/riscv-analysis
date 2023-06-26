@@ -30,6 +30,8 @@ pub enum LintError {
                                       // OverwriteRegister(Range, Register), -- used when overwriting a register that has not been saved
                                       // FallOffEnd(Range), program may fall off the end of code
                                       // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
+                                      // ProgramExit in the middle of a function
+                                      // NonMatchingOffset -- if the multiple of the offset does not match the instruction (ex. 4 for lw), then it is a warning
 }
 
 pub enum WarningLevel {

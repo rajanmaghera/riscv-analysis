@@ -12,7 +12,6 @@ use super::{CFGError, GenerationPass, LintError, LintPass};
 
 pub struct Manager;
 impl Manager {
-    // TODO take vec of nodes
     pub fn run(cfg: BaseCFG) -> Result<Vec<LintError>, CFGError> {
         let mut cfg = cfg;
         let mut errors = Vec::new();

@@ -135,9 +135,6 @@ fn get_csrimm(value: Option<Info>) -> Result<With<CSRImm>, ParseError> {
 }
 
 impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
-    // TODO ensure that symbol is not a register
-    // TODO how is error handling handled for non registers
-
     type Error = ParseError;
 
     #[allow(clippy::too_many_lines)]
@@ -400,278 +397,274 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                         }
                         Type::Ignore(_) => Err(Ignored(next_node)),
                         Type::Basic(inst) => Ok(ParserNode::new_basic(With::new(inst, next_node))),
-                        Type::Pseudo(inst) => {
-                            // TODO not every pseudo instruction from rars is covered
-                            // here.
-                            match inst {
-                                PseudoType::Ret => {
-                                    return Ok(ParserNode::new_jump_link_r(
-                                        With::new(JumpLinkRType::Jalr, next_node.clone()),
-                                        With::new(Register::X0, next_node.clone()),
-                                        With::new(Register::X1, next_node.clone()),
-                                        With::new(Imm(0), next_node.clone()),
-                                    ))
-                                }
-                                PseudoType::Mv => {
-                                    let rd = get_reg(value.next())?;
-                                    let rs1 = get_reg(value.next())?;
-                                    return Ok(ParserNode::new_arith(
-                                        With::new(ArithType::Add, next_node.clone()),
-                                        rd,
-                                        rs1,
-                                        With::new(Register::X0, next_node.clone()),
-                                    ));
-                                }
-                                PseudoType::Li => {
-                                    let rd = get_reg(value.next())?;
-                                    let imm = get_imm(value.next())?;
-                                    return Ok(ParserNode::new_iarith(
-                                        With::new(IArithType::Addi, next_node.clone()),
-                                        rd,
-                                        With::new(Register::X0, imm.info()),
-                                        imm,
-                                    ));
-                                }
-                                PseudoType::La => {
-                                    let rd = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_load_addr(
-                                        With::new(PseudoType::La, next_node.clone()),
-                                        rd,
-                                        label,
-                                    ));
-                                }
-                                PseudoType::J | PseudoType::B => {
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_jump_link(
-                                        With::new(JumpLinkType::Jal, next_node.clone()),
-                                        With::new(Register::X0, next_node.clone()),
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Jr => {
-                                    let rs1 = get_reg(value.next())?;
-                                    return Ok(ParserNode::new_jump_link_r(
-                                        With::new(JumpLinkRType::Jalr, next_node.clone()),
-                                        With::new(Register::X0, next_node.clone()),
-                                        rs1,
-                                        With::new(Imm(0), next_node.clone()),
-                                    ));
-                                }
-                                PseudoType::Beqz => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Beq, next_node.clone()),
-                                        rs1,
-                                        With::new(Register::X0, next_node.clone()),
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Bnez => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Bne, next_node.clone()),
-                                        rs1,
-                                        With::new(Register::X0, next_node.clone()),
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Bltz | PseudoType::Bgtz => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Blt, next_node.clone()),
-                                        rs1,
-                                        With::new(Register::X0, next_node.clone()),
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Neg => {
-                                    let rd = get_reg(value.next())?;
-                                    let rs1 = get_reg(value.next())?;
-                                    return Ok(ParserNode::new_arith(
-                                        With::new(ArithType::Sub, next_node.clone()),
-                                        rd,
-                                        With::new(Register::X0, next_node.clone()),
-                                        rs1,
-                                    ));
-                                }
-                                PseudoType::Not => {
-                                    let rd = get_reg(value.next())?;
-                                    let rs1 = get_reg(value.next())?;
-                                    return Ok(ParserNode::new_iarith(
-                                        With::new(IArithType::Xori, next_node.clone()),
-                                        rd,
-                                        rs1,
-                                        With::new(Imm(-1), next_node.clone()),
-                                    ));
-                                }
-                                PseudoType::Seqz => {
-                                    let rd = get_reg(value.next())?;
-                                    let rs1 = get_reg(value.next())?;
-                                    return Ok(ParserNode::new_iarith(
-                                        With::new(IArithType::Sltiu, next_node.clone()),
-                                        rd,
-                                        rs1,
-                                        With::new(Imm(1), next_node.clone()),
-                                    ));
-                                }
-                                PseudoType::Snez => {
-                                    let rd = get_reg(value.next())?;
-                                    let rs1 = get_reg(value.next())?;
-                                    return Ok(ParserNode::new_iarith(
-                                        With::new(IArithType::Sltiu, next_node.clone()),
-                                        rd,
-                                        rs1,
-                                        With::new(Imm(0), next_node.clone()),
-                                    ));
-                                }
-                                PseudoType::Nop => {
-                                    return Ok(ParserNode::new_iarith(
-                                        With::new(IArithType::Addi, next_node.clone()),
-                                        With::new(Register::X0, next_node.clone()),
-                                        With::new(Register::X0, next_node.clone()),
-                                        With::new(Imm(0), next_node.clone()),
-                                    ));
-                                }
-                                PseudoType::Bgez | PseudoType::Blez => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Bge, next_node.clone()),
-                                        rs1,
-                                        With::new(Register::X0, next_node.clone()),
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Sgtz => {
-                                    let rd = get_reg(value.next())?;
-                                    let rs1 = get_reg(value.next())?;
-                                    return Ok(ParserNode::new_arith(
-                                        With::new(ArithType::Slt, next_node.clone()),
-                                        rd,
-                                        With::new(Register::X0, next_node.clone()),
-                                        rs1,
-                                    ));
-                                }
-                                PseudoType::Sltz => {
-                                    let rd = get_reg(value.next())?;
-                                    let rs1 = get_reg(value.next())?;
-                                    return Ok(ParserNode::new_arith(
-                                        With::new(ArithType::Slt, next_node.clone()),
-                                        rd,
-                                        rs1,
-                                        With::new(Register::X0, next_node.clone()),
-                                    ));
-                                }
-                                PseudoType::Sgez => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Bge, next_node.clone()),
-                                        With::new(Register::X0, next_node.clone()),
-                                        rs1,
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Call => {
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_jump_link(
-                                        With::new(JumpLinkType::Jal, next_node.clone()),
-                                        With::new(Register::X1, next_node.clone()),
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Bgt => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let rs2 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Blt, next_node.clone()),
-                                        rs2,
-                                        rs1,
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Ble => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let rs2 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Bge, next_node.clone()),
-                                        rs2,
-                                        rs1,
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Bgtu => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let rs2 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Bltu, next_node.clone()),
-                                        rs2,
-                                        rs1,
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Bleu => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let rs2 = get_reg(value.next())?;
-                                    let label = get_label(value.next())?;
-                                    return Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Bgeu, next_node.clone()),
-                                        rs2,
-                                        rs1,
-                                        label,
-                                    ));
-                                }
-                                PseudoType::Csrci | PseudoType::Csrsi | PseudoType::Csrwi => {
-                                    let csr = get_csrimm(value.next())?;
-                                    let imm = get_imm(value.next())?;
-                                    let inst = match inst {
-                                        PseudoType::Csrci => CSRIType::Csrrci,
-                                        PseudoType::Csrsi => CSRIType::Csrrsi,
-                                        PseudoType::Csrwi => CSRIType::Csrrwi,
-                                        _ => return Err(ParseError::UnexpectedError),
-                                    };
-                                    return Ok(ParserNode::new_csri(
-                                        With::new(inst, next_node.clone()),
-                                        With::new(Register::X0, next_node.clone()),
-                                        csr,
-                                        imm,
-                                    ));
-                                }
-                                PseudoType::Csrc | PseudoType::Csrs | PseudoType::Csrw => {
-                                    let rs1 = get_reg(value.next())?;
-                                    let csr = get_csrimm(value.next())?;
-                                    let inst = match inst {
-                                        PseudoType::Csrc => CSRType::Csrrc,
-                                        PseudoType::Csrs => CSRType::Csrrs,
-                                        PseudoType::Csrw => CSRType::Csrrw,
-                                        _ => return Err(ParseError::UnexpectedError),
-                                    };
-                                    return Ok(ParserNode::new_csr(
-                                        With::new(inst, next_node.clone()),
-                                        With::new(Register::X0, next_node.clone()),
-                                        csr,
-                                        rs1,
-                                    ));
-                                }
-                                PseudoType::Csrr => {
-                                    let rd = get_reg(value.next())?;
-                                    let csr = get_csrimm(value.next())?;
-                                    return Ok(ParserNode::new_csr(
-                                        With::new(CSRType::Csrrs, next_node.clone()),
-                                        rd,
-                                        csr,
-                                        With::new(Register::X0, next_node.clone()),
-                                    ));
-                                }
+                        Type::Pseudo(inst) => match inst {
+                            PseudoType::Ret => {
+                                return Ok(ParserNode::new_jump_link_r(
+                                    With::new(JumpLinkRType::Jalr, next_node.clone()),
+                                    With::new(Register::X0, next_node.clone()),
+                                    With::new(Register::X1, next_node.clone()),
+                                    With::new(Imm(0), next_node.clone()),
+                                ))
                             }
-                        }
+                            PseudoType::Mv => {
+                                let rd = get_reg(value.next())?;
+                                let rs1 = get_reg(value.next())?;
+                                return Ok(ParserNode::new_arith(
+                                    With::new(ArithType::Add, next_node.clone()),
+                                    rd,
+                                    rs1,
+                                    With::new(Register::X0, next_node.clone()),
+                                ));
+                            }
+                            PseudoType::Li => {
+                                let rd = get_reg(value.next())?;
+                                let imm = get_imm(value.next())?;
+                                return Ok(ParserNode::new_iarith(
+                                    With::new(IArithType::Addi, next_node.clone()),
+                                    rd,
+                                    With::new(Register::X0, imm.info()),
+                                    imm,
+                                ));
+                            }
+                            PseudoType::La => {
+                                let rd = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_load_addr(
+                                    With::new(PseudoType::La, next_node.clone()),
+                                    rd,
+                                    label,
+                                ));
+                            }
+                            PseudoType::J | PseudoType::B => {
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_jump_link(
+                                    With::new(JumpLinkType::Jal, next_node.clone()),
+                                    With::new(Register::X0, next_node.clone()),
+                                    label,
+                                ));
+                            }
+                            PseudoType::Jr => {
+                                let rs1 = get_reg(value.next())?;
+                                return Ok(ParserNode::new_jump_link_r(
+                                    With::new(JumpLinkRType::Jalr, next_node.clone()),
+                                    With::new(Register::X0, next_node.clone()),
+                                    rs1,
+                                    With::new(Imm(0), next_node.clone()),
+                                ));
+                            }
+                            PseudoType::Beqz => {
+                                let rs1 = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_branch(
+                                    With::new(BranchType::Beq, next_node.clone()),
+                                    rs1,
+                                    With::new(Register::X0, next_node.clone()),
+                                    label,
+                                ));
+                            }
+                            PseudoType::Bnez => {
+                                let rs1 = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_branch(
+                                    With::new(BranchType::Bne, next_node.clone()),
+                                    rs1,
+                                    With::new(Register::X0, next_node.clone()),
+                                    label,
+                                ));
+                            }
+                            PseudoType::Bltz | PseudoType::Bgtz => {
+                                let rs1 = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_branch(
+                                    With::new(BranchType::Blt, next_node.clone()),
+                                    rs1,
+                                    With::new(Register::X0, next_node.clone()),
+                                    label,
+                                ));
+                            }
+                            PseudoType::Neg => {
+                                let rd = get_reg(value.next())?;
+                                let rs1 = get_reg(value.next())?;
+                                return Ok(ParserNode::new_arith(
+                                    With::new(ArithType::Sub, next_node.clone()),
+                                    rd,
+                                    With::new(Register::X0, next_node.clone()),
+                                    rs1,
+                                ));
+                            }
+                            PseudoType::Not => {
+                                let rd = get_reg(value.next())?;
+                                let rs1 = get_reg(value.next())?;
+                                return Ok(ParserNode::new_iarith(
+                                    With::new(IArithType::Xori, next_node.clone()),
+                                    rd,
+                                    rs1,
+                                    With::new(Imm(-1), next_node.clone()),
+                                ));
+                            }
+                            PseudoType::Seqz => {
+                                let rd = get_reg(value.next())?;
+                                let rs1 = get_reg(value.next())?;
+                                return Ok(ParserNode::new_iarith(
+                                    With::new(IArithType::Sltiu, next_node.clone()),
+                                    rd,
+                                    rs1,
+                                    With::new(Imm(1), next_node.clone()),
+                                ));
+                            }
+                            PseudoType::Snez => {
+                                let rd = get_reg(value.next())?;
+                                let rs1 = get_reg(value.next())?;
+                                return Ok(ParserNode::new_iarith(
+                                    With::new(IArithType::Sltiu, next_node.clone()),
+                                    rd,
+                                    rs1,
+                                    With::new(Imm(0), next_node.clone()),
+                                ));
+                            }
+                            PseudoType::Nop => {
+                                return Ok(ParserNode::new_iarith(
+                                    With::new(IArithType::Addi, next_node.clone()),
+                                    With::new(Register::X0, next_node.clone()),
+                                    With::new(Register::X0, next_node.clone()),
+                                    With::new(Imm(0), next_node.clone()),
+                                ));
+                            }
+                            PseudoType::Bgez | PseudoType::Blez => {
+                                let rs1 = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_branch(
+                                    With::new(BranchType::Bge, next_node.clone()),
+                                    rs1,
+                                    With::new(Register::X0, next_node.clone()),
+                                    label,
+                                ));
+                            }
+                            PseudoType::Sgtz => {
+                                let rd = get_reg(value.next())?;
+                                let rs1 = get_reg(value.next())?;
+                                return Ok(ParserNode::new_arith(
+                                    With::new(ArithType::Slt, next_node.clone()),
+                                    rd,
+                                    With::new(Register::X0, next_node.clone()),
+                                    rs1,
+                                ));
+                            }
+                            PseudoType::Sltz => {
+                                let rd = get_reg(value.next())?;
+                                let rs1 = get_reg(value.next())?;
+                                return Ok(ParserNode::new_arith(
+                                    With::new(ArithType::Slt, next_node.clone()),
+                                    rd,
+                                    rs1,
+                                    With::new(Register::X0, next_node.clone()),
+                                ));
+                            }
+                            PseudoType::Sgez => {
+                                let rs1 = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_branch(
+                                    With::new(BranchType::Bge, next_node.clone()),
+                                    With::new(Register::X0, next_node.clone()),
+                                    rs1,
+                                    label,
+                                ));
+                            }
+                            PseudoType::Call => {
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_jump_link(
+                                    With::new(JumpLinkType::Jal, next_node.clone()),
+                                    With::new(Register::X1, next_node.clone()),
+                                    label,
+                                ));
+                            }
+                            PseudoType::Bgt => {
+                                let rs1 = get_reg(value.next())?;
+                                let rs2 = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_branch(
+                                    With::new(BranchType::Blt, next_node.clone()),
+                                    rs2,
+                                    rs1,
+                                    label,
+                                ));
+                            }
+                            PseudoType::Ble => {
+                                let rs1 = get_reg(value.next())?;
+                                let rs2 = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_branch(
+                                    With::new(BranchType::Bge, next_node.clone()),
+                                    rs2,
+                                    rs1,
+                                    label,
+                                ));
+                            }
+                            PseudoType::Bgtu => {
+                                let rs1 = get_reg(value.next())?;
+                                let rs2 = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_branch(
+                                    With::new(BranchType::Bltu, next_node.clone()),
+                                    rs2,
+                                    rs1,
+                                    label,
+                                ));
+                            }
+                            PseudoType::Bleu => {
+                                let rs1 = get_reg(value.next())?;
+                                let rs2 = get_reg(value.next())?;
+                                let label = get_label(value.next())?;
+                                return Ok(ParserNode::new_branch(
+                                    With::new(BranchType::Bgeu, next_node.clone()),
+                                    rs2,
+                                    rs1,
+                                    label,
+                                ));
+                            }
+                            PseudoType::Csrci | PseudoType::Csrsi | PseudoType::Csrwi => {
+                                let csr = get_csrimm(value.next())?;
+                                let imm = get_imm(value.next())?;
+                                let inst = match inst {
+                                    PseudoType::Csrci => CSRIType::Csrrci,
+                                    PseudoType::Csrsi => CSRIType::Csrrsi,
+                                    PseudoType::Csrwi => CSRIType::Csrrwi,
+                                    _ => return Err(ParseError::UnexpectedError),
+                                };
+                                return Ok(ParserNode::new_csri(
+                                    With::new(inst, next_node.clone()),
+                                    With::new(Register::X0, next_node.clone()),
+                                    csr,
+                                    imm,
+                                ));
+                            }
+                            PseudoType::Csrc | PseudoType::Csrs | PseudoType::Csrw => {
+                                let rs1 = get_reg(value.next())?;
+                                let csr = get_csrimm(value.next())?;
+                                let inst = match inst {
+                                    PseudoType::Csrc => CSRType::Csrrc,
+                                    PseudoType::Csrs => CSRType::Csrrs,
+                                    PseudoType::Csrw => CSRType::Csrrw,
+                                    _ => return Err(ParseError::UnexpectedError),
+                                };
+                                return Ok(ParserNode::new_csr(
+                                    With::new(inst, next_node.clone()),
+                                    With::new(Register::X0, next_node.clone()),
+                                    csr,
+                                    rs1,
+                                ));
+                            }
+                            PseudoType::Csrr => {
+                                let rd = get_reg(value.next())?;
+                                let csr = get_csrimm(value.next())?;
+                                return Ok(ParserNode::new_csr(
+                                    With::new(CSRType::Csrrs, next_node.clone()),
+                                    rd,
+                                    csr,
+                                    With::new(Register::X0, next_node.clone()),
+                                ));
+                            }
+                        },
                     };
                     return node;
                 }

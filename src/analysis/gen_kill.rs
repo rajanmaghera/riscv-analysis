@@ -5,8 +5,6 @@ use crate::parser::{IArithType, ParserNode, RegSets, Register};
 use super::AvailableValue;
 
 impl ParserNode {
-    // TODO BIG FIX for all different types of conditional/unconditional jumps
-    // These defs are used to help start some functional analysis
     pub fn kill_reg_value(&self) -> HashSet<Register> {
         match self.clone() {
             ParserNode::FuncEntry(_) => RegSets::caller_saved(),

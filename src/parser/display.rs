@@ -82,7 +82,6 @@ impl Display for ParserNode {
                 let imm = x.imm.data.0.to_string();
                 format!("{inst} {rd} <- {imm}({rs1})")
             }
-            // TODO don't use the pseudo type here
             ParserNode::LoadAddr(x) => {
                 let inst = "la";
                 let rd = x.rd.data.to_string();

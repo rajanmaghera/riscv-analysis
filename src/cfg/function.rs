@@ -1,18 +1,12 @@
-use std::{
-    collections::{HashSet},
-    rc::Rc,
-};
+use std::{collections::HashSet, rc::Rc};
 
 use crate::{
     analysis::CustomClonedSets,
     parser::{LabelString, RegSets, Register, With},
 };
 
-use super::{CFGNode};
+use super::CFGNode;
 
-// TODO assert FuncEntry nodes are only in the entry spot
-// TODO assert that all Functions correspond to one FuncEntry/FuncExit node
-// TODO do we need nodes?
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
     pub nodes: Vec<Rc<CFGNode>>,

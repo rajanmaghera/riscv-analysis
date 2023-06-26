@@ -61,9 +61,6 @@ impl Lexer {
 
     fn is_symbol_char(&self) -> bool {
         let c = self.ch;
-        // TODO be careful, we may not want - to be a symbol character,
-        // This is done so number parsing is only done once we know what the instruction is
-        // aka. to make our lives easier
         c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_' || c == '-'
     }
 
@@ -98,8 +95,6 @@ impl Lexer {
         }
     }
 }
-
-// TODO typestate for lexer?
 
 impl Iterator for Lexer {
     type Item = Info;
@@ -151,7 +146,6 @@ impl Iterator for Lexer {
                 let end = self.get_pos();
 
                 if dir_str.is_empty() {
-                    // TODO this is an error or end of line?
                     return None;
                 }
 
@@ -171,9 +165,6 @@ impl Iterator for Lexer {
                 }
                 self.next_char();
 
-                // TODO switch to comment tokens
-                // For now, we return the newline, as it ends
-                // in a newline
                 Some(Info {
                     token: Token::Newline,
                     pos: self.get_range(),

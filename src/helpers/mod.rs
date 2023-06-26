@@ -11,7 +11,6 @@ impl<T> With<T>
 where
     T: PartialEq<T>,
 {
-    // TODO should only be used in testing, get rid of later
     pub fn blank(data: T) -> Self {
         With {
             token: Token::Symbol(String::new()),

@@ -52,7 +52,3 @@ pub fn environment_in_outs(call_num: i32) -> Option<(HashSet<Register>, HashSet<
         vecs.1.into_iter().collect::<HashSet<_>>(),
     ))
 }
-
-pub fn is_ecall_exit(call_num: i32) -> bool {
-    call_num == 93 || call_num == 10
-}

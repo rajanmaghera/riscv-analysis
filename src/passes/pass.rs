@@ -1,5 +1,3 @@
-// TODO need a way to make assert passes
-
 use crate::cfg::BaseCFG;
 
 use super::{CFGError, LintError};

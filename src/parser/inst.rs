@@ -64,8 +64,6 @@ pub enum IArithType {
     Auipc, // Same as this
 }
 
-// TODO how is pseudo instruction handled for the FromStr trait?
-
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum LoadType {
     Lb,
@@ -388,7 +386,6 @@ pub enum UpperArithType {
 impl FromStr for Inst {
     type Err = ();
 
-    // TODO figure out how to ensure every Inst is covered
     #[allow(clippy::too_many_lines)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
@@ -498,7 +495,6 @@ impl FromStr for Inst {
     }
 }
 
-// TODO ure
 impl From<&Inst> for Type {
     #[allow(clippy::too_many_lines)]
     fn from(value: &Inst) -> Self {

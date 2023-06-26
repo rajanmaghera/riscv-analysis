@@ -11,7 +11,6 @@ use super::ParserNode;
 #[derive(Debug, Clone)]
 pub struct ParserNodeDataWrapper(pub ParserNode);
 
-// TODO switch to typesafe representations
 impl PartialEq for ParserNodeDataWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {

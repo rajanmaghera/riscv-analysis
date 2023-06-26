@@ -50,7 +50,6 @@ impl BaseCFG {
                     }
                 }
                 if let Some(_reg) = it {
-                    // TODO fix range of token register
                     ranges.push(next.node.get_range());
                     break;
                 }
@@ -88,7 +87,6 @@ impl LintPass for DeadValueCheck {
             for def in node.node.kill_reg() {
                 if !node.live_out().contains(&def) {
                     // TODO dead assignment register
-                    // TODO darken variable in LSP
                     errors.push(LintError::DeadAssignment(
                         node.node.get_store_range().clone(),
                     ));
@@ -130,7 +128,6 @@ impl LintPass for ControlFlowCheck {
             match node.node {
                 ParserNode::FuncEntry(_) => {
                     if i == 0 || !node.prevs().is_empty() {
-                        // TODO this should always be here, turn this into an assert pass
                         if let Some(function) = node.function().clone() {
                             errors.push(LintError::ImproperFuncEntry(
                                 node.node.get_range().clone(),

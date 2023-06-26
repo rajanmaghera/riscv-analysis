@@ -6,11 +6,6 @@ use crate::parser::Register;
 // hashsets. Hashsets allow for easy manipulation of register sets, while bitmaps
 // are used for efficient algorithms.
 
-// TODO in the future, we should use a set of macros that efficiently generate
-// the register sets
-
-// TODO static sets should be generated at compile time
-
 pub trait ToRegBitmap {
     fn to_bitmap(&self) -> u32;
 }

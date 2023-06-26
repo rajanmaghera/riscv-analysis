@@ -7,9 +7,6 @@ pub use functional_cfg::*;
 mod annotated;
 pub use annotated::*;
 
-mod types;
-pub use types::*;
-
 mod ops;
 pub use ops::*;
 

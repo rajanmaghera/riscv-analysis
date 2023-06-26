@@ -12,7 +12,7 @@ pub enum DirectiveType {
          // Align(WithToken<i32>),
          // Space(WithToken<i32>),
          // Text,
-         // Data, // TODO include more
+         // Data, /
 }
 
 impl std::fmt::Display for DirectiveType {

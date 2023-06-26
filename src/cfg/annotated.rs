@@ -1,4 +1,3 @@
-// TODO migrate cfg to annotated cfg
 // impl Display for AnnotatedCFG {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //         let mut index = 0;
