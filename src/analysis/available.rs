@@ -312,7 +312,7 @@ fn rule_value_from_stack(
 /// but that register value is either a constant or the guaranteed register
 /// value at the entry of the function (B), then replace A with B.
 fn rule_known_values_to_stack(
-    node: &ParserNode,
+    _node: &ParserNode,
     stack_out: &mut HashMap<i32, AvailableValue>,
     available_in: HashMap<Register, AvailableValue>,
 ) {

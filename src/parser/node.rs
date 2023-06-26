@@ -1,19 +1,19 @@
 use crate::parser::imm::{CSRImm, Imm};
 use crate::parser::inst::Inst;
 use crate::parser::inst::{
-    ArithType, BasicType, BranchType, CSRIType, CSRType, IArithType, IgnoreType, JumpLinkRType,
+    ArithType, BasicType, BranchType, CSRIType, CSRType, IArithType, JumpLinkRType,
     JumpLinkType, LoadType, PseudoType, StoreType, UpperArithType,
 };
 
 use crate::parser::register::Register;
-use crate::parser::token::{LineDisplay, Range, Token, With};
+use crate::parser::token::{Range, Token, With};
 
 use std::collections::HashSet;
 
-use std::fmt::{self, Display};
+
 use std::hash::{Hash, Hasher};
 
-use std::rc::Rc;
+
 use uuid::Uuid;
 
 use super::token::Position;

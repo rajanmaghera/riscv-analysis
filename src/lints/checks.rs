@@ -82,7 +82,7 @@ impl LintPass for SaveToZeroCheck {
 pub struct DeadValueCheck;
 impl LintPass for DeadValueCheck {
     fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
-        for (i, node) in cfg.clone().into_iter().enumerate() {
+        for (_i, node) in cfg.clone().into_iter().enumerate() {
             // check for any assignments that don't make it
             // to the end of the node
             for def in node.node.kill_reg() {
@@ -154,7 +154,7 @@ impl LintPass for ControlFlowCheck {
 pub struct EcallCheck;
 impl LintPass for EcallCheck {
     fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
-        for (i, node) in cfg.clone().into_iter().enumerate() {
+        for (_i, node) in cfg.clone().into_iter().enumerate() {
             if node.node.is_ecall() && node.known_ecall().is_none() {
                 errors.push(LintError::UnknownEcall(node.node.get_range()));
             }
@@ -210,7 +210,7 @@ impl LintPass for StackCheckPass {
         // check that we know the stack position at every point in the program
         // check that the stack is never in an invalid position
         // TODO move to impl methods
-        'outer: for (i, node) in cfg.clone().into_iter().enumerate() {
+        'outer: for (_i, node) in cfg.clone().into_iter().enumerate() {
             let values = node.reg_values_out();
             match values.get(&Register::X2) {
                 None => {
@@ -244,7 +244,7 @@ impl LintPass for StackCheckPass {
 pub struct CalleeSavedGarbageReadCheck;
 impl LintPass for CalleeSavedGarbageReadCheck {
     fn run(cfg: &BaseCFG, errors: &mut Vec<LintError>) {
-        for (i, node) in cfg.nodes.clone().into_iter().enumerate() {
+        for (_i, node) in cfg.nodes.clone().into_iter().enumerate() {
             for read in node.node.reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers

@@ -35,7 +35,7 @@ impl From<&LintError> for Diagnostic {
     fn from(e: &LintError) -> Self {
         let range = e.range();
         let related = match &e {
-            InvalidUseAfterCall(_, label) => Some(vec![
+            InvalidUseAfterCall(_, _label) => Some(vec![
                 // TODO determine name/URI of function
             //     DiagnosticRelatedInformation {
             //     location: lsp_types::Location {

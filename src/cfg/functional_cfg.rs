@@ -1,16 +1,14 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap},
     rc::Rc,
     vec,
 };
 
 use crate::{
-    analysis::CustomClonedSets,
-    parser::{LabelString, ParserNode, RegSets, Register, With},
     passes::{CFGError, GenerationPass},
 };
 
-use super::{BaseCFG, CFGNode, Function};
+use super::{BaseCFG, Function};
 
 pub struct FunctionMarkupPass;
 impl GenerationPass for FunctionMarkupPass {

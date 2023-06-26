@@ -1,16 +1,14 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashSet},
     rc::Rc,
-    vec,
 };
 
 use crate::{
     analysis::CustomClonedSets,
-    parser::{LabelString, ParserNode, RegSets, Register, With},
-    passes::{CFGError, GenerationPass},
+    parser::{LabelString, RegSets, Register, With},
 };
 
-use super::{BaseCFG, CFGNode};
+use super::{CFGNode};
 
 // TODO assert FuncEntry nodes are only in the entry spot
 // TODO assert that all Functions correspond to one FuncEntry/FuncExit node

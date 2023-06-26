@@ -6,23 +6,6 @@ use crate::parser::Register;
 
 use super::AvailableValue;
 
-fn intersection_list<T, I, U>(iter: &mut I) -> U
-where
-    T: Eq + Hash + Clone,
-    I: Iterator<Item = U>,
-    U: Iterator<Item = T> + CustomIntersection + CustomDefault,
-{
-    if let Some(s) = iter.next() {
-        let mut s = s;
-        for x in iter {
-            s = s.intersection(&x);
-        }
-        s
-    } else {
-        U::def()
-    }
-}
-
 trait CustomDefault {
     fn def() -> Self;
 }
