@@ -38,7 +38,7 @@ impl From<&LintError> for Diagnostic {
             InvalidUseAfterCall(_, _label) => Some(vec![
             //     DiagnosticRelatedInformation {
             //     location: lsp_types::Location {
-            //         uri: lsp_types::Url::parse("file:///").unwrap(),
+            //         uri: lsp_types::Url::parse("file:///"),
             //         range: label.pos.borrow().into(),
             //     },
             //     message: format!(

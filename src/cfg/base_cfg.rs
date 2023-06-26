@@ -12,22 +12,22 @@ use super::CFGNode;
 use super::Function;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct BaseCFG {
+pub struct CFG {
     pub nodes: Vec<Rc<CFGNode>>,
     pub label_node_map: HashMap<String, Rc<CFGNode>>,
     pub label_function_map: HashMap<With<LabelString>, Rc<Function>>,
 }
 
-impl FromStr for BaseCFG {
+impl FromStr for CFG {
     type Err = CFGError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parser = Parser::new(s);
         let ast = parser.collect::<Vec<ParserNode>>();
-        BaseCFG::new(ast)
+        CFG::new(ast)
     }
 }
 
-impl IntoIterator for &BaseCFG {
+impl IntoIterator for &CFG {
     type Item = Rc<CFGNode>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
@@ -61,8 +61,8 @@ impl BaseCFGGen for Vec<ParserNode> {
             .collect()
     }
 }
-impl BaseCFG {
-    pub fn new(old_nodes: Vec<ParserNode>) -> Result<BaseCFG, CFGError> {
+impl CFG {
+    pub fn new(old_nodes: Vec<ParserNode>) -> Result<CFG, CFGError> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
         let mut current_labels = HashSet::new();
@@ -146,7 +146,7 @@ impl BaseCFG {
             }
         }
 
-        Ok(BaseCFG {
+        Ok(CFG {
             nodes,
             label_function_map: HashMap::new(),
             label_node_map: labels,

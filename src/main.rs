@@ -23,7 +23,8 @@
 
 use std::str::FromStr;
 
-use crate::cfg::BaseCFG;
+use cfg::CFG;
+
 use crate::passes::Manager;
 
 mod analysis;
@@ -44,7 +45,7 @@ fn main() {
         return;
     };
 
-    let Ok(cfg) = BaseCFG::from_str(file.as_str()) else {
+    let Ok(cfg) = CFG::from_str(file.as_str()) else {
         println!("Unable to parse file");
         return;
     };

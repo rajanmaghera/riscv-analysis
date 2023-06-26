@@ -1,11 +1,11 @@
 use crate::{
-    cfg::BaseCFG,
+    cfg::CFG,
     passes::{CFGError, GenerationPass},
 };
 
 pub struct EliminateDeadCodeDirectionsPass;
 impl GenerationPass for EliminateDeadCodeDirectionsPass {
-    fn run(cfg: &mut BaseCFG) -> Result<(), CFGError> {
+    fn run(cfg: &mut CFG) -> Result<(), CFGError> {
         // PASS 3:
         // --------------------
         // Eliminate nexts and prevs for dead code

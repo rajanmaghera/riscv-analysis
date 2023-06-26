@@ -1,18 +1,12 @@
-use std::{
-    collections::{HashMap},
-    rc::Rc,
-    vec,
-};
+use std::{collections::HashMap, rc::Rc, vec};
 
-use crate::{
-    passes::{CFGError, GenerationPass},
-};
+use crate::passes::{CFGError, GenerationPass};
 
-use super::{BaseCFG, Function};
+use super::{Function, CFG};
 
 pub struct FunctionMarkupPass;
 impl GenerationPass for FunctionMarkupPass {
-    fn run(cfg: &mut BaseCFG) -> Result<(), CFGError> {
+    fn run(cfg: &mut CFG) -> Result<(), CFGError> {
         let mut label_function_map = HashMap::new();
 
         // PASS 1
