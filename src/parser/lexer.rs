@@ -4,6 +4,9 @@ use crate::parser::token::{Info, Position, Range};
 const EOF_CONST: char = 3 as char;
 
 /// Lexer for RISC-V assembly
+///
+/// The lexer implements the Iterator trait, so it can be used in a for loop for
+/// getting the next token.
 pub struct Lexer {
     source: String,
     ch: char,
@@ -13,6 +16,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
+    /// Create a new lexer from a string.
     pub fn new<S: Into<String>>(source: S) -> Lexer {
         let mut lex = Lexer {
             source: source.into(),
@@ -25,17 +29,10 @@ impl Lexer {
         lex
     }
 
-    /// Get the next character in the source
+    /// Get the next character in the source.
     ///
-    /// # Example
-    /// ```
-    /// use crate::parser::Lexer;
-    ///
-    /// let mut lex = Lexer::new("hello");
-    /// assert_eq!(lex.next_char(), 'h');
-    /// assert_eq!(lex.next_char(), 'e');
-    /// assert_eq!(lex.next_char(), 'l');
-    /// ```
+    /// This function will update the current character and the position
+    /// of the Lexer struct.
     fn next_char(&mut self) {
         let b = self.source.as_bytes();
 
@@ -55,39 +52,54 @@ impl Lexer {
         self.pos += 1;
     }
 
-    fn is_space(&self) -> bool {
+    /// Check if the current character is whitespace, excluding newlines.
+    ///
+    /// This function will return true if the current character is a space,
+    /// tab, or comma. Newlines are not considered whitespace as it is a
+    /// token in the lexer.
+    fn is_ws(&self) -> bool {
         self.ch == ' ' || self.ch == '\t' || self.ch == ','
     }
 
+    /// Check if the current character is a character usable in a symbol.
+    ///
+    /// This function will return true if the current character is a lowercase
+    /// or uppercase letter, an underscore, or a dash.
     fn is_symbol_char(&self) -> bool {
         let c = self.ch;
         c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_' || c == '-'
     }
 
+    /// Check if the current character is a character usable in a symbol
+    /// or a digit.
     fn is_symbol_item(&self) -> bool {
         let c = self.ch;
         self.is_symbol_char() || c.is_ascii_digit()
     }
 
+    /// Skip whitespace.
+    ///
+    /// This function will skip all whitespace characters, excluding newlines.
     fn skip_ws(&mut self) {
-        while self.is_space() {
+        while self.is_ws() {
             self.next_char();
         }
     }
 
+    /// Get a range from the current character.
+    ///
+    /// This function will return a range with the start and end position
+    /// being the current position of the lexer.
     fn get_range(&self) -> Range {
         Range {
-            start: Position {
-                line: self.row,
-                column: self.col,
-            },
-            end: Position {
-                line: self.row,
-                column: self.col,
-            },
+            start: self.get_pos(),
+            end: self.get_pos(),
         }
     }
 
+    /// Get the current position of the lexer.
+    ///
+    /// This function will return the current position of the lexer.
     fn get_pos(&self) -> Position {
         Position {
             line: self.row,
