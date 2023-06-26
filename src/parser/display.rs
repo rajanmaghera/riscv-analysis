@@ -9,7 +9,7 @@ impl Display for ParserNode {
         let res = match &self {
             ParserNode::ProgramEntry(_) => "--- [PROGRAM ENTRY] ---".to_string(),
             ParserNode::FuncEntry(_) => {
-                format!("--- FUNCTION ENTRY ---")
+                "--- FUNCTION ENTRY ---".to_string()
             }
             ParserNode::UpperArith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);

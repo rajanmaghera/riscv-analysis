@@ -69,7 +69,7 @@ pub struct SaveToZeroCheck;
 impl LintPass for SaveToZeroCheck {
     fn run(cfg: &CFG, errors: &mut Vec<LintError>) {
         for node in &cfg.clone() {
-            if let Some(register) = (*node).node.stores_to() {
+            if let Some(register) = node.node.stores_to() {
                 if register == Register::X0 && !node.node.is_return() {
                     errors.push(LintError::SaveToZero(register.get_range()));
                 }

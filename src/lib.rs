@@ -67,7 +67,7 @@ pub fn riscv_get_diagnostics(input: &str) -> JsValue {
                 Ok(new_res) => {
                     WrapperDiag(new_res.iter().map(|x| x.to_owned().into()).collect()).into()
                 }
-                Err(e) => return WrapperDiag::new(&format!("{:#?}", e)).into(),
+                Err(e) => WrapperDiag::new(&format!("{:#?}", e)).into(),
             }
         }
         Err(e) => WrapperDiag::new(&e).into(),

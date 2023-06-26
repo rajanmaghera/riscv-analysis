@@ -23,20 +23,20 @@ impl GenerationPass for NodeDirectionPass {
                     .ok_or_else(|| CFGError::UnexpectedError)?;
 
                 node.insert_next(Rc::clone(jump_to_node));
-                jump_to_node.insert_prev(Rc::clone(&node));
+                jump_to_node.insert_prev(Rc::clone(node));
             }
 
             // Linearly scan for nexts and prevs
             if let Some(prev) = prev {
                 node.insert_prev(Rc::clone(&prev));
-                prev.insert_next(Rc::clone(&node));
+                prev.insert_next(Rc::clone(node));
             }
 
             // Set previous node to current node, if it is not a return
             prev = if node.node.is_return() {
                 None
             } else {
-                Some(Rc::clone(&node))
+                Some(Rc::clone(node))
             }
         }
 

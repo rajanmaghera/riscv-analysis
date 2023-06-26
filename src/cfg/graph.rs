@@ -103,8 +103,8 @@ impl CFG {
                     current_labels.insert(s.name.clone());
 
                     // Check for duplicate labels
-                    if all_labels.insert(s.name.clone()) == false {
-                        return Err(CFGError::DuplicateLabel(s.name.clone()));
+                    if !all_labels.insert(s.name.clone()) {
+                        return Err(CFGError::DuplicateLabel(s.name));
                     }
                 }
                 _ => {
