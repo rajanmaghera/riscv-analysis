@@ -84,7 +84,7 @@ impl LintError {
             LintError::DeadAssignment(_) => "Unused value".to_string(),
             LintError::SaveToZero(_) => "The result of this instruction is being stored to the zero (x0) register. This instruction has no effect.".to_string(),
             LintError::InvalidUseAfterCall(_,x) => format!("Register were read from after a function call to {}. Reading from these registers is invalid and likely contain garbage values.\n\nIt is possible that this register was not defined across every path within the function. If you expected this register to be a return value, re-examine the function definition.",
-                x.entry.labels.iter().map(|x| x.data.0.clone()).collect::<Vec<_>>().join(", ")
+                x.entry.labels.iter().map(|label| label.data.0.clone()).collect::<Vec<_>>().join(", ")
         ),
             LintError::ImproperFuncEntry(..) => "This function can be entered through non-conventional ways. Either by the code before or through a jump. This label is treated like a function because there is either a [jal] instruction or an explicit definition of this function.".to_string(),
             LintError::UnknownEcall(_) => "The ecall type is not recognized. It is possible that you did not set a7 to a value.".to_string(),

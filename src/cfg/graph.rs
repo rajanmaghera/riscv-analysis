@@ -13,22 +13,22 @@ use super::CFGNode;
 use super::Function;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CFG {
+pub struct Cfg {
     pub nodes: Vec<Rc<CFGNode>>,
     pub label_node_map: HashMap<String, Rc<CFGNode>>,
     pub label_function_map: HashMap<With<LabelString>, Rc<Function>>,
 }
 
-impl FromStr for CFG {
-    type Err = CFGError;
+impl FromStr for Cfg {
+    type Err = Box<CFGError>;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parser = Parser::new(s);
         let nodes = parser.collect::<Vec<ParserNode>>();
-        CFG::new(nodes)
+        Cfg::new(nodes)
     }
 }
 
-impl IntoIterator for &CFG {
+impl IntoIterator for &Cfg {
     type Item = Rc<CFGNode>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
@@ -66,8 +66,8 @@ impl BaseCFGGen for Vec<ParserNode> {
             .collect()
     }
 }
-impl CFG {
-    pub fn new(old_nodes: Vec<ParserNode>) -> Result<CFG, CFGError> {
+impl Cfg {
+    pub fn new(old_nodes: Vec<ParserNode>) -> Result<Cfg, Box<CFGError>> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
         let mut current_labels = HashSet::new();
@@ -84,7 +84,7 @@ impl CFG {
             .cloned()
             .collect::<HashSet<With<LabelString>>>();
         if !undefined_labels.is_empty() {
-            return Err(CFGError::LabelsNotDefined(undefined_labels));
+            return Err(Box::new(CFGError::LabelsNotDefined(undefined_labels)));
         }
 
         // Add program entry node
@@ -104,7 +104,7 @@ impl CFG {
 
                     // Check for duplicate labels
                     if !all_labels.insert(s.name.clone()) {
-                        return Err(CFGError::DuplicateLabel(s.name));
+                        return Err(Box::new(CFGError::DuplicateLabel(s.name)));
                     }
                 }
                 _ => {
@@ -121,11 +121,11 @@ impl CFG {
                         ));
 
                         // Add the node to the graph
-                        nodes.push(rc_node.clone());
+                        nodes.push(Rc::clone(&rc_node));
 
                         // Add the node to the labels map
                         for label in current_labels.clone() {
-                            labels.insert(label.data.0.clone(), rc_node.clone());
+                            labels.insert(label.data.0.clone(), Rc::clone(&rc_node));
                         }
 
                         // Clear the current labels
@@ -137,11 +137,11 @@ impl CFG {
                         let rc_node = Rc::new(CFGNode::new(node.clone(), current_labels.clone()));
 
                         // Add the node to the graph
-                        nodes.push(rc_node.clone());
+                        nodes.push(Rc::clone(&rc_node));
 
                         // Add the node to the labels map
                         for label in current_labels.clone() {
-                            labels.insert(label.data.0.clone(), rc_node.clone());
+                            labels.insert(label.data.0.clone(), Rc::clone(&rc_node));
                         }
 
                         // Clear the current labels
@@ -151,7 +151,7 @@ impl CFG {
             }
         }
 
-        Ok(CFG {
+        Ok(Cfg {
             nodes,
             label_function_map: HashMap::new(),
             label_node_map: labels,

@@ -21,11 +21,10 @@
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::inline_always)]
-#![allow(clippy::upper_case_acronyms)]
 
 use std::str::FromStr;
 
-use cfg::CFG;
+use cfg::Cfg;
 
 use crate::passes::Manager;
 
@@ -47,7 +46,7 @@ fn main() {
         return;
     };
 
-    let Ok(cfg) = CFG::from_str(file.as_str()) else {
+    let Ok(cfg) = Cfg::from_str(file.as_str()) else {
         println!("Unable to parse file");
         return;
     };
@@ -258,7 +257,7 @@ mod tests {
     // fn linear_block() {
     //     let parser = Parser::new("my_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1");
     //     let nodes = parser.collect::<Vec<ParserNode>>();
-    //     let blocks = BaseCFG::new(nodes).expect("unable to create cfg");
+    //     let blocks = BaseCfg::new(nodes).expect("unable to create cfg");
     //     assert_eq!(
     //         vec![
     //             basic_block_from_nodes(vec![Node::new_program_entry()]),
@@ -279,7 +278,7 @@ mod tests {
     //         "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2\naddi, s1, s1, 0x1",
     //     );
     //     let nodes = parser.collect::<Vec<ParserNode>>();
-    //     let blocks = BaseCFG::new(nodes).expect("unable to create cfg");
+    //     let blocks = BaseCfg::new(nodes).expect("unable to create cfg");
     //     assert_eq!(
     //         vec![
     //             basic_block_from_nodes(vec![Node::new_program_entry(), arith!(Add X2 X2 X3),]),
@@ -297,7 +296,7 @@ mod tests {
 
     // #[test]
     // fn block_labels() {
-    //     let blocks = BaseCFG::from_str(
+    //     let blocks = BaseCfg::from_str(
     //         "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
     //     )
     //     .expect("unable to create cfg");
@@ -314,13 +313,13 @@ mod tests {
 
     // #[test]
     // fn duplicate_labels() {
-    //     BaseCFG::from_str("my_block: add s0, s0, s2\nmy_block: add s0, s0, s2")
+    //     BaseCfg::from_str("my_block: add s0, s0, s2\nmy_block: add s0, s0, s2")
     //         .expect_err("duplicate labels should fail");
     // }
 
     // #[test]
     // fn block_labels_with_spaces() {
-    //     let blocks = BaseCFG::from_str(
+    //     let blocks = BaseCfg::from_str(
     //         "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
     //     )
     //     .expect("unable to create cfg");
@@ -338,7 +337,7 @@ mod tests {
     // #[test]
     // fn basic_imm() {
     //     let blocks =
-    //         BaseCFG::from_str("\nhello_world:\n    addi x0, x2 12").expect("unable to create cfg");
+    //         BaseCfg::from_str("\nhello_world:\n    addi x0, x2 12").expect("unable to create cfg");
     //     assert_eq!(
     //         vec![
     //             basic_block_from_nodes(vec![Node::new_program_entry()]),
@@ -347,14 +346,14 @@ mod tests {
     //         .data(),
     //         blocks.blocks.data()
     //     );
-    //     let blocks = AnnotatedCFG::from(blocks);
+    //     let blocks = AnnotatedCfg::from(blocks);
     //     let errs = Manager::new().run(&blocks);
     //     assert_ne!(errs.len(), 0);
     // }
 
     // #[test]
     // fn pass_with_comments() {
-    //     let blocks = BaseCFG::from_str("\nhello_world:\n    addi x1, x2 12 # yolo\nadd x1, x2 x3")
+    //     let blocks = BaseCfg::from_str("\nhello_world:\n    addi x1, x2 12 # yolo\nadd x1, x2 x3")
     //         .expect("unable to create cfg");
     //     assert_eq!(
     //         vec![

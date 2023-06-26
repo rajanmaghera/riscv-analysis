@@ -23,7 +23,7 @@ pub enum MathOp {
 
 // impl Inst -> MathOp
 impl Inst {
-    pub fn math_op(&self) -> Option<MathOp> {
+    pub fn math_op(self) -> Option<MathOp> {
         match self {
             Inst::Add | Inst::Addi => Some(MathOp::Add),
             Inst::And | Inst::Andi => Some(MathOp::And),
@@ -48,7 +48,7 @@ impl Inst {
     }
 
     // To allow for scalar operations only, like stack manipulation
-    pub fn scalar_op(&self) -> Option<MathOp> {
+    pub fn scalar_op(self) -> Option<MathOp> {
         match self {
             Inst::Add | Inst::Addi => Some(MathOp::Add),
             Inst::Sub => Some(MathOp::Sub),

@@ -8,9 +8,7 @@ impl Display for ParserNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let res = match &self {
             ParserNode::ProgramEntry(_) => "--- [PROGRAM ENTRY] ---".to_string(),
-            ParserNode::FuncEntry(_) => {
-                "--- FUNCTION ENTRY ---".to_string()
-            }
+            ParserNode::FuncEntry(_) => "--- FUNCTION ENTRY ---".to_string(),
             ParserNode::UpperArith(x) => {
                 let inst: Inst = Inst::from(&x.inst.data);
                 let rd = x.rd.data.to_string();
@@ -110,10 +108,6 @@ impl ParserNode {
 impl LineDisplay for ParserNode {
     fn get_range(&self) -> Range {
         match &self {
-            ParserNode::ProgramEntry(_) => Range {
-                start: Position { line: 0, column: 0 },
-                end: Position { line: 0, column: 0 },
-            },
             ParserNode::UpperArith(x) => {
                 let mut range = x.inst.pos.clone();
                 range.end = x.imm.pos.end;
@@ -172,7 +166,7 @@ impl LineDisplay for ParserNode {
                 range
             }
             ParserNode::Directive(directive) => directive.dir.pos.clone(),
-            ParserNode::FuncEntry(_) => Range {
+            ParserNode::FuncEntry(_) | ParserNode::ProgramEntry(_) => Range {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
             },

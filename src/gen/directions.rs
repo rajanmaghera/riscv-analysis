@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
 use crate::{
-    cfg::CFG,
+    cfg::Cfg,
     passes::{CFGError, GenerationPass},
 };
 
 pub struct NodeDirectionPass;
 impl GenerationPass for NodeDirectionPass {
-    fn run(cfg: &mut CFG) -> Result<(), Box<CFGError>> {
+    fn run(cfg: &mut Cfg) -> Result<(), Box<CFGError>> {
         // PASS 2:
         // --------------------
         // Calculate directions

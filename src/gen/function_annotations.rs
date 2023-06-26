@@ -1,13 +1,13 @@
 use std::{collections::HashMap, rc::Rc, vec};
 
 use crate::{
-    cfg::{Function, CFG},
+    cfg::{Cfg, Function},
     passes::{CFGError, GenerationPass},
 };
 
 pub struct FunctionMarkupPass;
 impl GenerationPass for FunctionMarkupPass {
-    fn run(cfg: &mut CFG) -> Result<(), Box<CFGError>> {
+    fn run(cfg: &mut Cfg) -> Result<(), Box<CFGError>> {
         let mut label_function_map = HashMap::new();
 
         // PASS 1
@@ -78,8 +78,8 @@ impl GenerationPass for FunctionMarkupPass {
                     }
 
                     // Add the function to the nodes
-                    for node in &func.nodes {
-                        node.set_function(Rc::clone(&func));
+                    for func_node in &func.nodes {
+                        func_node.set_function(Rc::clone(&func));
                     }
                 } else {
                     // If we found no function entries, we have a problem

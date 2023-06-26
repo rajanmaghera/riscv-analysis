@@ -11,8 +11,8 @@ use std::hash::Hash;
 use std::rc::Rc;
 
 use super::environment_in_outs;
+use super::Cfg;
 use super::Function;
-use super::CFG;
 
 #[derive(Debug)]
 pub struct CFGNode {
@@ -139,7 +139,7 @@ impl CFGNode {
     }
 
     #[inline(always)]
-    pub fn calls_to(&self, cfg: &CFG) -> Option<Rc<Function>> {
+    pub fn calls_to(&self, cfg: &Cfg) -> Option<Rc<Function>> {
         if let Some(name) = self.node.calls_to() {
             cfg.label_function_map.get(&name).cloned()
         } else {
