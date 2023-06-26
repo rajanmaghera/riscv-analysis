@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::parser::{LabelString, ParserNode, With};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 
 /// CFGError is an error that occurs while generating an annotated CFG.
 ///

@@ -1,12 +1,13 @@
 use std::{collections::HashMap, rc::Rc, vec};
 
-use crate::passes::{CFGError, GenerationPass};
-
-use super::{Function, CFG};
+use crate::{
+    cfg::{Function, CFG},
+    passes::{CFGError, GenerationPass},
+};
 
 pub struct FunctionMarkupPass;
 impl GenerationPass for FunctionMarkupPass {
-    fn run(cfg: &mut CFG) -> Result<(), CFGError> {
+    fn run(cfg: &mut CFG) -> Result<(), Box<CFGError>> {
         let mut label_function_map = HashMap::new();
 
         // PASS 1
@@ -26,7 +27,7 @@ impl GenerationPass for FunctionMarkupPass {
 
                     // If we reach the program entry, there's an issue
                     if n.node.is_program_entry() {
-                        return Err(CFGError::NoLabelForReturn(node.node.clone()));
+                        return Err(Box::new(CFGError::NoLabelForReturn(node.node.clone())));
                     }
 
                     // If we find a function entry, we're done
@@ -45,10 +46,10 @@ impl GenerationPass for FunctionMarkupPass {
 
                 // If we found multiple function entries, we have a problem
                 if found.len() > 1 {
-                    return Err(CFGError::MultipleLabelsForReturn(
+                    return Err(Box::new(CFGError::MultipleLabelsForReturn(
                         node.node.clone(),
                         found.iter().flat_map(|x| x.labels.clone()).collect(),
-                    ));
+                    )));
                 }
 
                 // Otherwise, we found a function and all its nodes
@@ -67,12 +68,12 @@ impl GenerationPass for FunctionMarkupPass {
                             // If we already have a function for this label, we have a problem
                             let mut labels = func2.labels();
                             labels.extend(func.labels());
-                            return Err(CFGError::MultipleReturnsForLabel(
+                            return Err(Box::new(CFGError::MultipleReturnsForLabel(
                                 labels.into_iter().collect(),
                                 vec![func.exit.node.clone(), func2.exit.node.clone()]
                                     .into_iter()
                                     .collect(),
-                            ));
+                            )));
                         }
                     }
 
@@ -82,7 +83,7 @@ impl GenerationPass for FunctionMarkupPass {
                     }
                 } else {
                     // If we found no function entries, we have a problem
-                    return Err(CFGError::NoLabelForReturn(node.node.clone()));
+                    return Err(Box::new(CFGError::NoLabelForReturn(node.node.clone())));
                 }
             }
         }

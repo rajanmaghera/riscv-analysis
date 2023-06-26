@@ -7,7 +7,7 @@ use crate::{
 
 pub struct NodeDirectionPass;
 impl GenerationPass for NodeDirectionPass {
-    fn run(cfg: &mut CFG) -> Result<(), CFGError> {
+    fn run(cfg: &mut CFG) -> Result<(), Box<CFGError>> {
         // PASS 2:
         // --------------------
         // Calculate directions

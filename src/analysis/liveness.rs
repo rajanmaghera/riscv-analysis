@@ -8,7 +8,7 @@ use super::CustomClonedSets;
 
 pub struct LivenessPass;
 impl GenerationPass for LivenessPass {
-    fn run(cfg: &mut crate::cfg::CFG) -> Result<(), CFGError> {
+    fn run(cfg: &mut crate::cfg::CFG) -> Result<(), Box<CFGError>> {
         let mut changed = true;
         while changed {
             changed = false;

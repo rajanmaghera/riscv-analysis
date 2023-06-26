@@ -1,7 +1,10 @@
 use crate::{
     analysis::{AvailableValuePass, LivenessPass},
-    cfg::{FunctionMarkupPass, CFG},
-    gen::{EcallTerminationPass, EliminateDeadCodeDirectionsPass, NodeDirectionPass},
+    cfg::CFG,
+    gen::{
+        EcallTerminationPass, EliminateDeadCodeDirectionsPass, FunctionMarkupPass,
+        NodeDirectionPass,
+    },
     lints::{
         CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
         EcallCheck, GarbageInputValueCheck, SaveToZeroCheck, StackCheckPass,
@@ -12,7 +15,7 @@ use super::{CFGError, GenerationPass, LintError, LintPass};
 
 pub struct Manager;
 impl Manager {
-    pub fn run(cfg: CFG) -> Result<Vec<LintError>, CFGError> {
+    pub fn run(cfg: CFG) -> Result<Vec<LintError>, Box<CFGError>> {
         let mut cfg = cfg;
         let mut errors = Vec::new();
 

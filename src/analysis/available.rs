@@ -122,7 +122,7 @@ impl AvailableStackHelpers for HashMap<Register, AvailableValue> {
 ///
 pub struct AvailableValuePass;
 impl GenerationPass for AvailableValuePass {
-    fn run(cfg: &mut crate::cfg::CFG) -> Result<(), CFGError> {
+    fn run(cfg: &mut crate::cfg::CFG) -> Result<(), Box<CFGError>> {
         let mut changed = true;
         while changed {
             changed = false;

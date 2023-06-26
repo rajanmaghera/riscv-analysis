@@ -1,8 +1,5 @@
-mod cfg;
-pub use cfg::*;
-
-mod functional_cfg;
-pub use functional_cfg::*;
+mod graph;
+pub use graph::*;
 
 mod annotated;
 pub use annotated::*;
