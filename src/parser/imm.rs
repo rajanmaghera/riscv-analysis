@@ -152,8 +152,8 @@ mod test {
 
     #[test]
     fn safe_hex() {
-        assert_eq!(Imm::from_str("0x7FFFFFFF"), Ok(Imm(2_147_483_647)));
-        assert_eq!(Imm::from_str("0x80000000"), Ok(Imm(-2_147_483_648)));
+        assert_eq!(Imm::from_str("0x7FFFFFFF"), Ok(Imm(0x7FFF_FFFF)));
+        assert_eq!(Imm::from_str("0x80000000"), Ok(Imm(-0x8000_0000)));
     }
 
     #[test]

@@ -29,59 +29,13 @@ where
     U: Eq + Hash + Clone,
 {
     fn intersection(&self, other: &Self) -> Self {
-        self.into_iter()
+        self.iter()
             .collect::<HashSet<_>>()
-            .intersection(&other.into_iter().collect::<HashSet<_>>())
+            .intersection(&other.iter().collect::<HashSet<_>>())
             .map(|x| (x.0.clone(), x.1.clone()))
             .collect::<HashMap<_, _>>()
     }
 }
-
-// trait CustomBlankIterator<T>
-// where
-//     T: Sized + Eq + Hash + Clone,
-//     Self: Sized + IntoIterator<Item = T>,
-// {
-//     fn blank() -> Box<dyn Iterator<Item = T> + Default + CustomIntersection + CustomBlankIterator>;
-// }
-
-// impl<U, T> CustomIntersection for std::collections::hash_map::IntoIter<U, T>
-// where
-//     T: Eq + Hash + Clone,
-//     U: Eq + Hash + Clone + Display,
-// {
-//     fn intersection(&self, other: &Self) -> Self {
-//         let a = self.clone().collect::<HashSet<_>>();
-//         let b = other.clone().collect::<HashSet<_>>();
-//         a.intersection(&b)
-//             .cloned()
-//             .collect::<HashMap<_, _>>()
-//             .into_iter()
-//     }
-// }
-
-// impl CustomBlankIterator<Register> for HashSet<Register> {
-//     fn blank() -> Box<dyn Iterator<Item = Register>> {
-//         Box::new(HashSet::new().into_iter())
-//     }
-// }
-
-// pub trait ListIntersection<T> {
-//     fn intersection_all(&mut self) -> T;
-// }
-
-// impl<T, I, U> ListIntersection<HashMap<U, T>> for I
-// where
-//     T: Eq + Hash + Clone,
-//     I: Iterator<Item = HashMap<U, T>>,
-//     U: Eq + Hash + Clone + Display,
-// {
-//     fn intersection_all(&mut self) -> HashMap<U, T> {
-//         let mut list = self.map(|x| x.into_iter()).into_iter();
-//         intersection_list(&mut list).collect()
-//     }
-// }
-
 pub trait CustomClonedSets<T> {
     fn intersection_c(&self, other: &Self) -> Self;
     fn union_c(&self, other: &Self) -> Self;
@@ -115,7 +69,7 @@ where
     U: Eq + Hash + Clone,
 {
     fn difference(&self, other: &HashSet<T>) -> Self {
-        self.into_iter()
+        self.iter()
             .filter(|(x, _)| !other.contains(x))
             .map(|(x, y)| (x.clone(), y.clone()))
             .collect()

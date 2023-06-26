@@ -15,7 +15,7 @@ use super::{CustomDifference, CustomIntersection, CustomInto, CustomUnion, Custo
 /// A value that is available at some point in the program.
 ///
 /// This is used to determine which values at certain locations (registers, memory)
-/// can be used or guaranteed. These are assigned as the value in a `HashMap.
+/// can be used or guaranteed. These are assigned as the value in a `HashMap`.
 ///
 /// The `Original` variants are used to determine whether a value is the same as
 /// the value at the beginning of the function or graph. This is used to determine
@@ -180,7 +180,7 @@ impl GenerationPass for AvailableValuePass {
                 rule_expand_address_for_load(&node.node, &mut out_reg_n, &node.reg_values_in());
                 rule_perform_math_ops(&node.node, &mut out_reg_n, &node.reg_values_in());
                 rule_value_from_stack(&node.node, &mut out_reg_n, &node.stack_values_in());
-                rule_known_values_to_stack(&node.node, &mut out_stack_n, node.reg_values_in());
+                rule_known_values_to_stack(&node.node, &mut out_stack_n, &node.reg_values_in());
 
                 // If either of the outs changed, replace the old outs with the new outs
                 // and mark that we changed something.
@@ -208,18 +208,18 @@ fn rule_expand_address_for_load(
     available_out: &mut HashMap<Register, AvailableValue>,
     available_in: &HashMap<Register, AvailableValue>,
 ) {
-    if let Some(reg) = node.stores_to() {
+    if let Some(store_reg) = node.stores_to() {
         if let ParserNode::Load(load) = node {
             if let Some(AvailableValue::OriginalRegisterWithScalar(reg, off)) =
                 available_in.get(&load.rs1.data)
             {
                 available_out.insert(
-                    reg.clone(),
+                    *reg,
                     AvailableValue::MemoryAtOriginalRegister(*reg, *off + load.imm.data.0),
                 );
             } else if let Some(AvailableValue::Address(label)) = available_in.get(&load.rs1.data) {
                 available_out.insert(
-                    reg.data,
+                    store_reg.data,
                     AvailableValue::Memory(label.clone(), load.imm.data.0),
                 );
             }
@@ -255,7 +255,7 @@ fn rule_perform_math_ops(
             _ => None,
         };
 
-        let res = match (lhs, rhs) {
+        let result = match (lhs, rhs) {
             (Some(AvailableValue::Constant(x)), Some(AvailableValue::Constant(y))) => node
                 .inst()
                 .data
@@ -263,21 +263,21 @@ fn rule_perform_math_ops(
                 .map(|op| op.operate(x, y))
                 .map(AvailableValue::Constant),
             (
-                Some(AvailableValue::OriginalRegisterWithScalar(reg, x)),
+                Some(AvailableValue::OriginalRegisterWithScalar(new_reg, x)),
                 Some(AvailableValue::Constant(y)),
             )
             | (
                 Some(AvailableValue::Constant(x)),
-                Some(AvailableValue::OriginalRegisterWithScalar(reg, y)),
+                Some(AvailableValue::OriginalRegisterWithScalar(new_reg, y)),
             ) => node
                 .inst()
                 .data
                 .scalar_op()
                 .map(|op| op.operate(x, y))
-                .map(|z| AvailableValue::OriginalRegisterWithScalar(reg, z)),
+                .map(|z| AvailableValue::OriginalRegisterWithScalar(new_reg, z)),
             (_, _) => None,
         };
-        if let Some(val) = res {
+        if let Some(val) = result {
             available_out.insert(reg.data, val);
         }
     }
@@ -314,7 +314,7 @@ fn rule_value_from_stack(
 fn rule_known_values_to_stack(
     _node: &ParserNode,
     stack_out: &mut HashMap<i32, AvailableValue>,
-    available_in: HashMap<Register, AvailableValue>,
+    available_in: &HashMap<Register, AvailableValue>,
 ) {
     for (pos, val) in stack_out.clone() {
         if let AvailableValue::RegisterWithScalar(reg, off) = val {

@@ -1,3 +1,4 @@
+use crate::parser;
 use crate::parser::LabelString;
 use crate::parser::Parser;
 use crate::parser::ParserNode;
@@ -11,7 +12,7 @@ use std::str::FromStr;
 use super::CFGNode;
 use super::Function;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CFG {
     pub nodes: Vec<Rc<CFGNode>>,
     pub label_node_map: HashMap<String, Rc<CFGNode>>,
@@ -45,11 +46,15 @@ trait BaseCFGGen {
 
 impl BaseCFGGen for Vec<ParserNode> {
     fn call_names(&self) -> HashSet<With<LabelString>> {
-        self.iter().filter_map(|x| x.calls_to()).collect()
+        self.iter()
+            .filter_map(parser::ParserNode::calls_to)
+            .collect()
     }
 
     fn jump_names(&self) -> HashSet<With<LabelString>> {
-        self.iter().filter_map(|x| x.jumps_to()).collect()
+        self.iter()
+            .filter_map(parser::ParserNode::jumps_to)
+            .collect()
     }
 
     fn label_names(&self) -> HashSet<With<LabelString>> {

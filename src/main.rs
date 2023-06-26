@@ -20,6 +20,8 @@
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::too_many_lines)]
+#![allow(clippy::inline_always)]
+#![allow(clippy::upper_case_acronyms)]
 
 use std::str::FromStr;
 

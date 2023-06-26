@@ -1,5 +1,5 @@
-mod base_cfg;
-pub use base_cfg::*;
+mod cfg;
+pub use cfg::*;
 
 mod functional_cfg;
 pub use functional_cfg::*;
