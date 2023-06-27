@@ -155,13 +155,13 @@ impl GenerationPass for AvailableValuePass {
         let mut changed = true;
         while changed {
             changed = false;
-            for node in cfg.into_iter().rev() {
+            for node in cfg.into_iter() {
                 // in[n] = AND out[p] for all p in prev[n]
                 let in_reg_n = node
                     .prevs()
                     .clone()
                     .into_iter()
-                    .map(|x| x.reg_values_in())
+                    .map(|x| x.reg_values_out())
                     .reduce(|acc, x| x.intersection(&acc))
                     .unwrap_or_default();
                 node.set_reg_values_in(in_reg_n);
@@ -171,7 +171,7 @@ impl GenerationPass for AvailableValuePass {
                     .prevs()
                     .clone()
                     .into_iter()
-                    .map(|x| x.stack_values_in())
+                    .map(|x| x.stack_values_out())
                     .reduce(|acc, x| x.intersection(&acc))
                     .unwrap_or_default();
                 node.set_stack_values_in(in_stack_n);
@@ -208,8 +208,8 @@ impl GenerationPass for AvailableValuePass {
 
                 rule_expand_address_for_load(&node.node, &mut out_reg_n, &node.reg_values_in());
                 rule_perform_math_ops(&node.node, &mut out_reg_n, &node.reg_values_in());
-                rule_value_from_stack(&node.node, &mut out_reg_n, &node.stack_values_in());
                 rule_known_values_to_stack(&node.node, &mut out_stack_n, &node.reg_values_in());
+                rule_value_from_stack(&node.node, &mut out_reg_n, &node.stack_values_in());
 
                 // If either of the outs changed, replace the old outs with the new outs
                 // and mark that we changed something.
@@ -243,7 +243,7 @@ fn rule_expand_address_for_load(
                 available_in.get(&load.rs1.data)
             {
                 available_out.insert(
-                    *reg,
+                    store_reg.data,
                     AvailableValue::MemoryAtOriginalRegister(*reg, *off + load.imm.data.0),
                 );
             } else if let Some(AvailableValue::Address(label)) = available_in.get(&load.rs1.data) {

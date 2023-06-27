@@ -14,6 +14,7 @@ impl GenerationPass for EliminateDeadCodeDirectionsPass {
         let mut changed = true;
         while changed {
             changed = false;
+            let old = nodes.clone();
             for node in nodes {
                 if node.node.is_return() || node.node.is_any_entry() {
                     continue;
@@ -24,7 +25,6 @@ impl GenerationPass for EliminateDeadCodeDirectionsPass {
                         prev.remove_next(node);
                     }
                     node.clear_prevs();
-                    changed = true;
                 }
 
                 // If the node has no prevs, remove it from the nexts of all its nexts
@@ -33,8 +33,10 @@ impl GenerationPass for EliminateDeadCodeDirectionsPass {
                         next.remove_prev(node);
                     }
                     node.clear_nexts();
-                    changed = true;
                 }
+            }
+            if &old != nodes {
+                changed = true;
             }
         }
 
