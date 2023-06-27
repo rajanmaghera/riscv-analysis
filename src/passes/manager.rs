@@ -15,7 +15,7 @@ use super::{CFGError, GenerationPass, LintError, LintPass};
 
 pub struct Manager;
 impl Manager {
-    pub fn run(cfg: Cfg) -> Result<Vec<LintError>, Box<CFGError>> {
+    pub fn run(cfg: Cfg, debug: bool) -> Result<Vec<LintError>, Box<CFGError>> {
         let mut cfg = cfg;
         let mut errors = Vec::new();
 
@@ -26,6 +26,9 @@ impl Manager {
         EcallTerminationPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?; // to eliminate ecall terminated code
         LivenessPass::run(&mut cfg)?;
+        if debug {
+            println!("{}", cfg);
+        }
         SaveToZeroCheck::run(&cfg, &mut errors);
         DeadValueCheck::run(&cfg, &mut errors);
         EcallCheck::run(&cfg, &mut errors);

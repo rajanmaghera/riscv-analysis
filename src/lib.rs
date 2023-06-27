@@ -62,7 +62,7 @@ pub fn riscv_get_diagnostics(input: &str) -> JsValue {
     let cfg = Cfg::from_str(input).map_err(|e| format!("{:#?}", e));
     match cfg {
         Ok(cfg) => {
-            let res = Manager::run(cfg);
+            let res = Manager::run(cfg, false);
             match res {
                 Ok(new_res) => {
                     WrapperDiag(new_res.iter().map(|x| x.to_owned().into()).collect()).into()
