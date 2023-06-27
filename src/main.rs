@@ -25,6 +25,8 @@
 use std::str::FromStr;
 
 use cfg::Cfg;
+use clap::{Args, Parser, Subcommand};
+use std::path::PathBuf;
 
 use crate::passes::Manager;
 
@@ -36,31 +38,81 @@ mod lints;
 mod parser;
 mod passes;
 
+#[derive(Parser)]
+#[command(author, version, about)]
+struct Cli {
+    #[clap(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Lint a file
+    #[clap(name = "lint")]
+    Lint(Lint),
+    /// Fix known errors in a file
+    ///
+    /// This will attempt to fix known errors in a file.
+    /// Known issues include incorrect stack saving, multiple returns, and mismatched register names.
+    /// (not implemented)
+    #[clap(name = "fix")]
+    Fix(Fix),
+}
+
+#[derive(Args)]
+struct Lint {
+    /// Input file
+    input: PathBuf,
+    /// Debug mode
+    #[clap(short, long)]
+    debug: bool,
+    /// Remove output
+    #[clap(long)]
+    no_output: bool,
+}
+
+#[derive(Args)]
+struct Fix {
+    /// Input file
+    ///
+    /// This will attempt to fix known errors in a file.
+    /// The file will be overwritten with the fixed version.
+    input: PathBuf,
+}
+
 fn main() {
-    // read argument from command line as filename
-    // let filename = std::env::args().nth(1).expect("No filename provided");
+    let args = Cli::parse();
+    match args.command {
+        Commands::Lint(lint) => {
+            let file = match std::fs::read_to_string(lint.input) {
+                Ok(file) => file,
+                _ => {
+                    println!("Unable to read file");
+                    return;
+                }
+            };
 
-    let filename = "/Users/rajanmaghera/Documents/GitHub/riscv-analysis/tmp/saved-reg.s";
-    let Ok(file) = std::fs::read_to_string(filename) else {
-        println!("Unable to read file");
-        return;
-    };
+            let cfg = match Cfg::from_str(file.as_str()) {
+                Ok(cfg) => cfg,
+                _ => {
+                    println!("Unable to parse file");
+                    return;
+                }
+            };
 
-    let Ok(cfg) = Cfg::from_str(file.as_str()) else {
-        println!("Unable to parse file");
-        return;
-    };
-
-    // println!("{cfg}");
-
-    let res = Manager::run(cfg);
-    match res {
-        Ok(lints) => {
-            for err in lints {
-                println!("{}({}): {}", err, err.range(), err.long_description());
+            let res = Manager::run(cfg, lint.debug);
+            if !lint.no_output {
+                match res {
+                    Ok(lints) => {
+                        for err in lints {
+                            println!("{}({}): {}", err, err.range(), err.long_description());
+                        }
+                    }
+                    Err(err) => println!("Unable to run lint: {err:#?}"),
+                }
             }
         }
-        Err(_) => println!("Errors found"),
+        Commands::Fix(_) => {}
     }
 }
 
