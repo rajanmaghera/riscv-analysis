@@ -50,43 +50,69 @@ enum Commands {
     /// Lint a file
     #[clap(name = "lint")]
     Lint(Lint),
+    /// Fix known errors in a file
+    ///
+    /// This will attempt to fix known errors in a file.
+    /// Known issues include incorrect stack saving, multiple returns, and mismatched register names.
+    /// (not implemented)
+    #[clap(name = "fix")]
+    Fix(Fix),
 }
 
 #[derive(Args)]
 struct Lint {
     /// Input file
     input: PathBuf,
-    /// Strict mode
+    /// Debug mode
     #[clap(short, long)]
-    strict: bool,
+    debug: bool,
+    /// Remove output
+    #[clap(long)]
+    no_output: bool,
+}
+
+#[derive(Args)]
+struct Fix {
+    /// Input file
+    ///
+    /// This will attempt to fix known errors in a file.
+    /// The file will be overwritten with the fixed version.
+    input: PathBuf,
 }
 
 fn main() {
     let args = Cli::parse();
     match args.command {
         Commands::Lint(lint) => {
-            let Ok(file) = std::fs::read_to_string(lint.input) else {
-        println!("Unable to read file");
-        return;
-    };
-
-            let Ok(cfg) = Cfg::from_str(file.as_str()) else {
-        println!("Unable to parse file");
-        return;
-    };
-
-            // println!("{cfg}");
-
-            let res = Manager::run(cfg);
-            match res {
-                Ok(lints) => {
-                    for err in lints {
-                        println!("{}({}): {}", err, err.range(), err.long_description());
-                    }
+            let file = match std::fs::read_to_string(lint.input) {
+                Ok(file) => file,
+                _ => {
+                    println!("Unable to read file");
+                    return;
                 }
-                Err(_) => println!("Errors found"),
+            };
+
+            let cfg = match Cfg::from_str(file.as_str()) {
+                Ok(cfg) => cfg,
+                _ => {
+                    println!("Unable to parse file");
+                    return;
+                }
+            };
+
+            let res = Manager::run(cfg, lint.debug);
+            if !lint.no_output {
+                match res {
+                    Ok(lints) => {
+                        for err in lints {
+                            println!("{}({}): {}", err, err.range(), err.long_description());
+                        }
+                    }
+                    Err(err) => println!("Unable to run lint: {err:#?}"),
+                }
             }
         }
+        Commands::Fix(_) => {}
     }
 }
 
