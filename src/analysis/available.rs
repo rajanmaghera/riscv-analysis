@@ -2,7 +2,6 @@
 // ========================
 
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::hash::Hash;
 
 use crate::parser::{LabelString, RegSets};
@@ -58,34 +57,6 @@ pub enum AvailableValue {
     OriginalRegisterWithScalar(Register, i32),
     MemoryAtRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we do not know the label
     MemoryAtOriginalRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we are sure it is the same as the original
-}
-
-impl Display for AvailableValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AvailableValue::Constant(v) => write!(f, "{}", v),
-            AvailableValue::Address(a) => write!(f, "{}", a),
-            AvailableValue::Memory(a, off) => write!(f, "{}({})", off, a),
-            AvailableValue::OriginalRegisterWithScalar(reg, off) => {
-                if off == &0 {
-                    write!(f, "{}", reg)
-                } else {
-                    write!(f, "{} + {}", reg, off)
-                }
-            }
-            AvailableValue::RegisterWithScalar(reg, off) => {
-                if off == &0 {
-                    write!(f, "{}?", reg)
-                } else {
-                    write!(f, "{}? + {}", reg, off)
-                }
-            }
-            AvailableValue::MemoryAtRegister(reg, off) => write!(f, "{off}({reg}?)"),
-            AvailableValue::MemoryAtOriginalRegister(reg, off) => {
-                write!(f, "{off}({reg})")
-            }
-        }
-    }
 }
 
 pub trait AvailableRegisterValues {
