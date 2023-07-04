@@ -52,6 +52,8 @@ impl Iterator for Parser {
 
         loop {
             let mut item = ParserNode::try_from(&mut self.lexer);
+        // Add program entry node
+        nodes.push(ParserNode::new_program_entry(lexer.0));
 
             // if item is a parse error, then keep trying
             while let Err(ParseError::IsNewline(_)) = item {

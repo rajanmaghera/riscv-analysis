@@ -7,7 +7,7 @@ use itertools::Itertools;
 
 use super::{CFGNode, Cfg};
 
-trait SetListString {
+pub trait SetListString {
     fn str(&self) -> String;
 }
 

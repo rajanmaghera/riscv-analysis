@@ -1,13 +1,11 @@
 use crate::parser;
 use crate::parser::LabelString;
-use crate::parser::Parser;
 use crate::parser::ParserNode;
 use crate::parser::With;
 use crate::passes::CFGError;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
-use std::str::FromStr;
 
 use super::CFGNode;
 use super::Function;
@@ -19,14 +17,14 @@ pub struct Cfg {
     pub label_function_map: HashMap<With<LabelString>, Rc<Function>>,
 }
 
-impl FromStr for Cfg {
-    type Err = Box<CFGError>;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parser = Parser::new(s);
-        let nodes = parser.collect::<Vec<ParserNode>>();
-        Cfg::new(nodes)
-    }
-}
+// impl FromStr for Cfg {
+//     type Err = Box<CFGError>;
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         let parser = Parser::new(s);
+//         let nodes = parser.collect::<Vec<ParserNode>>();
+//         Cfg::new(nodes)
+//     }
+// }
 
 impl IntoIterator for &Cfg {
     type Item = Rc<CFGNode>;
@@ -87,12 +85,6 @@ impl Cfg {
             return Err(Box::new(CFGError::LabelsNotDefined(undefined_labels)));
         }
 
-        // Add program entry node
-        nodes.push(Rc::new(CFGNode::new(
-            ParserNode::new_program_entry(),
-            HashSet::new(),
-        )));
-
         // PASS 1:
         // --------------------
         // Add nodes to graph
@@ -116,7 +108,7 @@ impl Cfg {
                         .is_some()
                     {
                         let rc_node = Rc::new(CFGNode::new(
-                            ParserNode::new_func_entry(),
+                            ParserNode::new_func_entry(node.file()),
                             current_labels.clone(),
                         ));
 
