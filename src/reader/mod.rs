@@ -9,6 +9,8 @@ pub enum FileReaderError {
     IOError(std::io::Error),
     InternalFileNotFound,
     FileAlreadyRead(String),
+    Unexpected,
+    InvalidPath,
 }
 
 pub trait FileReader: Sized {
@@ -18,5 +20,5 @@ pub trait FileReader: Sized {
         in_file: Option<uuid::Uuid>,
     ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError>;
 
-    fn get_filename(&self, uuid: uuid::Uuid) -> String;
+    fn get_filename(&self, uuid: uuid::Uuid) -> Option<String>;
 }
