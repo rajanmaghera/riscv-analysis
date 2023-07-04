@@ -3,28 +3,32 @@ use crate::parser::inst::{
     PseudoType, Type,
 };
 use crate::parser::token::With;
-use crate::parser::ParseError;
-use crate::parser::ParserNode;
 use crate::parser::Register;
-use crate::parser::{DirectiveType, Lexer};
+use crate::parser::{DirectiveToken, LexError};
+use crate::parser::{DirectiveType, ParserNode};
+use crate::parser::{Lexer, Token};
+use crate::reader::{FileReader, FileReaderError};
 use std::iter::Peekable;
 use std::{collections::VecDeque, str::FromStr};
 
 use super::imm::{CSRImm, Imm};
-use super::token::{Info, Token};
-use super::{ExpectedType, LabelString};
+use super::token::Info;
+use super::{ExpectedType, LabelString, ParseError};
 
 /// Parser for RISC-V assembly
-pub struct Parser {
-    lexer: Peekable<Lexer>,
-    queue: VecDeque<ParserNode>,
+pub struct RVParser<T>
+where
+    T: FileReader,
+{
+    lexer_stack: Vec<Peekable<Lexer>>,
+    pub reader: T,
 }
 
-impl Parser {
-    pub fn new<S: Into<String>>(source: S) -> Parser {
-        Parser {
-            lexer: Lexer::new(source).peekable(),
-            queue: VecDeque::new(),
+impl<T: FileReader> RVParser<T> {
+    pub fn new(reader: T) -> RVParser<T> {
+        RVParser {
+            lexer_stack: Vec::new(),
+            reader,
         }
     }
 
@@ -33,115 +37,161 @@ impl Parser {
     /// This is used to recover from parse errors. If there is a parse error,
     /// we will skip the rest of the line and try to parse the next line.
     fn recover_from_parse_error(&mut self) {
-        for token in self.lexer.by_ref() {
+        for token in self.lexer().by_ref() {
             if token == Token::Newline {
                 break;
             }
         }
     }
-}
 
-impl Iterator for Parser {
-    type Item = ParserNode;
+    /// Parse files
+    ///
+    /// This function is responsible for parsing the file. It will continue until no imports are left.
+    pub fn parse(
+        &mut self,
+        base: &str,
+        ignore_imports: bool,
+    ) -> (Vec<ParserNode>, Vec<ParseError>) {
+        let mut nodes = Vec::new();
+        let mut parse_errors = Vec::new();
 
-    fn next(&mut self) -> Option<Self::Item> {
-        // if there is an item in the queue, return it
-        if let Some(item) = self.queue.pop_front() {
-            return Some(item);
-        }
+        // import base lexer
+        let lexer = self.reader.import_file(&base, None).unwrap();
+        self.lexer_stack.push(lexer.1);
 
-        loop {
-            let mut item = ParserNode::try_from(&mut self.lexer);
         // Add program entry node
         nodes.push(ParserNode::new_program_entry(lexer.0));
 
-            // if item is a parse error, then keep trying
-            while let Err(ParseError::IsNewline(_)) = item {
-                item = ParserNode::try_from(&mut self.lexer);
-            }
+        while !self.lexer_stack.is_empty() {
+            let node = ParserNode::try_from(self.lexer());
 
-            // print debug info for errors
-            // if let Err(err) = &item {
-            //     match err {
-            //         ParseError::Expected(tokens, found) => {
-            //             println!(
-            //                 "Expected {}, found {found}",
-            //                 tokens
-            //                     .iter()
-            //                     .map(std::string::ToString::to_string)
-            //                     .collect::<Vec<String>>()
-            //                     .join(" or "),
-            //             );
-            //         }
-            //         ParseError::UnexpectedToken(x) => {
-            //             println!("line {}: Unexpected token {}", x.pos.start.line, x.token);
-            //         }
-            //         _ => {}
-            //     }
-            // }
-            return match item {
-                Ok(x) => Some(x),
-                Err(err) => match err {
-                    ParseError::NeedTwoNodes(node1, node2) => {
-                        self.queue.push_back(*node2);
-                        Some(*node1)
+            match node {
+                Ok(x) => {
+                    if !ignore_imports {
+                        if let ParserNode::Directive(directive) = &x {
+                            if let DirectiveType::Include(path) = &directive.dir {
+                                let lexer = self
+                                    .reader
+                                    .import_file(path.data.as_str(), Some(directive.token.file));
+                                match lexer {
+                                    Ok(x) => {
+                                        self.lexer_stack.push(x.1);
+                                    }
+                                    Err(x) => match x {
+                                        FileReaderError::IOError(_) => {
+                                            parse_errors
+                                                .push(ParseError::FileNotFound(path.clone()));
+                                        }
+                                        FileReaderError::InternalFileNotFound => {
+                                            parse_errors
+                                                .push(ParseError::UnexpectedError(path.info()));
+                                        }
+                                        FileReaderError::FileAlreadyRead(_) => {
+                                            parse_errors
+                                                .push(ParseError::CyclicDependency(path.info()));
+                                        }
+                                    },
+                                }
+                                continue;
+                            }
+                        }
                     }
-                    ParseError::UnexpectedEOF => None,
-                    _ => {
+                    nodes.push(x);
+                }
+                Err(x) => match x {
+                    LexError::Expected(ex, got) => {
+                        parse_errors.push(ParseError::Expected(ex, got));
                         self.recover_from_parse_error();
-                        continue;
+                    }
+                    LexError::IsNewline(_) => {}
+                    LexError::Ignored(y) => {
+                        parse_errors.push(ParseError::Unsupported(y));
+                        self.recover_from_parse_error();
+                    }
+                    LexError::UnexpectedToken(got) => {
+                        parse_errors.push(ParseError::UnexpectedToken(got));
+                        self.recover_from_parse_error();
+                    }
+                    LexError::UnexpectedEOF => {
+                        self.lexer_stack.pop();
+                    }
+                    LexError::NeedTwoNodes(n1, n2) => {
+                        nodes.push(*n1);
+                        nodes.push(*n2);
+                    }
+                    LexError::UnexpectedError(x) => {
+                        parse_errors.push(ParseError::UnexpectedError(x));
+                        // TODO determine how to recover from this and where to markup
+                        self.recover_from_parse_error();
+                    }
+                    LexError::UnknownDirective(y) => {
+                        parse_errors.push(ParseError::UnknownDirective(y));
+                        self.recover_from_parse_error();
                     }
                 },
-            };
+            }
         }
+        println!("parse errors: {:?}", parse_errors);
+        (nodes, parse_errors)
+    }
+
+    fn lexer(&mut self) -> &mut Peekable<Lexer> {
+        let item = &mut self.lexer_stack;
+        item.last_mut().unwrap()
     }
 }
 
-fn expect_lparen(value: Option<Info>) -> Result<(), ParseError> {
-    let v = value.ok_or(ParseError::UnexpectedEOF)?;
+fn expect_lparen(value: Option<Info>) -> Result<(), LexError> {
+    let v = value.ok_or(LexError::UnexpectedEOF)?;
     match v.token {
         Token::LParen => Ok(()),
-        _ => Err(ParseError::Expected(vec![ExpectedType::LParen], v)),
+        _ => Err(LexError::Expected(vec![ExpectedType::LParen], v)),
     }
 }
 
-fn expect_rparen(value: Option<Info>) -> Result<(), ParseError> {
-    let v = value.ok_or(ParseError::UnexpectedEOF)?;
+fn expect_rparen(value: Option<Info>) -> Result<(), LexError> {
+    let v = value.ok_or(LexError::UnexpectedEOF)?;
     match v.token {
         Token::RParen => Ok(()),
-        _ => Err(ParseError::Expected(vec![ExpectedType::RParen], v)),
+        _ => Err(LexError::Expected(vec![ExpectedType::RParen], v)),
     }
 }
 
-fn get_reg(value: Option<Info>) -> Result<With<Register>, ParseError> {
-    let v = value.ok_or(ParseError::UnexpectedEOF)?;
+fn get_reg(value: Option<Info>) -> Result<With<Register>, LexError> {
+    let v = value.ok_or(LexError::UnexpectedEOF)?;
     With::<Register>::try_from(v.clone())
-        .map_err(|_| ParseError::Expected(vec![ExpectedType::Register], v))
+        .map_err(|_| LexError::Expected(vec![ExpectedType::Register], v))
 }
 
-fn get_imm(value: Option<Info>) -> Result<With<Imm>, ParseError> {
-    let v = value.ok_or(ParseError::UnexpectedEOF)?;
-    With::<Imm>::try_from(v.clone()).map_err(|_| ParseError::Expected(vec![ExpectedType::Imm], v))
+fn get_imm(value: Option<Info>) -> Result<With<Imm>, LexError> {
+    let v = value.ok_or(LexError::UnexpectedEOF)?;
+    With::<Imm>::try_from(v.clone()).map_err(|_| LexError::Expected(vec![ExpectedType::Imm], v))
 }
 
-fn get_label(value: Option<Info>) -> Result<With<LabelString>, ParseError> {
-    let v = value.ok_or(ParseError::UnexpectedEOF)?;
+fn get_label(value: Option<Info>) -> Result<With<LabelString>, LexError> {
+    let v = value.ok_or(LexError::UnexpectedEOF)?;
     With::<LabelString>::try_from(v.clone())
-        .map_err(|_| ParseError::Expected(vec![ExpectedType::Label], v))
+        .map_err(|_| LexError::Expected(vec![ExpectedType::Label], v))
 }
 
-fn get_csrimm(value: Option<Info>) -> Result<With<CSRImm>, ParseError> {
-    let v = value.ok_or(ParseError::UnexpectedEOF)?;
+fn get_csrimm(value: Option<Info>) -> Result<With<CSRImm>, LexError> {
+    let v = value.ok_or(LexError::UnexpectedEOF)?;
     With::<CSRImm>::try_from(v.clone())
-        .map_err(|_| ParseError::Expected(vec![ExpectedType::CSRImm], v))
+        .map_err(|_| LexError::Expected(vec![ExpectedType::CSRImm], v))
+}
+
+fn get_string(value: Option<Info>) -> Result<With<String>, LexError> {
+    let v = value.ok_or(LexError::UnexpectedEOF)?;
+    With::<String>::try_from(v.clone())
+        .map_err(|_| LexError::Expected(vec![ExpectedType::String], v))
 }
 
 impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
-    type Error = ParseError;
+    type Error = LexError;
 
     #[allow(clippy::too_many_lines)]
     fn try_from(value: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
-        use ParseError::{Expected, Ignored, IsNewline, NeedTwoNodes, UnexpectedEOF};
+        use LexError::{Expected, Ignored, IsNewline, NeedTwoNodes, UnexpectedEOF};
         let next_node = value.next().ok_or(UnexpectedEOF)?;
         match &next_node.token {
             Token::Symbol(s) => {
@@ -631,7 +681,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     PseudoType::Csrci => CSRIType::Csrrci,
                                     PseudoType::Csrsi => CSRIType::Csrrsi,
                                     PseudoType::Csrwi => CSRIType::Csrrwi,
-                                    _ => return Err(ParseError::UnexpectedError),
+                                    _ => return Err(LexError::UnexpectedError(next_node.clone())),
                                 };
                                 return Ok(ParserNode::new_csri(
                                     With::new(inst, next_node.clone()),
@@ -647,7 +697,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     PseudoType::Csrc => CSRType::Csrrc,
                                     PseudoType::Csrs => CSRType::Csrrs,
                                     PseudoType::Csrw => CSRType::Csrrw,
-                                    _ => return Err(ParseError::UnexpectedError),
+                                    _ => return Err(LexError::UnexpectedError(next_node.clone())),
                                 };
                                 return Ok(ParserNode::new_csr(
                                     With::new(inst, next_node.clone()),
@@ -670,33 +720,54 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                     };
                     return node;
                 }
-                Err(ParseError::Expected(
+                Err(LexError::Expected(
                     vec![ExpectedType::Inst],
                     next_node.clone(),
                 ))
             }
             Token::Label(s) => Ok(ParserNode::new_label(With::new(
                 LabelString::from_str(s).map_err(|_| {
-                    ParseError::Expected(vec![ExpectedType::Label], next_node.clone())
+                    LexError::Expected(vec![ExpectedType::Label], next_node.clone())
                 })?,
                 next_node,
             ))),
-            Token::Directive(_) => {
-                let node = next_node.clone();
-                // skip to the next line
-                for token in value.by_ref() {
-                    if token == Token::Newline {
-                        break;
+            Token::Directive(dir) => {
+                if let Ok(directive) = DirectiveToken::from_str(dir) {
+                    match directive {
+                        DirectiveToken::Align => todo!(),
+                        DirectiveToken::Ascii => todo!(),
+                        DirectiveToken::Asciz => todo!(),
+                        DirectiveToken::Byte => todo!(),
+                        DirectiveToken::Data => todo!(),
+                        DirectiveToken::Double => todo!(),
+                        DirectiveToken::Dword => todo!(),
+                        DirectiveToken::EndMacro => todo!(),
+                        DirectiveToken::Eqv => todo!(),
+                        DirectiveToken::Extern => todo!(),
+                        DirectiveToken::Float => todo!(),
+                        DirectiveToken::Global | DirectiveToken::Globl => todo!(),
+                        DirectiveToken::Half => todo!(),
+                        DirectiveToken::Include => {
+                            let filename = get_string(value.next())?;
+                            return Ok(ParserNode::new_directive(
+                                With::new(directive, next_node.clone()),
+                                DirectiveType::Include(filename),
+                            ));
+                        }
+                        DirectiveToken::Macro => todo!(),
+                        DirectiveToken::Section => todo!(),
+                        DirectiveToken::Space => todo!(),
+                        DirectiveToken::String => todo!(),
+                        DirectiveToken::Text => todo!(),
+                        DirectiveToken::Word => todo!(),
                     }
+                } else {
+                    return Err(LexError::UnknownDirective(next_node.clone()));
                 }
-                Ok(ParserNode::new_directive(With::new(
-                    DirectiveType::Nop,
-                    node,
-                )))
             }
             Token::Newline => Err(IsNewline(next_node)),
             Token::LParen | Token::RParen | Token::String(_) => {
-                Err(ParseError::UnexpectedToken(next_node))
+                Err(LexError::UnexpectedToken(next_node))
             }
         }
     }
