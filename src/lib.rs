@@ -2,7 +2,7 @@ use crate::cfg::Cfg;
 use crate::parser::{DirectiveType, ParserNode, RVParser};
 use crate::passes::Manager;
 use lsp_types::{Diagnostic, Position, Range};
-use parser::Lexer;
+use parser::{Lexer, LineDisplay};
 use reader::{FileReader, FileReaderError};
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;
@@ -80,7 +80,7 @@ where
     }
 }
 
-trait CanGetURIString: FileReader {
+pub trait CanGetURIString: FileReader {
     fn get_uri_string(&self, uuid: Uuid) -> LSPRVDocument;
 }
 
@@ -91,8 +91,8 @@ impl CanGetURIString for LSPFileReader {
 }
 
 impl FileReader for LSPFileReader {
-    fn get_filename(&self, uuid: uuid::Uuid) -> String {
-        self.file_uris.get(&uuid).unwrap().uri.clone()
+    fn get_filename(&self, uuid: uuid::Uuid) -> Option<String> {
+        self.file_uris.get(&uuid).map(|x| x.uri.clone())
     }
 
     fn import_file(
@@ -145,7 +145,7 @@ impl LSPFileReader {
 }
 
 #[derive(Deserialize, Clone)]
-struct LSPRVDocument {
+pub struct LSPRVDocument {
     uri: String,
     text: String,
 }
@@ -209,7 +209,10 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
             .1
             .iter()
             .map(|x| LSPRVSingleDiagnostic {
-                uri: parser.reader.get_filename(x.file()),
+                uri: parser
+                    .reader
+                    .get_filename(x.file())
+                    .unwrap_or("".to_string()),
                 diagnostic: Diagnostic::from(x),
             })
             .for_each(|x| errs.push(x));
@@ -223,7 +226,10 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
                 new_res
                     .iter()
                     .map(|x| LSPRVSingleDiagnostic {
-                        uri: parser.reader.get_filename(x.file()),
+                        uri: parser
+                            .reader
+                            .get_filename(x.file())
+                            .unwrap_or("".to_string()),
                         diagnostic: Diagnostic::from(x),
                     })
                     .for_each(|x| errs.push(x));

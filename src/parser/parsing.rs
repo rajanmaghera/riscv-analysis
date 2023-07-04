@@ -9,7 +9,7 @@ use crate::parser::{DirectiveType, ParserNode};
 use crate::parser::{Lexer, Token};
 use crate::reader::{FileReader, FileReaderError};
 use std::iter::Peekable;
-use std::{collections::VecDeque, str::FromStr};
+use std::str::FromStr;
 
 use super::imm::{CSRImm, Imm};
 use super::token::Info;
@@ -37,10 +37,16 @@ impl<T: FileReader> RVParser<T> {
     /// This is used to recover from parse errors. If there is a parse error,
     /// we will skip the rest of the line and try to parse the next line.
     fn recover_from_parse_error(&mut self) {
-        for token in self.lexer().by_ref() {
-            if token == Token::Newline {
-                break;
+        let lexer = self.lexer();
+        match lexer {
+            Some(x) => {
+                for token in x.by_ref() {
+                    if token == Token::Newline {
+                        break;
+                    }
+                }
             }
+            None => {}
         }
     }
 
@@ -56,14 +62,23 @@ impl<T: FileReader> RVParser<T> {
         let mut parse_errors = Vec::new();
 
         // import base lexer
-        let lexer = self.reader.import_file(&base, None).unwrap();
+        let lexer = match self.reader.import_file(&base, None) {
+            Ok(x) => x,
+            Err(_) => {
+                parse_errors.push(ParseError::FileNotFound(With::new(
+                    base.to_owned(),
+                    Info::default(),
+                )));
+                return (nodes, parse_errors);
+            }
+        };
         self.lexer_stack.push(lexer.1);
 
         // Add program entry node
         nodes.push(ParserNode::new_program_entry(lexer.0));
 
-        while !self.lexer_stack.is_empty() {
-            let node = ParserNode::try_from(self.lexer());
+        while let Some(lexer) = self.lexer() {
+            let node = ParserNode::try_from(lexer);
 
             match node {
                 Ok(x) => {
@@ -89,6 +104,14 @@ impl<T: FileReader> RVParser<T> {
                                         FileReaderError::FileAlreadyRead(_) => {
                                             parse_errors
                                                 .push(ParseError::CyclicDependency(path.info()));
+                                        }
+                                        FileReaderError::Unexpected => {
+                                            parse_errors
+                                                .push(ParseError::UnexpectedError(path.info()));
+                                        }
+                                        FileReaderError::InvalidPath => {
+                                            parse_errors
+                                                .push(ParseError::FileNotFound(path.clone()));
                                         }
                                     },
                                 }
@@ -135,9 +158,9 @@ impl<T: FileReader> RVParser<T> {
         (nodes, parse_errors)
     }
 
-    fn lexer(&mut self) -> &mut Peekable<Lexer> {
+    fn lexer(&mut self) -> Option<&mut Peekable<Lexer>> {
         let item = &mut self.lexer_stack;
-        item.last_mut().unwrap()
+        item.last_mut()
     }
 }
 
