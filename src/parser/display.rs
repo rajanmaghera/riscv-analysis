@@ -46,7 +46,7 @@ impl Display for ParserNode {
                 format!("{inst}")
             }
             ParserNode::Directive(x) => {
-                let dir = x.dir.data.to_string();
+                let dir = x.dir.to_string();
                 format!("-<{dir}>-")
             }
             ParserNode::Branch(x) => {
@@ -92,16 +92,6 @@ impl Display for ParserNode {
             }
         };
         write!(f, "{res}")
-    }
-}
-
-impl ParserNode {
-    pub fn get_store_range(&self) -> Range {
-        if let Some(item) = self.stores_to() {
-            item.pos
-        } else {
-            self.get_range()
-        }
     }
 }
 
@@ -165,7 +155,7 @@ impl LineDisplay for ParserNode {
                 range.end = x.name.pos.end;
                 range
             }
-            ParserNode::Directive(directive) => directive.dir.pos.clone(),
+            ParserNode::Directive(directive) => directive.token.pos.clone(),
             ParserNode::FuncEntry(_) | ParserNode::ProgramEntry(_) => Range {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
