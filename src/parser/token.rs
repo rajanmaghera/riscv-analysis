@@ -1,6 +1,8 @@
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
+use uuid::Uuid;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Position {
     pub line: usize,
@@ -17,6 +19,7 @@ pub struct Range {
 pub struct Info {
     pub token: Token,
     pub pos: Range,
+    pub file: Uuid,
 }
 
 /// Token type for the parser
@@ -69,8 +72,22 @@ impl PartialEq<Token> for Info {
 impl<T> With<T> {
     pub fn info(&self) -> Info {
         Info {
+            file: self.file.clone(),
             token: self.token.clone(),
             pos: self.pos.clone(),
+        }
+    }
+}
+
+impl Default for Info {
+    fn default() -> Self {
+        Info {
+            token: Token::Newline,
+            file: Uuid::nil(),
+            pos: Range {
+                start: Position { line: 0, column: 0 },
+                end: Position { line: 0, column: 0 },
+            },
         }
     }
 }
@@ -79,6 +96,7 @@ impl<T> With<T> {
 pub struct With<T> {
     pub token: Token,
     pub pos: Range,
+    pub file: Uuid,
     pub data: T,
 }
 
@@ -88,6 +106,15 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self.data)
+    }
+}
+
+impl<T> std::fmt::Display for With<T>
+where
+    T: std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", &self.data)
     }
 }
 
@@ -180,6 +207,7 @@ where
         With {
             token: info.token,
             pos: info.pos,
+            file: info.file,
             data,
         }
     }
@@ -195,6 +223,7 @@ where
         Ok(With {
             pos: value.pos.clone(),
             token: value.token.clone(),
+            file: value.file,
             data: T::try_from(value)?,
         })
     }
@@ -206,7 +235,8 @@ impl TryFrom<Info> for String {
     fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
             Token::Symbol(s) => Ok(s),
-            _ => Err(format!("Expected symbol, got {:?}", value.token)),
+            Token::String(s) => Ok(s),
+            _ => Err(format!("Expected symbol or string, got {:?}", value.token)),
         }
     }
 }
