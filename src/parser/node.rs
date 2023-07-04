@@ -6,7 +6,7 @@ use crate::parser::inst::{
 };
 
 use crate::parser::register::Register;
-use crate::parser::token::{Range, With};
+use crate::parser::token::With;
 
 use std::collections::HashSet;
 
@@ -14,11 +14,9 @@ use std::hash::{Hash, Hasher};
 
 use uuid::Uuid;
 
-use super::token::Position;
 use super::{
     Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry, IArith,
-    JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, Store, Token,
-    UpperArith,
+    JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, Store, UpperArith,
 };
 
 #[derive(Debug, Clone)]
@@ -77,25 +75,8 @@ impl Hash for ParserNode {
 }
 
 impl ParserNode {
-    pub fn inst(&self) -> With<Inst> {
-        let token = match self {
-            ParserNode::Arith(x) => x.inst.token.clone(),
-            ParserNode::IArith(x) => x.inst.token.clone(),
-            ParserNode::UpperArith(x) => x.inst.token.clone(),
-            ParserNode::Label(x) => x.name.token.clone(),
-            ParserNode::JumpLink(x) => x.inst.token.clone(),
-            ParserNode::JumpLinkR(x) => x.inst.token.clone(),
-            ParserNode::Basic(x) => x.inst.token.clone(),
-            ParserNode::Directive(x) => x.token.token.clone(),
-            ParserNode::Branch(x) => x.inst.token.clone(),
-            ParserNode::Store(x) => x.inst.token.clone(),
-            ParserNode::Load(x) => x.inst.token.clone(),
-            ParserNode::Csr(x) => x.inst.token.clone(),
-            ParserNode::CsrI(x) => x.inst.token.clone(),
-            ParserNode::LoadAddr(x) => x.inst.token.clone(),
-            ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_) => Token::Symbol(String::new()),
-        };
-        let inst: Inst = match self {
+    pub fn inst(&self) -> Inst {
+        match self {
             ParserNode::Arith(x) => (&x.inst.data).into(),
             ParserNode::IArith(x) => (&x.inst.data).into(),
             ParserNode::UpperArith(x) => (&x.inst.data).into(),
@@ -112,54 +93,7 @@ impl ParserNode {
             | ParserNode::Directive(_)
             | ParserNode::FuncEntry(_)
             | ParserNode::ProgramEntry(_) => Inst::Nop,
-        };
-        let pos = match self {
-            ParserNode::Arith(x) => x.inst.pos.clone(),
-            ParserNode::IArith(x) => x.inst.pos.clone(),
-            ParserNode::UpperArith(x) => x.inst.pos.clone(),
-            ParserNode::Label(x) => x.name.pos.clone(),
-            ParserNode::JumpLink(x) => x.inst.pos.clone(),
-            ParserNode::JumpLinkR(x) => x.inst.pos.clone(),
-            ParserNode::Basic(x) => x.inst.pos.clone(),
-            ParserNode::Directive(x) => x.token.pos.clone(),
-            ParserNode::Branch(x) => x.inst.pos.clone(),
-            ParserNode::Store(x) => x.inst.pos.clone(),
-            ParserNode::Load(x) => x.inst.pos.clone(),
-            ParserNode::Csr(x) => x.inst.pos.clone(),
-            ParserNode::CsrI(x) => x.inst.pos.clone(),
-            ParserNode::LoadAddr(x) => x.inst.pos.clone(),
-            ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_) => Range {
-                start: Position { line: 0, column: 0 },
-                end: Position { line: 0, column: 0 },
-            },
-        };
-        With {
-            token,
-            data: inst,
-            pos,
-            file: self.file(),
         }
-    }
-    pub fn file(&self) -> Uuid {
-        let file = match self {
-            ParserNode::Arith(x) => x.inst.file.clone(),
-            ParserNode::IArith(x) => x.inst.file.clone(),
-            ParserNode::UpperArith(x) => x.inst.file.clone(),
-            ParserNode::Label(x) => x.name.file.clone(),
-            ParserNode::JumpLink(x) => x.inst.file.clone(),
-            ParserNode::JumpLinkR(x) => x.inst.file.clone(),
-            ParserNode::Basic(x) => x.inst.file.clone(),
-            ParserNode::Directive(x) => x.token.file.clone(),
-            ParserNode::Branch(x) => x.inst.file.clone(),
-            ParserNode::Store(x) => x.inst.file.clone(),
-            ParserNode::Load(x) => x.inst.file.clone(),
-            ParserNode::Csr(x) => x.inst.file.clone(),
-            ParserNode::CsrI(x) => x.inst.file.clone(),
-            ParserNode::LoadAddr(x) => x.inst.file.clone(),
-            ParserNode::ProgramEntry(x) => x.file.clone(),
-            ParserNode::FuncEntry(x) => x.file.clone(),
-        };
-        file
     }
 
     pub fn new_arith(
@@ -470,5 +404,4 @@ impl ParserNode {
             ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_) => (),
         }
     }
-
 }

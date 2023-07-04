@@ -5,7 +5,7 @@ use uuid::Uuid;
 use super::{
     ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, DirectiveToken, IArithType,
     IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, Register,
-    StoreType, Token, UpperArithType, With,
+    StoreType, UpperArithType, With,
 };
 
 #[derive(Debug, Clone)]

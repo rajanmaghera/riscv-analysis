@@ -168,7 +168,8 @@ impl ToDisplayForTokenVec for Vec<Info> {
 }
 
 pub trait LineDisplay {
-    fn get_range(&self) -> Range;
+    fn range(&self) -> Range;
+    fn file(&self) -> Uuid;
 }
 
 // implement display for Range
@@ -183,8 +184,11 @@ impl std::fmt::Display for Range {
 }
 
 impl<T> LineDisplay for With<T> {
-    fn get_range(&self) -> Range {
+    fn range(&self) -> Range {
         self.pos.clone()
+    }
+    fn file(&self) -> Uuid {
+        self.file.clone()
     }
 }
 

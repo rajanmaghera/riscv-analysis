@@ -33,7 +33,7 @@ impl From<WarningLevel> for DiagnosticSeverity {
 
 impl From<&ParseError> for Diagnostic {
     fn from(e: &ParseError) -> Self {
-        let range = e.get_range();
+        let range = e.range();
         let warning_level: WarningLevel = e.into();
 
         Diagnostic {

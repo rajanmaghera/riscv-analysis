@@ -63,8 +63,8 @@ impl Display for ParseError {
     }
 }
 
-impl ParseError {
-    pub fn file(&self) -> Uuid {
+impl LineDisplay for ParseError {
+    fn file(&self) -> Uuid {
         match self {
             ParseError::Expected(_, info)
             | ParseError::Unsupported(info)
@@ -75,10 +75,8 @@ impl ParseError {
             ParseError::FileNotFound(file) => file.file,
         }
     }
-}
 
-impl LineDisplay for ParseError {
-    fn get_range(&self) -> super::Range {
+    fn range(&self) -> super::Range {
         match self {
             ParseError::Expected(_, info)
             | ParseError::Unsupported(info)

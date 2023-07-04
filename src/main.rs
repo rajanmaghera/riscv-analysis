@@ -26,11 +26,11 @@ use std::{collections::HashMap, iter::Peekable, str::FromStr};
 
 use cfg::Cfg;
 use clap::{Args, Parser, Subcommand};
-use parser::{Lexer, RVParser, With};
+use parser::{Lexer, RVParser};
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use crate::passes::Manager;
+use crate::{parser::LineDisplay, passes::Manager};
 
 mod analysis;
 mod cfg;
@@ -98,12 +98,11 @@ impl IOFileReader {
 }
 
 impl FileReader for IOFileReader {
-    fn get_filename(&self, uuid: uuid::Uuid) -> String {
+    fn get_filename(&self, uuid: uuid::Uuid) -> Option<String> {
         self.files
             .iter()
             .find(|(_, id)| **id == uuid)
             .map(|(path, _)| path.to_owned())
-            .unwrap()
     }
 
     fn import_file(
@@ -120,19 +119,25 @@ impl FileReader for IOFileReader {
                 .map(|(path, _)| path);
             if let Some(parent) = parent {
                 // join parent path to path
-                let parent = PathBuf::from_str(parent).unwrap();
-                let parent = parent.parent().unwrap();
-                parent.join(path).to_str().unwrap().to_owned()
+                let parent = PathBuf::from_str(parent)
+                    .ok()
+                    .ok_or(FileReaderError::InvalidPath)?;
+                let parent = parent.parent().ok_or(FileReaderError::InvalidPath)?;
+                parent
+                    .join(path)
+                    .to_str()
+                    .ok_or(FileReaderError::InvalidPath)?
+                    .to_owned()
             } else {
                 return Err(FileReaderError::InternalFileNotFound);
             }
         } else {
-            let full_path = PathBuf::from_str(path).unwrap();
+            let full_path = PathBuf::from_str(path).map_err(|_| FileReaderError::InvalidPath)?;
             full_path
                 .canonicalize()
-                .unwrap()
+                .map_err(|_| FileReaderError::Unexpected)?
                 .to_str()
-                .unwrap()
+                .ok_or(FileReaderError::Unexpected)?
                 .to_owned()
         };
 
@@ -171,6 +176,10 @@ fn main() {
                 false,
             );
 
+            for err in parsed.1 {
+                println!("{}({}, {}): {}", err, err.file(), err.range(), err);
+            }
+
             let cfg = match Cfg::new(parsed.0) {
                 Ok(cfg) => cfg,
                 _ => {
@@ -180,15 +189,17 @@ fn main() {
             };
 
             let res = Manager::run(cfg.clone(), lint.debug);
-            // println!(
-            //     "{}",
-            //     cfg.nodes.iter().map(|x| x.gen_code()).collect::<String>()
-            // );
             if !lint.no_output {
                 match res {
                     Ok(lints) => {
                         for err in lints {
-                            println!("{}({}): {}", err, err.range(), err.long_description());
+                            println!(
+                                "{}({}, {}): {}",
+                                err,
+                                err.file(),
+                                err.range(),
+                                err.long_description()
+                            );
                         }
                     }
                     Err(err) => println!("Unable to run lint: {err:#?}"),

@@ -1,5 +1,6 @@
 use crate::parser;
 use crate::parser::LabelString;
+use crate::parser::LineDisplay;
 use crate::parser::ParserNode;
 use crate::parser::With;
 use crate::passes::CFGError;
