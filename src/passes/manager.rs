@@ -24,7 +24,7 @@ impl Manager {
         FunctionMarkupPass::run(&mut cfg)?;
         AvailableValuePass::run(&mut cfg)?;
         EcallTerminationPass::run(&mut cfg)?;
-        EliminateDeadCodeDirectionsPass::run(&mut cfg)?; // to eliminate ecall terminated code
+        // EliminateDeadCodeDirectionsPass::run(&mut cfg)?; // to eliminate ecall terminated code
         LivenessPass::run(&mut cfg)?;
         if debug {
             println!("{}", cfg);
