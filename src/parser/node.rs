@@ -6,7 +6,7 @@ use crate::parser::inst::{
 };
 
 use crate::parser::register::Register;
-use crate::parser::token::{Range, Token, With};
+use crate::parser::token::{Range, With};
 
 use std::collections::HashSet;
 
@@ -16,8 +16,9 @@ use uuid::Uuid;
 
 use super::token::Position;
 use super::{
-    Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveType, FuncEntry, IArith, JumpLink,
-    JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, Store, UpperArith,
+    Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry, IArith,
+    JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, Store, Token,
+    UpperArith,
 };
 
 #[derive(Debug, Clone)]
@@ -41,7 +42,7 @@ pub enum ParserNode {
 }
 
 impl ParserNode {
-    fn id(&self) -> Uuid {
+    pub fn id(&self) -> Uuid {
         match self {
             ParserNode::Arith(a) => a.key,
             ParserNode::IArith(a) => a.key,
@@ -85,7 +86,7 @@ impl ParserNode {
             ParserNode::JumpLink(x) => x.inst.token.clone(),
             ParserNode::JumpLinkR(x) => x.inst.token.clone(),
             ParserNode::Basic(x) => x.inst.token.clone(),
-            ParserNode::Directive(x) => x.dir.token.clone(),
+            ParserNode::Directive(x) => x.token.token.clone(),
             ParserNode::Branch(x) => x.inst.token.clone(),
             ParserNode::Store(x) => x.inst.token.clone(),
             ParserNode::Load(x) => x.inst.token.clone(),
@@ -120,7 +121,7 @@ impl ParserNode {
             ParserNode::JumpLink(x) => x.inst.pos.clone(),
             ParserNode::JumpLinkR(x) => x.inst.pos.clone(),
             ParserNode::Basic(x) => x.inst.pos.clone(),
-            ParserNode::Directive(x) => x.dir.pos.clone(),
+            ParserNode::Directive(x) => x.token.pos.clone(),
             ParserNode::Branch(x) => x.inst.pos.clone(),
             ParserNode::Store(x) => x.inst.pos.clone(),
             ParserNode::Load(x) => x.inst.pos.clone(),
@@ -136,7 +137,29 @@ impl ParserNode {
             token,
             data: inst,
             pos,
+            file: self.file(),
         }
+    }
+    pub fn file(&self) -> Uuid {
+        let file = match self {
+            ParserNode::Arith(x) => x.inst.file.clone(),
+            ParserNode::IArith(x) => x.inst.file.clone(),
+            ParserNode::UpperArith(x) => x.inst.file.clone(),
+            ParserNode::Label(x) => x.name.file.clone(),
+            ParserNode::JumpLink(x) => x.inst.file.clone(),
+            ParserNode::JumpLinkR(x) => x.inst.file.clone(),
+            ParserNode::Basic(x) => x.inst.file.clone(),
+            ParserNode::Directive(x) => x.token.file.clone(),
+            ParserNode::Branch(x) => x.inst.file.clone(),
+            ParserNode::Store(x) => x.inst.file.clone(),
+            ParserNode::Load(x) => x.inst.file.clone(),
+            ParserNode::Csr(x) => x.inst.file.clone(),
+            ParserNode::CsrI(x) => x.inst.file.clone(),
+            ParserNode::LoadAddr(x) => x.inst.file.clone(),
+            ParserNode::ProgramEntry(x) => x.file.clone(),
+            ParserNode::FuncEntry(x) => x.file.clone(),
+        };
+        file
     }
 
     pub fn new_arith(
@@ -217,8 +240,9 @@ impl ParserNode {
         })
     }
 
-    pub fn new_directive(dir: With<DirectiveType>) -> ParserNode {
+    pub fn new_directive(token: With<DirectiveToken>, dir: DirectiveType) -> ParserNode {
         ParserNode::Directive(Directive {
+            token,
             dir,
             key: Uuid::new_v4(),
         })
@@ -284,15 +308,17 @@ impl ParserNode {
         })
     }
 
-    pub fn new_func_entry() -> ParserNode {
+    pub fn new_func_entry(file: Uuid) -> ParserNode {
         ParserNode::FuncEntry(FuncEntry {
             key: Uuid::new_v4(),
+            file,
         })
     }
 
-    pub fn new_program_entry() -> ParserNode {
+    pub fn new_program_entry(file: Uuid) -> ParserNode {
         ParserNode::ProgramEntry(ProgramEntry {
             key: Uuid::new_v4(),
+            file,
         })
     }
 
@@ -424,4 +450,25 @@ impl ParserNode {
         };
         vector.into_iter().collect()
     }
+
+    pub fn set_uuid(&mut self, uuid: Uuid) {
+        match self {
+            ParserNode::Arith(x) => x.key = uuid,
+            ParserNode::IArith(x) => x.key = uuid,
+            ParserNode::UpperArith(x) => x.key = uuid,
+            ParserNode::Label(x) => x.key = uuid,
+            ParserNode::JumpLink(x) => x.key = uuid,
+            ParserNode::JumpLinkR(x) => x.key = uuid,
+            ParserNode::Basic(x) => x.key = uuid,
+            ParserNode::Directive(x) => x.key = uuid,
+            ParserNode::Branch(x) => x.key = uuid,
+            ParserNode::Store(x) => x.key = uuid,
+            ParserNode::Load(x) => x.key = uuid,
+            ParserNode::Csr(x) => x.key = uuid,
+            ParserNode::CsrI(x) => x.key = uuid,
+            ParserNode::LoadAddr(x) => x.key = uuid,
+            ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_) => (),
+        }
+    }
+
 }
