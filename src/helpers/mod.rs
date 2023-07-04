@@ -4,7 +4,7 @@ use crate::parser::Lexer;
 use crate::parser::{Info, Position, Range, Token, With};
 
 pub fn tokenize<S: Into<String>>(input: S) -> Vec<Info> {
-    Lexer::new(input).collect()
+    Lexer::new(input, uuid::Uuid::nil()).collect()
 }
 
 impl<T> With<T>
@@ -18,6 +18,7 @@ where
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
             },
+            file: uuid::Uuid::nil(),
             data,
         }
     }
