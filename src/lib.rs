@@ -1,13 +1,13 @@
 use crate::cfg::Cfg;
 use crate::parser::{DirectiveType, ParserNode, RVParser};
 use crate::passes::Manager;
-use lsp_types::{Diagnostic, Position, Range, WorkspaceFolder};
+use lsp_types::{Diagnostic, Position, Range};
 use parser::Lexer;
 use reader::{FileReader, FileReaderError};
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;
 use std::collections::HashSet;
-use std::{collections::HashMap, iter::Peekable, str::FromStr};
+use std::{collections::HashMap, iter::Peekable};
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 mod analysis;
@@ -18,8 +18,6 @@ mod lsp;
 mod parser;
 mod passes;
 mod reader;
-mod testing;
-use wasm_bindgen::prelude::*;
 
 // WASM MODULES
 
@@ -258,5 +256,4 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
     }
 
     serde_wasm_bindgen::to_value(&errs).unwrap()
-
 }

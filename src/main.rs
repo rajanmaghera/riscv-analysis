@@ -30,7 +30,7 @@ use parser::{Lexer, RVParser, With};
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use crate::{passes::Manager, testing::CodeGen};
+use crate::passes::Manager;
 
 mod analysis;
 mod cfg;
@@ -40,7 +40,6 @@ mod lints;
 mod parser;
 mod passes;
 mod reader;
-mod testing;
 
 use reader::{FileReader, FileReaderError};
 
