@@ -9,7 +9,14 @@ impl ParserNode {
         match self.clone() {
             ParserNode::FuncEntry(_) => RegSets::caller_saved(),
             ParserNode::JumpLink(x) => {
-                let mut set = RegSets::caller_saved();
+                // If a jump and link instruction is a call to a function, denoted
+                // by the program counter storing to the ra register, then all
+                // the caller saved registers are killed.
+                let mut set = if x.rd.data == Register::X1 {
+                    RegSets::caller_saved()
+                } else {
+                    HashSet::new()
+                };
                 set.insert(x.rd.data);
                 set
             }
@@ -33,7 +40,7 @@ impl ParserNode {
 
     pub fn gen_reg(&self) -> HashSet<Register> {
         let regs: HashSet<Register> = match self {
-            ParserNode::JumpLinkR(_) if self.is_return() => RegSets::callee_saved(),
+            _ if self.is_return() => RegSets::callee_saved(),
             _ => self.reads_from().into_iter().map(|x| x.data).collect(),
         };
         regs.into_iter()
@@ -57,8 +64,10 @@ impl ParserNode {
         }
     }
     pub fn gen_reg_value(&self) -> Option<(Register, AvailableValue)> {
+        // The function entry case and program entry case is handled separately
+        // to account for all the "original" registers.
+        // TODO do registers need to be saved at program entry?
         match self {
-            // function entry case is handled separately
             ParserNode::LoadAddr(expr) => Some((
                 expr.rd.data,
                 AvailableValue::Address(expr.name.data.clone()),
