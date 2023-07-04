@@ -117,7 +117,7 @@ impl LintError {
             | LintError::UnknownStack(r)
             | LintError::InvalidStackPointer(r)
             | LintError::InvalidStackPosition(r, _)
-            | LintError::OverwriteCalleeSavedRegister(r, _) => r.get_range(),
+            | LintError::OverwriteCalleeSavedRegister(r, _) => r.range(),
         }
     }
 
