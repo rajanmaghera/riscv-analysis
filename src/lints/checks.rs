@@ -8,6 +8,7 @@ use crate::parser::ParserNode;
 use crate::parser::Range;
 use crate::parser::RegSets;
 use crate::parser::Register;
+use crate::parser::With;
 use crate::passes::LintError;
 use crate::passes::LintPass;
 use std::collections::{HashSet, VecDeque};
@@ -20,7 +21,7 @@ use std::rc::Rc;
 impl Cfg {
     // TODO move to a more appropriate place
     // TODO make better, what even is this?
-    fn error_ranges_for_first_usage(node: &Rc<CFGNode>, item: Register) -> Vec<Range> {
+    fn error_ranges_for_first_usage(node: &Rc<CFGNode>, item: Register) -> Vec<With<Register>> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the next nodes onto the queue
@@ -41,7 +42,7 @@ impl Cfg {
             visited.insert(Rc::clone(&next));
             if next.node.gen_reg().contains(&item) {
                 // find the use
-                let regs = next.node.gen_reg();
+                let regs = next.node.reads_from();
                 let mut it = None;
                 for reg in regs {
                     if reg == item {
@@ -49,8 +50,8 @@ impl Cfg {
                         break;
                     }
                 }
-                if let Some(_reg) = it {
-                    ranges.push(next.node.get_range());
+                if let Some(reg) = it {
+                    ranges.push(reg);
                     break;
                 }
                 break;
@@ -71,7 +72,7 @@ impl LintPass for SaveToZeroCheck {
         for node in &cfg.clone() {
             if let Some(register) = node.node.stores_to() {
                 if register == Register::X0 && !node.node.is_return() {
-                    errors.push(LintError::SaveToZero(register.get_range()));
+                    errors.push(LintError::SaveToZero(register.clone()));
                 }
             }
         }
@@ -84,12 +85,11 @@ impl LintPass for DeadValueCheck {
         for (_i, node) in cfg.clone().into_iter().enumerate() {
             // check for any assignments that don't make it
             // to the end of the node
-            for def in node.node.kill_reg() {
-                if !node.live_out().contains(&def) {
+            if let Some(def) = node.node.stores_to() {
+                if !node.live_out().contains(&def.data) {
                     // TODO dead assignment register
-                    errors.push(LintError::DeadAssignment(
-                        node.node.get_store_range().clone(),
-                    ));
+
+                    errors.push(LintError::DeadAssignment(def));
                 }
             }
 
@@ -129,16 +129,13 @@ impl LintPass for ControlFlowCheck {
                 ParserNode::FuncEntry(_) => {
                     if i == 0 || !node.prevs().is_empty() {
                         if let Some(function) = node.function().clone() {
-                            errors.push(LintError::ImproperFuncEntry(
-                                node.node.get_range().clone(),
-                                function,
-                            ));
+                            errors.push(LintError::ImproperFuncEntry(node.node.clone(), function));
                         }
                     }
                 }
                 _ => {
                     if i != 0 && node.prevs().is_empty() {
-                        errors.push(LintError::UnreachableCode(node.node.get_range().clone()));
+                        errors.push(LintError::UnreachableCode(node.node.clone()));
                     }
                 }
             }
@@ -153,7 +150,7 @@ impl LintPass for EcallCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for (_i, node) in cfg.clone().into_iter().enumerate() {
             if node.node.is_ecall() && node.known_ecall().is_none() {
-                errors.push(LintError::UnknownEcall(node.node.get_range()));
+                errors.push(LintError::UnknownEcall(node.node.clone()));
             }
         }
     }
@@ -211,22 +208,21 @@ impl LintPass for StackCheckPass {
             let values = node.reg_values_out();
             match values.get(&Register::X2) {
                 None => {
-                    errors.push(LintError::UnknownStack(node.node.get_range()));
+                    errors.push(LintError::UnknownStack(node.node.clone()));
                     break 'outer;
                 }
                 Some(x) => {
                     if let AvailableValue::OriginalRegisterWithScalar(reg, off) = x {
                         if reg != &Register::X2 {
-                            errors.push(LintError::InvalidStackPointer(node.node.get_range()));
+                            errors.push(LintError::InvalidStackPointer(node.node.clone()));
                             break 'outer;
                         }
                         if off > &0 {
-                            errors
-                                .push(LintError::InvalidStackPosition(node.node.get_range(), *off));
+                            errors.push(LintError::InvalidStackPosition(node.node.clone(), *off));
                             break 'outer;
                         }
                     } else {
-                        errors.push(LintError::InvalidStackPointer(node.node.get_range()));
+                        errors.push(LintError::InvalidStackPointer(node.node.clone()));
                         break 'outer;
                     }
                 }
@@ -250,9 +246,7 @@ impl LintPass for CalleeSavedGarbageReadCheck {
                     && (!node.node.is_memory_access())
                     && node.reg_values_in().is_original_value(read.data)
                 {
-                    errors.push(LintError::InvalidUseBeforeAssignment(
-                        read.get_range().clone(),
-                    ));
+                    errors.push(LintError::InvalidUseBeforeAssignment(read.clone()));
                     // then we are reading a garbage value
                 }
             }
@@ -279,13 +273,13 @@ impl LintPass for CalleeSavedRegisterCheck {
                         if reg2 != &reg || offset != &0 =>
                     {
                         errors.push(LintError::OverwriteCalleeSavedRegister(
-                            func.exit.node.get_range().clone(),
+                            func.exit.node.clone(),
                             reg,
                         ));
                     }
                     _ => {
                         errors.push(LintError::OverwriteCalleeSavedRegister(
-                            func.exit.node.get_range().clone(),
+                            func.exit.node.clone(),
                             reg,
                         ));
                     }

@@ -258,7 +258,6 @@ fn rule_perform_math_ops(
         let result = match (lhs, rhs) {
             (Some(AvailableValue::Constant(x)), Some(AvailableValue::Constant(y))) => node
                 .inst()
-                .data
                 .math_op()
                 .map(|op| op.operate(x, y))
                 .map(AvailableValue::Constant),
@@ -271,7 +270,6 @@ fn rule_perform_math_ops(
                 Some(AvailableValue::OriginalRegisterWithScalar(new_reg, y)),
             ) => node
                 .inst()
-                .data
                 .scalar_op()
                 .map(|op| op.operate(x, y))
                 .map(|z| AvailableValue::OriginalRegisterWithScalar(new_reg, z)),

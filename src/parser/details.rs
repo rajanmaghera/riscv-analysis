@@ -1,25 +1,12 @@
+use std::fmt::Display;
+
 use uuid::Uuid;
 
 use super::{
-    ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, IArithType, IgnoreType, Imm,
-    JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, Register, StoreType,
-    UpperArithType, With,
+    ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, DirectiveToken, IArithType,
+    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, Register,
+    StoreType, UpperArithType, With,
 };
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DirectiveType {
-    Nop, // Include(WithToken<String>),
-         // Align(WithToken<i32>),
-         // Space(WithToken<i32>),
-         // Text,
-         // Data, /
-}
-
-impl std::fmt::Display for DirectiveType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Arith {
@@ -94,9 +81,23 @@ pub struct Store {
     pub key: Uuid,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DirectiveType {
+    Include(With<String>),
+}
+
+impl Display for DirectiveType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DirectiveType::Include(s) => write!(f, "include {}", s),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Directive {
-    pub dir: With<DirectiveType>,
+    pub token: With<DirectiveToken>,
+    pub dir: DirectiveType,
     pub key: Uuid,
 }
 
@@ -142,10 +143,12 @@ pub struct UpperArith {
 
 #[derive(Debug, Clone)]
 pub struct FuncEntry {
+    pub file: Uuid,
     pub key: Uuid,
 }
 
 #[derive(Debug, Clone)]
 pub struct ProgramEntry {
+    pub file: Uuid,
     pub key: Uuid,
 }

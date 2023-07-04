@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use uuid::Uuid;
+
 use crate::parser::Inst;
 
 use super::{LineDisplay, ParserNode, Position, Range};
@@ -46,7 +48,7 @@ impl Display for ParserNode {
                 format!("{inst}")
             }
             ParserNode::Directive(x) => {
-                let dir = x.dir.data.to_string();
+                let dir = x.dir.to_string();
                 format!("-<{dir}>-")
             }
             ParserNode::Branch(x) => {
@@ -95,18 +97,30 @@ impl Display for ParserNode {
     }
 }
 
-impl ParserNode {
-    pub fn get_store_range(&self) -> Range {
-        if let Some(item) = self.stores_to() {
-            item.pos
-        } else {
-            self.get_range()
-        }
-    }
-}
-
 impl LineDisplay for ParserNode {
-    fn get_range(&self) -> Range {
+    fn file(&self) -> Uuid {
+        let file = match self {
+            ParserNode::Arith(x) => x.inst.file.clone(),
+            ParserNode::IArith(x) => x.inst.file.clone(),
+            ParserNode::UpperArith(x) => x.inst.file.clone(),
+            ParserNode::Label(x) => x.name.file.clone(),
+            ParserNode::JumpLink(x) => x.inst.file.clone(),
+            ParserNode::JumpLinkR(x) => x.inst.file.clone(),
+            ParserNode::Basic(x) => x.inst.file.clone(),
+            ParserNode::Directive(x) => x.token.file.clone(),
+            ParserNode::Branch(x) => x.inst.file.clone(),
+            ParserNode::Store(x) => x.inst.file.clone(),
+            ParserNode::Load(x) => x.inst.file.clone(),
+            ParserNode::Csr(x) => x.inst.file.clone(),
+            ParserNode::CsrI(x) => x.inst.file.clone(),
+            ParserNode::LoadAddr(x) => x.inst.file.clone(),
+            ParserNode::ProgramEntry(x) => x.file.clone(),
+            ParserNode::FuncEntry(x) => x.file.clone(),
+        };
+        file
+    }
+
+    fn range(&self) -> Range {
         match &self {
             ParserNode::UpperArith(x) => {
                 let mut range = x.inst.pos.clone();
@@ -165,7 +179,7 @@ impl LineDisplay for ParserNode {
                 range.end = x.name.pos.end;
                 range
             }
-            ParserNode::Directive(directive) => directive.dir.pos.clone(),
+            ParserNode::Directive(directive) => directive.token.pos.clone(),
             ParserNode::FuncEntry(_) | ParserNode::ProgramEntry(_) => Range {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },

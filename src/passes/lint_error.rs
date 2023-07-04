@@ -1,37 +1,41 @@
 use std::rc::Rc;
 
+use uuid::Uuid;
+
 use crate::cfg::Function;
 
+use crate::parser::LineDisplay;
+use crate::parser::ParserNode;
 use crate::parser::Range;
 use crate::parser::Register;
+use crate::parser::With;
 
 #[derive(Debug)]
 // Read/write within the text section
 
-// TODO REPLACE RANGES WITH With<___ like Register>
 pub enum LintError {
     // if a loop variable does not change, then it will infinitely run
     // if a branch is always going to execute (i.e. if true) using constants and zero register
-    InvalidUseAfterCall(Range, Rc<Function>),
-    InvalidUseBeforeAssignment(Range),
-    // TODO add tokens/registers to all
-    // separate into invalid use
-    OverwriteCalleeSavedRegister(Range, Register),
-    ImproperFuncEntry(Range, Rc<Function>), // if a function has any prev items, (including program entry)
-    DeadAssignment(Range),
-    SaveToZero(Range),
-    UnknownEcall(Range),
-    UnknownStack(Range),              // stack value is not definitely known
-    InvalidStackPointer(Range),       // stack value is being overwritten
-    InvalidStackPosition(Range, i32), // stack value is wrong way (positive)
-    UnreachableCode(Range),           // -- code that is unreachable
-                                      // SetBadRegister(Range, Register), -- used when setting registers that should not be set
-                                      // OverwriteRaRegister(Range), -- used when overwriting the return address register
-                                      // OverwriteRegister(Range, Register), -- used when overwriting a register that has not been saved
-                                      // FallOffEnd(Range), program may fall off the end of code
-                                      // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
-                                      // ProgramExit in the middle of a function
-                                      // NonMatchingOffset -- if the multiple of the offset does not match the instruction (ex. 4 for lw), then it is a warning
+    InvalidUseAfterCall(With<Register>, Rc<Function>),
+    InvalidUseBeforeAssignment(With<Register>),
+    OverwriteCalleeSavedRegister(ParserNode, Register),
+    ImproperFuncEntry(ParserNode, Rc<Function>), // if a function has any prev items, (including program entry)
+    DeadAssignment(With<Register>),
+    SaveToZero(With<Register>),
+    UnknownEcall(ParserNode),
+    UnknownStack(ParserNode),        // stack value is not definitely known
+    InvalidStackPointer(ParserNode), // stack value is being overwritten
+    InvalidStackPosition(ParserNode, i32), // stack value is wrong way (positive)
+    UnreachableCode(ParserNode),     // -- code that is unreachable
+                                     // SetBadRegister(Range, Register), -- used when setting registers that should not be set
+                                     // OverwriteRaRegister(Range), -- used when overwriting the return address register
+                                     // OverwriteRegister(Range, Register), -- used when overwriting a register that has not been saved
+                                     // FallOffEnd(Range), program may fall off the end of code
+                                     // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
+                                     // ProgramExit in the middle of a function
+                                     // NonMatchingOffset -- if the multiple of the offset does not match the instruction (ex. 4 for lw), then it is a warning
+                                     // LoadAddressFromTextLabel -- if the address is a label in the text area, then it is a warning
+                                     // AnyJumpToData -- if any jump is to a data label, then it is a warning (label strings should have data/text prefix)
 }
 
 pub enum WarningLevel {
@@ -103,17 +107,33 @@ impl LintError {
 
     pub fn range(&self) -> Range {
         match self {
-            LintError::DeadAssignment(r)
+            LintError::InvalidUseAfterCall(r, _)
             | LintError::SaveToZero(r)
-            | LintError::InvalidUseAfterCall(r, _)
             | LintError::InvalidUseBeforeAssignment(r)
-            | LintError::ImproperFuncEntry(r, _)
+            | LintError::DeadAssignment(r) => r.pos.clone(),
+            LintError::ImproperFuncEntry(r, _)
             | LintError::UnknownEcall(r)
             | LintError::UnreachableCode(r)
             | LintError::UnknownStack(r)
             | LintError::InvalidStackPointer(r)
             | LintError::InvalidStackPosition(r, _)
-            | LintError::OverwriteCalleeSavedRegister(r, _) => r.clone(),
+            | LintError::OverwriteCalleeSavedRegister(r, _) => r.range(),
+        }
+    }
+
+    pub fn file(&self) -> Uuid {
+        match self {
+            LintError::InvalidUseAfterCall(r, _)
+            | LintError::SaveToZero(r)
+            | LintError::InvalidUseBeforeAssignment(r)
+            | LintError::DeadAssignment(r) => r.file,
+            LintError::ImproperFuncEntry(r, _)
+            | LintError::UnknownEcall(r)
+            | LintError::UnreachableCode(r)
+            | LintError::UnknownStack(r)
+            | LintError::InvalidStackPointer(r)
+            | LintError::InvalidStackPosition(r, _)
+            | LintError::OverwriteCalleeSavedRegister(r, _) => r.file(),
         }
     }
 }

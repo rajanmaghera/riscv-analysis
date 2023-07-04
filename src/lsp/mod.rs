@@ -2,7 +2,7 @@
 
 use std::convert::From;
 
-use crate::parser::Range as MyRange;
+use crate::parser::{LineDisplay, ParseError, Range as MyRange};
 use crate::passes::LintError::*;
 use crate::passes::{LintError, WarningLevel};
 use lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
@@ -27,6 +27,25 @@ impl From<WarningLevel> for DiagnosticSeverity {
         match w {
             WarningLevel::Warning => DiagnosticSeverity::WARNING,
             WarningLevel::Error => DiagnosticSeverity::ERROR,
+        }
+    }
+}
+
+impl From<&ParseError> for Diagnostic {
+    fn from(e: &ParseError) -> Self {
+        let range = e.range();
+        let warning_level: WarningLevel = e.into();
+
+        Diagnostic {
+            range: (&range).into(),
+            severity: Some(warning_level.into()),
+            code: None,
+            code_description: None,
+            source: None,
+            message: e.to_string(),
+            related_information: None,
+            tags: None,
+            data: None,
         }
     }
 }

@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use crate::parser::token::Token;
 use crate::parser::token::{Info, Position, Range};
 
@@ -9,6 +11,7 @@ const EOF_CONST: char = 3 as char;
 /// getting the next token.
 pub struct Lexer {
     source: String,
+    pub source_id: Uuid,
     ch: char,
     pos: usize,
     row: usize,
@@ -17,9 +20,10 @@ pub struct Lexer {
 
 impl Lexer {
     /// Create a new lexer from a string.
-    pub fn new<S: Into<String>>(source: S) -> Lexer {
+    pub fn new<S: Into<String>>(source: S, id: Uuid) -> Lexer {
         let mut lex = Lexer {
             source: source.into(),
+            source_id: id,
             ch: '\0',
             pos: 0,
             row: 0,
@@ -121,6 +125,7 @@ impl Iterator for Lexer {
 
                 Some(Info {
                     token: Token::Newline,
+                    file: self.source_id,
                     pos,
                 })
             }
@@ -130,6 +135,7 @@ impl Iterator for Lexer {
 
                 Some(Info {
                     token: Token::LParen,
+                    file: self.source_id,
                     pos,
                 })
             }
@@ -139,6 +145,7 @@ impl Iterator for Lexer {
 
                 Some(Info {
                     token: Token::RParen,
+                    file: self.source_id,
                     pos,
                 })
             }
@@ -164,6 +171,7 @@ impl Iterator for Lexer {
                 Some(Info {
                     token: Token::Directive(dir_str.clone()),
                     pos: Range { start, end },
+                    file: self.source_id,
                 })
             }
             '#' => {
@@ -180,6 +188,7 @@ impl Iterator for Lexer {
                 Some(Info {
                     token: Token::Newline,
                     pos: self.get_range(),
+                    file: self.source_id,
                 })
             }
 
@@ -204,6 +213,7 @@ impl Iterator for Lexer {
                 Some(Info {
                     token: Token::String(string_str.clone()),
                     pos: Range { start, end },
+                    file: self.source_id,
                 })
             }
             _ => {
@@ -229,6 +239,7 @@ impl Iterator for Lexer {
                     return Some(Info {
                         token: Token::Label(symbol_str.clone()),
                         pos: Range { start, end },
+                        file: self.source_id,
                     });
                 }
 
@@ -237,6 +248,7 @@ impl Iterator for Lexer {
                 Some(Info {
                     token: Token::Symbol(symbol_str.clone()),
                     pos: Range { start, end },
+                    file: self.source_id,
                 })
             }
         }
