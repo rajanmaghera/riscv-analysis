@@ -33,7 +33,7 @@ impl GenerationPass for LivenessPass {
                         .live_out()
                         .intersection_c(&func.exit.u_def())
                         .union_c(&func.exit.live_in())
-                        .union_c(&func.exit.node.gen_reg());
+                        .union_c(&func.exit.node().gen_reg());
 
                     if func_exit_live_in != func.exit.live_in() {
                         changed = true;
@@ -76,7 +76,7 @@ impl GenerationPass for LivenessPass {
                         changed = true;
                         node.set_u_def(u_def);
                     }
-                } else if node.node.is_ecall() {
+                } else if node.node().is_ecall() {
                     // TODO check if saved registers get screwed up here
 
                     // u_def[n] = live_out[n]
@@ -102,7 +102,7 @@ impl GenerationPass for LivenessPass {
                         changed = true;
                         node.set_u_def(u_def);
                     }
-                } else if node.node.is_return() {
+                } else if node.node().is_return() {
                     // u_def[n] = AND u_def[s] for all s in prev[n]
                     let u_def = node
                         .prevs()
@@ -116,12 +116,12 @@ impl GenerationPass for LivenessPass {
                         changed = true;
                         node.set_u_def(u_def);
                     }
-                } else if node.node.is_function_entry() {
+                } else if node.node().is_function_entry() {
                     // live_in[n] = gen[n] U (live_out[n] - kill[n])
                     let live_in = node
                         .live_out()
-                        .difference_c(&node.node.kill_reg())
-                        .union_c(&node.node.gen_reg());
+                        .difference_c(&node.node().kill_reg())
+                        .union_c(&node.node().gen_reg());
 
                     // u_def[n] = live_in[n]
                     let u_def = live_in.clone();
@@ -147,8 +147,8 @@ impl GenerationPass for LivenessPass {
                     // live_in[n] = gen[n] U (live_out[n] - kill[n])
                     let live_in = node
                         .live_out()
-                        .difference_c(&node.node.kill_reg())
-                        .union_c(&node.node.gen_reg());
+                        .difference_c(&node.node().kill_reg())
+                        .union_c(&node.node().gen_reg());
 
                     if live_in != node.live_in() {
                         changed = true;

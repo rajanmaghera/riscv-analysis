@@ -40,7 +40,7 @@ where
 
 impl Display for CFGNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}\n", self.node))?;
+        f.write_fmt(format_args!("{}\n", self.node()))?;
         f.write_fmt(format_args!("  | LIVE | {}\n", self.live_out().str()))?;
         f.write_fmt(format_args!("  | VALS | {}\n", self.reg_values_out().str()))?;
         f.write_fmt(format_args!(

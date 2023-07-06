@@ -150,20 +150,20 @@ impl GenerationPass for AvailableValuePass {
                 // out[n] = gen[n] U (in[n] - kill[n]) U (callee_saved if n is entry)
                 let mut out_reg_n = node
                     .reg_values_in()
-                    .difference(&node.node.kill_reg_value())
-                    .union(&node.node.gen_reg_value())
+                    .difference(&node.node().kill_reg_value())
+                    .union(&node.node().gen_reg_value())
                     .union_if(
                         &RegSets::callee_saved().into_available(),
-                        node.node.is_any_entry(),
+                        node.node().is_any_entry(),
                     );
 
                 // out_stacks[n] = (gen_stacks[n] if we know the location of the stack pointer) U in_stacks[n]
                 // (There is no kill_stacks[n])
-                let mut out_stack_n = if node.node.is_any_entry() {
+                let mut out_stack_n = if node.node().is_any_entry() {
                     HashMap::new()
                 } else {
                     node.stack_values_in().union_filter_map(
-                        &node.node.gen_stack_value(),
+                        &node.node().gen_stack_value(),
                         |(off, val)| {
                             node.reg_values_in()
                                 .stack_offset()
@@ -177,10 +177,10 @@ impl GenerationPass for AvailableValuePass {
                 // We use a series of rules to determine new available values
                 // that change our outs.
 
-                rule_expand_address_for_load(&node.node, &mut out_reg_n, &node.reg_values_in());
-                rule_perform_math_ops(&node.node, &mut out_reg_n, &node.reg_values_in());
-                rule_known_values_to_stack(&node.node, &mut out_stack_n, &node.reg_values_in());
-                rule_value_from_stack(&node.node, &mut out_reg_n, &node.stack_values_in());
+                rule_expand_address_for_load(&node.node(), &mut out_reg_n, &node.reg_values_in());
+                rule_perform_math_ops(&node.node(), &mut out_reg_n, &node.reg_values_in());
+                rule_known_values_to_stack(&node.node(), &mut out_stack_n, &node.reg_values_in());
+                rule_value_from_stack(&node.node(), &mut out_reg_n, &node.stack_values_in());
 
                 // If either of the outs changed, replace the old outs with the new outs
                 // and mark that we changed something.

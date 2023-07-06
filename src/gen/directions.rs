@@ -16,7 +16,7 @@ impl GenerationPass for NodeDirectionPass {
         let mut prev = None;
         for node in nodes {
             // If node jumps to another node, add it to the nexts of the current node and the prevs of the node it jumps to.
-            if let Some(label) = node.node.jumps_to() {
+            if let Some(label) = node.node().jumps_to() {
                 let jump_to_node = nodes
                     .iter()
                     .find(|n| n.labels.contains(&label))
@@ -33,7 +33,7 @@ impl GenerationPass for NodeDirectionPass {
             }
 
             // Set previous node to current node, if it is not a return
-            prev = if node.node.is_return() {
+            prev = if node.node().is_return() {
                 None
             } else {
                 Some(Rc::clone(node))
