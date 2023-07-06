@@ -20,11 +20,6 @@ pub enum CFGError {
     /// This error occurs when a return statement is used but can be reached by
     /// no labels.
     NoLabelForReturn(ParserNode),
-    /// This error occurs when there are multiple returns for a label.
-    ///
-    /// This error is temporary and will be removed from a future version of
-    /// the compiler.
-    MultipleReturnsForLabel(HashSet<With<LabelString>>, HashSet<ParserNode>),
     /// Unexpected error
     UnexpectedError,
     /// Assertion error

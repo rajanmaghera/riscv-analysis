@@ -16,7 +16,7 @@ use super::Function;
 
 #[derive(Debug)]
 pub struct CFGNode {
-    pub node: ParserNode,
+    node: RefCell<ParserNode>,
     pub labels: HashSet<With<LabelString>>,
     nexts: RefCell<HashSet<Rc<CFGNode>>>,
     prevs: RefCell<HashSet<Rc<CFGNode>>>,
@@ -33,7 +33,7 @@ pub struct CFGNode {
 impl CFGNode {
     pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>) -> Self {
         CFGNode {
-            node,
+            node: RefCell::new(node),
             labels,
             nexts: RefCell::new(HashSet::new()),
             prevs: RefCell::new(HashSet::new()),
@@ -46,6 +46,16 @@ impl CFGNode {
             live_out: RefCell::new(HashSet::new()),
             u_def: RefCell::new(HashSet::new()),
         }
+    }
+
+    #[inline(always)]
+    pub fn set_node(&self, node: ParserNode) {
+        *self.node.borrow_mut() = node;
+    }
+
+    #[inline(always)]
+    pub fn node(&self) -> ParserNode {
+        self.node.borrow().clone()
     }
 
     #[inline(always)]
@@ -140,7 +150,7 @@ impl CFGNode {
 
     #[inline(always)]
     pub fn calls_to(&self, cfg: &Cfg) -> Option<Rc<Function>> {
-        if let Some(name) = self.node.calls_to() {
+        if let Some(name) = self.node().calls_to() {
             cfg.label_function_map.get(&name).cloned()
         } else {
             None
@@ -148,7 +158,7 @@ impl CFGNode {
     }
 
     pub fn known_ecall(&self) -> Option<i32> {
-        if self.node.is_ecall() {
+        if self.node().is_ecall() {
             if let Some(AvailableValue::Constant(call_num)) =
                 self.reg_values_in().get(&Register::ecall_type())
             {
@@ -218,7 +228,7 @@ impl CFGNode {
 
 impl Hash for CFGNode {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.node.hash(state);
+        self.node().hash(state);
     }
 }
 

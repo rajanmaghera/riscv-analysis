@@ -18,15 +18,6 @@ pub struct Cfg {
     pub label_function_map: HashMap<With<LabelString>, Rc<Function>>,
 }
 
-// impl FromStr for Cfg {
-//     type Err = Box<CFGError>;
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         let parser = Parser::new(s);
-//         let nodes = parser.collect::<Vec<ParserNode>>();
-//         Cfg::new(nodes)
-//     }
-// }
-
 impl IntoIterator for &Cfg {
     type Item = Rc<CFGNode>;
     type IntoIter = std::vec::IntoIter<Self::Item>;

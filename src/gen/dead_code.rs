@@ -16,7 +16,7 @@ impl GenerationPass for EliminateDeadCodeDirectionsPass {
             changed = false;
             let old = nodes.clone();
             for node in nodes {
-                if node.node.is_return() || node.node.is_any_entry() {
+                if node.node().is_return() || node.node().is_any_entry() {
                     continue;
                 }
                 // If the node has no nexts, remove it from the prevs of all its prevs
