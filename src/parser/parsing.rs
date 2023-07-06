@@ -212,6 +212,9 @@ fn get_string(value: Option<Info>) -> Result<With<String>, LexError> {
 impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
     type Error = LexError;
 
+    // TODO enforce that all "missing" values for With<> resolve to the token
+    // of the instruction
+
     #[allow(clippy::too_many_lines)]
     fn try_from(value: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
         use LexError::{Expected, Ignored, IsNewline, NeedTwoNodes, UnexpectedEOF};
