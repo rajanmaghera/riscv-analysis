@@ -21,6 +21,7 @@ pub enum LexError {
     NeedTwoNodes(Box<ParserNode>, Box<ParserNode>),
     UnexpectedError(Info),
     UnknownDirective(Info),
+    UnsupportedDirective(Info),
 }
 
 #[derive(Debug, Clone)]

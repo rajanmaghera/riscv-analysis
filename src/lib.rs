@@ -54,16 +54,6 @@ impl WrapperDiag {
     }
 }
 
-// impl From<Vec<>> for WrapperDiag {
-//     fn from(e: PassErrors) -> Self {
-//         let mut diag = Vec::new();
-//         for err in e.errors {
-//             diag.push(Diagnostic::from(err));
-//         }
-//         WrapperDiag(diag)
-//     }
-// }
-
 struct LSPFileReader {
     file_uris: HashMap<Uuid, LSPRVDocument>,
 }
@@ -256,7 +246,7 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
     let mut errs = Vec::new();
     for (uri, diags) in diag_map {
         errs.push(LSPRVDiagnostic {
-            uri: uri,
+            uri,
             diagnostics: diags,
         });
     }

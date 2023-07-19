@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::parser::token::{Info, Token};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Imm(pub i32);
 
 impl TryFrom<Info> for Imm {

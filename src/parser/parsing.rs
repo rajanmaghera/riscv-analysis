@@ -3,7 +3,7 @@ use crate::parser::inst::{
     PseudoType, Type,
 };
 use crate::parser::token::With;
-use crate::parser::Register;
+use crate::parser::{DataType, Register};
 use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{DirectiveType, ParserNode};
 use crate::parser::{Lexer, Token};
@@ -151,10 +151,13 @@ impl<T: FileReader> RVParser<T> {
                         parse_errors.push(ParseError::UnknownDirective(y));
                         self.recover_from_parse_error();
                     }
+                    LexError::UnsupportedDirective(y) => {
+                        parse_errors.push(ParseError::Unsupported(y));
+                        self.recover_from_parse_error();
+                    }
                 },
             }
         }
-        println!("parse errors: {:?}", parse_errors);
         (nodes, parse_errors)
     }
 
@@ -418,6 +421,22 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         rs1,
                                         rs2,
                                         imm,
+                                    ))
+                                } else if let Ok(tmp) = get_reg(value.peek().cloned()) {
+                                    value.next();
+                                    Err(LexError::NeedTwoNodes(
+                                        Box::new(ParserNode::new_iarith(
+                                            With::new(IArithType::Addi, next_node.clone()),
+                                            tmp.clone(),
+                                            With::new(Register::X0, next_node.clone()),
+                                            imm,
+                                        )),
+                                        Box::new(ParserNode::new_store(
+                                            With::new(inst, next_node.clone()),
+                                            tmp.clone(),
+                                            rs2,
+                                            With::new(Imm(0), next_node),
+                                        )),
                                     ))
                                 } else {
                                     Ok(ParserNode::new_store(
@@ -760,19 +779,111 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
             Token::Directive(dir) => {
                 if let Ok(directive) = DirectiveToken::from_str(dir) {
                     match directive {
-                        DirectiveToken::Align => todo!(),
-                        DirectiveToken::Ascii => todo!(),
-                        DirectiveToken::Asciz => todo!(),
-                        DirectiveToken::Byte => todo!(),
-                        DirectiveToken::Data => todo!(),
-                        DirectiveToken::Double => todo!(),
-                        DirectiveToken::Dword => todo!(),
-                        DirectiveToken::EndMacro => todo!(),
-                        DirectiveToken::Eqv => todo!(),
-                        DirectiveToken::Extern => todo!(),
-                        DirectiveToken::Float => todo!(),
-                        DirectiveToken::Global | DirectiveToken::Globl => todo!(),
-                        DirectiveToken::Half => todo!(),
+                        DirectiveToken::Align => {
+                            let imm = get_imm(value.next())?;
+                            return Ok(ParserNode::new_directive(
+                                With::new(directive, next_node.clone()),
+                                DirectiveType::Align(imm),
+                            ));
+                        }
+                        DirectiveToken::Ascii => {
+                            let string = get_string(value.next())?;
+                            return Ok(ParserNode::new_directive(
+                                With::new(directive, next_node.clone()),
+                                DirectiveType::Ascii {
+                                    text: string.clone(),
+                                    null_term: false,
+                                },
+                            ));
+                        }
+                        DirectiveToken::Asciz | DirectiveToken::String => {
+                            let string = get_string(value.next())?;
+                            return Ok(ParserNode::new_directive(
+                                With::new(directive, next_node.clone()),
+                                DirectiveType::Ascii {
+                                    text: string.clone(),
+                                    null_term: true,
+                                },
+                            ));
+                        }
+                        DirectiveToken::Byte
+                        | DirectiveToken::Double
+                        | DirectiveToken::Dword
+                        | DirectiveToken::Float
+                        | DirectiveToken::Word
+                        | DirectiveToken::Half => {
+                            let data_type = match directive {
+                                DirectiveToken::Byte => DataType::Byte,
+                                DirectiveToken::Double => DataType::Double,
+                                DirectiveToken::Dword => DataType::Dword,
+                                DirectiveToken::Float => DataType::Float,
+                                DirectiveToken::Word => DataType::Word,
+                                DirectiveToken::Half => DataType::Half,
+                                _ => unreachable!(),
+                            };
+
+                            // keep looping through values until immediate or nl is
+                            // not found
+                            let mut values = Vec::new();
+                            loop {
+                                let next = value.peek();
+                                if let Some(next) = next {
+                                    if let Token::Newline = next.token {
+                                        // consume newline
+                                        value.next();
+                                        continue;
+                                    }
+                                } else {
+                                    return Err(LexError::UnexpectedEOF);
+                                }
+
+                                // try to get immediate
+                                let imm = get_imm(next.cloned());
+                                if let Ok(imm) = imm {
+                                    values.push(imm);
+                                    value.next();
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            return Ok(ParserNode::new_directive(
+                                With::new(directive, next_node.clone()),
+                                DirectiveType::Data(data_type, values),
+                            ));
+                        }
+                        DirectiveToken::Data => {
+                            return Ok(ParserNode::new_directive(
+                                With::new(directive, next_node.clone()),
+                                DirectiveType::DataSection,
+                            ));
+                        }
+                        DirectiveToken::Macro => {
+                            // macros are unsupported
+                            // we will just ignore them until the we reach endmacro
+                            loop {
+                                let next = value.next();
+                                if let Some(next) = next {
+                                    if let Token::Directive(dir) = next.token {
+                                        if let Ok(directive) = DirectiveToken::from_str(&dir) {
+                                            if directive == DirectiveToken::EndMacro {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    return Err(LexError::UnexpectedEOF);
+                                }
+                            }
+                            return Err(LexError::Ignored(next_node));
+                        }
+                        DirectiveToken::EndMacro => return Err(LexError::Ignored(next_node)),
+                        DirectiveToken::Eqv => {
+                            return Err(LexError::UnsupportedDirective(next_node));
+                        }
+                        DirectiveToken::Global | DirectiveToken::Globl => {
+                            return Err(LexError::UnsupportedDirective(next_node));
+                        }
                         DirectiveToken::Include => {
                             let filename = get_string(value.next())?;
                             return Ok(ParserNode::new_directive(
@@ -780,12 +891,25 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 DirectiveType::Include(filename),
                             ));
                         }
-                        DirectiveToken::Macro => todo!(),
-                        DirectiveToken::Section => todo!(),
-                        DirectiveToken::Space => todo!(),
-                        DirectiveToken::String => todo!(),
-                        DirectiveToken::Text => todo!(),
-                        DirectiveToken::Word => todo!(),
+                        DirectiveToken::Section => {
+                            return Err(LexError::UnsupportedDirective(next_node));
+                        }
+                        DirectiveToken::Extern => {
+                            return Err(LexError::UnsupportedDirective(next_node));
+                        }
+                        DirectiveToken::Space => {
+                            let imm = get_imm(value.next())?;
+                            return Ok(ParserNode::new_directive(
+                                With::new(directive, next_node.clone()),
+                                DirectiveType::Space(imm),
+                            ));
+                        }
+                        DirectiveToken::Text => {
+                            return Ok(ParserNode::new_directive(
+                                With::new(directive, next_node.clone()),
+                                DirectiveType::TextSection,
+                            ));
+                        }
                     }
                 } else {
                     return Err(LexError::UnknownDirective(next_node.clone()));

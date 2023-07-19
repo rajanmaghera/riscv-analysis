@@ -26,8 +26,9 @@ impl FromStr for LabelString {
             return Err(());
         }
 
-        // ensure string only starts with a letter
-        if !s.chars().next().ok_or(())?.is_alphabetic() {
+        // ensure string only starts with a letter or underscore
+        let first = s.chars().next().ok_or(())?;
+        if !first.is_alphabetic() && first != '_' {
             return Err(());
         }
 

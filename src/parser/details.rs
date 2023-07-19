@@ -82,14 +82,57 @@ pub struct Store {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DataType {
+    Byte,
+    Half,
+    Word,
+    Double,
+    Dword,
+    Float,
+}
+
+impl Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DataType::Byte => write!(f, "byte"),
+            DataType::Half => write!(f, "half"),
+            DataType::Word => write!(f, "word"),
+            DataType::Double => write!(f, "double"),
+            DataType::Dword => write!(f, "dword"),
+            DataType::Float => write!(f, "float"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DirectiveType {
     Include(With<String>),
+    Align(With<Imm>),
+    Ascii { text: With<String>, null_term: bool },
+    DataSection,
+    TextSection,
+    Data(DataType, Vec<With<Imm>>),
+    Space(With<Imm>),
 }
 
 impl Display for DirectiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DirectiveType::Include(s) => write!(f, "include {}", s),
+            DirectiveType::Align(i) => write!(f, "align {}", i.data.0),
+            DirectiveType::Ascii { text, .. } => {
+                write!(f, "ascii \"{}\"", text.data)
+            }
+            DirectiveType::DataSection => write!(f, ".data"),
+            DirectiveType::TextSection => write!(f, ".text"),
+            DirectiveType::Data(dt, data) => {
+                write!(f, "{} ", dt)?;
+                for d in data {
+                    write!(f, "{}, ", d.data.0)?;
+                }
+                Ok(())
+            }
+            DirectiveType::Space(i) => write!(f, "space {}", i.data.0),
         }
     }
 }
