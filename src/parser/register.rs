@@ -57,7 +57,7 @@ impl FromStr for Register {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
+        match s {
             "x0" | "zero" => Ok(Register::X0),
             "x1" | "ra" => Ok(Register::X1),
             "x2" | "sp" => Ok(Register::X2),
