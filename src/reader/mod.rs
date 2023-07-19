@@ -2,7 +2,7 @@ use std::iter::Peekable;
 
 use uuid::Uuid;
 
-use crate::parser::{Lexer, With};
+use crate::parser::Lexer;
 
 #[derive(Debug)]
 pub enum FileReaderError {
