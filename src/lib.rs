@@ -2,7 +2,8 @@ use crate::cfg::Cfg;
 use crate::parser::{DirectiveType, ParserNode, RVParser};
 use crate::passes::Manager;
 use lsp_types::{Diagnostic, Position, Range};
-use parser::{Lexer, LineDisplay};
+use parser::Lexer;
+use passes::DiagnosticLocation;
 use reader::{FileReader, FileReaderError};
 use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen::to_value;
@@ -20,11 +21,6 @@ mod passes;
 mod reader;
 
 // WASM MODULES
-
-#[wasm_bindgen]
-pub fn riscv_parse(input: &str) -> Result<String, String> {
-    Ok(format!("Hello, {}!", input))
-}
 
 #[derive(Default)]
 pub struct WrapperDiag(pub Vec<Diagnostic>);
@@ -168,7 +164,7 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
                 ParserNode::Directive(x) => match x.dir {
                     DirectiveType::Include(name) => {
                         // get full file path
-                        let this_uri = parser.get_full_url(&name.data, x.token.file);
+                        let this_uri = parser.get_full_url(&name.data, x.dir_token.file);
                         // add to set
                         imported.insert(this_uri);
                         // imports.insert(this_uri);
