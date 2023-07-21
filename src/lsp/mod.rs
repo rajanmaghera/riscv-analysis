@@ -2,8 +2,8 @@
 
 use std::convert::From;
 
-use crate::parser::{LineDisplay, ParseError, Range as MyRange};
-use crate::passes::LintError::*;
+use crate::parser::{ParseError, Range as MyRange};
+use crate::passes::{DiagnosticLocation, DiagnosticMessage, LintError::*};
 use crate::passes::{LintError, WarningLevel};
 use lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 
@@ -54,24 +54,7 @@ impl From<&LintError> for Diagnostic {
     fn from(e: &LintError) -> Self {
         let range = e.range();
         let related = match &e {
-            InvalidUseAfterCall(_, _label) => Some(vec![
-            //     DiagnosticRelatedInformation {
-            //     location: lsp_types::Location {
-            //         uri: lsp_types::Url::parse("file:///"),
-            //         range: label.pos.borrow().into(),
-            //     },
-            //     message: format!(
-            //         "The function call to [{}] invalidates any temporary registers afterwards.",
-            //         label
-            //             .entry
-            //             .labels
-            //             .iter()
-            //             .map(|x| x.data.0.clone())
-            //             .collect::<Vec<_>>()
-            //             .join(", ")
-            //     ),
-            // }
-            ]),
+            InvalidUseAfterCall(_, _label) => Some(vec![]),
             _ => None,
         };
 
