@@ -7,7 +7,6 @@ use crate::parser::inst::{
 
 use crate::parser::register::Register;
 use crate::parser::token::With;
-use crate::passes::DiagnosticLocation;
 
 use std::collections::HashSet;
 

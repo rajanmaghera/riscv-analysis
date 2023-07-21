@@ -194,7 +194,7 @@ impl Info {
 }
 
 impl<'a> AnnotatedLexer<'a> {
-    fn expect_lparen(&mut self) -> Result<(), LexError> {
+    fn _expect_lparen(&mut self) -> Result<(), LexError> {
         self.get_any()?.as_lparen()
     }
 
