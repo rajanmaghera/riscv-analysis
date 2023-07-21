@@ -6,7 +6,7 @@ use crate::parser::Lexer;
 
 #[derive(Debug)]
 pub enum FileReaderError {
-    IOError(std::io::Error),
+    IOErr(String),
     InternalFileNotFound,
     FileAlreadyRead(String),
     Unexpected,
