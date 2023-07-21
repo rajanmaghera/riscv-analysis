@@ -2,9 +2,9 @@ use std::fmt::Display;
 
 use uuid::Uuid;
 
-use crate::parser::Inst;
+use crate::{parser::Inst, passes::DiagnosticLocation};
 
-use super::{LineDisplay, ParserNode, Position, Range};
+use super::ParserNode;
 
 impl Display for ParserNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -97,93 +97,11 @@ impl Display for ParserNode {
     }
 }
 
-impl LineDisplay for ParserNode {
+impl DiagnosticLocation for ParserNode {
     fn file(&self) -> Uuid {
-        let file = match self {
-            ParserNode::Arith(x) => x.inst.file.clone(),
-            ParserNode::IArith(x) => x.inst.file.clone(),
-            ParserNode::UpperArith(x) => x.inst.file.clone(),
-            ParserNode::Label(x) => x.name.file.clone(),
-            ParserNode::JumpLink(x) => x.inst.file.clone(),
-            ParserNode::JumpLinkR(x) => x.inst.file.clone(),
-            ParserNode::Basic(x) => x.inst.file.clone(),
-            ParserNode::Directive(x) => x.token.file.clone(),
-            ParserNode::Branch(x) => x.inst.file.clone(),
-            ParserNode::Store(x) => x.inst.file.clone(),
-            ParserNode::Load(x) => x.inst.file.clone(),
-            ParserNode::Csr(x) => x.inst.file.clone(),
-            ParserNode::CsrI(x) => x.inst.file.clone(),
-            ParserNode::LoadAddr(x) => x.inst.file.clone(),
-            ParserNode::ProgramEntry(x) => x.file.clone(),
-            ParserNode::FuncEntry(x) => x.file.clone(),
-        };
-        file
+        self.token().file
     }
-
-    fn range(&self) -> Range {
-        match &self {
-            ParserNode::UpperArith(x) => {
-                let mut range = x.inst.pos.clone();
-                range.end = x.imm.pos.end;
-                range
-            }
-            ParserNode::Label(x) => x.name.pos.clone(),
-            ParserNode::Arith(arith) => {
-                let mut range = arith.inst.pos.clone();
-                range.end = arith.rs2.pos.end;
-                range
-            }
-            ParserNode::IArith(iarith) => {
-                let mut range = iarith.inst.pos.clone();
-                range.end = iarith.imm.pos.end;
-                range
-            }
-            ParserNode::JumpLink(jl) => {
-                let mut range = jl.inst.pos.clone();
-                range.end = jl.name.pos.end;
-                range
-            }
-            ParserNode::JumpLinkR(jlr) => {
-                let mut range = jlr.inst.pos.clone();
-                range.end = jlr.inst.pos.end;
-                range
-            }
-            ParserNode::Branch(branch) => {
-                let mut range = branch.inst.pos.clone();
-                range.end = branch.name.pos.end;
-                range
-            }
-            ParserNode::Store(store) => {
-                let mut range = store.inst.pos.clone();
-                range.end = store.imm.pos.end;
-                range
-            }
-            ParserNode::Load(load) => {
-                let mut range = load.inst.pos.clone();
-                range.end = load.imm.pos.end;
-                range
-            }
-            ParserNode::Csr(csr) => {
-                let mut range = csr.inst.pos.clone();
-                range.end = csr.rs1.pos.end;
-                range
-            }
-            ParserNode::CsrI(csr) => {
-                let mut range = csr.inst.pos.clone();
-                range.end = csr.imm.pos.end;
-                range
-            }
-            ParserNode::Basic(x) => x.inst.pos.clone(),
-            ParserNode::LoadAddr(x) => {
-                let mut range = x.inst.pos.clone();
-                range.end = x.name.pos.end;
-                range
-            }
-            ParserNode::Directive(directive) => directive.token.pos.clone(),
-            ParserNode::FuncEntry(_) | ParserNode::ProgramEntry(_) => Range {
-                start: Position { line: 0, column: 0 },
-                end: Position { line: 0, column: 0 },
-            },
-        }
+    fn range(&self) -> super::Range {
+        self.token().pos.clone()
     }
 }

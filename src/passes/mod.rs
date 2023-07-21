@@ -9,3 +9,6 @@ pub use cfg_error::*;
 
 mod manager;
 pub use manager::*;
+
+mod diagnostics;
+pub use diagnostics::*;

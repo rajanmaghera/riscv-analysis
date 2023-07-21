@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use super::{Info, Register, Token};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct LabelString(pub String);
 
 impl PartialEq<str> for LabelString {
