@@ -7,7 +7,8 @@ use crate::{
     },
     lints::{
         CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
-        EcallCheck, GarbageInputValueCheck, SaveToZeroCheck, StackCheckPass,
+        EcallCheck, GarbageInputValueCheck, LostCalleeSavedRegisterCheck, SaveToZeroCheck,
+        StackCheckPass,
     },
 };
 
@@ -37,6 +38,7 @@ impl Manager {
         StackCheckPass::run(&cfg, &mut errors);
         CalleeSavedRegisterCheck::run(&cfg, &mut errors);
         CalleeSavedGarbageReadCheck::run(&cfg, &mut errors);
+        LostCalleeSavedRegisterCheck::run(&cfg, &mut errors);
 
         Ok(errors)
     }

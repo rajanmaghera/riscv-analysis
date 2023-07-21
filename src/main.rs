@@ -27,10 +27,11 @@ use std::{collections::HashMap, iter::Peekable, str::FromStr};
 use cfg::Cfg;
 use clap::{Args, Parser, Subcommand};
 use parser::{Lexer, RVParser};
+use passes::DiagnosticItem;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use crate::{parser::LineDisplay, passes::Manager};
+use crate::passes::{DiagnosticLocation, Manager};
 
 mod analysis;
 mod cfg;
@@ -62,6 +63,9 @@ enum Commands {
     /// (not implemented)
     #[clap(name = "fix")]
     Fix(Fix),
+    /// Debug options for testing
+    #[clap(name = "debug_parse")]
+    DebugParse(DebugParse),
 }
 
 #[derive(Args)]
@@ -82,6 +86,12 @@ struct Fix {
     ///
     /// This will attempt to fix known errors in a file.
     /// The file will be overwritten with the fixed version.
+    input: PathBuf,
+}
+
+#[derive(Args)]
+struct DebugParse {
+    /// Input file
     input: PathBuf,
 }
 
@@ -141,13 +151,13 @@ impl FileReader for IOFileReader {
                 .to_owned()
         };
 
+        dbg!(path.clone());
+
         // open file and read it
         let file = match std::fs::read_to_string(path.clone()) {
             Ok(file) => file,
-            Err(err) => return Err(FileReaderError::IOError(err)),
+            Err(err) => return Err(FileReaderError::IOErr(err.to_string())),
         };
-
-        dbg!(&file);
 
         // store full path to file
         let uuid = uuid::Uuid::new_v4();
@@ -162,12 +172,29 @@ impl FileReader for IOFileReader {
     }
 }
 
+trait ErrorDisplay {
+    fn display_errors<T: FileReader>(&self, parser: &RVParser<T>);
+}
+
+impl ErrorDisplay for Vec<DiagnosticItem> {
+    fn display_errors<T: FileReader>(&self, parser: &RVParser<T>) {
+        for err in self {
+            let filename = parser
+                .reader
+                .get_filename(err.file)
+                .unwrap_or("unknown".to_owned());
+            println!("({}, {}): {}", filename, err.range, err.long_description);
+        }
+    }
+}
 fn main() {
     let args = Cli::parse();
     match args.command {
         Commands::Lint(lint) => {
             let reader = IOFileReader::new();
             let mut parser = RVParser::new(reader);
+
+            let mut diags = Vec::new();
             let parsed = parser.parse(
                 &lint
                     .input
@@ -175,15 +202,17 @@ fn main() {
                     .expect("unable to convert path to string"),
                 false,
             );
-
-            for err in parsed.1 {
-                println!("{}({}, {}): {}", err, err.file(), err.range(), err);
-            }
+            parsed
+                .1
+                .iter()
+                .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
 
             let cfg = match Cfg::new(parsed.0) {
                 Ok(cfg) => cfg,
-                _ => {
-                    println!("Unable to parse file");
+                Err(err) => {
+                    diags.push(DiagnosticItem::from(*err));
+                    diags.sort();
+                    diags.display_errors(&parser);
                     return;
                 }
             };
@@ -192,21 +221,40 @@ fn main() {
             if !lint.no_output {
                 match res {
                     Ok(lints) => {
-                        for err in lints {
-                            println!(
-                                "{}({}, {}): {}",
-                                err,
-                                err.file(),
-                                err.range(),
-                                err.long_description()
-                            );
-                        }
+                        lints
+                            .iter()
+                            .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
                     }
-                    Err(err) => println!("Unable to run lint: {err:#?}"),
+                    Err(err) => diags.push(DiagnosticItem::from(*err)),
                 }
             }
+            diags.sort();
+            diags.display_errors(&parser);
         }
         Commands::Fix(_) => {}
+        Commands::DebugParse(debu) => {
+            // Debug mode that prints out parsing errors only
+            let reader = IOFileReader::new();
+            let mut parser = RVParser::new(reader);
+            let parsed = parser.parse(
+                &debu
+                    .input
+                    .to_str()
+                    .expect("unable to convert path to string"),
+                true,
+            );
+            for err in parsed.1 {
+                println!(
+                    "({}, {}): {}",
+                    parser
+                        .reader
+                        .get_filename(err.file())
+                        .unwrap_or("unknown".to_owned()),
+                    err.range(),
+                    err
+                );
+            }
+        }
     }
 }
 

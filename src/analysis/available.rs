@@ -1,7 +1,7 @@
 // AVAILABLE VALUE ANALYSIS
 // ========================
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use crate::parser::{LabelString, RegSets};
@@ -124,14 +124,24 @@ pub struct AvailableValuePass;
 impl GenerationPass for AvailableValuePass {
     fn run(cfg: &mut crate::cfg::Cfg) -> Result<(), Box<CFGError>> {
         let mut changed = true;
+
+        // Because of this type of algorithm, there might be a back branch,
+        // like a loop, that has not been visited before the first in[n] is
+        // calculated. To fix this, we keep track of what nodes have been
+        // visited and only factor those into each calculation at a given point.
+        // We still ensure that, by the end, all nodes have been visited and
+        // the values with the correct previous nodes are calculated.
+        let mut visited = HashSet::new();
         while changed {
             changed = false;
             for node in cfg.into_iter() {
+                // TODO only AND visited nodes
                 // in[n] = AND out[p] for all p in prev[n]
                 let in_reg_n = node
                     .prevs()
                     .clone()
                     .into_iter()
+                    .filter(|x| visited.contains(x))
                     .map(|x| x.reg_values_out())
                     .reduce(|acc, x| x.intersection(&acc))
                     .unwrap_or_default();
@@ -142,6 +152,7 @@ impl GenerationPass for AvailableValuePass {
                     .prevs()
                     .clone()
                     .into_iter()
+                    .filter(|x| visited.contains(x))
                     .map(|x| x.stack_values_out())
                     .reduce(|acc, x| x.intersection(&acc))
                     .unwrap_or_default();
@@ -192,6 +203,10 @@ impl GenerationPass for AvailableValuePass {
                     changed = true;
                     node.set_stack_values_out(out_stack_n);
                 }
+
+                // Add node to visited
+                visited.insert(node.clone());
+                visited.insert(node.clone());
             }
         }
         Ok(())

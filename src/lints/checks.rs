@@ -17,6 +17,41 @@ use std::rc::Rc;
 // that need to be annotated. If it cannot find any, then it will return the original
 // node's range.
 impl Cfg {
+    /// Perform a backwards search to find the first node that stores to the given register.
+    ///
+    /// From a given end point, like a return value, find the first node that stores to the given register.
+    /// This function works by traversing the previous nodes until it finds a node that stores to the given register.
+    /// This is used to correctly mark up the first store to a register that might
+    /// have been incorrect.
+    fn error_ranges_for_first_store(node: &Rc<CFGNode>, item: Register) -> Vec<With<Register>> {
+        let mut queue = VecDeque::new();
+        let mut ranges = Vec::new();
+        // push the previous nodes onto the queue
+        queue.extend(node.prevs().clone().into_iter());
+
+        // keep track of visited nodes
+        let mut visited = HashSet::new();
+        visited.insert(Rc::clone(node));
+
+        // visit each node in the queue
+        // if the error is found, add error
+        // if not, add the previous nodes to the queue
+        while let Some(prev) = queue.pop_front() {
+            if visited.contains(&prev) {
+                continue;
+            }
+            visited.insert(Rc::clone(&prev));
+            if let Some(reg) = prev.node().stores_to() {
+                if reg.data == item {
+                    ranges.push(reg);
+                    continue;
+                }
+            }
+            queue.extend(prev.prevs().clone().into_iter());
+        }
+        ranges
+    }
+
     // TODO move to a more appropriate place
     // TODO make better, what even is this?
     fn error_ranges_for_first_usage(node: &Rc<CFGNode>, item: Register) -> Vec<With<Register>> {
@@ -69,7 +104,7 @@ impl LintPass for SaveToZeroCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in &cfg.clone() {
             if let Some(register) = node.node().stores_to() {
-                if register == Register::X0 && !node.node().is_return() {
+                if register == Register::X0 && !node.node().can_skip_save_checks() {
                     errors.push(LintError::SaveToZero(register.clone()));
                 }
             }
@@ -80,24 +115,15 @@ impl LintPass for SaveToZeroCheck {
 pub struct DeadValueCheck;
 impl LintPass for DeadValueCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for (_i, node) in cfg.clone().into_iter().enumerate() {
-            // check for any assignments that don't make it
-            // to the end of the node
-            if let Some(def) = node.node().stores_to() {
-                if !node.live_out().contains(&def.data) {
-                    // TODO dead assignment register
-
-                    errors.push(LintError::DeadAssignment(def));
-                }
-            }
-
+        for node in cfg.clone().into_iter() {
             // check the out of the node for any uses that
             // should not be there (temporaries)
             // TODO merge with Callee saved register check
-            if let Some(name) = node.calls_to(cfg) {
+            if let Some(function) = node.calls_to(cfg) {
                 // check the expected return values of the function:
+
                 let out: HashSet<Register> = RegSets::caller_saved()
-                    .difference_c(&name.returns())
+                    .difference_c(&function.returns())
                     .intersection_c(&node.live_out());
 
                 // if there is anything left, then there is an error
@@ -108,7 +134,15 @@ impl LintPass for DeadValueCheck {
                     ranges.append(&mut Cfg::error_ranges_for_first_usage(&node, item));
                 }
                 for item in ranges {
-                    errors.push(LintError::InvalidUseAfterCall(item, Rc::clone(&name)));
+                    errors.push(LintError::InvalidUseAfterCall(item, Rc::clone(&function)));
+                }
+            }
+            // Check for any assignments that don't make it
+            // to the end of the node. These assignments are not
+            // used.
+            else if let Some(def) = node.node().stores_to() {
+                if !node.live_out().contains(&def.data) && !node.node().can_skip_save_checks() {
+                    errors.push(LintError::DeadAssignment(def));
                 }
             }
         }
@@ -122,18 +156,22 @@ impl LintPass for DeadValueCheck {
 pub struct ControlFlowCheck;
 impl LintPass for ControlFlowCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for (i, node) in cfg.clone().into_iter().enumerate() {
+        for node in cfg.clone().into_iter() {
             match node.node() {
                 ParserNode::FuncEntry(_) => {
-                    if i == 0 || !node.prevs().is_empty() {
-                        if let Some(function) = node.function().clone() {
+                    // If the previous nodes set is not empty
+                    // Note: this also accounts for functions being at the beginning
+                    // of a program, as the ProgEntry node will be the previous node
+                    if !node.prevs().is_empty() {
+                        if let Some(function) = node.clone().function().clone() {
                             errors
                                 .push(LintError::ImproperFuncEntry(node.node().clone(), function));
                         }
                     }
                 }
+                ParserNode::ProgramEntry(_) => {}
                 _ => {
-                    if i != 0 && node.prevs().is_empty() {
+                    if node.prevs().is_empty() {
                         errors.push(LintError::UnreachableCode(node.node().clone()));
                     }
                 }
@@ -253,34 +291,92 @@ impl LintPass for CalleeSavedGarbageReadCheck {
     }
 }
 
+// Check if the values of callee-saved registers are restored to the original value at the end of the function
 pub struct CalleeSavedRegisterCheck;
 impl LintPass for CalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        use Register::{X1, X18, X19, X2, X20, X21, X22, X23, X24, X25, X26, X27, X8, X9};
-        // for all functions
         for func in cfg.label_function_map.values() {
-            // TODO scan function to find all "first" definitions of function,
-            // then mark those up
-
-            // check if the original values for all calle saved are available at the end
-            let val = func.exit.reg_values_in();
-            for reg in [
-                X1, X2, X8, X9, X18, X19, X20, X21, X22, X23, X24, X25, X26, X27,
-            ] {
-                match val.get(&reg) {
+            dbg!(func.labels());
+            let exit_vals = func.exit.reg_values_in();
+            for reg in RegSets::callee_saved() {
+                match exit_vals.get(&reg) {
                     Some(AvailableValue::OriginalRegisterWithScalar(reg2, offset))
-                        if reg2 != &reg || offset != &0 =>
+                        if reg2 == &reg && offset == &0 =>
                     {
-                        errors.push(LintError::OverwriteCalleeSavedRegister(
-                            func.exit.node().clone(),
-                            reg,
-                        ));
+                        // GOOD!
                     }
                     _ => {
-                        errors.push(LintError::OverwriteCalleeSavedRegister(
-                            func.exit.node().clone(),
-                            reg,
-                        ));
+                        // TODO combine with lost register check
+
+                        // This means that we are overwriting a callee-saved register
+                        // We will traverse the function to find the first time
+                        // from the return point that that register was overwritten.
+                        let ranges = Cfg::error_ranges_for_first_store(&func.exit, reg);
+                        for range in ranges {
+                            errors.push(LintError::OverwriteCalleeSavedRegister(range));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Check if the value of a calle-saved register is ever "lost" (aka. overwritten without being restored)
+// This provides a more detailed image compared to above, and could be turned into extra
+// diagnostic information in the future.
+pub struct LostCalleeSavedRegisterCheck;
+impl LintPass for LostCalleeSavedRegisterCheck {
+    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+        for node in cfg.nodes.clone().into_iter() {
+            let callee = RegSets::saved();
+
+            // If: within a function, node stores to a saved register,
+            // and the value going in was the original value
+            // We intentionally do not check for callee-saved registers
+            // as the value is mean to be modified
+            if let Some(reg) = node.node().stores_to() {
+                if callee.contains(&reg.data) {
+                    let func = node.function().clone();
+                    if let Some(_) = func {
+                        if node.reg_values_in().get(&reg.data)
+                            == Some(&AvailableValue::OriginalRegisterWithScalar(reg.data, 0))
+                        {
+                            // Check that the value exists somewhere in the available values
+                            // like the stack.
+                            // if not, then we have a problem
+                            let mut found = false;
+
+                            // check stack values:
+                            let stack = node.stack_values_out();
+                            for (_, val) in stack {
+                                if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) =
+                                    val
+                                {
+                                    if reg2 == reg.data && offset == 0 {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // check register values:
+                            let regs = node.reg_values_out();
+                            for (_, val) in regs {
+                                if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) =
+                                    val
+                                {
+                                    if reg2 == reg.data && offset == 0 {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if !found {
+                                errors.push(LintError::LostRegisterValue(reg));
+                            }
+                        }
                     }
                 }
             }
