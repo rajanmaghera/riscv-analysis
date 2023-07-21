@@ -4,8 +4,8 @@ use uuid::Uuid;
 
 use super::{
     ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, DirectiveToken, IArithType,
-    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, Register,
-    StoreType, UpperArithType, With,
+    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, RawToken,
+    Register, StoreType, UpperArithType, With,
 };
 
 #[derive(Debug, Clone)]
@@ -15,6 +15,7 @@ pub struct Arith {
     pub rs1: With<Register>,
     pub rs2: With<Register>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
@@ -24,12 +25,14 @@ pub struct IArith {
     pub rs1: With<Register>,
     pub imm: With<Imm>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
 pub struct Label {
     pub name: With<LabelString>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 #[derive(Debug, Clone)]
 pub struct JumpLink {
@@ -37,6 +40,7 @@ pub struct JumpLink {
     pub rd: With<Register>,
     pub name: With<LabelString>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
@@ -46,12 +50,14 @@ pub struct JumpLinkR {
     pub rs1: With<Register>,
     pub imm: With<Imm>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
 pub struct Basic {
     pub inst: With<BasicType>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +67,7 @@ pub struct Branch {
     pub rs2: With<Register>,
     pub name: With<LabelString>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
@@ -70,6 +77,7 @@ pub struct Load {
     pub rs1: With<Register>,
     pub imm: With<Imm>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
@@ -79,6 +87,7 @@ pub struct Store {
     pub rs2: With<Register>,
     pub imm: With<Imm>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -139,9 +148,10 @@ impl Display for DirectiveType {
 
 #[derive(Debug, Clone)]
 pub struct Directive {
-    pub token: With<DirectiveToken>,
+    pub dir_token: With<DirectiveToken>,
     pub dir: DirectiveType,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
@@ -151,6 +161,7 @@ pub struct Csr {
     pub csr: With<CSRImm>,
     pub rs1: With<Register>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
@@ -160,12 +171,14 @@ pub struct CsrI {
     pub csr: With<CSRImm>,
     pub imm: With<Imm>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
 pub struct Ignore {
     pub inst: With<IgnoreType>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
@@ -174,6 +187,7 @@ pub struct LoadAddr {
     pub rd: With<Register>,
     pub name: With<LabelString>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
@@ -182,16 +196,19 @@ pub struct UpperArith {
     pub rd: With<Register>,
     pub imm: With<Imm>,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
 pub struct FuncEntry {
     pub file: Uuid,
     pub key: Uuid,
+    pub token: RawToken,
 }
 
 #[derive(Debug, Clone)]
 pub struct ProgramEntry {
     pub file: Uuid,
     pub key: Uuid,
+    pub token: RawToken,
 }

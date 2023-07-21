@@ -3,13 +3,15 @@ use std::hash::{Hash, Hasher};
 
 use uuid::Uuid;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+use crate::passes::DiagnosticLocation;
+
+#[derive(Debug, PartialEq, Copy, Clone, Eq, PartialOrd, Ord, Default)]
 pub struct Position {
     pub line: usize,
     pub column: usize,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, PartialOrd, Ord, Eq, Default)]
 pub struct Range {
     pub start: Position,
     pub end: Position,
@@ -18,6 +20,13 @@ pub struct Range {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Info {
     pub token: Token,
+    pub pos: Range,
+    pub file: Uuid,
+}
+
+#[derive(Debug, PartialEq, Clone, Default)]
+pub struct RawToken {
+    pub text: String,
     pub pos: Range,
     pub file: Uuid,
 }
@@ -64,6 +73,20 @@ pub enum Token {
     String(String),
 }
 
+impl Token {
+    pub fn as_original_string(&self) -> String {
+        match self {
+            Token::LParen => "(".to_owned(),
+            Token::RParen => ")".to_owned(),
+            Token::Newline => "\n".to_owned(),
+            Token::Label(l) => format!("{}:", l),
+            Token::Symbol(s) => s.to_owned(),
+            Token::Directive(d) => format!(".{}", d),
+            Token::String(s) => format!("\"{}\"", s),
+        }
+    }
+}
+
 impl PartialEq<Token> for Info {
     fn eq(&self, other: &Token) -> bool {
         self.token == *other
@@ -76,6 +99,24 @@ impl<T> With<T> {
             token: self.token.clone(),
             pos: self.pos.clone(),
         }
+    }
+}
+
+impl<T> PartialOrd for With<T>
+where
+    T: PartialOrd,
+{
+    fn partial_cmp(&self, other: &With<T>) -> Option<std::cmp::Ordering> {
+        self.data.partial_cmp(&other.data)
+    }
+}
+
+impl<T> Ord for With<T>
+where
+    T: Ord,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.data.cmp(&other.data)
     }
 }
 
@@ -136,13 +177,13 @@ impl Display for Info {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Label(s) => writeln!(f, "[label: {s}]"),
-            Token::Symbol(s) => write!(f, "<{s}> "),
-            Token::Directive(s) => write!(f, "[directive: {s}] "),
-            Token::String(s) => write!(f, "\"{s}\""),
-            Token::Newline => writeln!(f, "<NL>"),
-            Token::LParen => write!(f, "("),
-            Token::RParen => write!(f, ")"),
+            Token::Label(s) => writeln!(f, "LABEL({s})"),
+            Token::Symbol(s) => write!(f, "SYMBOL({s}) "),
+            Token::Directive(s) => write!(f, "DIRECTIVE({s})"),
+            Token::String(s) => write!(f, "STRING({s})"),
+            Token::Newline => writeln!(f, "NEWLINE"),
+            Token::LParen => write!(f, "LPAREN"),
+            Token::RParen => write!(f, "RPAREN"),
         }
     }
 }
@@ -167,11 +208,6 @@ impl ToDisplayForTokenVec for Vec<Info> {
     }
 }
 
-pub trait LineDisplay {
-    fn range(&self) -> Range;
-    fn file(&self) -> Uuid;
-}
-
 // implement display for Range
 impl std::fmt::Display for Range {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -183,7 +219,7 @@ impl std::fmt::Display for Range {
     }
 }
 
-impl<T> LineDisplay for With<T> {
+impl<T> DiagnosticLocation for With<T> {
     fn range(&self) -> Range {
         self.pos.clone()
     }

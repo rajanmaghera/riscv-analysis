@@ -1,9 +1,9 @@
 use crate::parser;
 use crate::parser::LabelString;
-use crate::parser::LineDisplay;
 use crate::parser::ParserNode;
 use crate::parser::With;
 use crate::passes::CFGError;
+use crate::passes::DiagnosticLocation;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -100,7 +100,7 @@ impl Cfg {
                         .is_some()
                     {
                         let rc_node = Rc::new(CFGNode::new(
-                            ParserNode::new_func_entry(node.file()),
+                            ParserNode::new_func_entry(node.file(), node.token()),
                             current_labels.clone(),
                         ));
 
