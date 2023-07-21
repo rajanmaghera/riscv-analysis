@@ -3,8 +3,8 @@ use std::{collections::HashMap, rc::Rc, vec};
 use crate::{
     cfg::{Cfg, Function},
     parser::Register,
-    parser::{Info, JumpLinkType, LabelString, LineDisplay, ParserNode, With},
-    passes::{CFGError, GenerationPass},
+    parser::{Info, JumpLinkType, LabelString, ParserNode, With},
+    passes::{CFGError, DiagnosticLocation, GenerationPass},
 };
 
 pub struct FunctionMarkupPass;
@@ -109,7 +109,12 @@ impl GenerationPass for FunctionMarkupPass {
                         let inst = With::new(JumpLinkType::Jal, inf.clone());
                         let rd = With::new(Register::X0, inf.clone());
                         let name = With::new(LabelString("__return__".to_string()), inf.clone());
-                        let new_node = ParserNode::new_jump_link(inst, rd, name);
+                        let new_node = ParserNode::new_jump_link(
+                            inst,
+                            rd,
+                            name,
+                            existing_return_node.node().token(),
+                        );
                         return_node.set_node(new_node);
                     } else {
                         for label in entry_node.labels() {
