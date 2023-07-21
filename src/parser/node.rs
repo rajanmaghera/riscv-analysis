@@ -7,6 +7,7 @@ use crate::parser::inst::{
 
 use crate::parser::register::Register;
 use crate::parser::token::With;
+use crate::passes::DiagnosticLocation;
 
 use std::collections::HashSet;
 
@@ -16,7 +17,8 @@ use uuid::Uuid;
 
 use super::{
     Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry, IArith,
-    JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, Store, UpperArith,
+    JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, RawToken, Store,
+    UpperArith,
 };
 
 #[derive(Debug, Clone)]
@@ -40,6 +42,27 @@ pub enum ParserNode {
 }
 
 impl ParserNode {
+    pub fn token(&self) -> RawToken {
+        match self {
+            ParserNode::Arith(x) => x.token.clone(),
+            ParserNode::IArith(x) => x.token.clone(),
+            ParserNode::UpperArith(x) => x.token.clone(),
+            ParserNode::Label(x) => x.token.clone(),
+            ParserNode::JumpLink(x) => x.token.clone(),
+            ParserNode::JumpLinkR(x) => x.token.clone(),
+            ParserNode::Basic(x) => x.token.clone(),
+            ParserNode::Directive(x) => x.token.clone(),
+            ParserNode::Branch(x) => x.token.clone(),
+            ParserNode::Store(x) => x.token.clone(),
+            ParserNode::Load(x) => x.token.clone(),
+            ParserNode::Csr(x) => x.token.clone(),
+            ParserNode::CsrI(x) => x.token.clone(),
+            ParserNode::LoadAddr(x) => x.token.clone(),
+            ParserNode::ProgramEntry(x) => x.token.clone(),
+            ParserNode::FuncEntry(x) => x.token.clone(),
+        }
+    }
+
     pub fn id(&self) -> Uuid {
         match self {
             ParserNode::Arith(a) => a.key,
@@ -101,6 +124,7 @@ impl ParserNode {
         rd: With<Register>,
         rs1: With<Register>,
         rs2: With<Register>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::Arith(Arith {
             inst,
@@ -108,6 +132,7 @@ impl ParserNode {
             rs1,
             rs2,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -116,6 +141,7 @@ impl ParserNode {
         rd: With<Register>,
         rs1: With<Register>,
         imm: With<Imm>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::IArith(IArith {
             inst,
@@ -123,6 +149,7 @@ impl ParserNode {
             rs1,
             imm,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -130,12 +157,14 @@ impl ParserNode {
         inst: With<UpperArithType>,
         rd: With<Register>,
         imm: With<Imm>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::UpperArith(UpperArith {
             inst,
             rd,
             imm,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -143,12 +172,14 @@ impl ParserNode {
         inst: With<JumpLinkType>,
         rd: With<Register>,
         name: With<LabelString>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::JumpLink(JumpLink {
             inst,
             rd,
             name,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -157,6 +188,7 @@ impl ParserNode {
         rd: With<Register>,
         rs1: With<Register>,
         imm: With<Imm>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::JumpLinkR(JumpLinkR {
             inst,
@@ -164,21 +196,28 @@ impl ParserNode {
             rs1,
             imm,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
-    pub fn new_basic(inst: With<BasicType>) -> ParserNode {
+    pub fn new_basic(inst: With<BasicType>, token: RawToken) -> ParserNode {
         ParserNode::Basic(Basic {
             inst,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
-    pub fn new_directive(token: With<DirectiveToken>, dir: DirectiveType) -> ParserNode {
+    pub fn new_directive(
+        dir_token: With<DirectiveToken>,
+        dir: DirectiveType,
+        token: RawToken,
+    ) -> ParserNode {
         ParserNode::Directive(Directive {
-            token,
+            dir_token,
             dir,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -187,6 +226,7 @@ impl ParserNode {
         rs1: With<Register>,
         rs2: With<Register>,
         name: With<LabelString>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::Branch(Branch {
             inst,
@@ -194,6 +234,7 @@ impl ParserNode {
             rs2,
             name,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -202,6 +243,7 @@ impl ParserNode {
         rs1: With<Register>,
         rs2: With<Register>,
         imm: With<Imm>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::Store(Store {
             inst,
@@ -209,6 +251,7 @@ impl ParserNode {
             rs2,
             imm,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -217,6 +260,7 @@ impl ParserNode {
         rd: With<Register>,
         rs1: With<Register>,
         imm: With<Imm>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::Load(Load {
             inst,
@@ -224,6 +268,7 @@ impl ParserNode {
             rs1,
             imm,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -232,6 +277,7 @@ impl ParserNode {
         rd: With<Register>,
         csr: With<CSRImm>,
         rs1: With<Register>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::Csr(Csr {
             inst,
@@ -239,20 +285,23 @@ impl ParserNode {
             rs1,
             csr,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
-    pub fn new_func_entry(file: Uuid) -> ParserNode {
+    pub fn new_func_entry(file: Uuid, token: RawToken) -> ParserNode {
         ParserNode::FuncEntry(FuncEntry {
             key: Uuid::new_v4(),
             file,
+            token,
         })
     }
 
-    pub fn new_program_entry(file: Uuid) -> ParserNode {
+    pub fn new_program_entry(file: Uuid, token: RawToken) -> ParserNode {
         ParserNode::ProgramEntry(ProgramEntry {
             key: Uuid::new_v4(),
             file,
+            token,
         })
     }
 
@@ -261,6 +310,7 @@ impl ParserNode {
         rd: With<Register>,
         csr: With<CSRImm>,
         imm: With<Imm>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::CsrI(CsrI {
             inst,
@@ -268,13 +318,15 @@ impl ParserNode {
             imm,
             csr,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
-    pub fn new_label(name: With<LabelString>) -> ParserNode {
+    pub fn new_label(name: With<LabelString>, token: RawToken) -> ParserNode {
         ParserNode::Label(Label {
             name,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -282,12 +334,14 @@ impl ParserNode {
         inst: With<PseudoType>,
         rd: With<Register>,
         name: With<LabelString>,
+        token: RawToken,
     ) -> ParserNode {
         ParserNode::LoadAddr(LoadAddr {
             inst,
             rd,
             name,
             key: Uuid::new_v4(),
+            token,
         })
     }
 
@@ -299,6 +353,25 @@ impl ParserNode {
                     && x.rs1 == Register::X1
                     && x.imm == Imm(0)
             }
+            _ => false,
+        }
+    }
+
+    /// Checks if a instruction is meant to be saved to zero
+    ///
+    /// Some instructions save to zero as part of their design. For example,
+    /// jumps that link to zero. However, some have no effect even while
+    /// saving to zero. For example, `addi x0, x0, 0` is a no-op.
+    /// This function determines if an instruction is meant to be saved to zero
+    /// or if it is a no-op. No-ops are treated as warnings, not errors.
+    pub fn can_skip_save_checks(&self) -> bool {
+        match self {
+            ParserNode::ProgramEntry(_)
+            | ParserNode::FuncEntry(_)
+            | ParserNode::JumpLink(_)
+            | ParserNode::JumpLinkR(_)
+            | ParserNode::Csr(_)
+            | ParserNode::CsrI(_) => true,
             _ => false,
         }
     }
