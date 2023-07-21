@@ -3,17 +3,17 @@ use crate::parser::inst::{
     PseudoType, Type,
 };
 use crate::parser::token::With;
-use crate::parser::{DataType, Register};
+use crate::parser::{DataType, RawToken, Register};
 use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{DirectiveType, ParserNode};
 use crate::parser::{Lexer, Token};
-use crate::reader::{FileReader, FileReaderError};
+use crate::reader::FileReader;
 use std::iter::Peekable;
 use std::str::FromStr;
 
 use super::imm::{CSRImm, Imm};
 use super::token::Info;
-use super::{ExpectedType, LabelString, ParseError};
+use super::{ExpectedType, LabelString, ParseError, Range};
 
 /// Parser for RISC-V assembly
 pub struct RVParser<T>
@@ -64,18 +64,22 @@ impl<T: FileReader> RVParser<T> {
         // import base lexer
         let lexer = match self.reader.import_file(&base, None) {
             Ok(x) => x,
-            Err(_) => {
-                parse_errors.push(ParseError::FileNotFound(With::new(
-                    base.to_owned(),
-                    Info::default(),
-                )));
+            Err(e) => {
+                parse_errors.push(e.to_parse_error(With::new(base.to_owned(), Info::default())));
                 return (nodes, parse_errors);
             }
         };
         self.lexer_stack.push(lexer.1);
 
         // Add program entry node
-        nodes.push(ParserNode::new_program_entry(lexer.0));
+        nodes.push(ParserNode::new_program_entry(
+            lexer.0,
+            RawToken {
+                text: "".to_string(),
+                pos: Range::default(),
+                file: lexer.0,
+            },
+        ));
 
         while let Some(lexer) = self.lexer() {
             let node = ParserNode::try_from(lexer);
@@ -85,35 +89,17 @@ impl<T: FileReader> RVParser<T> {
                     if !ignore_imports {
                         if let ParserNode::Directive(directive) = &x {
                             if let DirectiveType::Include(path) = &directive.dir {
-                                let lexer = self
-                                    .reader
-                                    .import_file(path.data.as_str(), Some(directive.token.file));
+                                let lexer = self.reader.import_file(
+                                    path.data.as_str(),
+                                    Some(directive.dir_token.file),
+                                );
                                 match lexer {
                                     Ok(x) => {
                                         self.lexer_stack.push(x.1);
                                     }
-                                    Err(x) => match x {
-                                        FileReaderError::IOError(_) => {
-                                            parse_errors
-                                                .push(ParseError::FileNotFound(path.clone()));
-                                        }
-                                        FileReaderError::InternalFileNotFound => {
-                                            parse_errors
-                                                .push(ParseError::UnexpectedError(path.info()));
-                                        }
-                                        FileReaderError::FileAlreadyRead(_) => {
-                                            parse_errors
-                                                .push(ParseError::CyclicDependency(path.info()));
-                                        }
-                                        FileReaderError::Unexpected => {
-                                            parse_errors
-                                                .push(ParseError::UnexpectedError(path.info()));
-                                        }
-                                        FileReaderError::InvalidPath => {
-                                            parse_errors
-                                                .push(ParseError::FileNotFound(path.clone()));
-                                        }
-                                    },
+                                    Err(x) => {
+                                        parse_errors.push(x.to_parse_error(path.clone()));
+                                    }
                                 }
                                 continue;
                             }
@@ -144,7 +130,6 @@ impl<T: FileReader> RVParser<T> {
                     }
                     LexError::UnexpectedError(x) => {
                         parse_errors.push(ParseError::UnexpectedError(x));
-                        // TODO determine how to recover from this and where to markup
                         self.recover_from_parse_error();
                     }
                     LexError::UnknownDirective(y) => {
@@ -167,51 +152,103 @@ impl<T: FileReader> RVParser<T> {
     }
 }
 
-fn expect_lparen(value: Option<Info>) -> Result<(), LexError> {
-    let v = value.ok_or(LexError::UnexpectedEOF)?;
-    match v.token {
-        Token::LParen => Ok(()),
-        _ => Err(LexError::Expected(vec![ExpectedType::LParen], v)),
+impl Info {
+    fn as_lparen(&self) -> Result<(), LexError> {
+        match self.token {
+            Token::LParen => Ok(()),
+            _ => Err(LexError::Expected(vec![ExpectedType::LParen], self.clone())),
+        }
+    }
+
+    fn as_rparen(&self) -> Result<(), LexError> {
+        match self.token {
+            Token::RParen => Ok(()),
+            _ => Err(LexError::Expected(vec![ExpectedType::RParen], self.clone())),
+        }
+    }
+
+    fn as_reg(&self) -> Result<With<Register>, LexError> {
+        With::<Register>::try_from(self.clone())
+            .map_err(|_| LexError::Expected(vec![ExpectedType::Register], self.clone()))
+    }
+
+    fn as_imm(&self) -> Result<With<Imm>, LexError> {
+        With::<Imm>::try_from(self.clone())
+            .map_err(|_| LexError::Expected(vec![ExpectedType::Imm], self.clone()))
+    }
+
+    fn as_label(&self) -> Result<With<LabelString>, LexError> {
+        With::<LabelString>::try_from(self.clone())
+            .map_err(|_| LexError::Expected(vec![ExpectedType::Label], self.clone()))
+    }
+
+    fn as_csrimm(&self) -> Result<With<CSRImm>, LexError> {
+        With::<CSRImm>::try_from(self.clone())
+            .map_err(|_| LexError::Expected(vec![ExpectedType::CSRImm], self.clone()))
+    }
+
+    fn as_string(&self) -> Result<With<String>, LexError> {
+        With::<String>::try_from(self.clone())
+            .map_err(|_| LexError::Expected(vec![ExpectedType::String], self.clone()))
     }
 }
 
-fn expect_rparen(value: Option<Info>) -> Result<(), LexError> {
-    let v = value.ok_or(LexError::UnexpectedEOF)?;
-    match v.token {
-        Token::RParen => Ok(()),
-        _ => Err(LexError::Expected(vec![ExpectedType::RParen], v)),
+impl<'a> AnnotatedLexer<'a> {
+    fn expect_lparen(&mut self) -> Result<(), LexError> {
+        self.get_any()?.as_lparen()
+    }
+
+    fn expect_rparen(&mut self) -> Result<(), LexError> {
+        self.get_any()?.as_rparen()
+    }
+
+    fn get_reg(&mut self) -> Result<With<Register>, LexError> {
+        self.get_any()?.as_reg()
+    }
+
+    fn get_imm(&mut self) -> Result<With<Imm>, LexError> {
+        self.get_any()?.as_imm()
+    }
+
+    fn get_label(&mut self) -> Result<With<LabelString>, LexError> {
+        self.get_any()?.as_label()
+    }
+
+    fn get_csrimm(&mut self) -> Result<With<CSRImm>, LexError> {
+        self.get_any()?.as_csrimm()
+    }
+
+    fn get_string(&mut self) -> Result<With<String>, LexError> {
+        self.get_any()?.as_string()
+    }
+
+    fn get_any(&mut self) -> Result<Info, LexError> {
+        let item = self.lexer.next().ok_or(LexError::UnexpectedEOF)?;
+        if self.raw_token == RawToken::default() {
+            self.raw_token = RawToken {
+                text: item.token.as_original_string(),
+                pos: item.pos.clone(),
+                file: item.file,
+            };
+        } else {
+            self.raw_token.text.push_str(" ");
+            self.raw_token
+                .text
+                .push_str(&item.token.as_original_string());
+            self.raw_token.pos.end = item.pos.end;
+        }
+        Ok(item)
+    }
+
+    fn peek_any(&mut self) -> Result<&Info, LexError> {
+        self.lexer.peek().ok_or(LexError::UnexpectedEOF)
     }
 }
 
-fn get_reg(value: Option<Info>) -> Result<With<Register>, LexError> {
-    let v = value.ok_or(LexError::UnexpectedEOF)?;
-    With::<Register>::try_from(v.clone())
-        .map_err(|_| LexError::Expected(vec![ExpectedType::Register], v))
+struct AnnotatedLexer<'a> {
+    lexer: &'a mut Peekable<Lexer>,
+    raw_token: RawToken,
 }
-
-fn get_imm(value: Option<Info>) -> Result<With<Imm>, LexError> {
-    let v = value.ok_or(LexError::UnexpectedEOF)?;
-    With::<Imm>::try_from(v.clone()).map_err(|_| LexError::Expected(vec![ExpectedType::Imm], v))
-}
-
-fn get_label(value: Option<Info>) -> Result<With<LabelString>, LexError> {
-    let v = value.ok_or(LexError::UnexpectedEOF)?;
-    With::<LabelString>::try_from(v.clone())
-        .map_err(|_| LexError::Expected(vec![ExpectedType::Label], v))
-}
-
-fn get_csrimm(value: Option<Info>) -> Result<With<CSRImm>, LexError> {
-    let v = value.ok_or(LexError::UnexpectedEOF)?;
-    With::<CSRImm>::try_from(v.clone())
-        .map_err(|_| LexError::Expected(vec![ExpectedType::CSRImm], v))
-}
-
-fn get_string(value: Option<Info>) -> Result<With<String>, LexError> {
-    let v = value.ok_or(LexError::UnexpectedEOF)?;
-    With::<String>::try_from(v.clone())
-        .map_err(|_| LexError::Expected(vec![ExpectedType::String], v))
-}
-
 impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
     type Error = LexError;
 
@@ -219,111 +256,126 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
     // of the instruction
 
     #[allow(clippy::too_many_lines)]
-    fn try_from(value: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
-        use LexError::{Expected, Ignored, IsNewline, NeedTwoNodes, UnexpectedEOF};
-        let next_node = value.next().ok_or(UnexpectedEOF)?;
+    fn try_from(val: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
+        use LexError::{Expected, Ignored, IsNewline, NeedTwoNodes};
+
+        let mut lex = AnnotatedLexer {
+            lexer: val,
+            raw_token: RawToken::default(),
+        };
+
+        let next_node = lex.get_any()?;
         match &next_node.token {
             Token::Symbol(s) => {
                 if let Ok(inst) = Inst::from_str(s) {
                     let node = match Type::from(&inst) {
                         Type::CsrI(inst) => {
-                            let rd = get_reg(value.next())?;
-                            let csr = get_csrimm(value.next())?;
-                            let imm = get_imm(value.next())?;
+                            let rd = lex.get_reg()?;
+                            let csr = lex.get_csrimm()?;
+                            let imm = lex.get_imm()?;
                             Ok(ParserNode::new_csri(
                                 With::new(inst, next_node),
                                 rd,
                                 csr,
                                 imm,
+                                lex.raw_token,
                             ))
                         }
                         Type::Csr(inst) => {
-                            let rd = get_reg(value.next())?;
-                            let csr = get_csrimm(value.next())?;
-                            let rs1 = get_reg(value.next())?;
+                            let rd = lex.get_reg()?;
+                            let csr = lex.get_csrimm()?;
+                            let rs1 = lex.get_reg()?;
                             Ok(ParserNode::new_csr(
                                 With::new(inst, next_node),
                                 rd,
                                 csr,
                                 rs1,
+                                lex.raw_token,
                             ))
                         }
                         Type::UpperArith(inst) => {
-                            let rd = get_reg(value.next())?;
-                            let imm = get_imm(value.next())?;
+                            let rd = lex.get_reg()?;
+                            let imm = lex.get_imm()?;
                             Ok(ParserNode::new_upper_arith(
                                 With::new(inst, next_node),
                                 rd,
                                 imm,
+                                lex.raw_token,
                             ))
                         }
                         Type::Arith(inst) => {
-                            let rd = get_reg(value.next())?;
-                            let rs1 = get_reg(value.next())?;
-                            let rs2 = get_reg(value.next())?;
+                            let rd = lex.get_reg()?;
+                            let rs1 = lex.get_reg()?;
+                            let rs2 = lex.get_reg()?;
                             Ok(ParserNode::new_arith(
                                 With::new(inst, next_node),
                                 rd,
                                 rs1,
                                 rs2,
+                                lex.raw_token,
                             ))
                         }
                         Type::IArith(inst) => {
-                            let rd = get_reg(value.next())?;
-                            let rs1 = get_reg(value.next())?;
-                            let imm = get_imm(value.next())?;
+                            let rd = lex.get_reg()?;
+                            let rs1 = lex.get_reg()?;
+                            let imm = lex.get_imm()?;
                             Ok(ParserNode::new_iarith(
                                 With::new(inst, next_node),
                                 rd,
                                 rs1,
                                 imm,
+                                lex.raw_token,
                             ))
                         }
 
                         Type::JumpLink(inst) => {
-                            let name_token = value.next();
+                            let next = lex.get_any()?;
 
-                            return if let Ok(reg) = get_reg(name_token.clone()) {
-                                let name = get_label(value.next())?;
+                            return if let Ok(reg) = next.as_reg() {
+                                let name = lex.get_label()?;
                                 Ok(ParserNode::new_jump_link(
                                     With::new(inst, next_node),
                                     reg,
                                     name,
+                                    lex.raw_token,
                                 ))
-                            } else if let Ok(name) = get_label(name_token.clone()) {
+                            } else if let Ok(name) = next.as_label() {
                                 Ok(ParserNode::new_jump_link(
                                     With::new(inst, next_node.clone()),
                                     With::new(Register::X1, next_node),
                                     name,
+                                    lex.raw_token,
                                 ))
                             } else {
                                 Err(Expected(
                                     vec![ExpectedType::Register, ExpectedType::Label],
-                                    name_token.ok_or(UnexpectedEOF)?,
+                                    next,
                                 ))
                             };
                         }
                         Type::JumpLinkR(inst) => {
-                            let reg1 = get_reg(value.next())?;
-                            let next = value.next();
-                            return if let Ok(rs1) = get_reg(next.clone()) {
-                                let imm = get_imm(value.next())?;
+                            let reg1 = lex.get_reg()?;
+                            let next = lex.get_any()?;
+                            return if let Ok(rs1) = next.as_reg() {
+                                let imm = lex.get_imm()?;
                                 Ok(ParserNode::new_jump_link_r(
                                     With::new(inst, next_node),
                                     reg1,
                                     rs1,
                                     imm,
+                                    lex.raw_token,
                                 ))
-                            } else if let Ok(imm) = get_imm(next.clone()) {
-                                if let Ok(()) = expect_lparen(value.peek().cloned()) {
-                                    value.next();
-                                    let rs1 = get_reg(value.next())?;
-                                    expect_rparen(value.next())?;
+                            } else if let Ok(imm) = next.as_imm() {
+                                if let Ok(()) = lex.peek_any()?.as_lparen() {
+                                    lex.get_any()?;
+                                    let rs1 = lex.get_reg()?;
+                                    lex.expect_rparen()?;
                                     Ok(ParserNode::new_jump_link_r(
                                         With::new(inst, next_node),
                                         reg1,
                                         rs1,
                                         imm,
+                                        lex.raw_token,
                                     ))
                                 } else {
                                     Ok(ParserNode::new_jump_link_r(
@@ -331,16 +383,18 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         With::new(Register::X1, next_node),
                                         reg1,
                                         imm,
+                                        lex.raw_token,
                                     ))
                                 }
-                            } else if let Ok(()) = expect_lparen(next) {
-                                let rs1 = get_reg(value.next())?;
-                                expect_rparen(value.next())?;
+                            } else if let Ok(()) = next.as_lparen() {
+                                let rs1 = lex.get_reg()?;
+                                lex.expect_rparen()?;
                                 Ok(ParserNode::new_jump_link_r(
                                     With::new(inst, next_node.clone()),
                                     reg1,
                                     rs1,
                                     With::new(Imm(0), next_node),
+                                    lex.raw_token,
                                 ))
                             } else {
                                 Ok(ParserNode::new_jump_link_r(
@@ -348,22 +402,24 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X1, next_node.clone()),
                                     reg1,
                                     With::new(Imm(0), next_node),
+                                    lex.raw_token,
                                 ))
                             };
                         }
                         Type::Load(inst) => {
-                            let rd = get_reg(value.next())?;
-                            let next = value.next();
-                            return if let Ok(imm) = get_imm(next.clone()) {
-                                if let Ok(()) = expect_lparen(value.peek().cloned()) {
-                                    value.next();
-                                    let rs1 = get_reg(value.next())?;
-                                    expect_rparen(value.next())?;
+                            let rd = lex.get_reg()?;
+                            let next = lex.get_any()?;
+                            return if let Ok(imm) = next.as_imm() {
+                                if let Ok(()) = lex.peek_any()?.as_lparen() {
+                                    lex.get_any()?;
+                                    let rs1 = lex.get_reg()?;
+                                    lex.expect_rparen()?;
                                     Ok(ParserNode::new_load(
                                         With::new(inst, next_node),
                                         rd,
                                         rs1,
                                         imm,
+                                        lex.raw_token,
                                     ))
                                 } else {
                                     Ok(ParserNode::new_load(
@@ -371,30 +427,34 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         rd,
                                         With::new(Register::X0, next_node),
                                         imm,
+                                        lex.raw_token,
                                     ))
                                 }
-                            } else if let Ok(label) = get_label(next.clone()) {
+                            } else if let Ok(label) = next.as_label() {
                                 Err(NeedTwoNodes(
                                     Box::new(ParserNode::new_load_addr(
                                         With::new(PseudoType::La, next_node.clone()),
                                         rd.clone(),
                                         label,
+                                        lex.raw_token.clone(),
                                     )),
                                     Box::new(ParserNode::new_load(
                                         With::new(inst, next_node.clone()),
                                         rd.clone(),
                                         rd,
                                         With::new(Imm(0), next_node),
+                                        lex.raw_token,
                                     )),
                                 ))
-                            } else if let Ok(()) = expect_lparen(next.clone()) {
-                                let rs1 = get_reg(value.next())?;
-                                expect_rparen(value.next())?;
+                            } else if let Ok(()) = next.as_lparen() {
+                                let rs1 = lex.get_reg()?;
+                                lex.expect_rparen()?;
                                 Ok(ParserNode::new_load(
                                     With::new(inst, next_node.clone()),
                                     rd,
                                     rs1,
                                     With::new(Imm(0), next_node),
+                                    lex.raw_token,
                                 ))
                             } else {
                                 Err(Expected(
@@ -403,39 +463,42 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         ExpectedType::Imm,
                                         ExpectedType::LParen,
                                     ],
-                                    next.ok_or(UnexpectedEOF)?,
+                                    next,
                                 ))
                             };
                         }
                         Type::Store(inst) => {
-                            let rs2 = get_reg(value.next())?;
-                            let next = value.next();
+                            let rs2 = lex.get_reg()?;
+                            let next = lex.get_any()?;
 
-                            return if let Ok(imm) = get_imm(next.clone()) {
-                                if let Ok(()) = expect_lparen(value.peek().cloned()) {
-                                    value.next();
-                                    let rs1 = get_reg(value.next())?;
-                                    expect_rparen(value.next())?;
+                            return if let Ok(imm) = next.as_imm() {
+                                if let Ok(()) = lex.peek_any()?.as_lparen() {
+                                    lex.get_any()?;
+                                    let rs1 = lex.get_reg()?;
+                                    lex.expect_rparen()?;
                                     Ok(ParserNode::new_store(
                                         With::new(inst, next_node),
                                         rs1,
                                         rs2,
                                         imm,
+                                        lex.raw_token,
                                     ))
-                                } else if let Ok(tmp) = get_reg(value.peek().cloned()) {
-                                    value.next();
+                                } else if let Ok(tmp) = lex.peek_any()?.as_reg() {
+                                    lex.get_any()?;
                                     Err(LexError::NeedTwoNodes(
                                         Box::new(ParserNode::new_iarith(
                                             With::new(IArithType::Addi, next_node.clone()),
                                             tmp.clone(),
                                             With::new(Register::X0, next_node.clone()),
                                             imm,
+                                            lex.raw_token.clone(),
                                         )),
                                         Box::new(ParserNode::new_store(
                                             With::new(inst, next_node.clone()),
                                             tmp.clone(),
                                             rs2,
                                             With::new(Imm(0), next_node),
+                                            lex.raw_token,
                                         )),
                                     ))
                                 } else {
@@ -444,31 +507,35 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         With::new(Register::X0, next_node),
                                         rs2,
                                         imm,
+                                        lex.raw_token,
                                     ))
                                 }
-                            } else if let Ok(label) = get_label(next.clone()) {
-                                let temp_reg = get_reg(value.next())?;
+                            } else if let Ok(label) = next.as_label() {
+                                let temp_reg = lex.get_reg()?;
                                 Err(NeedTwoNodes(
                                     Box::new(ParserNode::new_load_addr(
                                         With::new(PseudoType::La, next_node.clone()),
                                         temp_reg.clone(),
                                         label,
+                                        lex.raw_token.clone(),
                                     )),
                                     Box::new(ParserNode::new_store(
                                         With::new(inst, next_node.clone()),
                                         temp_reg,
                                         rs2,
                                         With::new(Imm(0), next_node),
+                                        lex.raw_token,
                                     )),
                                 ))
-                            } else if let Ok(()) = expect_lparen(next.clone()) {
-                                let rs1 = get_reg(value.next())?;
-                                expect_rparen(value.next())?;
+                            } else if let Ok(()) = next.as_lparen() {
+                                let rs1 = lex.get_reg()?;
+                                lex.expect_rparen()?;
                                 Ok(ParserNode::new_store(
                                     With::new(inst, next_node.clone()),
                                     rs1,
                                     rs2,
                                     With::new(Imm(0), next_node),
+                                    lex.raw_token,
                                 ))
                             } else {
                                 Err(Expected(
@@ -477,23 +544,27 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         ExpectedType::Imm,
                                         ExpectedType::LParen,
                                     ],
-                                    next.ok_or(UnexpectedEOF)?,
+                                    next,
                                 ))
                             };
                         }
                         Type::Branch(inst) => {
-                            let rs1 = get_reg(value.next())?;
-                            let rs2 = get_reg(value.next())?;
-                            let label = get_label(value.next())?;
+                            let rs1 = lex.get_reg()?;
+                            let rs2 = lex.get_reg()?;
+                            let label = lex.get_label()?;
                             Ok(ParserNode::new_branch(
                                 With::new(inst, next_node),
                                 rs1,
                                 rs2,
                                 label,
+                                lex.raw_token,
                             ))
                         }
                         Type::Ignore(_) => Err(Ignored(next_node)),
-                        Type::Basic(inst) => Ok(ParserNode::new_basic(With::new(inst, next_node))),
+                        Type::Basic(inst) => Ok(ParserNode::new_basic(
+                            With::new(inst, next_node),
+                            lex.raw_token,
+                        )),
                         Type::Pseudo(inst) => match inst {
                             PseudoType::Ret => {
                                 return Ok(ParserNode::new_jump_link_r(
@@ -501,122 +572,135 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     With::new(Register::X1, next_node.clone()),
                                     With::new(Imm(0), next_node.clone()),
+                                    lex.raw_token,
                                 ))
                             }
                             PseudoType::Mv => {
-                                let rd = get_reg(value.next())?;
-                                let rs1 = get_reg(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let rs1 = lex.get_reg()?;
                                 return Ok(ParserNode::new_arith(
                                     With::new(ArithType::Add, next_node.clone()),
                                     rd,
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Li => {
-                                let rd = get_reg(value.next())?;
-                                let imm = get_imm(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let imm = lex.get_imm()?;
                                 return Ok(ParserNode::new_iarith(
                                     With::new(IArithType::Addi, next_node.clone()),
                                     rd,
                                     With::new(Register::X0, imm.info()),
                                     imm,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::La => {
-                                let rd = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_load_addr(
                                     With::new(PseudoType::La, next_node.clone()),
                                     rd,
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::J | PseudoType::B => {
-                                let label = get_label(value.next())?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_jump_link(
                                     With::new(JumpLinkType::Jal, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Jr => {
-                                let rs1 = get_reg(value.next())?;
+                                let rs1 = lex.get_reg()?;
                                 return Ok(ParserNode::new_jump_link_r(
                                     With::new(JumpLinkRType::Jalr, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
                                     rs1,
                                     With::new(Imm(0), next_node.clone()),
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Beqz => {
-                                let rs1 = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_branch(
                                     With::new(BranchType::Beq, next_node.clone()),
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Bnez => {
-                                let rs1 = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_branch(
                                     With::new(BranchType::Bne, next_node.clone()),
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Bltz | PseudoType::Bgtz => {
-                                let rs1 = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_branch(
                                     With::new(BranchType::Blt, next_node.clone()),
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Neg => {
-                                let rd = get_reg(value.next())?;
-                                let rs1 = get_reg(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let rs1 = lex.get_reg()?;
                                 return Ok(ParserNode::new_arith(
                                     With::new(ArithType::Sub, next_node.clone()),
                                     rd,
                                     With::new(Register::X0, next_node.clone()),
                                     rs1,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Not => {
-                                let rd = get_reg(value.next())?;
-                                let rs1 = get_reg(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let rs1 = lex.get_reg()?;
                                 return Ok(ParserNode::new_iarith(
                                     With::new(IArithType::Xori, next_node.clone()),
                                     rd,
                                     rs1,
                                     With::new(Imm(-1), next_node.clone()),
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Seqz => {
-                                let rd = get_reg(value.next())?;
-                                let rs1 = get_reg(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let rs1 = lex.get_reg()?;
                                 return Ok(ParserNode::new_iarith(
                                     With::new(IArithType::Sltiu, next_node.clone()),
                                     rd,
                                     rs1,
                                     With::new(Imm(1), next_node.clone()),
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Snez => {
-                                let rd = get_reg(value.next())?;
-                                let rs1 = get_reg(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let rs1 = lex.get_reg()?;
                                 return Ok(ParserNode::new_iarith(
                                     With::new(IArithType::Sltiu, next_node.clone()),
                                     rd,
                                     rs1,
                                     With::new(Imm(0), next_node.clone()),
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Nop => {
@@ -625,103 +709,113 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
                                     With::new(Imm(0), next_node.clone()),
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Bgez | PseudoType::Blez => {
-                                let rs1 = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_branch(
                                     With::new(BranchType::Bge, next_node.clone()),
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Sgtz => {
-                                let rd = get_reg(value.next())?;
-                                let rs1 = get_reg(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let rs1 = lex.get_reg()?;
                                 return Ok(ParserNode::new_arith(
                                     With::new(ArithType::Slt, next_node.clone()),
                                     rd,
                                     With::new(Register::X0, next_node.clone()),
                                     rs1,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Sltz => {
-                                let rd = get_reg(value.next())?;
-                                let rs1 = get_reg(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let rs1 = lex.get_reg()?;
                                 return Ok(ParserNode::new_arith(
                                     With::new(ArithType::Slt, next_node.clone()),
                                     rd,
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Sgez => {
-                                let rs1 = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_branch(
                                     With::new(BranchType::Bge, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
                                     rs1,
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Call => {
-                                let label = get_label(value.next())?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_jump_link(
                                     With::new(JumpLinkType::Jal, next_node.clone()),
                                     With::new(Register::X1, next_node.clone()),
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Bgt => {
-                                let rs1 = get_reg(value.next())?;
-                                let rs2 = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let rs2 = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_branch(
                                     With::new(BranchType::Blt, next_node.clone()),
                                     rs2,
                                     rs1,
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Ble => {
-                                let rs1 = get_reg(value.next())?;
-                                let rs2 = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let rs2 = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_branch(
                                     With::new(BranchType::Bge, next_node.clone()),
                                     rs2,
                                     rs1,
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Bgtu => {
-                                let rs1 = get_reg(value.next())?;
-                                let rs2 = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let rs2 = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_branch(
                                     With::new(BranchType::Bltu, next_node.clone()),
                                     rs2,
                                     rs1,
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Bleu => {
-                                let rs1 = get_reg(value.next())?;
-                                let rs2 = get_reg(value.next())?;
-                                let label = get_label(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let rs2 = lex.get_reg()?;
+                                let label = lex.get_label()?;
                                 return Ok(ParserNode::new_branch(
                                     With::new(BranchType::Bgeu, next_node.clone()),
                                     rs2,
                                     rs1,
                                     label,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Csrci | PseudoType::Csrsi | PseudoType::Csrwi => {
-                                let csr = get_csrimm(value.next())?;
-                                let imm = get_imm(value.next())?;
+                                let csr = lex.get_csrimm()?;
+                                let imm = lex.get_imm()?;
                                 let inst = match inst {
                                     PseudoType::Csrci => CSRIType::Csrrci,
                                     PseudoType::Csrsi => CSRIType::Csrrsi,
@@ -733,11 +827,12 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     csr,
                                     imm,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Csrc | PseudoType::Csrs | PseudoType::Csrw => {
-                                let rs1 = get_reg(value.next())?;
-                                let csr = get_csrimm(value.next())?;
+                                let rs1 = lex.get_reg()?;
+                                let csr = lex.get_csrimm()?;
                                 let inst = match inst {
                                     PseudoType::Csrc => CSRType::Csrrc,
                                     PseudoType::Csrs => CSRType::Csrrs,
@@ -749,16 +844,18 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     csr,
                                     rs1,
+                                    lex.raw_token,
                                 ));
                             }
                             PseudoType::Csrr => {
-                                let rd = get_reg(value.next())?;
-                                let csr = get_csrimm(value.next())?;
+                                let rd = lex.get_reg()?;
+                                let csr = lex.get_csrimm()?;
                                 return Ok(ParserNode::new_csr(
                                     With::new(CSRType::Csrrs, next_node.clone()),
                                     rd,
                                     csr,
                                     With::new(Register::X0, next_node.clone()),
+                                    lex.raw_token,
                                 ));
                             }
                         },
@@ -770,40 +867,46 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                     next_node.clone(),
                 ))
             }
-            Token::Label(s) => Ok(ParserNode::new_label(With::new(
-                LabelString::from_str(s).map_err(|_| {
-                    LexError::Expected(vec![ExpectedType::Label], next_node.clone())
-                })?,
-                next_node,
-            ))),
+            Token::Label(s) => Ok(ParserNode::new_label(
+                With::new(
+                    LabelString::from_str(s).map_err(|_| {
+                        LexError::Expected(vec![ExpectedType::Label], next_node.clone())
+                    })?,
+                    next_node,
+                ),
+                lex.raw_token,
+            )),
             Token::Directive(dir) => {
                 if let Ok(directive) = DirectiveToken::from_str(dir) {
                     match directive {
                         DirectiveToken::Align => {
-                            let imm = get_imm(value.next())?;
+                            let imm = lex.get_imm()?;
                             return Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Align(imm),
+                                lex.raw_token,
                             ));
                         }
                         DirectiveToken::Ascii => {
-                            let string = get_string(value.next())?;
+                            let string = lex.get_string()?;
                             return Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Ascii {
                                     text: string.clone(),
                                     null_term: false,
                                 },
+                                lex.raw_token,
                             ));
                         }
                         DirectiveToken::Asciz | DirectiveToken::String => {
-                            let string = get_string(value.next())?;
+                            let string = lex.get_string()?;
                             return Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Ascii {
                                     text: string.clone(),
                                     null_term: true,
                                 },
+                                lex.raw_token,
                             ));
                         }
                         DirectiveToken::Byte
@@ -826,22 +929,15 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             // not found
                             let mut values = Vec::new();
                             loop {
-                                let next = value.peek();
-                                if let Some(next) = next {
-                                    if let Token::Newline = next.token {
-                                        // consume newline
-                                        value.next();
-                                        continue;
-                                    }
-                                } else {
-                                    return Err(LexError::UnexpectedEOF);
-                                }
-
-                                // try to get immediate
-                                let imm = get_imm(next.cloned());
-                                if let Ok(imm) = imm {
+                                let next = lex.peek_any()?;
+                                if let Token::Newline = next.token {
+                                    // consume newline
+                                    lex.get_any()?;
+                                    continue;
+                                } else if let Ok(imm) = next.as_imm() {
+                                    // try to get immediate
+                                    lex.get_any()?;
                                     values.push(imm);
-                                    value.next();
                                 } else {
                                     break;
                                 }
@@ -850,29 +946,27 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             return Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Data(data_type, values),
+                                lex.raw_token,
                             ));
                         }
                         DirectiveToken::Data => {
                             return Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::DataSection,
+                                lex.raw_token,
                             ));
                         }
                         DirectiveToken::Macro => {
                             // macros are unsupported
                             // we will just ignore them until the we reach endmacro
                             loop {
-                                let next = value.next();
-                                if let Some(next) = next {
-                                    if let Token::Directive(dir) = next.token {
-                                        if let Ok(directive) = DirectiveToken::from_str(&dir) {
-                                            if directive == DirectiveToken::EndMacro {
-                                                break;
-                                            }
+                                let next = lex.get_any()?;
+                                if let Token::Directive(dir) = next.token {
+                                    if let Ok(directive) = DirectiveToken::from_str(&dir) {
+                                        if directive == DirectiveToken::EndMacro {
+                                            break;
                                         }
                                     }
-                                } else {
-                                    return Err(LexError::UnexpectedEOF);
                                 }
                             }
                             return Err(LexError::Ignored(next_node));
@@ -885,10 +979,11 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             return Err(LexError::UnsupportedDirective(next_node));
                         }
                         DirectiveToken::Include => {
-                            let filename = get_string(value.next())?;
+                            let filename = lex.get_string()?;
                             return Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Include(filename),
+                                lex.raw_token,
                             ));
                         }
                         DirectiveToken::Section => {
@@ -898,16 +993,18 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             return Err(LexError::UnsupportedDirective(next_node));
                         }
                         DirectiveToken::Space => {
-                            let imm = get_imm(value.next())?;
+                            let imm = lex.get_imm()?;
                             return Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Space(imm),
+                                lex.raw_token,
                             ));
                         }
                         DirectiveToken::Text => {
                             return Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::TextSection,
+                                lex.raw_token,
                             ));
                         }
                     }
