@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::cfg::Function;
 
+use crate::parser::LabelString;
 use crate::parser::ParserNode;
 use crate::parser::Range;
 use crate::parser::Register;
@@ -29,6 +30,7 @@ pub enum LintError {
     UnknownStack(ParserNode),        // stack value is not definitely known
     InvalidStackPointer(ParserNode), // stack value is being overwritten
     InvalidStackPosition(ParserNode, i32), // stack value is wrong way (positive)
+    InvalidStackOffsetUsage(ParserNode, i32), // read/write using invalid stack offser
     UnreachableCode(ParserNode),     // -- code that is unreachable
                                      // SetBadRegister(Range, Register), -- used when setting registers that should not be set
                                      // FallOffEnd(Range), program may fall off the end of code
@@ -39,6 +41,7 @@ pub enum LintError {
                                      // AnyJumpToData -- if any jump is to a data label, then it is a warning (label strings should have data/text prefix)
 }
 
+#[derive(Clone)]
 pub enum WarningLevel {
     Warning,
     Error,
@@ -53,11 +56,12 @@ impl From<&LintError> for WarningLevel {
             | LintError::LostRegisterValue(_)
             | LintError::UnreachableCode(_) => WarningLevel::Warning,
             LintError::UnknownEcall(_)
-            | LintError::InvalidUseAfterCall(_, _)
+            | LintError::InvalidUseAfterCall(..)
             | LintError::InvalidUseBeforeAssignment(_)
             | LintError::UnknownStack(_)
             | LintError::InvalidStackPointer(_)
             | LintError::InvalidStackPosition(_, _)
+            | LintError::InvalidStackOffsetUsage(_, _)
             | LintError::OverwriteCalleeSavedRegister(_) => WarningLevel::Error,
         }
     }
@@ -69,18 +73,47 @@ impl std::fmt::Display for LintError {
         match self {
             LintError::DeadAssignment(_) => write!(f, "Unused value"),
             LintError::SaveToZero(_) => write!(f, "Saving to zero register"),
-            LintError::InvalidUseAfterCall(_, _) => write!(f, "Invalid use after call"),
+            LintError::InvalidUseAfterCall(_, func, _) => {
+                write!(f, "Invalid use after call to function {}", func.name())
+            }
             LintError::ImproperFuncEntry(..) => write!(f, "Improper function entry"),
             LintError::UnknownEcall(_) => write!(f, "Unknown ecall"),
             LintError::UnreachableCode(_) => write!(f, "Unreachable code"),
             LintError::InvalidUseBeforeAssignment(_) => write!(f, "Invalid use before assignment"),
             LintError::UnknownStack(_) => write!(f, "Unknown stack value"),
             LintError::InvalidStackPointer(_) => write!(f, "Invalid stack pointer"),
-            LintError::InvalidStackPosition(_, _) => write!(f, "Invalid stack position"),
+            LintError::InvalidStackPosition(_, i) => write!(
+                f,
+                "Invalid stack position: original sp {} {}",
+                {
+                    if i.is_negative() {
+                        "-"
+                    } else {
+                        "+"
+                    }
+                },
+                i.abs()
+            ),
             LintError::OverwriteCalleeSavedRegister(_) => {
                 write!(f, "Overwriting callee-saved register")
             }
-            LintError::LostRegisterValue(_) => write!(f, "Lost register value"),
+            LintError::LostRegisterValue(r) => {
+                write!(f, "Lost register value: {}", r.data.to_string())
+            }
+            LintError::InvalidStackOffsetUsage(_, i) => {
+                write!(
+                    f,
+                    "Invalid stack offset usage: original sp {} {}",
+                    {
+                        if i.is_negative() {
+                            "-"
+                        } else {
+                            "+"
+                        }
+                    },
+                    i.abs()
+                )
+            }
         }
     }
 }
@@ -138,13 +171,14 @@ impl DiagnosticLocation for LintError {
             | LintError::UnreachableCode(r)
             | LintError::UnknownStack(r)
             | LintError::InvalidStackPointer(r)
+            | LintError::InvalidStackOffsetUsage(r, _)
             | LintError::InvalidStackPosition(r, _) => r.range(),
         }
     }
 
     fn file(&self) -> Uuid {
         match self {
-            LintError::InvalidUseAfterCall(r, _)
+            LintError::InvalidUseAfterCall(r, _, _)
             | LintError::SaveToZero(r)
             | LintError::InvalidUseBeforeAssignment(r)
             | LintError::LostRegisterValue(r)
@@ -155,6 +189,7 @@ impl DiagnosticLocation for LintError {
             | LintError::UnreachableCode(r)
             | LintError::UnknownStack(r)
             | LintError::InvalidStackPointer(r)
+            | LintError::InvalidStackOffsetUsage(r, _)
             | LintError::InvalidStackPosition(r, _) => r.file(),
         }
     }
