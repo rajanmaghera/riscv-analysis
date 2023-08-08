@@ -1,3 +1,8 @@
 {
-    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix"
+    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
+	"typescript.tsc.autoDetect": "off",
+	"typescript.preferences.quoteStyle": "single",
+	"editor.codeActionsOnSave": {
+		"source.fixAll.eslint": true
+	}
 }

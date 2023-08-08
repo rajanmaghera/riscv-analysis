@@ -1,0 +1,20 @@
+{
+	"name": "riscv-analysis-server",
+	"description": "RISC-V Assembly Language Server",
+	"author": "Rajan Maghera",
+	"license": "MIT",
+	"version": "0.0.1",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/rajanmaghera/riscv-analysis"
+	},
+	"publisher": "rajanmaghera",
+	"engines": {
+		"node": "*"
+	},
+	"dependencies": {
+		"vscode-languageserver": "^8.1.0",
+		"vscode-languageserver-textdocument": "^1.0.8"
+	},
+	"scripts": {}
+}

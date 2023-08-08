@@ -5,6 +5,9 @@
         buildInputs = [            # and a list of packages                   
           pkgs.darwin.libiconv
           pkgs.rustup
+          pkgs.wasm-pack
+          pkgs.nodePackages.typescript
+          pkgs.vsce
           # pkgs.clang
         ];                                                                    
         shellHook = ''             # bash to run when you enter the shell     
