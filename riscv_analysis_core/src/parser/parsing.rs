@@ -1,7 +1,6 @@
 use uuid::Uuid;
 
 use crate::cfg::Cfg;
-use crate::lsp::CanGetURIString;
 use crate::parser::inst::{
     ArithType, BranchType, CSRIType, CSRType, IArithType, Inst, JumpLinkRType, JumpLinkType,
     PseudoType, Type,
@@ -11,9 +10,9 @@ use crate::parser::{DataType, RawToken, Register};
 use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{DirectiveType, ParserNode};
 use crate::parser::{Lexer, Token};
-use crate::passes::{DebugInfo, DiagnosticItem, Manager};
+use crate::passes::{DiagnosticItem, Manager};
 use crate::reader::FileReader;
-use std::collections::HashSet;
+use serde::Deserialize;
 use std::iter::Peekable;
 use std::str::FromStr;
 
@@ -21,6 +20,14 @@ use super::imm::{CSRImm, Imm};
 use super::token::Info;
 use super::{ExpectedType, LabelString, ParseError, Range};
 
+#[derive(Deserialize, Clone)]
+pub struct RVDocument {
+    pub uri: String,
+    pub text: String,
+}
+pub trait CanGetURIString: FileReader {
+    fn get_uri_string(&self, uuid: Uuid) -> RVDocument;
+}
 /// Parser for RISC-V assembly
 pub struct RVParser<T>
 where
@@ -29,38 +36,8 @@ where
     lexer_stack: Vec<Peekable<Lexer>>,
     pub reader: T,
 }
-impl<T> RVParser<T>
-where
-    T: CanGetURIString + Clone + FileReader,
-{
-    pub fn get_full_url(&mut self, path: &str, uuid: Uuid) -> String {
-        let doc = self.reader.get_uri_string(uuid);
-        let uri = lsp_types::Url::parse(&doc.uri).unwrap();
-        let fileuri = uri.join(path).unwrap();
-        fileuri.to_string()
-    }
-}
-impl<T: FileReader + Clone + CanGetURIString> RVParser<T> {
-    /// Return the imported files of a file
-    pub fn get_imports(&mut self, base: &str) -> HashSet<String> {
-        let mut imported = HashSet::new();
-        let items = self.parse(base, true);
-        for item in items.0 {
-            if let ParserNode::Directive(x) = item {
-                if let DirectiveType::Include(name) = x.dir {
-                    // get full file path
-                    let this_uri = self.get_full_url(&name.data, x.dir_token.file);
-                    // add to set
-                    imported.insert(this_uri);
-                    // imports.insert(this_uri);
-                }
-            }
-        }
-        imported
-    }
-}
 impl<T: FileReader + Clone> RVParser<T> {
-    pub fn run(&mut self, base: &str, debug: &DebugInfo) -> Vec<DiagnosticItem> {
+    pub fn run(&mut self, base: &str) -> Vec<DiagnosticItem> {
         let mut diags = Vec::new();
         let parsed = self.parse(base, false);
         parsed
@@ -77,7 +54,7 @@ impl<T: FileReader + Clone> RVParser<T> {
             }
         };
 
-        let res = Manager::run(cfg, &debug);
+        let res = Manager::run(cfg);
         match res {
             Ok(lints) => {
                 lints

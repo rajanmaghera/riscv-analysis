@@ -1,59 +1,68 @@
 // Type conversions for LSP
 
 use std::collections::HashMap;
-use std::convert::From;
 use std::iter::Peekable;
 
-use crate::parser::{Lexer, RVParser, Range as MyRange};
-use crate::passes::WarningLevel;
-use crate::passes::{DiagnosticItem, DiagnosticLocation, DiagnosticMessage};
-use crate::reader::{FileReader, FileReaderError};
 use lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range,
 };
+use riscv_analysis_core::parser::{CanGetURIString, Lexer, RVDocument, RVParser, Range as MyRange};
+use riscv_analysis_core::passes::DiagnosticItem;
+use riscv_analysis_core::passes::WarningLevel;
+use riscv_analysis_core::reader::{FileReader, FileReaderError};
 
 mod completion;
 pub use completion::*;
 use serde::{Deserialize, Serialize};
-use serde_wasm_bindgen::to_value;
 use url::Url;
 use uuid::Uuid;
-use wasm_bindgen::JsValue;
 
-impl From<&MyRange> for Range {
-    fn from(r: &MyRange) -> Self {
+trait RangeInto {
+    fn to_range(&self) -> Range;
+}
+
+impl RangeInto for MyRange {
+    fn to_range(&self) -> Range {
         lsp_types::Range {
             start: Position {
-                line: r.start.line.try_into().unwrap_or(0),
-                character: r.start.column.try_into().unwrap_or(0),
+                line: self.start.line.try_into().unwrap_or(0),
+                character: self.start.column.try_into().unwrap_or(0),
             },
             end: Position {
-                line: r.end.line.try_into().unwrap_or(0),
-                character: r.end.column.try_into().unwrap_or(0),
+                line: self.end.line.try_into().unwrap_or(0),
+                character: self.end.column.try_into().unwrap_or(0),
             },
         }
     }
 }
 
-impl From<WarningLevel> for DiagnosticSeverity {
-    fn from(w: WarningLevel) -> Self {
-        match w {
+trait WarningInto {
+    fn to_severity(&self) -> DiagnosticSeverity;
+}
+
+impl WarningInto for WarningLevel {
+    fn to_severity(&self) -> DiagnosticSeverity {
+        match self {
             WarningLevel::Warning => DiagnosticSeverity::WARNING,
             WarningLevel::Error => DiagnosticSeverity::ERROR,
         }
     }
 }
 
-impl DiagnosticItem {
-    pub fn to_lsp_diag(&self, parser: &RVParser<LSPFileReader>) -> LSPRVSingleDiagnostic {
+pub trait LSPDiag {
+    fn to_lsp_diag(&self, parser: &RVParser<LSPFileReader>) -> LSPRVSingleDiagnostic;
+}
+
+impl LSPDiag for DiagnosticItem {
+    fn to_lsp_diag(&self, parser: &RVParser<LSPFileReader>) -> LSPRVSingleDiagnostic {
         LSPRVSingleDiagnostic {
             uri: parser
                 .reader
                 .get_filename(self.file)
                 .unwrap_or(String::new()),
             diagnostic: Diagnostic {
-                range: (&self.range).into(),
-                severity: Some(self.level.clone().into()),
+                range: (&self.range).to_range(),
+                severity: Some(self.level.clone().to_severity()),
                 code: None,
                 code_description: None,
                 source: None,
@@ -66,7 +75,7 @@ impl DiagnosticItem {
                                     &parser.reader.get_filename(f1.file).unwrap_or(String::new()),
                                 )
                                 .unwrap(),
-                                range: (&f1.range).into(),
+                                range: (&f1.range).to_range(),
                             },
                             message: f1.description,
                         })
@@ -79,19 +88,9 @@ impl DiagnosticItem {
     }
 }
 
-pub trait CanGetURIString: FileReader {
-    fn get_uri_string(&self, uuid: Uuid) -> LSPRVDocument;
-}
-
 #[derive(Clone)]
 pub struct LSPFileReader {
-    pub file_uris: HashMap<Uuid, LSPRVDocument>,
-}
-
-#[derive(Deserialize, Clone)]
-pub struct LSPRVDocument {
-    pub uri: String,
-    pub text: String,
+    pub file_uris: HashMap<Uuid, RVDocument>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -105,38 +104,8 @@ pub struct LSPRVSingleDiagnostic {
     pub diagnostic: Diagnostic,
 }
 
-// WASM MODULES
-
-#[derive(Default)]
-pub struct WrapperDiag(pub Vec<Diagnostic>);
-
-impl From<WrapperDiag> for JsValue {
-    fn from(w: WrapperDiag) -> Self {
-        to_value(&w.0).unwrap()
-    }
-}
-
-impl WrapperDiag {
-    fn new(str: &str) -> Self {
-        let diag = Diagnostic::new_simple(
-            Range::new(
-                Position {
-                    line: 1,
-                    character: 1,
-                },
-                Position {
-                    line: 1,
-                    character: 2,
-                },
-            ),
-            str.to_owned(),
-        );
-        WrapperDiag(vec![diag])
-    }
-}
-
 impl CanGetURIString for LSPFileReader {
-    fn get_uri_string(&self, uuid: Uuid) -> LSPRVDocument {
+    fn get_uri_string(&self, uuid: Uuid) -> RVDocument {
         self.file_uris.get(&uuid).unwrap().clone()
     }
 }
@@ -183,7 +152,7 @@ impl FileReader for LSPFileReader {
 }
 
 impl LSPFileReader {
-    pub fn new(docs: Vec<LSPRVDocument>) -> Self {
+    pub fn new(docs: Vec<RVDocument>) -> Self {
         let mut map = HashMap::new();
 
         for doc in docs {

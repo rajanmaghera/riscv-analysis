@@ -1,6 +1,6 @@
 use crate::{
     analysis::{AvailableValuePass, LivenessPass},
-    cfg::{CFGWrapper, Cfg},
+    cfg::Cfg,
     gen::{
         EcallTerminationPass, EliminateDeadCodeDirectionsPass, FunctionMarkupPass,
         NodeDirectionPass,
@@ -34,27 +34,21 @@ impl Manager {
         LivenessPass::run(&mut cfg)?;
         Ok(cfg)
     }
-    pub fn run(cfg: Cfg, debug: &DebugInfo) -> Result<Vec<LintError>, Box<CFGError>> {
+    pub fn run_diagnostics(cfg: &Cfg, errors: &mut Vec<LintError>) {
+        SaveToZeroCheck::run(&cfg, errors);
+        DeadValueCheck::run(&cfg, errors);
+        EcallCheck::run(&cfg, errors);
+        ControlFlowCheck::run(&cfg, errors);
+        GarbageInputValueCheck::run(&cfg, errors);
+        StackCheckPass::run(&cfg, errors);
+        CalleeSavedRegisterCheck::run(&cfg, errors);
+        CalleeSavedGarbageReadCheck::run(&cfg, errors);
+        LostCalleeSavedRegisterCheck::run(&cfg, errors);
+    }
+    pub fn run(cfg: Cfg) -> Result<Vec<LintError>, Box<CFGError>> {
         let mut errors = Vec::new();
         let cfg = Self::gen_full_cfg(cfg)?;
-        if debug.yaml {
-            println!(
-                "{}",
-                serde_yaml::to_string(&CFGWrapper::from(&cfg)).unwrap()
-            );
-        } else if debug.output {
-            println!("{cfg}");
-        }
-        SaveToZeroCheck::run(&cfg, &mut errors);
-        DeadValueCheck::run(&cfg, &mut errors);
-        EcallCheck::run(&cfg, &mut errors);
-        ControlFlowCheck::run(&cfg, &mut errors);
-        GarbageInputValueCheck::run(&cfg, &mut errors);
-        StackCheckPass::run(&cfg, &mut errors);
-        CalleeSavedRegisterCheck::run(&cfg, &mut errors);
-        CalleeSavedGarbageReadCheck::run(&cfg, &mut errors);
-        LostCalleeSavedRegisterCheck::run(&cfg, &mut errors);
-
+        Self::run_diagnostics(&cfg, &mut errors);
         Ok(errors)
     }
 }
