@@ -5,8 +5,8 @@ use std::convert::From;
 use std::iter::Peekable;
 
 use crate::parser::{Lexer, RVParser, Range as MyRange};
+use crate::passes::WarningLevel;
 use crate::passes::{DiagnosticItem, DiagnosticLocation, DiagnosticMessage};
-use crate::passes::{WarningLevel};
 use crate::reader::{FileReader, FileReaderError};
 use lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range,
@@ -60,15 +60,15 @@ impl DiagnosticItem {
                 message: self.long_description.clone(),
                 related_information: self.related.clone().map(|f| {
                     f.into_iter()
-                        .map(|f| DiagnosticRelatedInformation {
+                        .map(|f1| DiagnosticRelatedInformation {
                             location: Location {
                                 uri: Url::parse(
-                                    &parser.reader.get_filename(f.file).unwrap_or(String::new()),
+                                    &parser.reader.get_filename(f1.file).unwrap_or(String::new()),
                                 )
                                 .unwrap(),
-                                range: (&f.range).into(),
+                                range: (&f1.range).into(),
                             },
-                            message: f.description,
+                            message: f1.description,
                         })
                         .collect::<Vec<_>>()
                 }),

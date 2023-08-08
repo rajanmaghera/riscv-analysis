@@ -47,9 +47,10 @@ pub enum ParseError {
 impl FileReaderError {
     pub fn to_parse_error(&self, path: With<String>) -> ParseError {
         match self {
-            FileReaderError::InternalFileNotFound => ParseError::UnexpectedError(path.info()),
+            FileReaderError::InternalFileNotFound | FileReaderError::Unexpected => {
+                ParseError::UnexpectedError(path.info())
+            }
             FileReaderError::FileAlreadyRead(_) => ParseError::CyclicDependency(path.info()),
-            FileReaderError::Unexpected => ParseError::UnexpectedError(path.info()),
             FileReaderError::InvalidPath => ParseError::FileNotFound(path),
             FileReaderError::IOErr(e) => ParseError::IOError(path, e.clone()),
         }
@@ -175,14 +176,14 @@ impl DiagnosticLocation for ParseError {
 impl From<&ParseError> for WarningLevel {
     fn from(e: &ParseError) -> Self {
         match e {
-            ParseError::Expected(_, _) => WarningLevel::Error,
-            ParseError::Unsupported(_) => WarningLevel::Error,
-            ParseError::UnexpectedToken(_) => WarningLevel::Error,
-            ParseError::UnexpectedError(_) => WarningLevel::Error,
-            ParseError::UnknownDirective(_) => WarningLevel::Error,
-            ParseError::CyclicDependency(_) => WarningLevel::Error,
-            ParseError::FileNotFound(_) => WarningLevel::Error,
-            ParseError::IOError(_, _) => WarningLevel::Error,
+            ParseError::Expected(_, _)
+            | ParseError::Unsupported(_)
+            | ParseError::UnexpectedToken(_)
+            | ParseError::UnexpectedError(_)
+            | ParseError::UnknownDirective(_)
+            | ParseError::CyclicDependency(_)
+            | ParseError::FileNotFound(_)
+            | ParseError::IOError(_, _) => WarningLevel::Error,
         }
     }
 }

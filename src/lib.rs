@@ -44,7 +44,7 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
     let errs = to_parse
         .flat_map(|f| {
             let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
-            let items = parser.run(&f.uri, DebugInfo::default());
+            let items = parser.run(&f.uri, &DebugInfo::default());
             items
                 .into_iter()
                 .map(|f| f.to_lsp_diag(&parser))

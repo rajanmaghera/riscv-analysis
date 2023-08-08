@@ -36,8 +36,7 @@ pub struct RawToken {
 ///
 /// This is the token type for the parser. It is used to
 /// determine what the token is, and what to do with it.
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
 pub enum Token {
     /// Left Parenthesis '('
     LParen,
@@ -75,8 +74,6 @@ pub enum Token {
     /// String: text enclosed in double quotes
     String(String),
 }
-
-
 
 impl Token {
     pub fn as_original_string(&self) -> String {
@@ -282,8 +279,7 @@ impl TryFrom<Info> for String {
 
     fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) => Ok(s),
-            Token::String(s) => Ok(s),
+            Token::Symbol(s) | Token::String(s) => Ok(s),
             _ => Err(format!("Expected symbol or string, got {:?}", value.token)),
         }
     }

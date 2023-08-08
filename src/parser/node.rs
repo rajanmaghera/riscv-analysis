@@ -345,15 +345,15 @@ impl ParserNode {
     /// This function determines if an instruction is meant to be saved to zero
     /// or if it is a no-op. No-ops are treated as warnings, not errors.
     pub fn can_skip_save_checks(&self) -> bool {
-        match self {
+        matches!(
+            self,
             ParserNode::ProgramEntry(_)
-            | ParserNode::FuncEntry(_)
-            | ParserNode::JumpLink(_)
-            | ParserNode::JumpLinkR(_)
-            | ParserNode::Csr(_)
-            | ParserNode::CsrI(_) => true,
-            _ => false,
-        }
+                | ParserNode::FuncEntry(_)
+                | ParserNode::JumpLink(_)
+                | ParserNode::JumpLinkR(_)
+                | ParserNode::Csr(_)
+                | ParserNode::CsrI(_)
+        )
     }
 
     /// Checks if a instruction is a function call

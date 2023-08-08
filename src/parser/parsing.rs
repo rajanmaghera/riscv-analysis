@@ -46,25 +46,21 @@ impl<T: FileReader + Clone + CanGetURIString> RVParser<T> {
         let mut imported = HashSet::new();
         let items = self.parse(base, true);
         for item in items.0 {
-            match item {
-                ParserNode::Directive(x) => match x.dir {
-                    DirectiveType::Include(name) => {
-                        // get full file path
-                        let this_uri = self.get_full_url(&name.data, x.dir_token.file);
-                        // add to set
-                        imported.insert(this_uri);
-                        // imports.insert(this_uri);
-                    }
-                    _ => {}
-                },
-                _ => {}
+            if let ParserNode::Directive(x) = item {
+                if let DirectiveType::Include(name) = x.dir {
+                    // get full file path
+                    let this_uri = self.get_full_url(&name.data, x.dir_token.file);
+                    // add to set
+                    imported.insert(this_uri);
+                    // imports.insert(this_uri);
+                }
             }
         }
         imported
     }
 }
 impl<T: FileReader + Clone> RVParser<T> {
-    pub fn run(&mut self, base: &str, debug: DebugInfo) -> Vec<DiagnosticItem> {
+    pub fn run(&mut self, base: &str, debug: &DebugInfo) -> Vec<DiagnosticItem> {
         let mut diags = Vec::new();
         let parsed = self.parse(base, false);
         parsed
@@ -81,7 +77,7 @@ impl<T: FileReader + Clone> RVParser<T> {
             }
         };
 
-        let res = Manager::run(cfg, debug);
+        let res = Manager::run(cfg, &debug);
         match res {
             Ok(lints) => {
                 lints
@@ -107,15 +103,12 @@ impl<T: FileReader + Clone> RVParser<T> {
     /// we will skip the rest of the line and try to parse the next line.
     fn recover_from_parse_error(&mut self) {
         let lexer = self.lexer();
-        match lexer {
-            Some(x) => {
-                for token in x.by_ref() {
-                    if token == Token::Newline {
-                        break;
-                    }
+        if let Some(x) = lexer {
+            for token in x.by_ref() {
+                if token == Token::Newline {
+                    break;
                 }
             }
-            None => {}
         }
     }
 
@@ -1021,13 +1014,11 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 lex.raw_token,
                             ))
                         }
-                        DirectiveToken::Data => {
-                            Ok(ParserNode::new_directive(
-                                With::new(directive, next_node.clone()),
-                                DirectiveType::DataSection,
-                                lex.raw_token,
-                            ))
-                        }
+                        DirectiveToken::Data => Ok(ParserNode::new_directive(
+                            With::new(directive, next_node.clone()),
+                            DirectiveType::DataSection,
+                            lex.raw_token,
+                        )),
                         DirectiveToken::Macro => {
                             // macros are unsupported
                             // we will just ignore them until the we reach endmacro
@@ -1044,12 +1035,11 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             Err(LexError::Ignored(next_node))
                         }
                         DirectiveToken::EndMacro => Err(LexError::Ignored(next_node)),
-                        DirectiveToken::Eqv => {
-                            Err(LexError::UnsupportedDirective(next_node))
-                        }
-                        DirectiveToken::Global | DirectiveToken::Globl => {
-                            Err(LexError::UnsupportedDirective(next_node))
-                        }
+                        DirectiveToken::Section
+                        | DirectiveToken::Extern
+                        | DirectiveToken::Eqv
+                        | DirectiveToken::Global
+                        | DirectiveToken::Globl => Err(LexError::UnsupportedDirective(next_node)),
                         DirectiveToken::Include => {
                             let filename = lex.get_string()?;
                             Ok(ParserNode::new_directive(
@@ -1057,12 +1047,6 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 DirectiveType::Include(filename),
                                 lex.raw_token,
                             ))
-                        }
-                        DirectiveToken::Section => {
-                            Err(LexError::UnsupportedDirective(next_node))
-                        }
-                        DirectiveToken::Extern => {
-                            Err(LexError::UnsupportedDirective(next_node))
                         }
                         DirectiveToken::Space => {
                             let imm = lex.get_imm()?;
@@ -1072,13 +1056,11 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 lex.raw_token,
                             ))
                         }
-                        DirectiveToken::Text => {
-                            Ok(ParserNode::new_directive(
-                                With::new(directive, next_node.clone()),
-                                DirectiveType::TextSection,
-                                lex.raw_token,
-                            ))
-                        }
+                        DirectiveToken::Text => Ok(ParserNode::new_directive(
+                            With::new(directive, next_node.clone()),
+                            DirectiveType::TextSection,
+                            lex.raw_token,
+                        )),
                     }
                 } else {
                     Err(LexError::UnknownDirective(next_node.clone()))

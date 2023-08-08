@@ -3,6 +3,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
+use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
@@ -218,8 +219,7 @@ impl GenerationPass for AvailableValuePass {
                 }
 
                 // Add node to visited
-                visited.insert(node.clone());
-                visited.insert(node.clone());
+                visited.insert(Rc::clone(&node));
             }
         }
         Ok(())

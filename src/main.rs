@@ -131,7 +131,7 @@ impl FileReader for IOFileReader {
                 .files
                 .iter()
                 .find(|(_, uuid)| **uuid == id)
-                .map(|(path, _)| path);
+                .map(|(path2, _)| path2);
             if let Some(parent) = parent {
                 // join parent path to path
                 let parent = PathBuf::from_str(parent)
@@ -199,8 +199,7 @@ fn main() {
 
             let mut diags = Vec::new();
             let parsed = parser.parse(
-                lint
-                    .input
+                lint.input
                     .to_str()
                     .expect("unable to convert path to string"),
                 false,
@@ -222,7 +221,7 @@ fn main() {
 
             let res = Manager::run(
                 cfg,
-                DebugInfo {
+                &DebugInfo {
                     output: lint.debug,
                     yaml: lint.yaml,
                 },
@@ -246,8 +245,7 @@ fn main() {
             let reader = IOFileReader::new();
             let mut parser = RVParser::new(reader);
             let parsed = parser.parse(
-                debu
-                    .input
+                debu.input
                     .to_str()
                     .expect("unable to convert path to string"),
                 true,

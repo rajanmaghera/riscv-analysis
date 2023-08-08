@@ -34,7 +34,7 @@ impl Manager {
         LivenessPass::run(&mut cfg)?;
         Ok(cfg)
     }
-    pub fn run(cfg: Cfg, debug: DebugInfo) -> Result<Vec<LintError>, Box<CFGError>> {
+    pub fn run(cfg: Cfg, debug: &DebugInfo) -> Result<Vec<LintError>, Box<CFGError>> {
         let mut errors = Vec::new();
         let cfg = Self::gen_full_cfg(cfg)?;
         if debug.yaml {

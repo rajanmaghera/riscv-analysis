@@ -84,23 +84,23 @@ impl From<&CFGError> for WarningLevel {
 impl DiagnosticLocation for CFGError {
     fn file(&self) -> uuid::Uuid {
         match self {
-            CFGError::MultipleLabelsForReturn(node, _) => node.file(),
-            CFGError::NoLabelForReturn(node) => node.file(),
+            CFGError::MultipleLabelsForReturn(node, _) | CFGError::NoLabelForReturn(node) => {
+                node.file()
+            }
             CFGError::LabelsNotDefined(labels) => labels.iter().next().unwrap().file(),
             CFGError::DuplicateLabel(label) => label.file(),
-            CFGError::UnexpectedError => uuid::Uuid::nil(),
-            CFGError::AssertionError => uuid::Uuid::nil(),
+            CFGError::UnexpectedError | CFGError::AssertionError => uuid::Uuid::nil(),
         }
     }
 
     fn range(&self) -> crate::parser::Range {
         match self {
-            CFGError::MultipleLabelsForReturn(node, _) => node.range(),
-            CFGError::NoLabelForReturn(node) => node.range(),
+            CFGError::MultipleLabelsForReturn(node, _) | CFGError::NoLabelForReturn(node) => {
+                node.range()
+            }
             CFGError::LabelsNotDefined(labels) => labels.iter().next().unwrap().range(),
             CFGError::DuplicateLabel(label) => label.range(),
-            CFGError::UnexpectedError => crate::parser::Range::default(),
-            CFGError::AssertionError => crate::parser::Range::default(),
+            CFGError::UnexpectedError | CFGError::AssertionError => crate::parser::Range::default(),
         }
     }
 }
