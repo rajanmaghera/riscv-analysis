@@ -15,3 +15,6 @@ pub use function::*;
 
 mod display;
 pub use display::*;
+
+mod test_wrapper;
+pub use test_wrapper::*;
