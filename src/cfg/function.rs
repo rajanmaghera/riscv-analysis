@@ -16,6 +16,16 @@ pub struct Function {
 }
 
 impl Function {
+    pub fn name(&self) -> LabelString {
+        LabelString(
+            self.entry
+                .labels()
+                .into_iter()
+                .map(|x| x.data.0)
+                .collect::<Vec<String>>()
+                .join(", "),
+        )
+    }
     pub fn new(nodes: Vec<Rc<CFGNode>>, entry: Rc<CFGNode>, exit: Rc<CFGNode>) -> Self {
         Function { nodes, entry, exit }
     }
