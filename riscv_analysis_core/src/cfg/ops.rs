@@ -23,6 +23,7 @@ pub enum MathOp {
 
 // impl Inst -> MathOp
 impl Inst {
+    #[must_use]
     pub fn math_op(self) -> Option<MathOp> {
         match self {
             Inst::Add | Inst::Addi => Some(MathOp::Add),
@@ -48,6 +49,7 @@ impl Inst {
     }
 
     // To allow for scalar operations only, like stack manipulation
+    #[must_use]
     pub fn scalar_op(self) -> Option<MathOp> {
         match self {
             Inst::Add | Inst::Addi => Some(MathOp::Add),
@@ -60,6 +62,7 @@ impl Inst {
 impl MathOp {
     #[allow(clippy::cast_possible_wrap)]
     #[allow(clippy::cast_sign_loss)]
+    #[must_use]
     pub fn operate(&self, x: i32, y: i32) -> i32 {
         match self {
             MathOp::Add => x + y,

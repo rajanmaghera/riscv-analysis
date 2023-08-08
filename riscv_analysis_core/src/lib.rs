@@ -16,11 +16,15 @@
     clippy::expect_used,
     clippy::let_underscore_must_use
 )]
-// #![deny(clippy::panic_in_result_fn, clippy::use_debug, clippy::todo, clippy::indexing_slicing)]
+#![deny(
+    clippy::panic_in_result_fn,
+    clippy::use_debug,
+    clippy::todo,
+    clippy::indexing_slicing
+)]
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::module_name_repetitions)]
-#![allow(clippy::too_many_lines)]
-#![allow(clippy::inline_always)]
+#![allow(clippy::missing_errors_doc)]
 
 pub mod analysis;
 pub mod cfg;

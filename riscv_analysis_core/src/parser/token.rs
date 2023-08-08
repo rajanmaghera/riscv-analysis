@@ -76,6 +76,7 @@ pub enum Token {
 }
 
 impl Token {
+    #[must_use]
     pub fn as_original_string(&self) -> String {
         match self {
             Token::LParen => "(".to_owned(),

@@ -61,7 +61,7 @@ impl LSPDiag for DiagnosticItem {
                 .get_filename(self.file)
                 .unwrap_or(String::new()),
             diagnostic: Diagnostic {
-                range: (&self.range).to_range(),
+                range: self.range.to_range(),
                 severity: Some(self.level.clone().to_severity()),
                 code: None,
                 code_description: None,
@@ -75,7 +75,7 @@ impl LSPDiag for DiagnosticItem {
                                     &parser.reader.get_filename(f1.file).unwrap_or(String::new()),
                                 )
                                 .unwrap(),
-                                range: (&f1.range).to_range(),
+                                range: f1.range.to_range(),
                             },
                             message: f1.description,
                         })

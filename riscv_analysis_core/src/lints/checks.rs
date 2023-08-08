@@ -30,6 +30,7 @@ impl Cfg {
         queue.extend(node.prevs().clone().into_iter());
 
         // keep track of visited nodes
+        #[allow(clippy::mutable_key_type)]
         let mut visited = HashSet::new();
         visited.insert(Rc::clone(node));
 
@@ -62,6 +63,7 @@ impl Cfg {
         queue.extend(node.nexts().clone().into_iter());
 
         // keep track of visited nodes
+        #[allow(clippy::mutable_key_type)]
         let mut visited = HashSet::new();
         visited.insert(Rc::clone(node));
 
