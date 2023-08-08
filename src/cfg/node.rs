@@ -18,6 +18,7 @@ use super::Function;
 pub struct CFGNode {
     node: RefCell<ParserNode>,
     pub labels: HashSet<With<LabelString>>,
+    pub data_section: bool,
     nexts: RefCell<HashSet<Rc<CFGNode>>>,
     prevs: RefCell<HashSet<Rc<CFGNode>>>,
     function: RefCell<Option<Rc<Function>>>,
@@ -31,10 +32,11 @@ pub struct CFGNode {
 }
 
 impl CFGNode {
-    pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>) -> Self {
+    pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>, data_section: bool) -> Self {
         CFGNode {
             node: RefCell::new(node),
             labels,
+            data_section,
             nexts: RefCell::new(HashSet::new()),
             prevs: RefCell::new(HashSet::new()),
             function: RefCell::new(None),
@@ -149,9 +151,12 @@ impl CFGNode {
     }
 
     #[inline(always)]
-    pub fn calls_to(&self, cfg: &Cfg) -> Option<Rc<Function>> {
+    pub fn calls_to(&self, cfg: &Cfg) -> Option<(Rc<Function>, With<LabelString>)> {
         if let Some(name) = self.node().calls_to() {
-            cfg.label_function_map.get(&name).cloned()
+            cfg.label_function_map
+                .get(&name)
+                .cloned()
+                .map(|x| (x, name))
         } else {
             None
         }

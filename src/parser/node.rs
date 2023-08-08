@@ -2,7 +2,7 @@ use crate::parser::imm::{CSRImm, Imm};
 use crate::parser::inst::Inst;
 use crate::parser::inst::{
     ArithType, BasicType, BranchType, CSRIType, CSRType, IArithType, JumpLinkRType, JumpLinkType,
-    LoadType, PseudoType, StoreType, UpperArithType,
+    LoadType, PseudoType, StoreType,
 };
 
 use crate::parser::register::Register;
@@ -17,7 +17,6 @@ use uuid::Uuid;
 use super::{
     Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry, IArith,
     JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, RawToken, Store,
-    UpperArith,
 };
 
 #[derive(Debug, Clone)]
@@ -26,7 +25,6 @@ pub enum ParserNode {
     FuncEntry(FuncEntry),
     Arith(Arith),
     IArith(IArith),
-    UpperArith(UpperArith),
     Label(Label),
     JumpLink(JumpLink),
     JumpLinkR(JumpLinkR),
@@ -45,7 +43,6 @@ impl ParserNode {
         match self {
             ParserNode::Arith(x) => x.token.clone(),
             ParserNode::IArith(x) => x.token.clone(),
-            ParserNode::UpperArith(x) => x.token.clone(),
             ParserNode::Label(x) => x.token.clone(),
             ParserNode::JumpLink(x) => x.token.clone(),
             ParserNode::JumpLinkR(x) => x.token.clone(),
@@ -66,7 +63,6 @@ impl ParserNode {
         match self {
             ParserNode::Arith(a) => a.key,
             ParserNode::IArith(a) => a.key,
-            ParserNode::UpperArith(a) => a.key,
             ParserNode::Label(a) => a.key,
             ParserNode::JumpLink(a) => a.key,
             ParserNode::JumpLinkR(a) => a.key,
@@ -101,7 +97,6 @@ impl ParserNode {
         match self {
             ParserNode::Arith(x) => (&x.inst.data).into(),
             ParserNode::IArith(x) => (&x.inst.data).into(),
-            ParserNode::UpperArith(x) => (&x.inst.data).into(),
             ParserNode::JumpLink(x) => (&x.inst.data).into(),
             ParserNode::JumpLinkR(x) => (&x.inst.data).into(),
             ParserNode::Basic(x) => (&x.inst.data).into(),
@@ -146,21 +141,6 @@ impl ParserNode {
             inst,
             rd,
             rs1,
-            imm,
-            key: Uuid::new_v4(),
-            token,
-        })
-    }
-
-    pub fn new_upper_arith(
-        inst: With<UpperArithType>,
-        rd: With<Register>,
-        imm: With<Imm>,
-        token: RawToken,
-    ) -> ParserNode {
-        ParserNode::UpperArith(UpperArith {
-            inst,
-            rd,
             imm,
             key: Uuid::new_v4(),
             token,
@@ -375,10 +355,7 @@ impl ParserNode {
         }
     }
 
-    pub fn is_memory_access(&self) -> bool {
-        matches!(self, ParserNode::Load(_) | ParserNode::Store(_))
-    }
-
+    /// Checks if a instruction is a function call
     pub fn calls_to(&self) -> Option<With<LabelString>> {
         match self {
             ParserNode::JumpLink(x) if x.rd == Register::X1 => Some(x.name.clone()),
@@ -386,6 +363,7 @@ impl ParserNode {
         }
     }
 
+    /// Checks if a instruction is an environment call
     pub fn is_ecall(&self) -> bool {
         match self {
             ParserNode::Basic(x) => x.inst == BasicType::Ecall,
@@ -393,10 +371,18 @@ impl ParserNode {
         }
     }
 
+    /// Checks if a instruction is a potential jump
     pub fn jumps_to(&self) -> Option<With<LabelString>> {
         match self {
             ParserNode::JumpLink(x) if x.rd != Register::X1 => Some(x.name.clone()),
             ParserNode::Branch(x) => Some(x.name.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn reads_address_of(&self) -> Option<With<LabelString>> {
+        match self {
+            ParserNode::LoadAddr(x) => Some(x.name.clone()),
             _ => None,
         }
     }
@@ -413,6 +399,30 @@ impl ParserNode {
         matches!(self, ParserNode::ProgramEntry(_))
     }
 
+    /// Either loads or stores to a memory location
+    pub fn uses_memory_location(&self) -> Option<(Register, Imm)> {
+        match self {
+            ParserNode::Store(s) => Some((s.rs1.data, s.imm.data.clone())),
+            ParserNode::Load(l) => Some((l.rs1.data, l.imm.data.clone())),
+            _ => None,
+        }
+    }
+
+    pub fn is_unconditional_jump(&self) -> bool {
+        match self {
+            ParserNode::JumpLink(x) if x.rd == Register::X0 => true,
+            ParserNode::Branch(x) => {
+                // TODO elaborate
+                if x.rs1 == Register::X0 && x.rs2 == Register::X0 && x.inst == BranchType::Beq {
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
     // NOTE: This is in context to a register store, not a memory store
     pub fn stores_to(&self) -> Option<With<Register>> {
         match self {
@@ -420,7 +430,6 @@ impl ParserNode {
             ParserNode::LoadAddr(load) => Some(load.rd.clone()),
             ParserNode::Arith(arith) => Some(arith.rd.clone()),
             ParserNode::IArith(iarith) => Some(iarith.rd.clone()),
-            ParserNode::UpperArith(upper_arith) => Some(upper_arith.rd.clone()),
             ParserNode::JumpLink(jump_link) => Some(jump_link.rd.clone()),
             ParserNode::JumpLinkR(jump_link_r) => Some(jump_link_r.rd.clone()),
             ParserNode::Csr(csr) => Some(csr.rd.clone()),
@@ -446,7 +455,6 @@ impl ParserNode {
             ParserNode::Csr(x) => vec![x.rs1.clone()],
             ParserNode::ProgramEntry(_)
             | ParserNode::FuncEntry(_)
-            | ParserNode::UpperArith(_)
             | ParserNode::Label(_)
             | ParserNode::JumpLink(_)
             | ParserNode::Basic(_)
@@ -461,7 +469,6 @@ impl ParserNode {
         match self {
             ParserNode::Arith(x) => x.key = uuid,
             ParserNode::IArith(x) => x.key = uuid,
-            ParserNode::UpperArith(x) => x.key = uuid,
             ParserNode::Label(x) => x.key = uuid,
             ParserNode::JumpLink(x) => x.key = uuid,
             ParserNode::JumpLinkR(x) => x.key = uuid,

@@ -33,7 +33,7 @@ impl GenerationPass for NodeDirectionPass {
             }
 
             // Set previous node to current node, if it is not a return
-            prev = if node.node().is_return() {
+            prev = if node.node().is_return() || node.node().is_unconditional_jump() {
                 None
             } else {
                 Some(Rc::clone(node))
