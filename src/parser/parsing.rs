@@ -11,7 +11,7 @@ use crate::parser::{DataType, RawToken, Register};
 use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{DirectiveType, ParserNode};
 use crate::parser::{Lexer, Token};
-use crate::passes::{DiagnosticItem, Manager};
+use crate::passes::{DebugInfo, DiagnosticItem, Manager};
 use crate::reader::FileReader;
 use std::collections::HashSet;
 use std::iter::Peekable;
@@ -64,7 +64,7 @@ impl<T: FileReader + Clone + CanGetURIString> RVParser<T> {
     }
 }
 impl<T: FileReader + Clone> RVParser<T> {
-    pub fn run(&mut self, base: &str, debug: bool) -> Vec<DiagnosticItem> {
+    pub fn run(&mut self, base: &str, debug: DebugInfo) -> Vec<DiagnosticItem> {
         let mut diags = Vec::new();
         let parsed = self.parse(base, false);
         parsed

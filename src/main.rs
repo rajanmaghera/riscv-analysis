@@ -27,7 +27,7 @@ use std::{collections::HashMap, iter::Peekable, str::FromStr};
 use cfg::Cfg;
 use clap::{Args, Parser, Subcommand};
 use parser::{Lexer, RVParser};
-use passes::DiagnosticItem;
+use passes::{DebugInfo, DiagnosticItem};
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -76,6 +76,9 @@ struct Lint {
     /// Debug mode
     #[clap(short, long)]
     debug: bool,
+    /// Output debug as yaml
+    #[clap(long)]
+    yaml: bool,
     /// Remove output
     #[clap(long)]
     no_output: bool,
@@ -217,7 +220,13 @@ fn main() {
                 }
             };
 
-            let res = Manager::run(cfg.clone(), lint.debug);
+            let res = Manager::run(
+                cfg.clone(),
+                DebugInfo {
+                    output: lint.debug,
+                    yaml: lint.yaml,
+                },
+            );
             if !lint.no_output {
                 match res {
                     Ok(lints) => {

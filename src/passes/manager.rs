@@ -1,6 +1,6 @@
 use crate::{
     analysis::{AvailableValuePass, LivenessPass},
-    cfg::Cfg,
+    cfg::{CFGWrapper, Cfg},
     gen::{
         EcallTerminationPass, EliminateDeadCodeDirectionsPass, FunctionMarkupPass,
         NodeDirectionPass,
@@ -14,11 +14,16 @@ use crate::{
 
 use super::{CFGError, GenerationPass, LintError, LintPass};
 
+#[derive(Default)]
+pub struct DebugInfo {
+    pub output: bool,
+    pub yaml: bool,
+}
+
 pub struct Manager;
 impl Manager {
-    pub fn run(cfg: Cfg, debug: bool) -> Result<Vec<LintError>, Box<CFGError>> {
+    pub fn gen_full_cfg(cfg: Cfg) -> Result<Cfg, Box<CFGError>> {
         let mut cfg = cfg;
-        let mut errors = Vec::new();
 
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
@@ -27,7 +32,17 @@ impl Manager {
         EcallTerminationPass::run(&mut cfg)?;
         // EliminateDeadCodeDirectionsPass::run(&mut cfg)?; // to eliminate ecall terminated code
         LivenessPass::run(&mut cfg)?;
-        if debug {
+        Ok(cfg)
+    }
+    pub fn run(cfg: Cfg, debug: DebugInfo) -> Result<Vec<LintError>, Box<CFGError>> {
+        let mut errors = Vec::new();
+        let cfg = Self::gen_full_cfg(cfg)?;
+        if debug.yaml {
+            println!(
+                "{}",
+                serde_yaml::to_string(&CFGWrapper::from(&cfg)).unwrap()
+            );
+        } else if debug.output {
             println!("{}", cfg);
         }
         SaveToZeroCheck::run(&cfg, &mut errors);

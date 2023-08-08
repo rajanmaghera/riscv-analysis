@@ -1,5 +1,6 @@
 use crate::parser::RVParser;
 use lsp::{LSPFileReader, LSPRVDiagnostic, LSPRVDocument, LSPRVSingleDiagnostic, RVCompletionItem};
+use passes::DebugInfo;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 mod analysis;
@@ -43,7 +44,7 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
     let errs = to_parse
         .map(|f| {
             let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
-            let items = parser.run(&f.uri, false);
+            let items = parser.run(&f.uri, DebugInfo::default());
             items
                 .into_iter()
                 .map(|f| f.to_lsp_diag(&parser))
