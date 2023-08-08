@@ -35,15 +35,15 @@ impl Manager {
         Ok(cfg)
     }
     pub fn run_diagnostics(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        SaveToZeroCheck::run(&cfg, errors);
-        DeadValueCheck::run(&cfg, errors);
-        EcallCheck::run(&cfg, errors);
-        ControlFlowCheck::run(&cfg, errors);
-        GarbageInputValueCheck::run(&cfg, errors);
-        StackCheckPass::run(&cfg, errors);
-        CalleeSavedRegisterCheck::run(&cfg, errors);
-        CalleeSavedGarbageReadCheck::run(&cfg, errors);
-        LostCalleeSavedRegisterCheck::run(&cfg, errors);
+        SaveToZeroCheck::run(cfg, errors);
+        DeadValueCheck::run(cfg, errors);
+        EcallCheck::run(cfg, errors);
+        ControlFlowCheck::run(cfg, errors);
+        GarbageInputValueCheck::run(cfg, errors);
+        StackCheckPass::run(cfg, errors);
+        CalleeSavedRegisterCheck::run(cfg, errors);
+        CalleeSavedGarbageReadCheck::run(cfg, errors);
+        LostCalleeSavedRegisterCheck::run(cfg, errors);
     }
     pub fn run(cfg: Cfg) -> Result<Vec<LintError>, Box<CFGError>> {
         let mut errors = Vec::new();

@@ -99,7 +99,17 @@ impl FromStr for Register {
     }
 }
 
+#[derive(Debug)]
+pub struct ParseRegisterError;
+
+impl Display for ParseRegisterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("invalid register")
+    }
+}
+
 impl Register {
+    #[must_use]
     pub fn all_representations(&self) -> HashSet<String> {
         match self {
             Register::X0 => vec!["x0", "zero"],
@@ -141,8 +151,9 @@ impl Register {
         .collect()
     }
 
-    pub fn from_num(num: u8) -> Register {
-        match num {
+    /// Returns a register from a number
+    pub fn from_num(num: u8) -> Result<Register, ParseRegisterError> {
+        Ok(match num {
             0 => Register::X0,
             1 => Register::X1,
             2 => Register::X2,
@@ -175,10 +186,11 @@ impl Register {
             29 => Register::X29,
             30 => Register::X30,
             31 => Register::X31,
-            _ => panic!("Invalid register number"),
-        }
+            _ => return Err(ParseRegisterError),
+        })
     }
 
+    #[must_use]
     pub fn to_num(self) -> u8 {
         match self {
             Register::X0 => 0,
@@ -216,14 +228,17 @@ impl Register {
         }
     }
 
+    #[must_use]
     pub fn is_sp(self) -> bool {
         self == Register::X2
     }
 
+    #[must_use]
     pub fn ecall_type() -> Register {
         Register::X17
     }
 
+    #[must_use]
     pub fn all() -> HashSet<Register> {
         vec![
             Register::X0,

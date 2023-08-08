@@ -220,6 +220,8 @@ pub enum Inst {
 }
 
 impl Inst {
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn all() -> Vec<Inst> {
         vec![
             Inst::Ret,

@@ -120,24 +120,24 @@ impl<T: FileReader + Clone> RVParser<T> {
             },
         ));
 
-        while let Some(lexer) = self.lexer() {
-            let node = ParserNode::try_from(lexer);
+        while let Some(l) = self.lexer() {
+            let node = ParserNode::try_from(l);
 
             match node {
                 Ok(x) => {
                     if !ignore_imports {
                         if let ParserNode::Directive(directive) = &x {
                             if let DirectiveType::Include(path) = &directive.dir {
-                                let lexer = self.reader.import_file(
+                                let lex2 = self.reader.import_file(
                                     path.data.as_str(),
                                     Some(directive.dir_token.file),
                                 );
-                                match lexer {
-                                    Ok(x) => {
-                                        self.lexer_stack.push(x.1);
+                                match lex2 {
+                                    Ok(x2) => {
+                                        self.lexer_stack.push(x2.1);
                                     }
-                                    Err(x) => {
-                                        parse_errors.push(x.to_parse_error(path.clone()));
+                                    Err(x2) => {
+                                        parse_errors.push(x2.to_parse_error(path.clone()));
                                     }
                                 }
                                 continue;
@@ -152,10 +152,6 @@ impl<T: FileReader + Clone> RVParser<T> {
                         self.recover_from_parse_error();
                     }
                     LexError::IsNewline(_) => {}
-                    LexError::Ignored(y) => {
-                        parse_errors.push(ParseError::Unsupported(y));
-                        self.recover_from_parse_error();
-                    }
                     LexError::UnexpectedToken(got) => {
                         parse_errors.push(ParseError::UnexpectedToken(got));
                         self.recover_from_parse_error();
@@ -175,7 +171,7 @@ impl<T: FileReader + Clone> RVParser<T> {
                         parse_errors.push(ParseError::UnknownDirective(y));
                         self.recover_from_parse_error();
                     }
-                    LexError::UnsupportedDirective(y) => {
+                    LexError::Ignored(y) | LexError::UnsupportedDirective(y) => {
                         parse_errors.push(ParseError::Unsupported(y));
                         self.recover_from_parse_error();
                     }
@@ -964,7 +960,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 DirectiveToken::Float => DataType::Float,
                                 DirectiveToken::Word => DataType::Word,
                                 DirectiveToken::Half => DataType::Half,
-                                _ => unreachable!(),
+                                _ => return Err(LexError::UnexpectedError(next_node)),
                             };
 
                             // keep looping through values until immediate or nl is
@@ -1001,9 +997,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             // we will just ignore them until the we reach endmacro
                             loop {
                                 let next = lex.get_any()?;
-                                if let Token::Directive(dir) = next.token {
-                                    if let Ok(directive) = DirectiveToken::from_str(&dir) {
-                                        if directive == DirectiveToken::EndMacro {
+                                if let Token::Directive(dir2) = next.token {
+                                    if let Ok(new_dir) = DirectiveToken::from_str(&dir2) {
+                                        if new_dir == DirectiveToken::EndMacro {
                                             break;
                                         }
                                     }

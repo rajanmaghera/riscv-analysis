@@ -21,30 +21,36 @@ where
 }
 
 pub trait CustomIntersection {
+    #[must_use]
     fn intersection(&self, other: &Self) -> Self;
 }
-impl<T, U> CustomIntersection for HashMap<T, U>
+impl<T, U, S> CustomIntersection for HashMap<T, U, S>
 where
     T: Eq + Hash + Clone,
     U: Eq + Hash + Clone,
+    S: std::hash::BuildHasher + Default,
 {
     fn intersection(&self, other: &Self) -> Self {
         self.iter()
             .collect::<HashSet<_>>()
             .intersection(&other.iter().collect::<HashSet<_>>())
             .map(|x| (x.0.clone(), x.1.clone()))
-            .collect::<HashMap<_, _>>()
+            .collect::<HashMap<_, _, _>>()
     }
 }
 pub trait CustomClonedSets<T> {
+    #[must_use]
     fn intersection_c(&self, other: &Self) -> Self;
+    #[must_use]
     fn union_c(&self, other: &Self) -> Self;
+    #[must_use]
     fn difference_c(&self, other: &Self) -> Self;
 }
 
-impl<T> CustomClonedSets<T> for HashSet<T>
+impl<T, S> CustomClonedSets<T> for HashSet<T, S>
 where
     T: Eq + Hash + Clone,
+    S: std::hash::BuildHasher + Default,
 {
     fn intersection_c(&self, other: &Self) -> Self {
         self.intersection(other).cloned().collect()
@@ -60,13 +66,15 @@ where
 }
 
 pub trait CustomDifference<T> {
+    #[must_use]
     fn difference(&self, other: &T) -> Self;
 }
 
-impl<T, U> CustomDifference<HashSet<T>> for HashMap<T, U>
+impl<T, U, S> CustomDifference<HashSet<T>> for HashMap<T, U, S>
 where
     T: Eq + Hash + Clone,
     U: Eq + Hash + Clone,
+    S: std::hash::BuildHasher + Default,
 {
     fn difference(&self, other: &HashSet<T>) -> Self {
         self.iter()
@@ -85,8 +93,10 @@ where
     Self: Sized + Clone + Default,
     T: Eq + Clone,
 {
+    #[must_use]
     fn union(&self, other: &T) -> Self;
 
+    #[must_use]
     fn union_if(&self, other: &T, cond: bool) -> Self {
         if cond {
             self.union(other)
@@ -103,9 +113,12 @@ where
     T: Eq + Clone,
     U: Eq + Clone,
 {
+    #[must_use]
     fn union_filter_map<F>(&self, other: &T, f: F) -> Self
     where
         F: Fn(&U) -> T;
+
+    #[must_use]
     fn clear_if(&self, cond: bool) -> Self {
         if cond {
             Self::default()
@@ -115,7 +128,10 @@ where
     }
 }
 
-impl CustomUnion<Option<(Register, AvailableValue)>> for HashMap<Register, AvailableValue> {
+impl<S> CustomUnion<Option<(Register, AvailableValue)>> for HashMap<Register, AvailableValue, S>
+where
+    S: std::hash::BuildHasher + Default + Clone,
+{
     fn union(&self, other: &Option<(Register, AvailableValue)>) -> Self {
         let mut out = self.clone();
         if let Some((reg, val)) = other {
@@ -125,7 +141,10 @@ impl CustomUnion<Option<(Register, AvailableValue)>> for HashMap<Register, Avail
     }
 }
 
-impl CustomUnion<HashMap<Register, AvailableValue>> for HashMap<Register, AvailableValue> {
+impl<S> CustomUnion<HashMap<Register, AvailableValue>> for HashMap<Register, AvailableValue, S>
+where
+    S: std::hash::BuildHasher + Default + Clone,
+{
     fn union(&self, other: &HashMap<Register, AvailableValue>) -> Self {
         let mut out = self.clone();
         for (reg, val) in other {
@@ -136,14 +155,15 @@ impl CustomUnion<HashMap<Register, AvailableValue>> for HashMap<Register, Availa
 }
 
 impl CustomUnion<i32> for i32 {
-    #[inline(always)]
     fn union(&self, other: &i32) -> Self {
         *self | *other
     }
 }
 
-impl CustomUnionFilterMap<Option<(i32, AvailableValue)>, (i32, AvailableValue)>
-    for HashMap<i32, AvailableValue>
+impl<S> CustomUnionFilterMap<Option<(i32, AvailableValue)>, (i32, AvailableValue)>
+    for HashMap<i32, AvailableValue, S>
+where
+    S: std::hash::BuildHasher + Default + Clone,
 {
     fn union_filter_map<F>(&self, other: &Option<(i32, AvailableValue)>, f: F) -> Self
     where
@@ -163,7 +183,10 @@ pub trait CustomInto<T> {
     fn into_available(self) -> T;
 }
 
-impl CustomInto<HashMap<Register, AvailableValue>> for HashSet<Register> {
+impl<S> CustomInto<HashMap<Register, AvailableValue>> for HashSet<Register, S>
+where
+    S: std::hash::BuildHasher + Default + Clone,
+{
     fn into_available(self) -> HashMap<Register, AvailableValue> {
         self.into_iter()
             .map(|x| (x, AvailableValue::OriginalRegisterWithScalar(x, 0)))

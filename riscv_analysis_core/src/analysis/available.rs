@@ -74,7 +74,7 @@ pub trait AvailableRegisterValues {
     fn is_original_value(&self, reg: Register) -> bool;
 }
 
-impl AvailableRegisterValues for HashMap<Register, AvailableValue> {
+impl<S: std::hash::BuildHasher> AvailableRegisterValues for HashMap<Register, AvailableValue, S> {
     fn is_original_value(&self, reg: Register) -> bool {
         self.get(&reg).map_or(false, |x| match x {
             AvailableValue::OriginalRegisterWithScalar(reg2, offset) => {
@@ -142,6 +142,7 @@ impl GenerationPass for AvailableValuePass {
         // visited and only factor those into each calculation at a given point.
         // We still ensure that, by the end, all nodes have been visited and
         // the values with the correct previous nodes are calculated.
+        #[allow(clippy::mutable_key_type)]
         let mut visited = HashSet::new();
         while changed {
             changed = false;

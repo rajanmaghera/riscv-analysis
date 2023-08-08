@@ -45,6 +45,7 @@ pub enum ParseError {
 }
 
 impl FileReaderError {
+    #[must_use]
     pub fn to_parse_error(&self, path: With<String>) -> ParseError {
         match self {
             FileReaderError::InternalFileNotFound | FileReaderError::Unexpected => {
