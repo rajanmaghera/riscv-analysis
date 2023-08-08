@@ -4,6 +4,8 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
+use serde::{Deserialize, Serialize};
+
 use crate::parser::{LabelString, RegSets};
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CFGError, GenerationPass};
@@ -21,13 +23,16 @@ use super::{CustomDifference, CustomIntersection, CustomInto, CustomUnion, Custo
 /// the value at the beginning of the function or graph. This is used to determine
 /// whether a value is the same as the value at the beginning of the function or
 /// graph. This is mostly used for stack pointer manipulation.
+#[derive(Deserialize, Serialize)]
 pub enum AvailableValue {
     /// A known constant value.
+    #[serde(rename = "c")]
     Constant(i32),
     /// The address of some memory location.
     ///
     /// This is used when loading the address from a label. For example, using
     /// the `la` instruction to load the address of a label into a register.
+    #[serde(rename = "a")]
     Address(LabelString),
     /// The value of a memory location at some offset.
     ///
@@ -35,6 +40,7 @@ pub enum AvailableValue {
     /// Note that this offset is not a scalar offset, but an offset to the memory
     /// address. Think of it as the offset in the `lw` instruction. For example,
     /// `lw x10, offset(label)` would be represented as `Memory(label, offset)`.
+    #[serde(rename = "m")]
     Memory(LabelString, i32),
     /// The value of a register plus some scalar offset.
     ///
@@ -45,6 +51,7 @@ pub enum AvailableValue {
     ///
     /// Scalar offsets consist of add and subtract operations with known constants.
     /// This is mostly used for stack pointer manipulation.
+    #[serde(rename = "rs")]
     RegisterWithScalar(Register, i32),
     /// The value of a register at the beginning of the function plus some scalar offset.
     ///
@@ -54,8 +61,11 @@ pub enum AvailableValue {
     ///
     /// Scalar offsets consist of add and subtract operations with known constants.
     /// This is mostly used for stack pointer manipulation.
+    #[serde(rename = "ors")]
     OriginalRegisterWithScalar(Register, i32),
+    #[serde(rename = "mr")]
     MemoryAtRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we do not know the label
+    #[serde(rename = "omr")]
     MemoryAtOriginalRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we are sure it is the same as the original
 }
 

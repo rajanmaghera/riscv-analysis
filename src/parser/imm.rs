@@ -1,8 +1,10 @@
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use crate::parser::token::{Info, Token};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Imm(pub i32);
 
 impl TryFrom<Info> for Imm {
@@ -16,7 +18,7 @@ impl TryFrom<Info> for Imm {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 pub struct CSRImm(pub u32);
 
 impl TryFrom<Info> for CSRImm {

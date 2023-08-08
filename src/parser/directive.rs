@@ -3,7 +3,9 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug, PartialEq, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub enum DirectiveToken {
     Align,
     Ascii,

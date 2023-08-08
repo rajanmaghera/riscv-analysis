@@ -1,3 +1,5 @@
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
 use crate::parser::token::{Info, Token};
 use std::{
     collections::HashSet,
@@ -7,7 +9,8 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
 pub enum Register {
     X0,
     X1,

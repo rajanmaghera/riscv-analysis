@@ -12,6 +12,7 @@ use std::collections::HashSet;
 
 use std::hash::{Hash, Hasher};
 
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
@@ -19,7 +20,7 @@ use super::{
     JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, RawToken, Store,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParserNode {
     ProgramEntry(ProgramEntry),
     FuncEntry(FuncEntry),

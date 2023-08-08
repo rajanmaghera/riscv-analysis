@@ -1,13 +1,15 @@
 use std::{fmt::Display, str::FromStr};
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum BasicType {
     Ebreak,
     Ecall,
     Uret,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum ArithType {
     Add,
     Addw,
@@ -36,7 +38,7 @@ pub enum ArithType {
     Remuw,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum BranchType {
     Beq,
     Bge,
@@ -46,7 +48,7 @@ pub enum BranchType {
     Bne,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum IArithType {
     Addi,
     Addiw,
@@ -65,7 +67,7 @@ pub enum IArithType {
     Lui,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum LoadType {
     Lb,
     Lbu,
@@ -75,39 +77,39 @@ pub enum LoadType {
     Lwu,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum StoreType {
     Sb,
     Sh,
     Sw,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum CSRType {
     Csrrw,
     Csrrs,
     Csrrc,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum CSRIType {
     Csrrwi,
     Csrrsi,
     Csrrci,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum IgnoreType {
     Fence,
     Fencei,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum JumpLinkType {
     Jal,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum JumpLinkRType {
     Jalr,
 }
@@ -452,7 +454,7 @@ pub enum Type {
     UpperArith(IArithType),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum PseudoType {
     Beqz,
     Bnez,

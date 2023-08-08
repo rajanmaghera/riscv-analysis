@@ -1,17 +1,18 @@
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-#[derive(Debug, PartialEq, Copy, Clone, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, PartialEq, Copy, Clone, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct Position {
     pub line: usize,
     pub column: usize,
 }
 
-#[derive(Debug, PartialEq, Clone, PartialOrd, Ord, Eq, Default)]
+#[derive(Debug, PartialEq, Clone, PartialOrd, Ord, Eq, Default, Serialize, Deserialize)]
 pub struct Range {
     pub start: Position,
     pub end: Position,
@@ -35,7 +36,7 @@ pub struct RawToken {
 ///
 /// This is the token type for the parser. It is used to
 /// determine what the token is, and what to do with it.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Token {
     /// Left Parenthesis '('
     LParen,
@@ -71,6 +72,12 @@ pub enum Token {
     Directive(String),
     /// String: text enclosed in double quotes
     String(String),
+}
+
+impl Default for Token {
+    fn default() -> Self {
+        Token::Newline
+    }
 }
 
 impl Token {
@@ -133,10 +140,13 @@ impl Default for Info {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct With<T> {
+    #[serde(skip)]
     pub token: Token,
+    #[serde(skip)]
     pub pos: Range,
+    #[serde(skip)]
     pub file: Uuid,
     pub data: T,
 }
