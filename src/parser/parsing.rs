@@ -1,3 +1,7 @@
+use uuid::Uuid;
+
+use crate::cfg::Cfg;
+use crate::lsp::CanGetURIString;
 use crate::parser::inst::{
     ArithType, BranchType, CSRIType, CSRType, IArithType, Inst, JumpLinkRType, JumpLinkType,
     PseudoType, Type,
@@ -7,7 +11,9 @@ use crate::parser::{DataType, RawToken, Register};
 use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{DirectiveType, ParserNode};
 use crate::parser::{Lexer, Token};
+use crate::passes::{DiagnosticItem, Manager};
 use crate::reader::FileReader;
+use std::collections::HashSet;
 use std::iter::Peekable;
 use std::str::FromStr;
 
@@ -18,13 +24,76 @@ use super::{ExpectedType, LabelString, ParseError, Range};
 /// Parser for RISC-V assembly
 pub struct RVParser<T>
 where
-    T: FileReader,
+    T: FileReader + Clone,
 {
     lexer_stack: Vec<Peekable<Lexer>>,
     pub reader: T,
 }
+impl<T> RVParser<T>
+where
+    T: CanGetURIString + Clone + FileReader,
+{
+    pub fn get_full_url(&mut self, path: &str, uuid: Uuid) -> String {
+        let doc = self.reader.get_uri_string(uuid);
+        let uri = lsp_types::Url::parse(&doc.uri).unwrap();
+        let fileuri = uri.join(path).unwrap();
+        fileuri.to_string()
+    }
+}
+impl<T: FileReader + Clone + CanGetURIString> RVParser<T> {
+    /// Return the imported files of a file
+    pub fn get_imports(&mut self, base: &str) -> HashSet<String> {
+        let mut imported = HashSet::new();
+        let items = self.parse(base, true);
+        for item in items.0 {
+            match item {
+                ParserNode::Directive(x) => match x.dir {
+                    DirectiveType::Include(name) => {
+                        // get full file path
+                        let this_uri = self.get_full_url(&name.data, x.dir_token.file);
+                        // add to set
+                        imported.insert(this_uri);
+                        // imports.insert(this_uri);
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+        imported
+    }
+}
+impl<T: FileReader + Clone> RVParser<T> {
+    pub fn run(&mut self, base: &str, debug: bool) -> Vec<DiagnosticItem> {
+        let mut diags = Vec::new();
+        let parsed = self.parse(base, false);
+        parsed
+            .1
+            .iter()
+            .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
 
-impl<T: FileReader> RVParser<T> {
+        let cfg = match Cfg::new(parsed.0) {
+            Ok(cfg) => cfg,
+            Err(err) => {
+                diags.push(DiagnosticItem::from(*err));
+                diags.sort();
+                return diags;
+            }
+        };
+
+        let res = Manager::run(cfg.clone(), debug);
+        match res {
+            Ok(lints) => {
+                lints
+                    .iter()
+                    .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
+            }
+            Err(err) => diags.push(DiagnosticItem::from(*err)),
+        }
+        diags.sort();
+        diags
+    }
+
     pub fn new(reader: T) -> RVParser<T> {
         RVParser {
             lexer_stack: Vec::new(),
@@ -295,10 +364,13 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                         }
                         Type::UpperArith(inst) => {
                             let rd = lex.get_reg()?;
-                            let imm = lex.get_imm()?;
-                            Ok(ParserNode::new_upper_arith(
-                                With::new(inst, next_node),
+                            let mut imm = lex.get_imm()?;
+                            // shift left by 12
+                            imm.data.0 <<= 12;
+                            Ok(ParserNode::new_iarith(
+                                With::new(inst, next_node.clone()),
                                 rd,
+                                With::new(Register::X0, next_node),
                                 imm,
                                 lex.raw_token,
                             ))
