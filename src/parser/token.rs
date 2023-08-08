@@ -178,10 +178,10 @@ impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Token::Label(s) => writeln!(f, "LABEL({s})"),
-            Token::Symbol(s) => write!(f, "SYMBOL({s}) "),
+            Token::Symbol(s) => write!(f, "SYMBOL({s})"),
             Token::Directive(s) => write!(f, "DIRECTIVE({s})"),
             Token::String(s) => write!(f, "STRING({s})"),
-            Token::Newline => writeln!(f, "NEWLINE"),
+            Token::Newline => write!(f, "NEWLINE"),
             Token::LParen => write!(f, "LPAREN"),
             Token::RParen => write!(f, "RPAREN"),
         }
