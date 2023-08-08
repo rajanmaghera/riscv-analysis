@@ -83,6 +83,9 @@ impl Display for ParseError {
 }
 
 impl DiagnosticMessage for ParseError {
+    fn related(&self) -> Option<Vec<crate::passes::RelatedDiagnosticItem>> {
+        None
+    }
     fn level(&self) -> WarningLevel {
         self.into()
     }
@@ -103,7 +106,7 @@ impl DiagnosticMessage for ParseError {
                     .map(|x| x.to_string())
                     .collect::<Vec<_>>()
                     .join(" or "),
-                found.token
+                found.to_string()
             ),
             ParseError::Unsupported(_) => format!(
                 "Unsupported operation.\n\n\
