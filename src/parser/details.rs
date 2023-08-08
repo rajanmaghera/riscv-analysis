@@ -5,7 +5,7 @@ use uuid::Uuid;
 use super::{
     ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, DirectiveToken, IArithType,
     IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, RawToken,
-    Register, StoreType, UpperArithType, With,
+    Register, StoreType, With,
 };
 
 #[derive(Debug, Clone)]
@@ -186,15 +186,6 @@ pub struct LoadAddr {
     pub inst: With<PseudoType>,
     pub rd: With<Register>,
     pub name: With<LabelString>,
-    pub key: Uuid,
-    pub token: RawToken,
-}
-
-#[derive(Debug, Clone)]
-pub struct UpperArith {
-    pub inst: With<UpperArithType>,
-    pub rd: With<Register>,
-    pub imm: With<Imm>,
     pub key: Uuid,
     pub token: RawToken,
 }
