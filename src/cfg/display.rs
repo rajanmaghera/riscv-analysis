@@ -48,6 +48,7 @@ impl Display for CFGNode {
             self.stack_values_out().str()
         ))?;
         f.write_fmt(format_args!("  | UDEF | {}\n", self.u_def().str()))?;
+        f.write_fmt(format_args!("  | NEXT | {}\n", self.nexts().len()))?;
 
         Ok(())
     }
