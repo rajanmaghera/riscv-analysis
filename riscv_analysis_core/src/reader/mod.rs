@@ -14,6 +14,10 @@ pub enum FileReaderError {
 }
 
 pub trait FileReader: Sized {
+    /// Import and read a file into the reader
+    ///
+    /// Returns the UUID of the file and a peekable lexer. This lexer will allow
+    /// you to search the file. Each file has its own attached lexer.
     fn import_file(
         &mut self,
         path: &str,

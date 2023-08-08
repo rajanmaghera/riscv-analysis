@@ -5,6 +5,7 @@ use crate::parser::{IArithType, ParserNode, RegSets, Register};
 use super::AvailableValue;
 
 impl ParserNode {
+    #[must_use]
     pub fn kill_reg_value(&self) -> HashSet<Register> {
         match self.clone() {
             ParserNode::FuncEntry(_) => RegSets::caller_saved(),
@@ -24,6 +25,7 @@ impl ParserNode {
         }
     }
 
+    #[must_use]
     pub fn kill_reg(&self) -> HashSet<Register> {
         let regs = if self.calls_to().is_some() {
             HashSet::new()
@@ -40,6 +42,7 @@ impl ParserNode {
             .collect::<HashSet<_>>()
     }
 
+    #[must_use]
     pub fn gen_reg(&self) -> HashSet<Register> {
         let regs = if self.is_return() {
             RegSets::callee_saved()
@@ -51,6 +54,7 @@ impl ParserNode {
             .collect::<HashSet<_>>()
     }
 
+    #[must_use]
     pub fn gen_stack_value(&self) -> Option<(i32, AvailableValue)> {
         match self {
             ParserNode::Store(expr) => {
@@ -66,10 +70,14 @@ impl ParserNode {
             _ => None,
         }
     }
+
+    #[must_use]
+    /// # Panics
+    ///
+    /// TODO remove this panic
     pub fn gen_reg_value(&self) -> Option<(Register, AvailableValue)> {
         // The function entry case and program entry case is handled separately
         // to account for all the "original" registers.
-        // TODO do registers need to be saved at program entry?
         match self {
             ParserNode::LoadAddr(expr) => Some((
                 expr.rd.data,
@@ -96,9 +104,7 @@ impl ParserNode {
                         | IArithType::Sraiw
                         | IArithType::Srli
                         | IArithType::Srliw => Some((expr.rd.data, AvailableValue::Constant(0))),
-                        IArithType::Slti => todo!(),
-                        IArithType::Sltiu => todo!(),
-                        IArithType::Auipc => todo!(),
+                        _ => None,
                     }
                 } else {
                     None

@@ -16,6 +16,7 @@ pub struct Function {
 }
 
 impl Function {
+    #[must_use]
     pub fn name(&self) -> LabelString {
         LabelString(
             self.entry
@@ -30,15 +31,17 @@ impl Function {
         Function { nodes, entry, exit }
     }
 
-    #[inline(always)]
+    #[must_use]
     pub fn labels(&self) -> HashSet<With<LabelString>> {
         self.entry.labels()
     }
 
+    #[must_use]
     pub fn arguments(&self) -> HashSet<Register> {
         self.entry.live_in().intersection_c(&RegSets::argument())
     }
 
+    #[must_use]
     pub fn returns(&self) -> HashSet<Register> {
         self.exit.live_in().intersection_c(&RegSets::ret())
     }

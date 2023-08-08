@@ -8,8 +8,10 @@ use super::CustomClonedSets;
 
 pub struct LivenessPass;
 impl GenerationPass for LivenessPass {
+    #[allow(clippy::too_many_lines)]
     fn run(cfg: &mut crate::cfg::Cfg) -> Result<(), Box<CFGError>> {
         let mut changed = true;
+        #[allow(clippy::mutable_key_type)]
         let mut visited = HashSet::new();
         while changed {
             changed = false;

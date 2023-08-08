@@ -40,6 +40,7 @@ pub enum ParserNode {
 }
 
 impl ParserNode {
+    #[must_use]
     pub fn token(&self) -> RawToken {
         match self {
             ParserNode::Arith(x) => x.token.clone(),
@@ -60,6 +61,7 @@ impl ParserNode {
         }
     }
 
+    #[must_use]
     pub fn id(&self) -> Uuid {
         match self {
             ParserNode::Arith(a) => a.key,
@@ -94,6 +96,7 @@ impl Hash for ParserNode {
 }
 
 impl ParserNode {
+    #[must_use]
     pub fn inst(&self) -> Inst {
         match self {
             ParserNode::Arith(x) => (&x.inst.data).into(),
@@ -114,6 +117,7 @@ impl ParserNode {
         }
     }
 
+    #[must_use]
     pub fn new_arith(
         inst: With<ArithType>,
         rd: With<Register>,
@@ -131,6 +135,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_iarith(
         inst: With<IArithType>,
         rd: With<Register>,
@@ -148,6 +153,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_jump_link(
         inst: With<JumpLinkType>,
         rd: With<Register>,
@@ -163,6 +169,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_jump_link_r(
         inst: With<JumpLinkRType>,
         rd: With<Register>,
@@ -180,6 +187,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_basic(inst: With<BasicType>, token: RawToken) -> ParserNode {
         ParserNode::Basic(Basic {
             inst,
@@ -188,6 +196,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_directive(
         dir_token: With<DirectiveToken>,
         dir: DirectiveType,
@@ -201,6 +210,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_branch(
         inst: With<BranchType>,
         rs1: With<Register>,
@@ -218,6 +228,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_store(
         inst: With<StoreType>,
         rs1: With<Register>,
@@ -235,6 +246,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_load(
         inst: With<LoadType>,
         rd: With<Register>,
@@ -252,6 +264,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_csr(
         inst: With<CSRType>,
         rd: With<Register>,
@@ -269,6 +282,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_func_entry(file: Uuid, token: RawToken) -> ParserNode {
         ParserNode::FuncEntry(FuncEntry {
             key: Uuid::new_v4(),
@@ -277,6 +291,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_program_entry(file: Uuid, token: RawToken) -> ParserNode {
         ParserNode::ProgramEntry(ProgramEntry {
             key: Uuid::new_v4(),
@@ -285,6 +300,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_csri(
         inst: With<CSRIType>,
         rd: With<Register>,
@@ -302,6 +318,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_label(name: With<LabelString>, token: RawToken) -> ParserNode {
         ParserNode::Label(Label {
             name,
@@ -310,6 +327,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn new_load_addr(
         inst: With<PseudoType>,
         rd: With<Register>,
@@ -325,6 +343,7 @@ impl ParserNode {
         })
     }
 
+    #[must_use]
     pub fn is_return(&self) -> bool {
         match self {
             ParserNode::JumpLinkR(x) => {
@@ -344,6 +363,7 @@ impl ParserNode {
     /// saving to zero. For example, `addi x0, x0, 0` is a no-op.
     /// This function determines if an instruction is meant to be saved to zero
     /// or if it is a no-op. No-ops are treated as warnings, not errors.
+    #[must_use]
     pub fn can_skip_save_checks(&self) -> bool {
         matches!(
             self,
@@ -357,6 +377,7 @@ impl ParserNode {
     }
 
     /// Checks if a instruction is a function call
+    #[must_use]
     pub fn calls_to(&self) -> Option<With<LabelString>> {
         match self {
             ParserNode::JumpLink(x) if x.rd == Register::X1 => Some(x.name.clone()),
@@ -365,6 +386,7 @@ impl ParserNode {
     }
 
     /// Checks if a instruction is an environment call
+    #[must_use]
     pub fn is_ecall(&self) -> bool {
         match self {
             ParserNode::Basic(x) => x.inst == BasicType::Ecall,
@@ -373,6 +395,7 @@ impl ParserNode {
     }
 
     /// Checks if a instruction is a potential jump
+    #[must_use]
     pub fn jumps_to(&self) -> Option<With<LabelString>> {
         match self {
             ParserNode::JumpLink(x) if x.rd != Register::X1 => Some(x.name.clone()),
@@ -381,6 +404,7 @@ impl ParserNode {
         }
     }
 
+    #[must_use]
     pub fn reads_address_of(&self) -> Option<With<LabelString>> {
         match self {
             ParserNode::LoadAddr(x) => Some(x.name.clone()),
@@ -388,19 +412,23 @@ impl ParserNode {
         }
     }
 
+    #[must_use]
     pub fn is_any_entry(&self) -> bool {
         matches!(self, ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_))
     }
 
+    #[must_use]
     pub fn is_function_entry(&self) -> bool {
         matches!(self, ParserNode::FuncEntry(_))
     }
 
+    #[must_use]
     pub fn is_program_entry(&self) -> bool {
         matches!(self, ParserNode::ProgramEntry(_))
     }
 
     /// Either loads or stores to a memory location
+    #[must_use]
     pub fn uses_memory_location(&self) -> Option<(Register, Imm)> {
         match self {
             ParserNode::Store(s) => Some((s.rs1.data, s.imm.data.clone())),
@@ -409,6 +437,7 @@ impl ParserNode {
         }
     }
 
+    #[must_use]
     pub fn is_unconditional_jump(&self) -> bool {
         match self {
             ParserNode::JumpLink(x) if x.rd == Register::X0 => true,
@@ -421,6 +450,7 @@ impl ParserNode {
     }
 
     // NOTE: This is in context to a register store, not a memory store
+    #[must_use]
     pub fn stores_to(&self) -> Option<With<Register>> {
         match self {
             ParserNode::Load(load) => Some(load.rd.clone()),
@@ -441,6 +471,7 @@ impl ParserNode {
         }
     }
 
+    #[must_use]
     pub fn reads_from(&self) -> HashSet<With<Register>> {
         let vector = match self {
             ParserNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()],

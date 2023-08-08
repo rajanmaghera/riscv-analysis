@@ -46,7 +46,10 @@ impl Lexer {
         if self.pos >= self.source.len() {
             self.ch = EOF_CONST;
         } else {
-            self.ch = b[self.pos] as char;
+            match b.get(self.pos) {
+                Some(c) => self.ch = *c as char,
+                None => self.ch = EOF_CONST,
+            }
         }
 
         if self.ch == '\n' {
@@ -122,6 +125,7 @@ impl Lexer {
 impl Iterator for Lexer {
     type Item = Info;
 
+    #[allow(clippy::too_many_lines)]
     fn next(&mut self) -> Option<Self::Item> {
         self.skip_ws();
 

@@ -11,9 +11,10 @@ pub trait SetListString {
     fn str(&self) -> String;
 }
 
-impl<T> SetListString for HashSet<T>
+impl<T, S> SetListString for HashSet<T, S>
 where
     T: Display,
+    S: std::hash::BuildHasher,
 {
     fn str(&self) -> String {
         self.iter()
@@ -24,10 +25,11 @@ where
     }
 }
 
-impl<T, U> SetListString for HashMap<T, U>
+impl<T, U, S> SetListString for HashMap<T, U, S>
 where
     T: Display,
     U: Display,
+    S: std::hash::BuildHasher,
 {
     fn str(&self) -> String {
         self.iter()
