@@ -17,7 +17,7 @@ where
 {
     fn str(&self) -> String {
         self.iter()
-            .map(|x| x.to_string())
+            .map(std::string::ToString::to_string)
             .sorted()
             .collect::<Vec<_>>()
             .join(", ")
@@ -31,7 +31,7 @@ where
 {
     fn str(&self) -> String {
         self.iter()
-            .map(|(k, v)| format!("[{}: {}]", k, v))
+            .map(|(k, v)| format!("[{k}: {v}]"))
             .sorted()
             .collect::<Vec<_>>()
             .join(", ")
@@ -57,7 +57,7 @@ impl Display for CFGNode {
 impl Display for Cfg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for node in &self.nodes {
-            f.write_fmt(format_args!("{}\n", node))?;
+            f.write_fmt(format_args!("{node}\n"))?;
         }
         Ok(())
     }

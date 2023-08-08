@@ -50,8 +50,8 @@ impl FileReaderError {
             FileReaderError::InternalFileNotFound => ParseError::UnexpectedError(path.info()),
             FileReaderError::FileAlreadyRead(_) => ParseError::CyclicDependency(path.info()),
             FileReaderError::Unexpected => ParseError::UnexpectedError(path.info()),
-            FileReaderError::InvalidPath => ParseError::FileNotFound(path.clone()),
-            FileReaderError::IOErr(e) => ParseError::IOError(path.clone(), e.clone()),
+            FileReaderError::InvalidPath => ParseError::FileNotFound(path),
+            FileReaderError::IOErr(e) => ParseError::IOError(path, e.clone()),
         }
     }
 }
@@ -65,7 +65,7 @@ impl Display for ParseError {
                     "Expected {}, found {}",
                     expected
                         .iter()
-                        .map(|x| x.to_string())
+                        .map(std::string::ToString::to_string)
                         .collect::<Vec<_>>()
                         .join(" or "),
                     found.token
@@ -103,16 +103,14 @@ impl DiagnosticMessage for ParseError {
                 the wrong or unsupported itembeing entered.",
                 expected
                     .iter()
-                    .map(|x| x.to_string())
+                    .map(std::string::ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(" or "),
                 found.to_string()
             ),
-            ParseError::Unsupported(_) => format!(
-                "Unsupported operation.\n\n\
+            ParseError::Unsupported(_) => "Unsupported operation.\n\n\
                 This token or directive is not supported by this program. Please file a bug report or ignore\
-                this error."
-            ),
+                this error.".to_string(),
             ParseError::UnexpectedToken(_) => "Unexpected token.\n\n\
             This token was not expected here. This is likely a typo or an unsupported item."
                 .to_string(),

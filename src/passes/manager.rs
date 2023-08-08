@@ -43,7 +43,7 @@ impl Manager {
                 serde_yaml::to_string(&CFGWrapper::from(&cfg)).unwrap()
             );
         } else if debug.output {
-            println!("{}", cfg);
+            println!("{cfg}");
         }
         SaveToZeroCheck::run(&cfg, &mut errors);
         DeadValueCheck::run(&cfg, &mut errors);

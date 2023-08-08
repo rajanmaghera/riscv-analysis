@@ -146,7 +146,7 @@ pub enum DirectiveType {
 impl Display for DirectiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DirectiveType::Include(s) => write!(f, "include {}", s),
+            DirectiveType::Include(s) => write!(f, "include {s}"),
             DirectiveType::Align(i) => write!(f, "align {}", i.data.0),
             DirectiveType::Ascii { text, .. } => {
                 write!(f, "ascii \"{}\"", text.data)
@@ -154,7 +154,7 @@ impl Display for DirectiveType {
             DirectiveType::DataSection => write!(f, ".data"),
             DirectiveType::TextSection => write!(f, ".text"),
             DirectiveType::Data(dt, data) => {
-                write!(f, "{} ", dt)?;
+                write!(f, "{dt} ")?;
                 for d in data {
                     write!(f, "{}, ", d.data.0)?;
                 }

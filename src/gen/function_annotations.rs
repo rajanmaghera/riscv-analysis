@@ -32,7 +32,7 @@ impl GenerationPass for FunctionMarkupPass {
 
                     // If we reach the program entry, there's an issue
                     if n.node().is_program_entry() {
-                        return Err(Box::new(CFGError::NoLabelForReturn(node.node().clone())));
+                        return Err(Box::new(CFGError::NoLabelForReturn(node.node())));
                     }
 
                     // If we find a function entry, we're done
@@ -52,7 +52,7 @@ impl GenerationPass for FunctionMarkupPass {
                 // If we found multiple function entries, we have a problem
                 if found.len() > 1 {
                     return Err(Box::new(CFGError::MultipleLabelsForReturn(
-                        node.node().clone(),
+                        node.node(),
                         found.iter().flat_map(|x| x.labels.clone()).collect(),
                     )));
                 }
@@ -103,7 +103,7 @@ impl GenerationPass for FunctionMarkupPass {
                         let inf = Info {
                             token: crate::parser::Token::Symbol("return".to_string()),
                             pos: return_node.node().range().clone(),
-                            file: return_node.node().file().clone(),
+                            file: return_node.node().file(),
                         };
 
                         let inst = With::new(JumpLinkType::Jal, inf.clone());
@@ -128,7 +128,7 @@ impl GenerationPass for FunctionMarkupPass {
                     }
                 } else {
                     // If we found no function entries, we have a problem
-                    return Err(Box::new(CFGError::NoLabelForReturn(node.node().clone())));
+                    return Err(Box::new(CFGError::NoLabelForReturn(node.node())));
                 }
             }
         }

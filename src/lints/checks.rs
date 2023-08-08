@@ -115,7 +115,7 @@ impl LintPass for SaveToZeroCheck {
 pub struct DeadValueCheck;
 impl LintPass for DeadValueCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in cfg.clone().into_iter() {
+        for node in &cfg.clone() {
             // check the out of the node for any uses that
             // should not be there (temporaries)
             // TODO merge with Callee saved register check
@@ -160,7 +160,7 @@ impl LintPass for DeadValueCheck {
 pub struct ControlFlowCheck;
 impl LintPass for ControlFlowCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in cfg.clone().into_iter() {
+        for node in &cfg.clone() {
             match node.node() {
                 ParserNode::FuncEntry(_) => {
                     // If the previous nodes set is not empty
@@ -247,36 +247,34 @@ impl LintPass for StackCheckPass {
         // check that the stack is never in an invalid position
         // TODO check that the stack stores always happen to a place that is negative
         // TODO move to impl methods
-        'outer: for node in cfg.clone().into_iter() {
+        'outer: for node in &cfg.clone() {
             let values = node.reg_values_out();
             match values.get(&Register::X2) {
                 None => {
-                    errors.push(LintError::UnknownStack(node.node().clone()));
+                    errors.push(LintError::UnknownStack(node.node()));
                     break 'outer;
                 }
                 Some(x) => {
                     if let AvailableValue::OriginalRegisterWithScalar(reg, off) = x {
                         if reg != &Register::X2 {
-                            errors.push(LintError::InvalidStackPointer(node.node().clone()));
+                            errors.push(LintError::InvalidStackPointer(node.node()));
                             break 'outer;
                         }
                         if off > &0 {
-                            errors.push(LintError::InvalidStackPosition(node.node().clone(), *off));
+                            errors.push(LintError::InvalidStackPosition(node.node(), *off));
                             break 'outer;
                         }
 
                         if let Some((reg2, off2)) = node.node().uses_memory_location() {
-                            if reg2 == Register::X2 {
-                                if off2.0 + off >= 0 {
-                                    errors.push(LintError::InvalidStackOffsetUsage(
-                                        node.node().clone(),
-                                        off2.0 + off,
-                                    ));
-                                }
+                            if reg2 == Register::X2 && off2.0 + off >= 0 {
+                                errors.push(LintError::InvalidStackOffsetUsage(
+                                    node.node().clone(),
+                                    off2.0 + off,
+                                ));
                             }
                         }
                     } else {
-                        errors.push(LintError::InvalidStackPointer(node.node().clone()));
+                        errors.push(LintError::InvalidStackPointer(node.node()));
                         break 'outer;
                     }
                 }
@@ -300,7 +298,7 @@ impl LintPass for CalleeSavedGarbageReadCheck {
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
 
                 if RegSets::saved().contains(&read.data)
-                    && (!node.node().uses_memory_location().is_some())
+                    && node.node().uses_memory_location().is_none()
                     && node.reg_values_in().is_original_value(read.data)
                 {
                     errors.push(LintError::InvalidUseBeforeAssignment(read.clone()));
@@ -349,7 +347,7 @@ impl LintPass for CalleeSavedRegisterCheck {
 pub struct LostCalleeSavedRegisterCheck;
 impl LintPass for LostCalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in cfg.nodes.clone().into_iter() {
+        for node in cfg.nodes.clone() {
             let callee = RegSets::saved();
 
             // If: within a function, node stores to a saved register,

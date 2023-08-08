@@ -95,8 +95,8 @@ mod test {
     #[test]
     fn bitwise() {
         use super::MathOp;
-        assert_eq!(MathOp::And.operate(0xABCD_EF01, 0x1234_5678), 0x02044600);
+        assert_eq!(MathOp::And.operate(0xABCD_EF01, 0x1234_5678), 0x0204_4600);
         assert_eq!(MathOp::Or.operate(0xABCD_EF01, 0x1234_5678), 0xBBFD_FF79);
-        assert_eq!(MathOp::Xor.operate(0xABCD_EF01, 0x1234_5678), 0xb9f9b979);
+        assert_eq!(MathOp::Xor.operate(0xABCD_EF01, 0x1234_5678), 0xb9f9_b979);
     }
 }

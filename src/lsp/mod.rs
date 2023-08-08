@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::convert::From;
 use std::iter::Peekable;
 
-use crate::parser::{Lexer, ParseError, RVParser, Range as MyRange};
-use crate::passes::{DiagnosticItem, DiagnosticLocation, DiagnosticMessage, LintError::*};
-use crate::passes::{LintError, WarningLevel};
+use crate::parser::{Lexer, RVParser, Range as MyRange};
+use crate::passes::{DiagnosticItem, DiagnosticLocation, DiagnosticMessage};
+use crate::passes::{WarningLevel};
 use crate::reader::{FileReader, FileReaderError};
 use lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range,
@@ -50,7 +50,7 @@ impl DiagnosticItem {
             uri: parser
                 .reader
                 .get_filename(self.file)
-                .unwrap_or("".to_string()),
+                .unwrap_or(String::new()),
             diagnostic: Diagnostic {
                 range: (&self.range).into(),
                 severity: Some(self.level.clone().into()),
@@ -63,7 +63,7 @@ impl DiagnosticItem {
                         .map(|f| DiagnosticRelatedInformation {
                             location: Location {
                                 uri: Url::parse(
-                                    &parser.reader.get_filename(f.file).unwrap_or("".to_string()),
+                                    &parser.reader.get_filename(f.file).unwrap_or(String::new()),
                                 )
                                 .unwrap(),
                                 range: (&f.range).into(),

@@ -42,7 +42,7 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
         .filter(|x| !imported.contains(&x.uri));
 
     let errs = to_parse
-        .map(|f| {
+        .flat_map(|f| {
             let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
             let items = parser.run(&f.uri, DebugInfo::default());
             items
@@ -50,7 +50,6 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
                 .map(|f| f.to_lsp_diag(&parser))
                 .collect::<Vec<_>>()
         })
-        .flat_map(|f| f)
         .collect::<Vec<LSPRVSingleDiagnostic>>();
 
     // insert empty vec for each file

@@ -42,7 +42,7 @@ pub struct NodeWrapper {
 impl NodeWrapper {
     fn from(node: &CFGNode, cfg: &Cfg) -> Self {
         NodeWrapper {
-            node: node.node().clone(),
+            node: node.node(),
             labels: node.labels.iter().map(|x| x.data.0.clone()).collect(),
             func_entry: node.function().clone().map(|x| {
                 cfg.nodes

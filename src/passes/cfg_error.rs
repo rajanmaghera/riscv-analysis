@@ -41,7 +41,7 @@ where
         let mut vec = self.iter().collect::<Vec<_>>();
         vec.sort();
         vec.iter()
-            .map(|x| x.to_string())
+            .map(std::string::ToString::to_string)
             .collect::<Vec<_>>()
             .join(", ")
     }
@@ -54,7 +54,7 @@ impl Display for CFGError {
                 write!(f, "Labels not defined: {}", labels.as_str_list())
             }
             CFGError::DuplicateLabel(label) => {
-                write!(f, "Duplicate label: {}", label)
+                write!(f, "Duplicate label: {label}")
             }
             CFGError::MultipleLabelsForReturn(_, labels) => {
                 write!(f, "Multiple labels for return: {}", labels.as_str_list())
@@ -107,9 +107,7 @@ impl DiagnosticLocation for CFGError {
 
 impl DiagnosticMessage for CFGError {
     fn related(&self) -> Option<Vec<super::RelatedDiagnosticItem>> {
-        match self {
-            _ => None,
-        }
+        None
     }
 
     fn level(&self) -> WarningLevel {
@@ -124,8 +122,7 @@ impl DiagnosticMessage for CFGError {
     fn long_description(&self) -> String {
         match self {
             CFGError::DuplicateLabel(label) => format!(
-                "The label {} is defined more than once. Labels must be unique.",
-                label
+                "The label {label} is defined more than once. Labels must be unique."
             ),
             CFGError::LabelsNotDefined(labels) => format!(
                 "The labels {} are used but not defined. Labels must be defined within your file.",
@@ -141,8 +138,7 @@ impl DiagnosticMessage for CFGError {
                 for each function.",
                 labels.as_str_list()
             ),
-            CFGError::NoLabelForReturn(_) => format!(
-                "The return statement can be reached by no function labels.\n\n\
+            CFGError::NoLabelForReturn(_) => "The return statement can be reached by no function labels.\n\n\
                 Every return statement should be reachable by one label. This also ensures\
                 that every instruction is reachable by only one label and is ever only part of a single function.\n\n\
                 This return statement might be placed in code that isn't in a function. For example, you might have a
@@ -150,8 +146,7 @@ impl DiagnosticMessage for CFGError {
                 place it in a function.\n\n\
                 A label is considered a function if it has been called by a [jal] instruction. This code might also be\
                 missing from your file or imports.
-                "
-            ),
+                ".to_string(),
             CFGError::UnexpectedError => "An unexpected error occurred. Please file a bug.".to_string(),
             CFGError::AssertionError => "An unexpected assertion error occurred. Please file a bug.".to_string(),
         }

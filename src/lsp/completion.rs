@@ -1,4 +1,4 @@
-use std::fmt::format;
+
 
 use lsp_types::CompletionItem;
 
@@ -55,16 +55,16 @@ impl From<RVCompletionItem> for CompletionItem {
             RVCompletionItem::Inst(i) => {
                 let mut item = CompletionItem::new_simple(
                     i.to_string(),
-                    format!("Instruction {}", i.to_string()),
+                    format!("Instruction {i}"),
                 );
                 item.kind = Some(lsp_types::CompletionItemKind::FUNCTION);
                 item
             }
             RVCompletionItem::Label(l) => {
-                CompletionItem::new_simple(l.to_string(), format!("Label {}", l.to_string()))
+                CompletionItem::new_simple(l.to_string(), format!("Label {l}"))
             }
             RVCompletionItem::FunctionLabel(l) => {
-                CompletionItem::new_simple(l.to_string(), format!("Function {}", l.to_string()))
+                CompletionItem::new_simple(l.to_string(), format!("Function {l}"))
             }
         }
     }

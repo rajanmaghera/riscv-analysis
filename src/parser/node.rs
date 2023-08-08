@@ -414,11 +414,7 @@ impl ParserNode {
             ParserNode::JumpLink(x) if x.rd == Register::X0 => true,
             ParserNode::Branch(x) => {
                 // TODO elaborate
-                if x.rs1 == Register::X0 && x.rs2 == Register::X0 && x.inst == BranchType::Beq {
-                    true
-                } else {
-                    false
-                }
+                x.rs1 == Register::X0 && x.rs2 == Register::X0 && x.inst == BranchType::Beq
             }
             _ => false,
         }

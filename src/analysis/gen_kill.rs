@@ -25,7 +25,7 @@ impl ParserNode {
     }
 
     pub fn kill_reg(&self) -> HashSet<Register> {
-        let regs = if let Some(_) = self.calls_to() {
+        let regs = if self.calls_to().is_some() {
             HashSet::new()
         } else if self.is_function_entry() {
             RegSets::caller_saved()

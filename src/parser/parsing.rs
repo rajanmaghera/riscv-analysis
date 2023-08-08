@@ -81,7 +81,7 @@ impl<T: FileReader + Clone> RVParser<T> {
             }
         };
 
-        let res = Manager::run(cfg.clone(), debug);
+        let res = Manager::run(cfg, debug);
         match res {
             Ok(lints) => {
                 lints
@@ -131,7 +131,7 @@ impl<T: FileReader + Clone> RVParser<T> {
         let mut parse_errors = Vec::new();
 
         // import base lexer
-        let lexer = match self.reader.import_file(&base, None) {
+        let lexer = match self.reader.import_file(base, None) {
             Ok(x) => x,
             Err(e) => {
                 parse_errors.push(e.to_parse_error(With::new(base.to_owned(), Info::default())));
@@ -144,7 +144,7 @@ impl<T: FileReader + Clone> RVParser<T> {
         nodes.push(ParserNode::new_program_entry(
             lexer.0,
             RawToken {
-                text: "".to_string(),
+                text: String::new(),
                 pos: Range::default(),
                 file: lexer.0,
             },
@@ -300,7 +300,7 @@ impl<'a> AnnotatedLexer<'a> {
                 file: item.file,
             };
         } else {
-            self.raw_token.text.push_str(" ");
+            self.raw_token.text.push(' ');
             self.raw_token
                 .text
                 .push_str(&item.token.as_original_string());
@@ -567,7 +567,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         )),
                                         Box::new(ParserNode::new_store(
                                             With::new(inst, next_node.clone()),
-                                            tmp.clone(),
+                                            tmp,
                                             rs2,
                                             With::new(Imm(0), next_node),
                                             lex.raw_token,
@@ -953,33 +953,33 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                     match directive {
                         DirectiveToken::Align => {
                             let imm = lex.get_imm()?;
-                            return Ok(ParserNode::new_directive(
+                            Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Align(imm),
                                 lex.raw_token,
-                            ));
+                            ))
                         }
                         DirectiveToken::Ascii => {
                             let string = lex.get_string()?;
-                            return Ok(ParserNode::new_directive(
+                            Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Ascii {
-                                    text: string.clone(),
+                                    text: string,
                                     null_term: false,
                                 },
                                 lex.raw_token,
-                            ));
+                            ))
                         }
                         DirectiveToken::Asciz | DirectiveToken::String => {
                             let string = lex.get_string()?;
-                            return Ok(ParserNode::new_directive(
+                            Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Ascii {
-                                    text: string.clone(),
+                                    text: string,
                                     null_term: true,
                                 },
                                 lex.raw_token,
-                            ));
+                            ))
                         }
                         DirectiveToken::Byte
                         | DirectiveToken::Double
@@ -1015,18 +1015,18 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 }
                             }
 
-                            return Ok(ParserNode::new_directive(
+                            Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Data(data_type, values),
                                 lex.raw_token,
-                            ));
+                            ))
                         }
                         DirectiveToken::Data => {
-                            return Ok(ParserNode::new_directive(
+                            Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::DataSection,
                                 lex.raw_token,
-                            ));
+                            ))
                         }
                         DirectiveToken::Macro => {
                             // macros are unsupported
@@ -1041,47 +1041,47 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     }
                                 }
                             }
-                            return Err(LexError::Ignored(next_node));
+                            Err(LexError::Ignored(next_node))
                         }
-                        DirectiveToken::EndMacro => return Err(LexError::Ignored(next_node)),
+                        DirectiveToken::EndMacro => Err(LexError::Ignored(next_node)),
                         DirectiveToken::Eqv => {
-                            return Err(LexError::UnsupportedDirective(next_node));
+                            Err(LexError::UnsupportedDirective(next_node))
                         }
                         DirectiveToken::Global | DirectiveToken::Globl => {
-                            return Err(LexError::UnsupportedDirective(next_node));
+                            Err(LexError::UnsupportedDirective(next_node))
                         }
                         DirectiveToken::Include => {
                             let filename = lex.get_string()?;
-                            return Ok(ParserNode::new_directive(
+                            Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Include(filename),
                                 lex.raw_token,
-                            ));
+                            ))
                         }
                         DirectiveToken::Section => {
-                            return Err(LexError::UnsupportedDirective(next_node));
+                            Err(LexError::UnsupportedDirective(next_node))
                         }
                         DirectiveToken::Extern => {
-                            return Err(LexError::UnsupportedDirective(next_node));
+                            Err(LexError::UnsupportedDirective(next_node))
                         }
                         DirectiveToken::Space => {
                             let imm = lex.get_imm()?;
-                            return Ok(ParserNode::new_directive(
+                            Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::Space(imm),
                                 lex.raw_token,
-                            ));
+                            ))
                         }
                         DirectiveToken::Text => {
-                            return Ok(ParserNode::new_directive(
+                            Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
                                 DirectiveType::TextSection,
                                 lex.raw_token,
-                            ));
+                            ))
                         }
                     }
                 } else {
-                    return Err(LexError::UnknownDirective(next_node.clone()));
+                    Err(LexError::UnknownDirective(next_node.clone()))
                 }
             }
             Token::Newline => Err(IsNewline(next_node)),

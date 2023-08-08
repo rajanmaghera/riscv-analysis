@@ -117,7 +117,7 @@ impl FileReader for IOFileReader {
         self.files
             .iter()
             .find(|(_, id)| **id == uuid)
-            .map(|(path, _)| path.to_owned())
+            .map(|(path, _)| path.clone())
     }
 
     fn import_file(
@@ -164,12 +164,12 @@ impl FileReader for IOFileReader {
 
         // store full path to file
         let uuid = uuid::Uuid::new_v4();
-        if let Some(_) = self.files.insert(path.to_owned(), uuid) {
-            return Err(FileReaderError::FileAlreadyRead(path.to_owned()));
+        if self.files.insert(path.clone(), uuid).is_some() {
+            return Err(FileReaderError::FileAlreadyRead(path));
         }
 
         // create lexer
-        let lexer = Lexer::new(&file, uuid);
+        let lexer = Lexer::new(file, uuid);
 
         Ok((uuid, lexer.peekable()))
     }
@@ -199,7 +199,7 @@ fn main() {
 
             let mut diags = Vec::new();
             let parsed = parser.parse(
-                &lint
+                lint
                     .input
                     .to_str()
                     .expect("unable to convert path to string"),
@@ -221,7 +221,7 @@ fn main() {
             };
 
             let res = Manager::run(
-                cfg.clone(),
+                cfg,
                 DebugInfo {
                     output: lint.debug,
                     yaml: lint.yaml,
@@ -246,7 +246,7 @@ fn main() {
             let reader = IOFileReader::new();
             let mut parser = RVParser::new(reader);
             let parsed = parser.parse(
-                &debu
+                debu
                     .input
                     .to_str()
                     .expect("unable to convert path to string"),

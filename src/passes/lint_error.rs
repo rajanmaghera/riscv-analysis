@@ -100,7 +100,7 @@ impl std::fmt::Display for LintError {
                 write!(f, "Overwriting callee-saved register")
             }
             LintError::LostRegisterValue(r) => {
-                write!(f, "Lost register value: {}", r.data.to_string())
+                write!(f, "Lost register value: {}", r.data)
             }
             LintError::InvalidStackOffsetUsage(_, i) => {
                 write!(

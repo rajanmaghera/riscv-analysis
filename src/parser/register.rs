@@ -137,7 +137,7 @@ impl Register {
         }
         .iter()
         .copied()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect()
     }
 

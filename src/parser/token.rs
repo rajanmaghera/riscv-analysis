@@ -37,12 +37,14 @@ pub struct RawToken {
 /// This is the token type for the parser. It is used to
 /// determine what the token is, and what to do with it.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum Token {
     /// Left Parenthesis '('
     LParen,
     /// Right Parenthesis ')'
     RParen,
     /// Newline '\n'
+    #[default]
     Newline,
     /// Label: text ending in ':'
     ///
@@ -74,11 +76,7 @@ pub enum Token {
     String(String),
 }
 
-impl Default for Token {
-    fn default() -> Self {
-        Token::Newline
-    }
-}
+
 
 impl Token {
     pub fn as_original_string(&self) -> String {
@@ -86,10 +84,10 @@ impl Token {
             Token::LParen => "(".to_owned(),
             Token::RParen => ")".to_owned(),
             Token::Newline => "\n".to_owned(),
-            Token::Label(l) => format!("{}:", l),
-            Token::Symbol(s) => s.to_owned(),
-            Token::Directive(d) => format!(".{}", d),
-            Token::String(s) => format!("\"{}\"", s),
+            Token::Label(l) => format!("{l}:"),
+            Token::Symbol(s) => s.clone(),
+            Token::Directive(d) => format!(".{d}"),
+            Token::String(s) => format!("\"{s}\""),
         }
     }
 }
@@ -102,7 +100,7 @@ impl PartialEq<Token> for Info {
 impl<T> With<T> {
     pub fn info(&self) -> Info {
         Info {
-            file: self.file.clone(),
+            file: self.file,
             token: self.token.clone(),
             pos: self.pos.clone(),
         }
@@ -234,7 +232,7 @@ impl<T> DiagnosticLocation for With<T> {
         self.pos.clone()
     }
     fn file(&self) -> Uuid {
-        self.file.clone()
+        self.file
     }
 }
 
