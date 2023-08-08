@@ -5,6 +5,7 @@ use crate::parser::{LabelString, ParserNode, With};
 use super::{DiagnosticLocation, DiagnosticMessage, WarningLevel};
 
 #[derive(Debug, Clone)]
+// TODO CFGErrors that do not require the whole thing to be re-run
 
 /// `CFGError` is an error that occurs while generating an annotated CFG.
 ///
@@ -105,6 +106,12 @@ impl DiagnosticLocation for CFGError {
 }
 
 impl DiagnosticMessage for CFGError {
+    fn related(&self) -> Option<Vec<super::RelatedDiagnosticItem>> {
+        match self {
+            _ => None,
+        }
+    }
+
     fn level(&self) -> WarningLevel {
         self.into()
     }

@@ -14,6 +14,14 @@ pub trait DiagnosticMessage {
     fn description(&self) -> String;
     fn long_description(&self) -> String;
     fn level(&self) -> WarningLevel;
+    fn related(&self) -> Option<Vec<RelatedDiagnosticItem>>;
+}
+
+#[derive(Clone)]
+pub struct RelatedDiagnosticItem {
+    pub file: Uuid,
+    pub range: Range,
+    pub description: String,
 }
 
 pub struct DiagnosticItem {
@@ -23,6 +31,7 @@ pub struct DiagnosticItem {
     pub description: String,
     pub long_description: String,
     pub level: WarningLevel,
+    pub related: Option<Vec<RelatedDiagnosticItem>>,
 }
 
 impl PartialEq for DiagnosticItem {
@@ -63,6 +72,7 @@ where
         let title = val.title();
         let description = val.description();
         let long_description = val.long_description();
+        let related = val.related();
         DiagnosticItem {
             file,
             range,
@@ -70,6 +80,7 @@ where
             description,
             long_description,
             level,
+            related,
         }
     }
 }

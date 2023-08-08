@@ -20,7 +20,9 @@ pub enum LintError {
     // if a loop variable does not change, then it will infinitely run
     // if a branch is always going to execute (i.e. if true) using constants and zero register
     LostRegisterValue(With<Register>),
-    InvalidUseAfterCall(With<Register>, Rc<Function>),
+
+    /// A register 0 is used after a call to function 1 at call site 2
+    InvalidUseAfterCall(With<Register>, Rc<Function>, With<LabelString>),
     InvalidUseBeforeAssignment(With<Register>),
     OverwriteCalleeSavedRegister(With<Register>),
     ImproperFuncEntry(ParserNode, Rc<Function>), // if a function has any prev items, (including program entry)
@@ -131,6 +133,18 @@ impl DiagnosticMessage for LintError {
     fn long_description(&self) -> String {
         self.to_string()
     }
+    fn related(&self) -> Option<Vec<super::RelatedDiagnosticItem>> {
+        match self {
+            LintError::InvalidUseAfterCall(_, func, call_site) => {
+                Some(vec![super::RelatedDiagnosticItem {
+                    file: call_site.file(),
+                    range: call_site.range(),
+                    description: format!("Call to function {} occurs here", func.name()),
+                }])
+            }
+            _ => None,
+        }
+    }
 }
 
 // impl LintError {
@@ -160,7 +174,7 @@ impl DiagnosticMessage for LintError {
 impl DiagnosticLocation for LintError {
     fn range(&self) -> Range {
         match self {
-            LintError::InvalidUseAfterCall(r, _)
+            LintError::InvalidUseAfterCall(r, _, _)
             | LintError::SaveToZero(r)
             | LintError::InvalidUseBeforeAssignment(r)
             | LintError::LostRegisterValue(r)
