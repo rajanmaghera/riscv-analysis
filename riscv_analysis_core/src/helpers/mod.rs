@@ -3,10 +3,6 @@
 use crate::parser::Lexer;
 use crate::parser::{Info, Position, Range, Token, With};
 
-pub fn tokenize<S: Into<String>>(input: S) -> Vec<Info> {
-    Lexer::new(input, uuid::Uuid::nil()).collect()
-}
-
 impl<T> With<T>
 where
     T: PartialEq<T>,

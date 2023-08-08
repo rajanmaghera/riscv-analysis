@@ -1,8 +1,6 @@
-
-
 use lsp_types::CompletionItem;
 
-use crate::parser::{Inst, LabelString, Register};
+use riscv_analysis_core::parser::{Inst, LabelString, Register};
 
 pub enum RVCompletionItem {
     Inst(Inst),
@@ -53,10 +51,8 @@ impl From<RVCompletionItem> for CompletionItem {
                 item
             }
             RVCompletionItem::Inst(i) => {
-                let mut item = CompletionItem::new_simple(
-                    i.to_string(),
-                    format!("Instruction {i}"),
-                );
+                let mut item =
+                    CompletionItem::new_simple(i.to_string(), format!("Instruction {i}"));
                 item.kind = Some(lsp_types::CompletionItemKind::FUNCTION);
                 item
             }

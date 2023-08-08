@@ -260,3 +260,122 @@ impl Iterator for Lexer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::parser::{Info, Lexer, Token};
+    fn tokenize<S: Into<String>>(input: S) -> Vec<Info> {
+        Lexer::new(input, uuid::Uuid::nil()).collect()
+    }
+
+    #[test]
+    fn lex_label() {
+        let tokens = tokenize("My_Label:");
+        assert_eq!(tokens, vec![Token::Label("My_Label".to_owned())]);
+    }
+
+    #[test]
+    fn lex_instruction() {
+        let tokens = tokenize("add s0, s0, s2");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Symbol("add".to_owned()),
+                Token::Symbol("s0".to_owned()),
+                Token::Symbol("s0".to_owned()),
+                Token::Symbol("s2".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_ints() {
+        let tokens = tokenize("0x1234,    0b1010, 1234  -222");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Symbol("0x1234".to_owned()),
+                Token::Symbol("0b1010".to_owned()),
+                Token::Symbol("1234".to_owned()),
+                Token::Symbol("-222".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_long() {
+        let tokens = tokenize(
+            "add x2,x2,x3 \nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
+        );
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Symbol("add".into()),
+                Token::Symbol("x2".into()),
+                Token::Symbol("x2".into()),
+                Token::Symbol("x3".into()),
+                Token::Newline,
+                Token::Label("BLCOK".to_owned()),
+                Token::Newline,
+                Token::Newline,
+                Token::Newline,
+                Token::Symbol("sub".into()),
+                Token::Symbol("a0".into()),
+                Token::Symbol("a0".into()),
+                Token::Symbol("a1".into()),
+                Token::Newline,
+                Token::Label("my_block".to_owned()),
+                Token::Symbol("add".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s2".into()),
+                Token::Newline,
+                Token::Symbol("add".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s2".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_comments() {
+        let lexer = tokenize(
+            "add x2,x2,x3 # hello, world!@#DKSAOKLJu3iou12o\nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
+        );
+
+        assert_eq!(
+            lexer
+                .iter()
+                .map(|t| t.token.clone())
+                .collect::<Vec<Token>>(),
+            vec![
+                Token::Symbol("add".into()),
+                Token::Symbol("x2".into()),
+                Token::Symbol("x2".into()),
+                Token::Symbol("x3".into()),
+                Token::Newline,
+                Token::Label("BLCOK".to_string()),
+                Token::Newline,
+                Token::Newline,
+                Token::Newline,
+                Token::Symbol("sub".into()),
+                Token::Symbol("a0".into()),
+                Token::Symbol("a0".into()),
+                Token::Symbol("a1".into()),
+                Token::Newline, // ERROR HERE
+                Token::Label("my_block".to_string()),
+                Token::Symbol("add".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s2".into()),
+                Token::Newline, // ERROR HERE
+                Token::Symbol("add".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s2".into()),
+            ]
+        );
+    }
+}
