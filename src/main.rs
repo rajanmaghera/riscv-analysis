@@ -38,6 +38,7 @@ mod cfg;
 mod gen;
 mod helpers;
 mod lints;
+mod lsp;
 mod parser;
 mod passes;
 mod reader;
@@ -95,6 +96,7 @@ struct DebugParse {
     input: PathBuf,
 }
 
+#[derive(Clone)]
 struct IOFileReader {
     files: HashMap<String, uuid::Uuid>,
 }
@@ -151,8 +153,6 @@ impl FileReader for IOFileReader {
                 .to_owned()
         };
 
-        dbg!(path.clone());
-
         // open file and read it
         let file = match std::fs::read_to_string(path.clone()) {
             Ok(file) => file,
@@ -173,11 +173,11 @@ impl FileReader for IOFileReader {
 }
 
 trait ErrorDisplay {
-    fn display_errors<T: FileReader>(&self, parser: &RVParser<T>);
+    fn display_errors<T: FileReader + Clone>(&self, parser: &RVParser<T>);
 }
 
 impl ErrorDisplay for Vec<DiagnosticItem> {
-    fn display_errors<T: FileReader>(&self, parser: &RVParser<T>) {
+    fn display_errors<T: FileReader + Clone>(&self, parser: &RVParser<T>) {
         for err in self {
             let filename = parser
                 .reader
@@ -261,17 +261,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use std::str::FromStr;
-
-    use super::*;
     use crate::helpers::tokenize;
-    use crate::parser::Imm;
-    use crate::parser::ParserNode;
-    use crate::parser::RVParser;
-    use crate::parser::Register;
-    use crate::parser::VecParserNodeData;
-    use crate::parser::{ArithType, IArithType, LoadType, StoreType};
-    use crate::parser::{Token, With};
+    use crate::parser::Token;
 
     #[test]
     fn lex_label() {

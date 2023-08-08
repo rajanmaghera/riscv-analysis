@@ -1,15 +1,6 @@
-use crate::cfg::Cfg;
-use crate::parser::{DirectiveType, ParserNode, RVParser};
-use crate::passes::Manager;
-use lsp_types::{Diagnostic, Position, Range};
-use parser::Lexer;
-use passes::DiagnosticLocation;
-use reader::{FileReader, FileReaderError};
-use serde::{Deserialize, Serialize};
-use serde_wasm_bindgen::to_value;
-use std::collections::HashSet;
-use std::{collections::HashMap, iter::Peekable};
-use uuid::Uuid;
+use crate::parser::RVParser;
+use lsp::{LSPFileReader, LSPRVDiagnostic, LSPRVDocument, LSPRVSingleDiagnostic, RVCompletionItem};
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 mod analysis;
 mod cfg;
@@ -20,162 +11,28 @@ mod parser;
 mod passes;
 mod reader;
 
-// WASM MODULES
-
-#[derive(Default)]
-pub struct WrapperDiag(pub Vec<Diagnostic>);
-
-impl From<WrapperDiag> for JsValue {
-    fn from(w: WrapperDiag) -> Self {
-        to_value(&w.0).unwrap()
-    }
-}
-
-impl WrapperDiag {
-    fn new(str: &str) -> Self {
-        let diag = Diagnostic::new_simple(
-            Range::new(
-                Position {
-                    line: 1,
-                    character: 1,
-                },
-                Position {
-                    line: 1,
-                    character: 2,
-                },
-            ),
-            str.to_owned(),
-        );
-        WrapperDiag(vec![diag])
-    }
-}
-
-struct LSPFileReader {
-    file_uris: HashMap<Uuid, LSPRVDocument>,
-}
-
-impl<T> RVParser<T>
-where
-    T: CanGetURIString,
-{
-    fn get_full_url(&self, path: &str, uuid: Uuid) -> String {
-        let doc = self.reader.get_uri_string(uuid);
-        let uri = lsp_types::Url::parse(&doc.uri).unwrap();
-        let fileuri = uri.join(path).unwrap();
-        fileuri.to_string()
-    }
-}
-
-pub trait CanGetURIString: FileReader {
-    fn get_uri_string(&self, uuid: Uuid) -> LSPRVDocument;
-}
-
-impl CanGetURIString for LSPFileReader {
-    fn get_uri_string(&self, uuid: Uuid) -> LSPRVDocument {
-        self.file_uris.get(&uuid).unwrap().clone()
-    }
-}
-
-impl FileReader for LSPFileReader {
-    fn get_filename(&self, uuid: uuid::Uuid) -> Option<String> {
-        self.file_uris.get(&uuid).map(|x| x.uri.clone())
-    }
-
-    fn import_file(
-        &mut self,
-        path: &str,
-        in_file: Option<uuid::Uuid>,
-    ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError> {
-        // if there is an in_file, find its path and use that as the parent
-        let fulluri = match in_file {
-            Some(uuid) => {
-                let doc = self.file_uris.get(&uuid).unwrap();
-                let uri = lsp_types::Url::parse(&doc.uri).unwrap();
-                let fileuri = uri.join(path).unwrap();
-                fileuri.to_string()
-            }
-            // otherwise, this is the full path to the file, denoted by its uri
-            None => lsp_types::Url::parse(path).unwrap().to_string(),
-        };
-
-        // find file in values of hashmap
-        let doc = self
-            .file_uris
-            .clone()
-            .into_iter()
-            .find(|x| x.1.uri == fulluri);
-
-        // if file not found, return error
-        if doc.is_none() {
-            return Err(FileReaderError::InternalFileNotFound);
-        }
-
-        // if file found, return lexer
-        let doc = doc.unwrap();
-        let lexer = Lexer::new(&doc.1.text, doc.0);
-        Ok((doc.0, lexer.peekable()))
-    }
-}
-
-impl LSPFileReader {
-    fn new(docs: Vec<LSPRVDocument>) -> Self {
-        let mut map = HashMap::new();
-
-        for doc in docs {
-            let uuid = Uuid::new_v4();
-            map.insert(uuid, doc);
-        }
-
-        LSPFileReader { file_uris: map }
-    }
-}
-
-#[derive(Deserialize, Clone)]
-pub struct LSPRVDocument {
-    uri: String,
-    text: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-struct LSPRVDiagnostic {
-    uri: String,
-    diagnostics: Vec<Diagnostic>,
-}
-
-struct LSPRVSingleDiagnostic {
-    uri: String,
-    diagnostic: Diagnostic,
+#[wasm_bindgen]
+pub fn riscv_get_uncond_completions() -> JsValue {
+    let items = RVCompletionItem::get_all();
+    serde_wasm_bindgen::to_value(&items).unwrap()
 }
 
 #[wasm_bindgen]
 pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
     // convert docs to Vec<LSPRVDocument>
     let docs: Vec<LSPRVDocument> = serde_wasm_bindgen::from_value(docs).unwrap();
-    // let mut import_map = HashMap::new();
-    let mut imported = HashSet::new();
 
     // parse and lex all files, without imports and collect that info
-    for doc in docs.clone() {
-        // let mut imports = HashSet::new();
-        let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
-        let items = parser.parse(&doc.uri, true);
-        for item in items.0 {
-            match item {
-                ParserNode::Directive(x) => match x.dir {
-                    DirectiveType::Include(name) => {
-                        // get full file path
-                        let this_uri = parser.get_full_url(&name.data, x.dir_token.file);
-                        // add to set
-                        imported.insert(this_uri);
-                        // imports.insert(this_uri);
-                    }
-                    _ => {}
-                },
-                _ => {}
-            }
-        }
-        // import_map.insert(doc.uri, imports);
-    }
+
+    let imported = docs
+        .clone()
+        .into_iter()
+        .map(|doc| RVParser::new(LSPFileReader::new(docs.clone())).get_imports(&doc.uri))
+        .reduce(|mut x, y| {
+            x.extend(y);
+            x
+        })
+        .unwrap_or_default();
 
     // filter out files that are imported by anything
     let to_parse = docs
@@ -183,54 +40,25 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
         .into_iter()
         .filter(|x| !imported.contains(&x.uri));
 
-    // lint errors
-    let mut errs = Vec::new();
-    // parse and lex all files, with imports
-    for doc in to_parse {
-        let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
-        let items = parser.parse(&doc.uri, false);
-
-        // add parse errors to errs
-        items
-            .1
-            .iter()
-            .map(|x| LSPRVSingleDiagnostic {
-                uri: parser
-                    .reader
-                    .get_filename(x.file())
-                    .unwrap_or("".to_string()),
-                diagnostic: Diagnostic::from(x),
-            })
-            .for_each(|x| errs.push(x));
-
-        // make CFG
-        let cfg = Cfg::new(items.0).unwrap();
-        let res = Manager::run(cfg, false);
-        match res {
-            Ok(new_res) => {
-                // add all lint errors to errs
-                new_res
-                    .iter()
-                    .map(|x| LSPRVSingleDiagnostic {
-                        uri: parser
-                            .reader
-                            .get_filename(x.file())
-                            .unwrap_or("".to_string()),
-                        diagnostic: Diagnostic::from(x),
-                    })
-                    .for_each(|x| errs.push(x));
-            }
-            Err(e) => return WrapperDiag::new(&format!("{:#?}", e)).into(),
-        }
-    }
+    let errs = to_parse
+        .map(|f| {
+            let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
+            let items = parser.run(&f.uri, false);
+            items
+                .into_iter()
+                .map(|f| f.to_lsp_diag(&parser))
+                .collect::<Vec<_>>()
+        })
+        .flat_map(|f| f)
+        .collect::<Vec<LSPRVSingleDiagnostic>>();
 
     // insert empty vec for each file
-    let mut diag_map = HashMap::new();
-    for doc in docs {
-        diag_map.insert(doc.uri, Vec::new());
-    }
+    let mut diag_map = docs
+        .iter()
+        .map(|x| (x.uri.clone(), Vec::new()))
+        .collect::<HashMap<_, _>>();
 
-    // collect all diagnostics by file
+    // collect all diagnostics by fil
     for err in errs {
         let uri = err.uri;
         let diag = err.diagnostic;
@@ -238,14 +66,13 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
         diags.push(diag);
     }
 
-    // convert to Vec<LSPRVDiagnostic>
-    let mut errs = Vec::new();
-    for (uri, diags) in diag_map {
-        errs.push(LSPRVDiagnostic {
-            uri,
-            diagnostics: diags,
-        });
-    }
+    let errs = diag_map
+        .iter()
+        .map(|(uri, diagnostics)| LSPRVDiagnostic {
+            uri: uri.clone(),
+            diagnostics: diagnostics.clone(),
+        })
+        .collect::<Vec<_>>();
 
     serde_wasm_bindgen::to_value(&errs).unwrap()
 }
