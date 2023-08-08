@@ -62,6 +62,7 @@ pub enum IArithType {
     Srliw,
     Xori,
     Auipc, // Same as this
+    Lui,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -111,7 +112,7 @@ pub enum JumpLinkRType {
     Jalr,
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Eq)]
 pub enum Inst {
     Ret,
     Ebreak,
@@ -214,6 +215,116 @@ pub enum Inst {
     Csrsi,
     Csrwi,
     Uret,
+}
+
+impl Inst {
+    pub fn all() -> Vec<Inst> {
+        vec![
+            Inst::Ret,
+            Inst::Ebreak,
+            Inst::Ecall,
+            Inst::Nop,
+            Inst::Add,
+            Inst::Addw,
+            Inst::And,
+            Inst::Or,
+            Inst::Sll,
+            Inst::Sllw,
+            Inst::Slt,
+            Inst::Sltu,
+            Inst::Sra,
+            Inst::Sraw,
+            Inst::Srl,
+            Inst::Srlw,
+            Inst::Sub,
+            Inst::Xor,
+            Inst::Mul,
+            Inst::Mulh,
+            Inst::Mulhsu,
+            Inst::Mulhu,
+            Inst::Div,
+            Inst::Divu,
+            Inst::Divw,
+            Inst::Rem,
+            Inst::Remu,
+            Inst::Remw,
+            Inst::Remuw,
+            Inst::Beq,
+            Inst::Bge,
+            Inst::Bgeu,
+            Inst::Blt,
+            Inst::Bltu,
+            Inst::Bne,
+            Inst::Addi,
+            Inst::Addiw,
+            Inst::Andi,
+            Inst::Ori,
+            Inst::Slli,
+            Inst::Slliw,
+            Inst::Slti,
+            Inst::Sltiu,
+            Inst::Srai,
+            Inst::Sraiw,
+            Inst::Srli,
+            Inst::Srliw,
+            Inst::Xori,
+            Inst::Lui,
+            Inst::Lb,
+            Inst::Lbu,
+            Inst::Lh,
+            Inst::Lhu,
+            Inst::Lw,
+            Inst::Lwu,
+            Inst::Sb,
+            Inst::Sh,
+            Inst::Sw,
+            Inst::Csrrw,
+            Inst::Csrrs,
+            Inst::Csrrc,
+            Inst::Csrrwi,
+            Inst::Csrrsi,
+            Inst::Csrrci,
+            Inst::Fence,
+            Inst::Fencei,
+            Inst::Jal,
+            Inst::Jalr,
+            Inst::Auipc,
+            Inst::Beqz,
+            Inst::Bnez,
+            Inst::J,
+            Inst::Jr,
+            Inst::La,
+            Inst::Li,
+            Inst::Mv,
+            Inst::Neg,
+            Inst::Not,
+            Inst::Seqz,
+            Inst::Snez,
+            Inst::Sltz,
+            Inst::Sgez,
+            Inst::Sgtz,
+            Inst::B,
+            Inst::Bltz,
+            Inst::Bgez,
+            Inst::Call,
+            Inst::Bgt,
+            Inst::Ble,
+            Inst::Bgtu,
+            Inst::Bleu,
+            Inst::Bgtz,
+            Inst::Blez,
+            Inst::Csrc,
+            Inst::Csrr,
+            Inst::Csrs,
+            Inst::Csrw,
+            Inst::Csrci,
+            Inst::Csrsi,
+            Inst::Csrwi,
+            Inst::Uret,
+        ]
+        .into_iter()
+        .collect()
+    }
 }
 
 impl Display for Inst {
@@ -338,7 +449,7 @@ pub enum Type {
     Ignore(IgnoreType),
     Branch(BranchType),
     Pseudo(PseudoType),
-    UpperArith(UpperArithType),
+    UpperArith(IArithType),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -376,11 +487,6 @@ pub enum PseudoType {
     Csrci,
     Csrsi,
     Csrwi,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum UpperArithType {
-    Lui,
 }
 
 impl FromStr for Inst {
@@ -543,7 +649,7 @@ impl From<&Inst> for Type {
             Inst::Srli => Type::IArith(IArithType::Srli),
             Inst::Srliw => Type::IArith(IArithType::Srliw),
             Inst::Xori => Type::IArith(IArithType::Xori),
-            Inst::Lui => Type::UpperArith(UpperArithType::Lui),
+            Inst::Lui => Type::UpperArith(IArithType::Lui),
             Inst::Lb => Type::Load(LoadType::Lb),
             Inst::Lbu => Type::Load(LoadType::Lbu),
             Inst::Lh => Type::Load(LoadType::Lh),
@@ -653,6 +759,7 @@ impl From<&IArithType> for Inst {
             IArithType::Srli => Inst::Srli,
             IArithType::Srai => Inst::Srai,
             IArithType::Auipc => Inst::Auipc,
+            IArithType::Lui => Inst::Lui,
         }
     }
 }
@@ -735,14 +842,6 @@ impl From<&BranchType> for Inst {
             BranchType::Bge => Inst::Bge,
             BranchType::Bltu => Inst::Bltu,
             BranchType::Bgeu => Inst::Bgeu,
-        }
-    }
-}
-
-impl From<&UpperArithType> for Inst {
-    fn from(value: &UpperArithType) -> Self {
-        match value {
-            UpperArithType::Lui => Inst::Lui,
         }
     }
 }
