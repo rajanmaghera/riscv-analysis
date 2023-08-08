@@ -1,0 +1,1980 @@
+- node: !ProgramEntry {}
+  nexts:
+  - 1
+  reg_values_out:
+    1: !ors
+    - 1
+    - 0
+    2: !ors
+    - 2
+    - 0
+- node: !IArith
+    inst:
+      data: Addi
+    rd:
+      data: 10
+    rs1:
+      data: 0
+    imm:
+      data: 1
+  nexts:
+  - 2
+  prevs:
+  - 0
+  reg_values_in:
+    1: !ors
+    - 1
+    - 0
+    2: !ors
+    - 2
+    - 0
+  reg_values_out:
+    10: !c 1
+    2: !ors
+    - 2
+    - 0
+    1: !ors
+    - 1
+    - 0
+  u_def:
+  - 10
+- node: !IArith
+    inst:
+      data: Addi
+    rd:
+      data: 11
+    rs1:
+      data: 0
+    imm:
+      data: 2
+  nexts:
+  - 3
+  prevs:
+  - 1
+  reg_values_in:
+    10: !c 1
+    2: !ors
+    - 2
+    - 0
+    1: !ors
+    - 1
+    - 0
+  reg_values_out:
+    1: !ors
+    - 1
+    - 0
+    11: !c 2
+    2: !ors
+    - 2
+    - 0
+    10: !c 1
+  u_def:
+  - 10
+  - 11
+- node: !IArith
+    inst:
+      data: Addi
+    rd:
+      data: 7
+    rs1:
+      data: 0
+    imm:
+      data: 2
+  nexts:
+  - 4
+  prevs:
+  - 2
+  reg_values_in:
+    1: !ors
+    - 1
+    - 0
+    11: !c 2
+    2: !ors
+    - 2
+    - 0
+    10: !c 1
+  reg_values_out:
+    10: !c 1
+    2: !ors
+    - 2
+    - 0
+    11: !c 2
+    7: !c 2
+    1: !ors
+    - 1
+    - 0
+  u_def:
+  - 10
+  - 11
+  - 7
+- node: !JumpLink
+    inst:
+      data: Jal
+    rd:
+      data: 1
+    name:
+      data: foo
+  nexts:
+  - 5
+  prevs:
+  - 3
+  reg_values_in:
+    10: !c 1
+    2: !ors
+    - 2
+    - 0
+    11: !c 2
+    7: !c 2
+    1: !ors
+    - 1
+    - 0
+  reg_values_out:
+    2: !ors
+    - 2
+    - 0
+  live_out:
+  - 11
+  - 29
+  - 7
+  u_def:
+  - 10
+- node: !IArith
+    inst:
+      data: Addi
+    rd:
+      data: 10
+    rs1:
+      data: 0
+    imm:
+      data: 2321
+  nexts:
+  - 6
+  prevs:
+  - 4
+  reg_values_in:
+    2: !ors
+    - 2
+    - 0
+  reg_values_out:
+    2: !ors
+    - 2
+    - 0
+    10: !c 2321
+  live_in:
+  - 11
+  - 29
+  - 7
+  live_out:
+  - 10
+  - 11
+  - 29
+  - 7
+  u_def:
+  - 10
+- node: !Arith
+    inst:
+      data: Add
+    rd:
+      data: 28
+    rs1:
+      data: 7
+    rs2:
+      data: 29
+  nexts:
+  - 7
+  prevs:
+  - 5
+  reg_values_in:
+    2: !ors
+    - 2
+    - 0
+    10: !c 2321
+  reg_values_out:
+    10: !c 2321
+    2: !ors
+    - 2
+    - 0
+  live_in:
+  - 10
+  - 11
+  - 29
+  - 7
+  live_out:
+  - 11
+  - 10
+  u_def:
+  - 28
+  - 10
+- node: !Arith
+    inst:
+      data: Add
+    rd:
+      data: 5
+    rs1:
+      data: 10
+    rs2:
+      data: 11
+  nexts:
+  - 8
+  prevs:
+  - 6
+  reg_values_in:
+    10: !c 2321
+    2: !ors
+    - 2
+    - 0
+  reg_values_out:
+    2: !ors
+    - 2
+    - 0
+    10: !c 2321
+  live_in:
+  - 11
+  - 10
+  u_def:
+  - 28
+  - 10
+  - 5
+- node: !JumpLink
+    inst:
+      data: Jal
+    rd:
+      data: 1
+    name:
+      data: bar
+  nexts:
+  - 9
+  prevs:
+  - 7
+  reg_values_in:
+    2: !ors
+    - 2
+    - 0
+    10: !c 2321
+  reg_values_out:
+    2: !ors
+    - 2
+    - 0
+  u_def:
+  - 10
+- node: !IArith
+    inst:
+      data: Addi
+    rd:
+      data: 17
+    rs1:
+      data: 0
+    imm:
+      data: 10
+  nexts:
+  - 10
+  prevs:
+  - 8
+  reg_values_in:
+    2: !ors
+    - 2
+    - 0
+  reg_values_out:
+    2: !ors
+    - 2
+    - 0
+    17: !c 10
+  live_out:
+  - 17
+  u_def:
+  - 10
+  - 17
+- node: !Basic
+    inst:
+      data: Ecall
+  prevs:
+  - 9
+  reg_values_in:
+    2: !ors
+    - 2
+    - 0
+    17: !c 10
+  reg_values_out:
+    2: !ors
+    - 2
+    - 0
+    17: !c 10
+  live_in:
+  - 17
+- node: !FuncEntry {}
+  labels:
+  - bar
+  func_entry: 11
+  func_exit: 20
+  nexts:
+  - 12
+  reg_values_in:
+    2: !ors
+    - 2
+    - 0
+    17: !c 10
+  reg_values_out:
+    22: !ors
+    - 22
+    - 0
+    18: !ors
+    - 18
+    - 0
+    20: !ors
+    - 20
+    - 0
+    25: !ors
+    - 25
+    - 0
+    21: !ors
+    - 21
+    - 0
+    24: !ors
+    - 24
+    - 0
+    2: !ors
+    - 2
+    - 0
+    1: !ors
+    - 1
+    - 0
+    19: !ors
+    - 19
+    - 0
+    27: !ors
+    - 27
+    - 0
+    9: !ors
+    - 9
+    - 0
+    8: !ors
+    - 8
+    - 0
+    26: !ors
+    - 26
+    - 0
+    23: !ors
+    - 23
+    - 0
+  live_in:
+  - 25
+  - 21
+  - 27
+  - 20
+  - 24
+  - 23
+  - 19
+  - 22
+  - 2
+  - 8
+  - 9
+  - 26
+  - 18
+  - 1
+  live_out:
+  - 22
+  - 8
+  - 18
+  - 1
+  - 24
+  - 19
+  - 27
+  - 26
+  - 25
+  - 21
+  - 9
+  - 20
+  - 23
+  - 2
+- node: !IArith
+    inst:
+      data: Addi
+    rd:
+      data: 2
+    rs1:
+      data: 2
+    imm:
+      data: -4
+  func_entry: 11
+  func_exit: 20
+  nexts:
+  - 13
+  prevs:
+  - 11
+  reg_values_in:
+    22: !ors
+    - 22
+    - 0
+    18: !ors
+    - 18
+    - 0
+    20: !ors
+    - 20
+    - 0
+    25: !ors
+    - 25
+    - 0
+    21: !ors
+    - 21
+    - 0
+    24: !ors
+    - 24
+    - 0
+    2: !ors
+    - 2
+    - 0
+    1: !ors
+    - 1
+    - 0
+    19: !ors
+    - 19
+    - 0
+    27: !ors
+    - 27
+    - 0
+    9: !ors
+    - 9
+    - 0
+    8: !ors
+    - 8
+    - 0
+    26: !ors
+    - 26
+    - 0
+    23: !ors
+    - 23
+    - 0
+  reg_values_out:
+    26: !ors
+    - 26
+    - 0
+    22: !ors
+    - 22
+    - 0
+    18: !ors
+    - 18
+    - 0
+    20: !ors
+    - 20
+    - 0
+    25: !ors
+    - 25
+    - 0
+    21: !ors
+    - 21
+    - 0
+    9: !ors
+    - 9
+    - 0
+    19: !ors
+    - 19
+    - 0
+    23: !ors
+    - 23
+    - 0
+    8: !ors
+    - 8
+    - 0
+    1: !ors
+    - 1
+    - 0
+    27: !ors
+    - 27
+    - 0
+    24: !ors
+    - 24
+    - 0
+    2: !ors
+    - 2
+    - -4
+  live_in:
+  - 22
+  - 8
+  - 18
+  - 1
+  - 24
+  - 19
+  - 27
+  - 26
+  - 25
+  - 21
+  - 9
+  - 20
+  - 23
+  - 2
+  live_out:
+  - 23
+  - 26
+  - 21
+  - 24
+  - 2
+  - 19
+  - 27
+  - 25
+  - 18
+  - 9
+  - 8
+  - 20
+  - 22
+  - 1
+  u_def:
+  - 2
+- node: !Store
+    inst:
+      data: Sw
+    rs1:
+      data: 2
+    rs2:
+      data: 1
+    imm:
+      data: 0
+  func_entry: 11
+  func_exit: 20
+  nexts:
+  - 14
+  prevs:
+  - 12
+  reg_values_in:
+    26: !ors
+    - 26
+    - 0
+    22: !ors
+    - 22
+    - 0
+    18: !ors
+    - 18
+    - 0
+    20: !ors
+    - 20
+    - 0
+    25: !ors
+    - 25
+    - 0
+    21: !ors
+    - 21
+    - 0
+    9: !ors
+    - 9
+    - 0
+    19: !ors
+    - 19
+    - 0
+    23: !ors
+    - 23
+    - 0
+    8: !ors
+    - 8
+    - 0
+    1: !ors
+    - 1
+    - 0
+    27: !ors
+    - 27
+    - 0
+    24: !ors
+    - 24
+    - 0
+    2: !ors
+    - 2
+    - -4
+  reg_values_out:
+    26: !ors
+    - 26
+    - 0
+    23: !ors
+    - 23
+    - 0
+    27: !ors
+    - 27
+    - 0
+    18: !ors
+    - 18
+    - 0
+    19: !ors
+    - 19
+    - 0
+    20: !ors
+    - 20
+    - 0
+    2: !ors
+    - 2
+    - -4
+    21: !ors
+    - 21
+    - 0
+    25: !ors
+    - 25
+    - 0
+    1: !ors
+    - 1
+    - 0
+    24: !ors
+    - 24
+    - 0
+    9: !ors
+    - 9
+    - 0
+    22: !ors
+    - 22
+    - 0
+    8: !ors
+    - 8
+    - 0
+  stack_values_out:
+    -4: !ors
+    - 1
+    - 0
+  live_in:
+  - 23
+  - 26
+  - 21
+  - 24
+  - 2
+  - 19
+  - 27
+  - 25
+  - 18
+  - 9
+  - 8
+  - 20
+  - 22
+  - 1
+  live_out:
+  - 27
+  - 2
+  - 25
+  - 19
+  - 22
+  - 24
+  - 18
+  - 26
+  - 9
+  - 23
+  - 20
+  - 8
+  - 21
+  u_def:
+  - 2
+- node: !Store
+    inst:
+      data: Sw
+    rs1:
+      data: 2
+    rs2:
+      data: 8
+    imm:
+      data: 4
+  func_entry: 11
+  func_exit: 20
+  nexts:
+  - 15
+  prevs:
+  - 13
+  reg_values_in:
+    26: !ors
+    - 26
+    - 0
+    23: !ors
+    - 23
+    - 0
+    27: !ors
+    - 27
+    - 0
+    18: !ors
+    - 18
+    - 0
+    19: !ors
+    - 19
+    - 0
+    20: !ors
+    - 20
+    - 0
+    2: !ors
+    - 2
+    - -4
+    21: !ors
+    - 21
+    - 0
+    25: !ors
+    - 25
+    - 0
+    1: !ors
+    - 1
+    - 0
+    24: !ors
+    - 24
+    - 0
+    9: !ors
+    - 9
+    - 0
+    22: !ors
+    - 22
+    - 0
+    8: !ors
+    - 8
+    - 0
+  reg_values_out:
+    18: !ors
+    - 18
+    - 0
+    9: !ors
+    - 9
+    - 0
+    8: !ors
+    - 8
+    - 0
+    2: !ors
+    - 2
+    - -4
+    26: !ors
+    - 26
+    - 0
+    23: !ors
+    - 23
+    - 0
+    24: !ors
+    - 24
+    - 0
+    27: !ors
+    - 27
+    - 0
+    19: !ors
+    - 19
+    - 0
+    20: !ors
+    - 20
+    - 0
+    21: !ors
+    - 21
+    - 0
+    25: !ors
+    - 25
+    - 0
+    1: !ors
+    - 1
+    - 0
+    22: !ors
+    - 22
+    - 0
+  stack_values_in:
+    -4: !ors
+    - 1
+    - 0
+  stack_values_out:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  live_in:
+  - 27
+  - 2
+  - 25
+  - 19
+  - 22
+  - 24
+  - 18
+  - 26
+  - 9
+  - 23
+  - 20
+  - 8
+  - 21
+  live_out:
+  - 21
+  - 27
+  - 22
+  - 23
+  - 19
+  - 26
+  - 20
+  - 24
+  - 2
+  - 18
+  - 25
+  - 9
+  u_def:
+  - 2
+- node: !IArith
+    inst:
+      data: Addi
+    rd:
+      data: 8
+    rs1:
+      data: 0
+    imm:
+      data: 2
+  func_entry: 11
+  func_exit: 20
+  nexts:
+  - 16
+  prevs:
+  - 14
+  reg_values_in:
+    18: !ors
+    - 18
+    - 0
+    9: !ors
+    - 9
+    - 0
+    8: !ors
+    - 8
+    - 0
+    2: !ors
+    - 2
+    - -4
+    26: !ors
+    - 26
+    - 0
+    23: !ors
+    - 23
+    - 0
+    24: !ors
+    - 24
+    - 0
+    27: !ors
+    - 27
+    - 0
+    19: !ors
+    - 19
+    - 0
+    20: !ors
+    - 20
+    - 0
+    21: !ors
+    - 21
+    - 0
+    25: !ors
+    - 25
+    - 0
+    1: !ors
+    - 1
+    - 0
+    22: !ors
+    - 22
+    - 0
+  reg_values_out:
+    25: !ors
+    - 25
+    - 0
+    18: !ors
+    - 18
+    - 0
+    26: !ors
+    - 26
+    - 0
+    19: !ors
+    - 19
+    - 0
+    20: !ors
+    - 20
+    - 0
+    21: !ors
+    - 21
+    - 0
+    24: !ors
+    - 24
+    - 0
+    23: !ors
+    - 23
+    - 0
+    1: !ors
+    - 1
+    - 0
+    2: !ors
+    - 2
+    - -4
+    22: !ors
+    - 22
+    - 0
+    27: !ors
+    - 27
+    - 0
+    8: !c 2
+    9: !ors
+    - 9
+    - 0
+  stack_values_in:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  stack_values_out:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  live_in:
+  - 21
+  - 27
+  - 22
+  - 23
+  - 19
+  - 26
+  - 20
+  - 24
+  - 2
+  - 18
+  - 25
+  - 9
+  live_out:
+  - 20
+  - 2
+  - 9
+  - 24
+  - 25
+  - 19
+  - 23
+  - 27
+  - 21
+  - 18
+  - 26
+  - 22
+  u_def:
+  - 8
+  - 2
+- node: !JumpLink
+    inst:
+      data: Jal
+    rd:
+      data: 1
+    name:
+      data: foo
+  func_entry: 11
+  func_exit: 20
+  nexts:
+  - 17
+  prevs:
+  - 15
+  reg_values_in:
+    25: !ors
+    - 25
+    - 0
+    18: !ors
+    - 18
+    - 0
+    26: !ors
+    - 26
+    - 0
+    19: !ors
+    - 19
+    - 0
+    20: !ors
+    - 20
+    - 0
+    21: !ors
+    - 21
+    - 0
+    24: !ors
+    - 24
+    - 0
+    23: !ors
+    - 23
+    - 0
+    1: !ors
+    - 1
+    - 0
+    2: !ors
+    - 2
+    - -4
+    22: !ors
+    - 22
+    - 0
+    27: !ors
+    - 27
+    - 0
+    8: !c 2
+    9: !ors
+    - 9
+    - 0
+  reg_values_out:
+    22: !ors
+    - 22
+    - 0
+    24: !ors
+    - 24
+    - 0
+    9: !ors
+    - 9
+    - 0
+    27: !ors
+    - 27
+    - 0
+    26: !ors
+    - 26
+    - 0
+    21: !ors
+    - 21
+    - 0
+    20: !ors
+    - 20
+    - 0
+    25: !ors
+    - 25
+    - 0
+    19: !ors
+    - 19
+    - 0
+    8: !c 2
+    23: !ors
+    - 23
+    - 0
+    2: !ors
+    - 2
+    - -4
+    18: !ors
+    - 18
+    - 0
+  stack_values_in:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  stack_values_out:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  live_in:
+  - 20
+  - 2
+  - 9
+  - 24
+  - 25
+  - 19
+  - 23
+  - 27
+  - 21
+  - 18
+  - 26
+  - 22
+  live_out:
+  - 9
+  - 23
+  - 22
+  - 20
+  - 21
+  - 19
+  - 24
+  - 27
+  - 18
+  - 25
+  - 26
+  - 2
+  u_def:
+  - 2
+  - 10
+  - 8
+- node: !Load
+    inst:
+      data: Lw
+    rd:
+      data: 1
+    rs1:
+      data: 2
+    imm:
+      data: 0
+  func_entry: 11
+  func_exit: 20
+  nexts:
+  - 18
+  prevs:
+  - 16
+  reg_values_in:
+    22: !ors
+    - 22
+    - 0
+    24: !ors
+    - 24
+    - 0
+    9: !ors
+    - 9
+    - 0
+    27: !ors
+    - 27
+    - 0
+    26: !ors
+    - 26
+    - 0
+    21: !ors
+    - 21
+    - 0
+    20: !ors
+    - 20
+    - 0
+    25: !ors
+    - 25
+    - 0
+    19: !ors
+    - 19
+    - 0
+    8: !c 2
+    23: !ors
+    - 23
+    - 0
+    2: !ors
+    - 2
+    - -4
+    18: !ors
+    - 18
+    - 0
+  reg_values_out:
+    19: !ors
+    - 19
+    - 0
+    8: !c 2
+    22: !ors
+    - 22
+    - 0
+    20: !ors
+    - 20
+    - 0
+    2: !ors
+    - 2
+    - -4
+    1: !ors
+    - 1
+    - 0
+    21: !ors
+    - 21
+    - 0
+    23: !ors
+    - 23
+    - 0
+    18: !ors
+    - 18
+    - 0
+    24: !ors
+    - 24
+    - 0
+    27: !ors
+    - 27
+    - 0
+    9: !ors
+    - 9
+    - 0
+    25: !ors
+    - 25
+    - 0
+    26: !ors
+    - 26
+    - 0
+  stack_values_in:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  stack_values_out:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  live_in:
+  - 9
+  - 23
+  - 22
+  - 20
+  - 21
+  - 19
+  - 24
+  - 27
+  - 18
+  - 25
+  - 26
+  - 2
+  live_out:
+  - 1
+  - 21
+  - 22
+  - 24
+  - 19
+  - 26
+  - 18
+  - 2
+  - 9
+  - 20
+  - 27
+  - 25
+  - 23
+  u_def:
+  - 1
+  - 8
+  - 2
+  - 10
+- node: !Load
+    inst:
+      data: Lw
+    rd:
+      data: 8
+    rs1:
+      data: 2
+    imm:
+      data: 4
+  func_entry: 11
+  func_exit: 20
+  nexts:
+  - 19
+  prevs:
+  - 17
+  reg_values_in:
+    19: !ors
+    - 19
+    - 0
+    8: !c 2
+    22: !ors
+    - 22
+    - 0
+    20: !ors
+    - 20
+    - 0
+    2: !ors
+    - 2
+    - -4
+    1: !ors
+    - 1
+    - 0
+    21: !ors
+    - 21
+    - 0
+    23: !ors
+    - 23
+    - 0
+    18: !ors
+    - 18
+    - 0
+    24: !ors
+    - 24
+    - 0
+    27: !ors
+    - 27
+    - 0
+    9: !ors
+    - 9
+    - 0
+    25: !ors
+    - 25
+    - 0
+    26: !ors
+    - 26
+    - 0
+  reg_values_out:
+    9: !ors
+    - 9
+    - 0
+    26: !ors
+    - 26
+    - 0
+    21: !ors
+    - 21
+    - 0
+    22: !ors
+    - 22
+    - 0
+    27: !ors
+    - 27
+    - 0
+    24: !ors
+    - 24
+    - 0
+    1: !ors
+    - 1
+    - 0
+    20: !ors
+    - 20
+    - 0
+    2: !ors
+    - 2
+    - -4
+    23: !ors
+    - 23
+    - 0
+    18: !ors
+    - 18
+    - 0
+    25: !ors
+    - 25
+    - 0
+    8: !ors
+    - 8
+    - 0
+    19: !ors
+    - 19
+    - 0
+  stack_values_in:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  stack_values_out:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  live_in:
+  - 1
+  - 21
+  - 22
+  - 24
+  - 19
+  - 26
+  - 18
+  - 2
+  - 9
+  - 20
+  - 27
+  - 25
+  - 23
+  live_out:
+  - 2
+  - 18
+  - 20
+  - 9
+  - 8
+  - 22
+  - 24
+  - 27
+  - 26
+  - 1
+  - 19
+  - 25
+  - 21
+  - 23
+  u_def:
+  - 2
+  - 8
+  - 10
+  - 1
+- node: !IArith
+    inst:
+      data: Addi
+    rd:
+      data: 2
+    rs1:
+      data: 2
+    imm:
+      data: 4
+  func_entry: 11
+  func_exit: 20
+  nexts:
+  - 20
+  prevs:
+  - 18
+  reg_values_in:
+    9: !ors
+    - 9
+    - 0
+    26: !ors
+    - 26
+    - 0
+    21: !ors
+    - 21
+    - 0
+    22: !ors
+    - 22
+    - 0
+    27: !ors
+    - 27
+    - 0
+    24: !ors
+    - 24
+    - 0
+    1: !ors
+    - 1
+    - 0
+    20: !ors
+    - 20
+    - 0
+    2: !ors
+    - 2
+    - -4
+    23: !ors
+    - 23
+    - 0
+    18: !ors
+    - 18
+    - 0
+    25: !ors
+    - 25
+    - 0
+    8: !ors
+    - 8
+    - 0
+    19: !ors
+    - 19
+    - 0
+  reg_values_out:
+    27: !ors
+    - 27
+    - 0
+    18: !ors
+    - 18
+    - 0
+    26: !ors
+    - 26
+    - 0
+    9: !ors
+    - 9
+    - 0
+    21: !ors
+    - 21
+    - 0
+    24: !ors
+    - 24
+    - 0
+    1: !ors
+    - 1
+    - 0
+    19: !ors
+    - 19
+    - 0
+    8: !ors
+    - 8
+    - 0
+    25: !ors
+    - 25
+    - 0
+    22: !ors
+    - 22
+    - 0
+    23: !ors
+    - 23
+    - 0
+    2: !ors
+    - 2
+    - 0
+    20: !ors
+    - 20
+    - 0
+  stack_values_in:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  stack_values_out:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  live_in:
+  - 2
+  - 18
+  - 20
+  - 9
+  - 8
+  - 22
+  - 24
+  - 27
+  - 26
+  - 1
+  - 19
+  - 25
+  - 21
+  - 23
+  live_out:
+  - 23
+  - 25
+  - 18
+  - 1
+  - 27
+  - 9
+  - 19
+  - 24
+  - 8
+  - 26
+  - 2
+  - 21
+  - 22
+  - 20
+  u_def:
+  - 10
+  - 2
+  - 8
+  - 1
+- node: !JumpLinkR
+    inst:
+      data: Jalr
+    rd:
+      data: 0
+    rs1:
+      data: 1
+    imm:
+      data: 0
+  func_entry: 11
+  func_exit: 20
+  prevs:
+  - 19
+  reg_values_in:
+    27: !ors
+    - 27
+    - 0
+    18: !ors
+    - 18
+    - 0
+    26: !ors
+    - 26
+    - 0
+    9: !ors
+    - 9
+    - 0
+    21: !ors
+    - 21
+    - 0
+    24: !ors
+    - 24
+    - 0
+    1: !ors
+    - 1
+    - 0
+    19: !ors
+    - 19
+    - 0
+    8: !ors
+    - 8
+    - 0
+    25: !ors
+    - 25
+    - 0
+    22: !ors
+    - 22
+    - 0
+    23: !ors
+    - 23
+    - 0
+    2: !ors
+    - 2
+    - 0
+    20: !ors
+    - 20
+    - 0
+  reg_values_out:
+    25: !ors
+    - 25
+    - 0
+    20: !ors
+    - 20
+    - 0
+    23: !ors
+    - 23
+    - 0
+    18: !ors
+    - 18
+    - 0
+    21: !ors
+    - 21
+    - 0
+    8: !ors
+    - 8
+    - 0
+    22: !ors
+    - 22
+    - 0
+    2: !ors
+    - 2
+    - 0
+    27: !ors
+    - 27
+    - 0
+    1: !ors
+    - 1
+    - 0
+    26: !ors
+    - 26
+    - 0
+    24: !ors
+    - 24
+    - 0
+    19: !ors
+    - 19
+    - 0
+    9: !ors
+    - 9
+    - 0
+  stack_values_in:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  stack_values_out:
+    -4: !ors
+    - 1
+    - 0
+    0: !ors
+    - 8
+    - 0
+  live_in:
+  - 23
+  - 25
+  - 18
+  - 1
+  - 27
+  - 9
+  - 19
+  - 24
+  - 8
+  - 26
+  - 2
+  - 21
+  - 22
+  - 20
+  u_def:
+  - 10
+  - 2
+  - 8
+  - 1
+- node: !FuncEntry {}
+  labels:
+  - foo
+  func_entry: 21
+  func_exit: 23
+  nexts:
+  - 22
+  reg_values_out:
+    20: !ors
+    - 20
+    - 0
+    24: !ors
+    - 24
+    - 0
+    19: !ors
+    - 19
+    - 0
+    27: !ors
+    - 27
+    - 0
+    18: !ors
+    - 18
+    - 0
+    26: !ors
+    - 26
+    - 0
+    8: !ors
+    - 8
+    - 0
+    21: !ors
+    - 21
+    - 0
+    1: !ors
+    - 1
+    - 0
+    2: !ors
+    - 2
+    - 0
+    9: !ors
+    - 9
+    - 0
+    23: !ors
+    - 23
+    - 0
+    25: !ors
+    - 25
+    - 0
+    22: !ors
+    - 22
+    - 0
+  live_in:
+  - 25
+  - 22
+  - 26
+  - 9
+  - 27
+  - 21
+  - 18
+  - 8
+  - 24
+  - 20
+  - 1
+  - 23
+  - 2
+  - 19
+  live_out:
+  - 24
+  - 10
+  - 22
+  - 11
+  - 9
+  - 25
+  - 26
+  - 27
+  - 19
+  - 23
+  - 20
+  - 8
+  - 18
+  - 21
+  - 1
+  - 2
+- node: !Arith
+    inst:
+      data: Add
+    rd:
+      data: 10
+    rs1:
+      data: 10
+    rs2:
+      data: 11
+  func_entry: 21
+  func_exit: 23
+  nexts:
+  - 23
+  prevs:
+  - 21
+  reg_values_in:
+    20: !ors
+    - 20
+    - 0
+    24: !ors
+    - 24
+    - 0
+    19: !ors
+    - 19
+    - 0
+    27: !ors
+    - 27
+    - 0
+    18: !ors
+    - 18
+    - 0
+    26: !ors
+    - 26
+    - 0
+    8: !ors
+    - 8
+    - 0
+    21: !ors
+    - 21
+    - 0
+    1: !ors
+    - 1
+    - 0
+    2: !ors
+    - 2
+    - 0
+    9: !ors
+    - 9
+    - 0
+    23: !ors
+    - 23
+    - 0
+    25: !ors
+    - 25
+    - 0
+    22: !ors
+    - 22
+    - 0
+  reg_values_out:
+    2: !ors
+    - 2
+    - 0
+    9: !ors
+    - 9
+    - 0
+    18: !ors
+    - 18
+    - 0
+    20: !ors
+    - 20
+    - 0
+    23: !ors
+    - 23
+    - 0
+    19: !ors
+    - 19
+    - 0
+    26: !ors
+    - 26
+    - 0
+    24: !ors
+    - 24
+    - 0
+    22: !ors
+    - 22
+    - 0
+    21: !ors
+    - 21
+    - 0
+    1: !ors
+    - 1
+    - 0
+    27: !ors
+    - 27
+    - 0
+    25: !ors
+    - 25
+    - 0
+    8: !ors
+    - 8
+    - 0
+  live_in:
+  - 24
+  - 10
+  - 22
+  - 11
+  - 9
+  - 25
+  - 26
+  - 27
+  - 19
+  - 23
+  - 20
+  - 8
+  - 18
+  - 21
+  - 1
+  - 2
+  live_out:
+  - 27
+  - 2
+  - 20
+  - 22
+  - 23
+  - 1
+  - 21
+  - 9
+  - 24
+  - 25
+  - 19
+  - 8
+  - 26
+  - 18
+  u_def:
+  - 10
+- node: !JumpLinkR
+    inst:
+      data: Jalr
+    rd:
+      data: 0
+    rs1:
+      data: 1
+    imm:
+      data: 0
+  func_entry: 21
+  func_exit: 23
+  prevs:
+  - 22
+  reg_values_in:
+    2: !ors
+    - 2
+    - 0
+    9: !ors
+    - 9
+    - 0
+    18: !ors
+    - 18
+    - 0
+    20: !ors
+    - 20
+    - 0
+    23: !ors
+    - 23
+    - 0
+    19: !ors
+    - 19
+    - 0
+    26: !ors
+    - 26
+    - 0
+    24: !ors
+    - 24
+    - 0
+    22: !ors
+    - 22
+    - 0
+    21: !ors
+    - 21
+    - 0
+    1: !ors
+    - 1
+    - 0
+    27: !ors
+    - 27
+    - 0
+    25: !ors
+    - 25
+    - 0
+    8: !ors
+    - 8
+    - 0
+  reg_values_out:
+    19: !ors
+    - 19
+    - 0
+    23: !ors
+    - 23
+    - 0
+    18: !ors
+    - 18
+    - 0
+    24: !ors
+    - 24
+    - 0
+    1: !ors
+    - 1
+    - 0
+    25: !ors
+    - 25
+    - 0
+    8: !ors
+    - 8
+    - 0
+    22: !ors
+    - 22
+    - 0
+    27: !ors
+    - 27
+    - 0
+    21: !ors
+    - 21
+    - 0
+    20: !ors
+    - 20
+    - 0
+    9: !ors
+    - 9
+    - 0
+    26: !ors
+    - 26
+    - 0
+    2: !ors
+    - 2
+    - 0
+  live_in:
+  - 27
+  - 2
+  - 20
+  - 22
+  - 23
+  - 1
+  - 21
+  - 9
+  - 24
+  - 25
+  - 19
+  - 8
+  - 26
+  - 18
+  u_def:
+  - 10
+

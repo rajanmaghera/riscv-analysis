@@ -270,8 +270,48 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
+    macro_rules! file_name {
+        ($fname:expr) => {
+            concat!(env!("CARGO_MANIFEST_DIR"), "/resources/test/", $fname) // assumes Linux ('/')!
+        };
+    }
+
+    macro_rules! file_test_case {
+        ($fname:ident) => {
+            #[test]
+            fn $fname() {
+                let filename = concat!(file_name!(stringify!($fname)), "/code.s");
+                let compare = concat!(file_name!(stringify!($fname)), "/raw.yaml");
+                let reader = IOFileReader::new();
+                let mut parser = RVParser::new(reader);
+
+                let parsed = parser.parse(filename, false);
+
+                let cfg = Cfg::new(parsed.0).unwrap();
+                let res: Cfg = Manager::gen_full_cfg(cfg).unwrap();
+                let res = CFGWrapper::from(&res);
+
+                // deserialize the yaml file
+                let compare = std::fs::read_to_string(compare).unwrap();
+                let compare: CFGWrapper = serde_yaml::from_str(&compare).unwrap();
+
+                // read the res into yaml format to match
+                let res = serde_yaml::to_string(&res).unwrap();
+                let res: CFGWrapper = serde_yaml::from_str(&res).unwrap();
+
+                assert_eq!(res, compare);
+            }
+        };
+    }
+
+    use crate::cfg::{CFGWrapper, Cfg};
     use crate::helpers::tokenize;
-    use crate::parser::Token;
+    use crate::parser::{RVParser, Token};
+    use crate::passes::Manager;
+    use crate::IOFileReader;
+
+    file_test_case!(loop_check);
+    file_test_case!(treg);
 
     #[test]
     fn lex_label() {
