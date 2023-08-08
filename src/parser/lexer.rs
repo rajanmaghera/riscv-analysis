@@ -13,8 +13,11 @@ pub struct Lexer {
     source: String,
     pub source_id: Uuid,
     ch: char,
+    /// The position that will be read next
     pos: usize,
+    /// The row that will be read next
     row: usize,
+    /// The column that will be read next
     col: usize,
 }
 
@@ -95,9 +98,11 @@ impl Lexer {
     /// This function will return a range with the start and end position
     /// being the current position of the lexer.
     fn get_range(&self) -> Range {
+        let mut end = self.get_pos();
+        end.column += 1;
         Range {
             start: self.get_pos(),
-            end: self.get_pos(),
+            end,
         }
     }
 
@@ -105,9 +110,11 @@ impl Lexer {
     ///
     /// This function will return the current position of the lexer.
     fn get_pos(&self) -> Position {
+        let column = if self.col == 0 { 0 } else { self.col - 1 };
+
         Position {
             line: self.row,
-            column: self.col,
+            column,
         }
     }
 }
@@ -121,6 +128,7 @@ impl Iterator for Lexer {
         match self.ch {
             '\n' => {
                 let pos = self.get_range();
+
                 self.next_char();
 
                 Some(Info {
@@ -217,8 +225,6 @@ impl Iterator for Lexer {
                 })
             }
             _ => {
-                self.col -= 1;
-
                 let start = self.get_pos();
 
                 let mut symbol_str: String = String::new();
