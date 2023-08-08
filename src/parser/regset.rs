@@ -38,6 +38,9 @@ impl ToRegHashset for u32 {
 
 pub struct RegSets;
 impl RegSets {
+    pub fn program_args() -> HashSet<Register> {
+        vec![Register::X10, Register::X11].into_iter().collect()
+    }
     pub fn temporary() -> HashSet<Register> {
         use Register::{X28, X29, X30, X31, X5, X6, X7};
         vec![X5, X6, X7, X28, X29, X30, X31].into_iter().collect()
