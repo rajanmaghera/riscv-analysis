@@ -25,23 +25,26 @@ impl ParserNode {
     }
 
     pub fn kill_reg(&self) -> HashSet<Register> {
-        let regs: HashSet<Register> = match self.clone() {
-            ParserNode::FuncEntry(_) => RegSets::callee_saved(),
-            ParserNode::JumpLink(_) if self.calls_to().is_some() => HashSet::new(),
-            _ => self
-                .stores_to()
+        let regs = if let Some(_) = self.calls_to() {
+            HashSet::new()
+        } else if self.is_function_entry() {
+            RegSets::caller_saved()
+        } else {
+            self.stores_to()
                 .map(|x| vec![x.data].into_iter().collect())
-                .unwrap_or_default(),
+                .unwrap_or_default()
         };
+
         regs.into_iter()
             .filter(|x| *x != Register::X0)
             .collect::<HashSet<_>>()
     }
 
     pub fn gen_reg(&self) -> HashSet<Register> {
-        let regs: HashSet<Register> = match self {
-            _ if self.is_return() => RegSets::callee_saved(),
-            _ => self.reads_from().into_iter().map(|x| x.data).collect(),
+        let regs = if self.is_return() {
+            RegSets::callee_saved()
+        } else {
+            self.reads_from().into_iter().map(|x| x.data).collect()
         };
         regs.into_iter()
             .filter(|x| *x != Register::X0)
@@ -80,6 +83,7 @@ impl ParserNode {
                 if expr.rs1 == Register::X0 {
                     match expr.inst.data {
                         IArithType::Addi
+                        | IArithType::Lui
                         | IArithType::Addiw
                         | IArithType::Xori
                         | IArithType::Ori => {

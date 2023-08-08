@@ -135,7 +135,6 @@ impl GenerationPass for AvailableValuePass {
         while changed {
             changed = false;
             for node in cfg.into_iter() {
-                // TODO only AND visited nodes
                 // in[n] = AND out[p] for all p in prev[n]
                 let in_reg_n = node
                     .prevs()
@@ -165,7 +164,11 @@ impl GenerationPass for AvailableValuePass {
                     .union(&node.node().gen_reg_value())
                     .union_if(
                         &RegSets::callee_saved().into_available(),
-                        node.node().is_any_entry(),
+                        node.node().is_function_entry(),
+                    )
+                    .union_if(
+                        &RegSets::sp_ra().into_available(),
+                        node.node().is_program_entry(),
                     );
 
                 // out_stacks[n] = (gen_stacks[n] if we know the location of the stack pointer) U in_stacks[n]

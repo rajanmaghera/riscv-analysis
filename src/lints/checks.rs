@@ -119,7 +119,7 @@ impl LintPass for DeadValueCheck {
             // check the out of the node for any uses that
             // should not be there (temporaries)
             // TODO merge with Callee saved register check
-            if let Some(function) = node.calls_to(cfg) {
+            if let Some((function, call_site)) = node.calls_to(cfg) {
                 // check the expected return values of the function:
 
                 let out: HashSet<Register> = RegSets::caller_saved()
@@ -134,7 +134,11 @@ impl LintPass for DeadValueCheck {
                     ranges.append(&mut Cfg::error_ranges_for_first_usage(&node, item));
                 }
                 for item in ranges {
-                    errors.push(LintError::InvalidUseAfterCall(item, Rc::clone(&function)));
+                    errors.push(LintError::InvalidUseAfterCall(
+                        item,
+                        Rc::clone(&function),
+                        call_site.clone(),
+                    ));
                 }
             }
             // Check for any assignments that don't make it
@@ -201,8 +205,9 @@ impl LintPass for GarbageInputValueCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in &cfg.clone() {
             if node.node().is_program_entry() {
+                // get registers
                 let mut garbage = node.live_in().clone();
-                garbage.retain(|x| !RegSets::saved().contains(x));
+                garbage.retain(|x| !RegSets::program_args().contains(x));
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in garbage {
@@ -240,8 +245,9 @@ impl LintPass for StackCheckPass {
         // PASS 1
         // check that we know the stack position at every point in the program
         // check that the stack is never in an invalid position
+        // TODO check that the stack stores always happen to a place that is negative
         // TODO move to impl methods
-        'outer: for (_i, node) in cfg.clone().into_iter().enumerate() {
+        'outer: for node in cfg.clone().into_iter() {
             let values = node.reg_values_out();
             match values.get(&Register::X2) {
                 None => {
@@ -258,11 +264,25 @@ impl LintPass for StackCheckPass {
                             errors.push(LintError::InvalidStackPosition(node.node().clone(), *off));
                             break 'outer;
                         }
+
+                        if let Some((reg2, off2)) = node.node().uses_memory_location() {
+                            if reg2 == Register::X2 {
+                                if off2.0 + off >= 0 {
+                                    errors.push(LintError::InvalidStackOffsetUsage(
+                                        node.node().clone(),
+                                        off2.0 + off,
+                                    ));
+                                }
+                            }
+                        }
                     } else {
                         errors.push(LintError::InvalidStackPointer(node.node().clone()));
                         break 'outer;
                     }
                 }
+            }
+            if let Some((reg, _)) = node.node().uses_memory_location() {
+                if reg == Register::X2 {}
             }
         }
 
@@ -280,7 +300,7 @@ impl LintPass for CalleeSavedGarbageReadCheck {
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
 
                 if RegSets::saved().contains(&read.data)
-                    && (!node.node().is_memory_access())
+                    && (!node.node().uses_memory_location().is_some())
                     && node.reg_values_in().is_original_value(read.data)
                 {
                     errors.push(LintError::InvalidUseBeforeAssignment(read.clone()));
@@ -291,12 +311,13 @@ impl LintPass for CalleeSavedGarbageReadCheck {
     }
 }
 
+// TODO check if the stack is ever stored at 0 or what not
+
 // Check if the values of callee-saved registers are restored to the original value at the end of the function
 pub struct CalleeSavedRegisterCheck;
 impl LintPass for CalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for func in cfg.label_function_map.values() {
-            dbg!(func.labels());
             let exit_vals = func.exit.reg_values_in();
             for reg in RegSets::callee_saved() {
                 match exit_vals.get(&reg) {
