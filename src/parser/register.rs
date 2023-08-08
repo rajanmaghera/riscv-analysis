@@ -1,5 +1,6 @@
 use crate::parser::token::{Info, Token};
 use std::{
+    collections::HashSet,
     convert::TryFrom,
     fmt::Display,
     hash::{Hash, Hasher},
@@ -96,6 +97,47 @@ impl FromStr for Register {
 }
 
 impl Register {
+    pub fn all_representations(&self) -> HashSet<String> {
+        match self {
+            Register::X0 => vec!["x0", "zero"],
+            Register::X1 => vec!["x1", "ra"],
+            Register::X2 => vec!["x2", "sp"],
+            Register::X3 => vec!["x3", "gp"],
+            Register::X4 => vec!["x4", "tp"],
+            Register::X5 => vec!["x5", "t0"],
+            Register::X6 => vec!["x6", "t1"],
+            Register::X7 => vec!["x7", "t2"],
+            Register::X8 => vec!["x8", "s0", "fp"],
+            Register::X9 => vec!["x9", "s1"],
+            Register::X10 => vec!["x10", "a0"],
+            Register::X11 => vec!["x11", "a1"],
+            Register::X12 => vec!["x12", "a2"],
+            Register::X13 => vec!["x13", "a3"],
+            Register::X14 => vec!["x14", "a4"],
+            Register::X15 => vec!["x15", "a5"],
+            Register::X16 => vec!["x16", "a6"],
+            Register::X17 => vec!["x17", "a7"],
+            Register::X18 => vec!["x18", "s2"],
+            Register::X19 => vec!["x19", "s3"],
+            Register::X20 => vec!["x20", "s4"],
+            Register::X21 => vec!["x21", "s5"],
+            Register::X22 => vec!["x22", "s6"],
+            Register::X23 => vec!["x23", "s7"],
+            Register::X24 => vec!["x24", "s8"],
+            Register::X25 => vec!["x25", "s9"],
+            Register::X26 => vec!["x26", "s10"],
+            Register::X27 => vec!["x27", "s11"],
+            Register::X28 => vec!["x28", "t3"],
+            Register::X29 => vec!["x29", "t4"],
+            Register::X30 => vec!["x30", "t5"],
+            Register::X31 => vec!["x31", "t6"],
+        }
+        .iter()
+        .copied()
+        .map(|s| s.to_string())
+        .collect()
+    }
+
     pub fn from_num(num: u8) -> Register {
         match num {
             0 => Register::X0,
@@ -178,6 +220,46 @@ impl Register {
     pub fn ecall_type() -> Register {
         Register::X17
     }
+
+    pub fn all() -> HashSet<Register> {
+        vec![
+            Register::X0,
+            Register::X1,
+            Register::X2,
+            Register::X3,
+            Register::X4,
+            Register::X5,
+            Register::X6,
+            Register::X7,
+            Register::X8,
+            Register::X9,
+            Register::X10,
+            Register::X11,
+            Register::X12,
+            Register::X13,
+            Register::X14,
+            Register::X15,
+            Register::X16,
+            Register::X17,
+            Register::X18,
+            Register::X19,
+            Register::X20,
+            Register::X21,
+            Register::X22,
+            Register::X23,
+            Register::X24,
+            Register::X25,
+            Register::X26,
+            Register::X27,
+            Register::X28,
+            Register::X29,
+            Register::X30,
+            Register::X31,
+        ]
+        .iter()
+        .copied()
+        .collect()
+    }
 }
 
 impl Hash for Register {
@@ -185,47 +267,6 @@ impl Hash for Register {
         self.to_num().hash(state);
     }
 }
-
-// impl Display for Register {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let mstr = match self {
-//             Register::X0 => "x0".to_owned(),
-//             Register::X1 => "x1".to_owned(),
-//             Register::X2 => "x2".to_owned(),
-//             Register::X3 => "x3".to_owned(),
-//             Register::X4 => "x4".to_owned(),
-//             Register::X5 => "x5".to_owned(),
-//             Register::X6 => "x6".to_owned(),
-//             Register::X7 => "x7".to_owned(),
-//             Register::X8 => "x8".to_owned(),
-//             Register::X9 => "x9".to_owned(),
-//             Register::X10 => "x10".to_owned(),
-//             Register::X11 => "x11".to_owned(),
-//             Register::X12 => "x12".to_owned(),
-//             Register::X13 => "x13".to_owned(),
-//             Register::X14 => "x14".to_owned(),
-//             Register::X15 => "x15".to_owned(),
-//             Register::X16 => "x16".to_owned(),
-//             Register::X17 => "x17".to_owned(),
-//             Register::X18 => "x18".to_owned(),
-//             Register::X19 => "x19".to_owned(),
-//             Register::X20 => "x20".to_owned(),
-//             Register::X21 => "x21".to_owned(),
-//             Register::X22 => "x22".to_owned(),
-//             Register::X23 => "x23".to_owned(),
-//             Register::X24 => "x24".to_owned(),
-//             Register::X25 => "x25".to_owned(),
-//             Register::X26 => "x26".to_owned(),
-//             Register::X27 => "x27".to_owned(),
-//             Register::X28 => "x28".to_owned(),
-//             Register::X29 => "x29".to_owned(),
-//             Register::X30 => "x30".to_owned(),
-//             Register::X31 => "x31".to_owned(),
-//         };
-//         f.write_str(&mstr)
-//     }
-// }
-
 impl Display for Register {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Register::{
