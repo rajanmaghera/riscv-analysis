@@ -1,9 +1,9 @@
 {
-	"name": "riscv-analysis",
+	"name": "riscv-analyzer",
 	"description": "RISC-V Assembly Language Server",
 	"author": "Rajan Maghera",
-	"license": "MIT",
-	"version": "0.1.0-230731",
+	"license": "GPL-3.0",
+	"version": "0.1.0-230808",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/rajanmaghera/riscv-analysis"
@@ -20,6 +20,10 @@
 		"onLanguage:plaintext"
 	],
 	"main": "./client/out/extension",
+	"extensionDependencies": [
+		"zhwu95.riscv"
+	],
+	"icon": "images/icon.png",
 	"contributes": {
 		"configuration": {
 			"type": "object",
