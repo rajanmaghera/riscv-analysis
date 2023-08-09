@@ -6,13 +6,13 @@ description = "RISC-V static analysis tool -- CLI"
 authors = ["Rajan Maghera"]
 repository = "https://github.com/rajanmaghera/riscv-analysis"
 license = "GPL-3.0"
-keywords = ["riscv", "static analysis", "binary analysis", "risc-v"]
-categories = ["static analysis", "binary analysis", "risc-v"]
+keywords = ["riscv", "static-analysis", "binary-analysis", "risc-v"]
+categories = ["compilers", "development-tools"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-riscv_analysis = { path = "../riscv_analysis" }
+riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-alpha" }
 clap = { version = "4.3.8", features = ["derive"] }
 serde_yaml = "0.9"
 
