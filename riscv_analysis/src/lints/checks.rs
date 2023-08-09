@@ -168,10 +168,20 @@ impl LintPass for ControlFlowCheck {
                     // If the previous nodes set is not empty
                     // Note: this also accounts for functions being at the beginning
                     // of a program, as the ProgEntry node will be the previous node
-                    if !node.prevs().is_empty() {
-                        if let Some(function) = Rc::clone(&node).function().clone() {
-                            errors
-                                .push(LintError::ImproperFuncEntry(node.node().clone(), function));
+                    if let Some(prev_node) = node.prevs().iter().next() {
+                        if let Some(function) = node.function().clone() {
+                            if prev_node.node().is_program_entry() {
+                                errors.push(LintError::FirstInstructionIsFunction(
+                                    node.node().clone(),
+                                    function,
+                                ));
+                            } else {
+                                errors.push(LintError::InvalidJumpToFunction(
+                                    node.node().clone(),
+                                    prev_node.node().clone(),
+                                    function,
+                                ));
+                            }
                         }
                     }
                 }

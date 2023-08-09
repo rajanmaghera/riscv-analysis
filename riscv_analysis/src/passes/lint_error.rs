@@ -14,8 +14,7 @@ use super::DiagnosticLocation;
 use super::DiagnosticMessage;
 
 #[derive(Debug, Clone)]
-// Read/write within the text section
-
+#[allow(clippy::large_enum_variant)]
 pub enum LintError {
     // if a loop variable does not change, then it will infinitely run
     // if a branch is always going to execute (i.e. if true) using constants and zero register
@@ -25,7 +24,15 @@ pub enum LintError {
     InvalidUseAfterCall(With<Register>, Rc<Function>, With<LabelString>),
     InvalidUseBeforeAssignment(With<Register>),
     OverwriteCalleeSavedRegister(With<Register>),
-    ImproperFuncEntry(ParserNode, Rc<Function>), // if a function has any prev items, (including program entry)
+    FirstInstructionIsFunction(ParserNode, Rc<Function>), // if the first instruction has a function, it is incorrect
+    /// A function is entered through a non-conventional way
+    ///
+    /// If a function has any previous items, it is entered either through the
+    /// instruction right before or a (un)conditional jump that is not a function
+    /// call.
+    ///
+    /// (First line in function, line where function is entered through, function)
+    InvalidJumpToFunction(ParserNode, ParserNode, Rc<Function>),
     DeadAssignment(With<Register>),
     SaveToZero(With<Register>),
     UnknownEcall(ParserNode),
@@ -54,7 +61,8 @@ impl From<&LintError> for WarningLevel {
         match val {
             LintError::DeadAssignment(_)
             | LintError::SaveToZero(_)
-            | LintError::ImproperFuncEntry(..)
+            | LintError::InvalidJumpToFunction(..)
+            | LintError::FirstInstructionIsFunction(..)
             | LintError::LostRegisterValue(_)
             | LintError::UnreachableCode(_) => WarningLevel::Warning,
             LintError::UnknownEcall(_)
@@ -78,7 +86,10 @@ impl std::fmt::Display for LintError {
             LintError::InvalidUseAfterCall(_, func, _) => {
                 write!(f, "Invalid use after call to function {}", func.name())
             }
-            LintError::ImproperFuncEntry(..) => write!(f, "Improper function entry"),
+            LintError::InvalidJumpToFunction(..) => write!(f, "Invalid jump to function"),
+            LintError::FirstInstructionIsFunction(_, func) => {
+                write!(f, "First instruction is in function {}", func.name())
+            }
             LintError::UnknownEcall(_) => write!(f, "Unknown ecall"),
             LintError::UnreachableCode(_) => write!(f, "Unreachable code"),
             LintError::InvalidUseBeforeAssignment(_) => write!(f, "Invalid use before assignment"),
@@ -142,6 +153,13 @@ impl DiagnosticMessage for LintError {
                     description: format!("Call to function {} occurs here", func.name()),
                 }])
             }
+            LintError::InvalidJumpToFunction(_, jumped_from, func) => {
+                Some(vec![super::RelatedDiagnosticItem {
+                    file: jumped_from.file(),
+                    range: jumped_from.range(),
+                    description: format!("Invalid jump to function {} occurs here", func.name()),
+                }])
+            }
             _ => None,
         }
     }
@@ -180,7 +198,8 @@ impl DiagnosticLocation for LintError {
             | LintError::LostRegisterValue(r)
             | LintError::OverwriteCalleeSavedRegister(r)
             | LintError::DeadAssignment(r) => r.pos.clone(),
-            LintError::ImproperFuncEntry(r, _)
+            LintError::InvalidJumpToFunction(r, _, _)
+            | LintError::FirstInstructionIsFunction(r, _)
             | LintError::UnknownEcall(r)
             | LintError::UnreachableCode(r)
             | LintError::UnknownStack(r)
@@ -198,7 +217,8 @@ impl DiagnosticLocation for LintError {
             | LintError::LostRegisterValue(r)
             | LintError::OverwriteCalleeSavedRegister(r)
             | LintError::DeadAssignment(r) => r.file,
-            LintError::ImproperFuncEntry(r, _)
+            LintError::FirstInstructionIsFunction(r, _)
+            | LintError::InvalidJumpToFunction(r, _, _)
             | LintError::UnknownEcall(r)
             | LintError::UnreachableCode(r)
             | LintError::UnknownStack(r)
