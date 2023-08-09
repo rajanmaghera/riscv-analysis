@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
-use serde::{Deserialize, Serialize};
+use itertools::Itertools;
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{
     analysis::AvailableValue,
@@ -13,29 +14,69 @@ use super::{CFGNode, Cfg};
 pub struct NodeWrapper {
     pub node: ParserNode,
     // skip if empty
-    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashSet::is_empty",
+        serialize_with = "sorted_set"
+    )]
     pub labels: HashSet<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub func_entry: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub func_exit: Option<usize>,
-    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashSet::is_empty",
+        serialize_with = "sorted_set"
+    )]
     pub nexts: HashSet<usize>,
-    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashSet::is_empty",
+        serialize_with = "sorted_set"
+    )]
     pub prevs: HashSet<usize>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashMap::is_empty",
+        serialize_with = "sorted_map"
+    )]
     pub reg_values_in: HashMap<Register, AvailableValue>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashMap::is_empty",
+        serialize_with = "sorted_map"
+    )]
     pub reg_values_out: HashMap<Register, AvailableValue>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashMap::is_empty",
+        serialize_with = "sorted_map"
+    )]
     pub stack_values_in: HashMap<i32, AvailableValue>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashMap::is_empty",
+        serialize_with = "sorted_map"
+    )]
     pub stack_values_out: HashMap<i32, AvailableValue>,
-    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashSet::is_empty",
+        serialize_with = "sorted_set"
+    )]
     pub live_in: HashSet<Register>,
-    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashSet::is_empty",
+        serialize_with = "sorted_set"
+    )]
     pub live_out: HashSet<Register>,
-    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "HashSet::is_empty",
+        serialize_with = "sorted_set"
+    )]
     pub u_def: HashSet<Register>,
 }
 
@@ -99,4 +140,37 @@ impl From<&Cfg> for CFGWrapper {
                 .collect(),
         )
     }
+}
+
+pub fn sorted_map<S: Serializer, K: Serialize + Ord, V: Serialize, H: std::hash::BuildHasher>(
+    value: &HashMap<K, V, H>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    value
+        .iter()
+        .sorted_by_key(|v| v.0)
+        .collect::<BTreeMap<_, _>>()
+        .serialize(serializer)
+}
+
+pub fn sorted_set<S: Serializer, V: Serialize + Ord, H: std::hash::BuildHasher>(
+    value: &HashSet<V, H>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    value
+        .iter()
+        .sorted()
+        .collect::<Vec<_>>()
+        .serialize(serializer)
+}
+
+pub fn sorted_vec<S: Serializer, V: Serialize + Ord>(
+    value: &[V],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    value
+        .iter()
+        .sorted()
+        .collect::<Vec<_>>()
+        .serialize(serializer)
 }

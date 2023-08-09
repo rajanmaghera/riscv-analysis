@@ -136,15 +136,35 @@ impl Default for Info {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct With<T> {
-    #[serde(skip)]
     pub token: Token,
-    #[serde(skip)]
     pub pos: Range,
-    #[serde(skip)]
     pub file: Uuid,
     pub data: T,
+}
+
+impl<T> Serialize for With<T>
+where
+    T: Serialize,
+{
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.data.serialize(serializer)
+    }
+}
+
+impl<'de, T> Deserialize<'de> for With<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(With {
+            token: Token::default(),
+            pos: Range::default(),
+            file: Uuid::nil(),
+            data: T::deserialize(deserializer)?,
+        })
+    }
 }
 
 impl<T> std::fmt::Debug for With<T>
