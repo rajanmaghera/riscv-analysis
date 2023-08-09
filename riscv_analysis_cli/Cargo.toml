@@ -5,7 +5,7 @@ edition = "2021"
 description = "RISC-V static analysis tool -- CLI"
 authors = ["Rajan Maghera"]
 repository = "https://github.com/rajanmaghera/riscv-analysis"
-license-file = "LICENSE"
+license = "GPL-3.0"
 keywords = ["riscv", "static analysis", "binary analysis", "risc-v"]
 categories = ["static analysis", "binary analysis", "risc-v"]
 
