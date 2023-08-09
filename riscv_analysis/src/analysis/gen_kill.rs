@@ -7,22 +7,13 @@ use super::AvailableValue;
 impl ParserNode {
     #[must_use]
     pub fn kill_reg_value(&self) -> HashSet<Register> {
-        match self.clone() {
-            ParserNode::FuncEntry(_) => RegSets::caller_saved(),
-            ParserNode::JumpLink(x) => {
-                // If a jump and link instruction is a call to a function, denoted
-                // by the program counter storing to the ra register, then all
-                // the caller saved registers are killed.
-                let mut set = if x.rd.data == Register::X1 {
-                    RegSets::caller_saved()
-                } else {
-                    HashSet::new()
-                };
-                set.insert(x.rd.data);
-                set
-            }
-            _ => self.kill_reg(),
+        if self.calls_to().is_some() {
+            let mut set = RegSets::caller_saved();
+            set.insert(Register::X1);
+            return set;
         }
+
+        self.kill_reg()
     }
 
     #[must_use]
@@ -72,9 +63,6 @@ impl ParserNode {
     }
 
     #[must_use]
-    /// # Panics
-    ///
-    /// TODO remove this panic
     pub fn gen_reg_value(&self) -> Option<(Register, AvailableValue)> {
         // The function entry case and program entry case is handled separately
         // to account for all the "original" registers.

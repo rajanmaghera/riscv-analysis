@@ -438,12 +438,21 @@ impl ParserNode {
     }
 
     #[must_use]
+    /// Checks whether a jump is unconditional with no side effects
+    ///
+    /// Some jumps have side effects, like jumping to a function which sets
+    /// the return address. This function checks if a jump is unconditional
+    /// and has no side effects.
     pub fn is_unconditional_jump(&self) -> bool {
         match self {
             ParserNode::JumpLink(x) if x.rd == Register::X0 => true,
+            ParserNode::JumpLinkR(x) if x.rd == Register::X0 => true,
             ParserNode::Branch(x) => {
-                // TODO elaborate
-                x.rs1 == Register::X0 && x.rs2 == Register::X0 && x.inst == BranchType::Beq
+                x.rs1 == Register::X0
+                    && x.rs2 == Register::X0
+                    && (x.inst == BranchType::Beq
+                        || x.inst == BranchType::Bge
+                        || x.inst == BranchType::Bgeu)
             }
             _ => false,
         }
