@@ -224,7 +224,7 @@ impl LintPass for GarbageInputValueCheck {
                 let args = func.arguments();
                 let mut garbage = node.live_in().clone();
                 garbage.retain(|reg| !args.contains(reg));
-                garbage.retain(|reg| !RegSets::saved().contains(reg));
+                garbage.retain(|reg| !RegSets::callee_saved().contains(reg));
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in garbage {
