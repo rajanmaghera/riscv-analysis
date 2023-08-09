@@ -6,10 +6,10 @@ use std::iter::Peekable;
 use lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range,
 };
-use riscv_analysis_core::parser::{CanGetURIString, Lexer, RVDocument, RVParser, Range as MyRange};
-use riscv_analysis_core::passes::DiagnosticItem;
-use riscv_analysis_core::passes::WarningLevel;
-use riscv_analysis_core::reader::{FileReader, FileReaderError};
+use riscv_analysis::parser::{CanGetURIString, Lexer, RVDocument, RVParser, Range as MyRange};
+use riscv_analysis::passes::DiagnosticItem;
+use riscv_analysis::passes::WarningLevel;
+use riscv_analysis::reader::{FileReader, FileReaderError};
 
 mod completion;
 pub use completion::*;

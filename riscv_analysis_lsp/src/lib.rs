@@ -1,10 +1,8 @@
 mod lsp;
 use lsp::{LSPDiag, LSPFileReader, LSPRVDiagnostic, LSPRVSingleDiagnostic, RVCompletionItem};
 use lsp_types::Diagnostic;
-use riscv_analysis_core::parser::{
-    CanGetURIString, DirectiveType, ParserNode, RVDocument, RVParser,
-};
-use riscv_analysis_core::reader::FileReader;
+use riscv_analysis::parser::{CanGetURIString, DirectiveType, ParserNode, RVDocument, RVParser};
+use riscv_analysis::reader::FileReader;
 use serde_wasm_bindgen::to_value;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;

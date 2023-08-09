@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "riscv_analysis_core",
+    "riscv_analysis",
     "riscv_analysis_lsp",
     "riscv_analysis_cli",
 ]

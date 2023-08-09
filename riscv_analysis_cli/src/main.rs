@@ -1,15 +1,15 @@
 use std::{collections::HashMap, iter::Peekable, str::FromStr};
 
-use riscv_analysis_core::cfg::Cfg;
-use riscv_analysis_core::parser::{Lexer, RVParser};
-use riscv_analysis_core::passes::DiagnosticItem;
+use riscv_analysis::cfg::Cfg;
+use riscv_analysis::parser::{Lexer, RVParser};
+use riscv_analysis::passes::DiagnosticItem;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use riscv_analysis_core::passes::{DiagnosticLocation, Manager};
+use riscv_analysis::passes::{DiagnosticLocation, Manager};
 
 use clap::{Args, Parser, Subcommand};
-use riscv_analysis_core::reader::{FileReader, FileReaderError};
+use riscv_analysis::reader::{FileReader, FileReaderError};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -189,7 +189,7 @@ fn main() {
                 Ok(full_cfg) => {
                     // if debug, print out the cfg
                     if lint.yaml {
-                        let wrapped = riscv_analysis_core::cfg::CFGWrapper::from(&full_cfg);
+                        let wrapped = riscv_analysis::cfg::CFGWrapper::from(&full_cfg);
                         println!("{}", serde_yaml::to_string(&wrapped).unwrap());
                     } else if lint.debug {
                         println!("{}", full_cfg);
@@ -239,10 +239,10 @@ fn main() {
 mod tests {
 
     use crate::IOFileReader;
-    use riscv_analysis_core::cfg::CFGWrapper;
-    use riscv_analysis_core::cfg::Cfg;
-    use riscv_analysis_core::parser::RVParser;
-    use riscv_analysis_core::passes::Manager;
+    use riscv_analysis::cfg::CFGWrapper;
+    use riscv_analysis::cfg::Cfg;
+    use riscv_analysis::parser::RVParser;
+    use riscv_analysis::passes::Manager;
 
     macro_rules! file_name {
         ($fname:expr) => {

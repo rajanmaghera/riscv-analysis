@@ -1,6 +1,6 @@
 use lsp_types::CompletionItem;
 
-use riscv_analysis_core::parser::{Inst, LabelString, Register};
+use riscv_analysis::parser::{Inst, LabelString, Register};
 
 pub enum RVCompletionItem {
     Inst(Inst),

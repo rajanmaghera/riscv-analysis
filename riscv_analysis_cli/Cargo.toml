@@ -12,7 +12,7 @@ categories = ["static analysis", "binary analysis", "risc-v"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-riscv_analysis_core = { path = "../riscv_analysis_core" }
+riscv_analysis = { path = "../riscv_analysis" }
 clap = { version = "4.3.8", features = ["derive"] }
 serde_yaml = "0.9"
 
