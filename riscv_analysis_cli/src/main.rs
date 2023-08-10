@@ -1,7 +1,11 @@
+use std::vec;
 use std::{collections::HashMap, iter::Peekable, str::FromStr};
 
+use bat::line_range::{LineRange, LineRanges};
+use bat::{Input, PrettyPrinter};
+use colored::Colorize;
 use riscv_analysis::cfg::Cfg;
-use riscv_analysis::parser::{Lexer, RVParser};
+use riscv_analysis::parser::{Info, LabelString, Lexer, RVParser, With};
 use riscv_analysis::passes::DiagnosticItem;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -57,6 +61,10 @@ struct Fix {
     /// This will attempt to fix known errors in a file.
     /// The file will be overwritten with the fixed version.
     input: PathBuf,
+    /// Function name
+    ///
+    /// Name of a function to fix.
+    func_name: String,
 }
 
 #[derive(Args)]
@@ -67,7 +75,8 @@ struct DebugParse {
 
 #[derive(Clone)]
 struct IOFileReader {
-    files: HashMap<String, uuid::Uuid>,
+    // path, uuid
+    files: HashMap<uuid::Uuid, (String, String)>,
 }
 
 impl IOFileReader {
@@ -79,11 +88,11 @@ impl IOFileReader {
 }
 
 impl FileReader for IOFileReader {
+    fn get_text(&self, uuid: uuid::Uuid) -> Option<String> {
+        self.files.get(&uuid).map(|(_, text)| text.clone())
+    }
     fn get_filename(&self, uuid: uuid::Uuid) -> Option<String> {
-        self.files
-            .iter()
-            .find(|(_, id)| **id == uuid)
-            .map(|(path, _)| path.clone())
+        self.files.get(&uuid).map(|(path, _)| path.clone())
     }
 
     fn import_file(
@@ -93,11 +102,7 @@ impl FileReader for IOFileReader {
     ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError> {
         let path = if let Some(id) = in_file {
             // get parent from uuid
-            let parent = self
-                .files
-                .iter()
-                .find(|(_, uuid)| **uuid == id)
-                .map(|(path2, _)| path2);
+            let parent = self.files.get(&id).map(|(path, _)| path);
             if let Some(parent) = parent {
                 // join parent path to path
                 let parent = PathBuf::from_str(parent)
@@ -130,7 +135,11 @@ impl FileReader for IOFileReader {
 
         // store full path to file
         let uuid = uuid::Uuid::new_v4();
-        if self.files.insert(path.clone(), uuid).is_some() {
+        if self
+            .files
+            .insert(uuid, (path.clone(), file.clone()))
+            .is_some()
+        {
             return Err(FileReaderError::FileAlreadyRead(path));
         }
 
@@ -152,7 +161,36 @@ impl ErrorDisplay for Vec<DiagnosticItem> {
                 .reader
                 .get_filename(err.file)
                 .unwrap_or("unknown".to_owned());
-            println!("({}, {}): {}", filename, err.range, err.long_description);
+            let text = parser.reader.get_text(err.file).unwrap();
+            PrettyPrinter::new()
+                .input(
+                    Input::from_reader(text.as_bytes())
+                        .kind("File")
+                        .name(filename.clone()),
+                )
+                .header(true)
+                .line_numbers(true)
+                .grid(true)
+                .paging_mode(bat::PagingMode::Never)
+                .line_ranges(LineRanges::from(vec![LineRange::new(
+                    err.range.start.line + 1,
+                    err.range.start.line + 1,
+                )]))
+                .print()
+                .unwrap();
+
+            // print range arrows
+            println!(
+                "       {}",
+                " ".repeat(err.range.start.column)
+                    + &"^".repeat(err.range.end.column - err.range.start.column)
+            );
+
+            print!(
+                "       {}\n       {}\n",
+                err.title.bold(),
+                err.long_description
+            );
         }
     }
 }
