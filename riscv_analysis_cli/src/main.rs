@@ -1,3 +1,5 @@
+use std::fmt::Display;
+use std::io::Write;
 use std::vec;
 use std::{collections::HashMap, iter::Peekable, str::FromStr};
 
@@ -5,6 +7,7 @@ use bat::line_range::{LineRange, LineRanges};
 use bat::{Input, PrettyPrinter};
 use colored::Colorize;
 use riscv_analysis::cfg::Cfg;
+use riscv_analysis::fix::{fix_stack, Manipulation};
 use riscv_analysis::parser::{Info, LabelString, Lexer, RVParser, With};
 use riscv_analysis::passes::DiagnosticItem;
 use std::path::PathBuf;
@@ -79,11 +82,151 @@ struct IOFileReader {
     files: HashMap<uuid::Uuid, (String, String)>,
 }
 
+#[derive(Debug)]
+enum ManipulationError {
+    InternalError,
+}
+
+impl Display for ManipulationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ManipulationError::InternalError => write!(f, "Internal error"),
+        }
+    }
+}
+
 impl IOFileReader {
     fn new() -> Self {
         IOFileReader {
             files: HashMap::new(),
         }
+    }
+    fn apply_fixes(&self, fixes: Vec<Manipulation>) -> Result<(), ManipulationError> {
+        struct ChangedRanges {
+            filename: String,
+            file: uuid::Uuid,
+            begin_window: usize,
+            end_window: usize,
+            begin_change: usize,
+            end_change: usize,
+        }
+
+        let mut changed_files: HashMap<uuid::Uuid, (String, String)> = HashMap::new();
+        let mut changed_ranges = Vec::new();
+
+        for fix in fixes {
+            // check if we already have changed this file
+            // otherwise, get the file details
+            let (path, source) = if let Some(x) = changed_files.get(&fix.file()) {
+                (x.0.clone(), x.1.clone())
+            } else {
+                let file_details = self
+                    .files
+                    .get(&fix.file())
+                    .ok_or(ManipulationError::InternalError)?;
+                changed_files.insert(fix.file(), file_details.clone());
+                file_details.clone()
+            };
+
+            let mut pos: usize = 0;
+            let mut row: usize = 0;
+            let mut col: usize = 0;
+            let mut found = false;
+            while pos < source.len() {
+                if let Some(ch) = source.as_bytes().get(pos) {
+                    if ch == &b'\n' {
+                        row += 1;
+                        col = 0;
+                    } else {
+                        col += 1;
+                    }
+                } else {
+                    break;
+                }
+
+                if row > fix.line() {
+                    break;
+                }
+
+                if row == fix.line() && col == fix.column() {
+                    found = true;
+                    break;
+                }
+
+                pos += 1;
+            }
+
+            if !found {
+                return Err(ManipulationError::InternalError);
+            }
+
+            let file = fix.file();
+            // insert fix text into source
+            match fix {
+                Manipulation::Insert(_, _, s, lines) => {
+                    let mut new_source = source.clone();
+                    new_source.insert_str(pos, &s);
+                    changed_ranges.push(ChangedRanges {
+                        filename: path.clone(),
+                        file,
+                        begin_window: row - 2,
+                        end_window: row + lines + 1,
+                        begin_change: row,
+                        end_change: row + lines - 1,
+                    });
+                    changed_files.insert(file, (path.clone(), new_source));
+                }
+            }
+        }
+
+        // display changed ranges
+        for changed_range in changed_ranges {
+            let input =
+                Input::from_reader(changed_files.get(&changed_range.file).unwrap().1.as_bytes())
+                    .name(changed_range.filename.clone());
+            PrettyPrinter::new()
+                .input(input)
+                .line_numbers(true)
+                .header(true)
+                .grid(true)
+                .line_ranges(LineRanges::from(vec![LineRange::new(
+                    changed_range.begin_window + 1,
+                    changed_range.end_window + 1,
+                )]))
+                .highlight_range(changed_range.begin_change + 1, changed_range.end_change + 1)
+                .print()
+                .unwrap();
+        }
+
+        // ask user to apply changes
+        let mut apply_changes = false;
+        loop {
+            let mut input = String::new();
+            print!("Apply changes? [y/n] ");
+            // flush stdout
+            std::io::stdout().flush().unwrap();
+            std::io::stdin().read_line(&mut input).unwrap();
+            if input.trim() == "y" {
+                apply_changes = true;
+                break;
+            } else if input.trim() == "n" {
+                break;
+            }
+        }
+
+        if apply_changes {
+            for (path, source) in changed_files.values() {
+                let mut file = std::fs::File::create(path).unwrap();
+                file.write_all(source.as_bytes()).unwrap();
+            }
+
+            println!("{}", "Changes applied.".green());
+            println!(
+                "{}Please remove all other instances of stack manipulation in your code. This fix did not remove any lines of code.",
+                "WARNING: ".red().bold()
+            );
+        }
+        Ok(())
     }
 }
 
@@ -247,7 +390,28 @@ fn main() {
                 diags.display_errors(&parser);
             }
         }
-        Commands::Fix(_) => {}
+        Commands::Fix(fix) => {
+            let reader = IOFileReader::new();
+            let mut parser = RVParser::new(reader);
+            let parsed = parser.parse(
+                fix.input
+                    .to_str()
+                    .expect("unable to convert path to string"),
+                false,
+            );
+            let cfg = Cfg::new(parsed.0).expect("unable to create cfg");
+            let cfg = Manager::gen_full_cfg(cfg).expect("unable to generate full cfg");
+
+            let func = cfg
+                .label_function_map
+                .get(&With::new(
+                    LabelString(fix.func_name.clone()),
+                    Info::default(),
+                ))
+                .expect("unable to find function");
+            let fixes = fix_stack(func);
+            parser.reader.apply_fixes(fixes).unwrap();
+        }
         Commands::DebugParse(debu) => {
             // Debug mode that prints out parsing errors only
             let reader = IOFileReader::new();
