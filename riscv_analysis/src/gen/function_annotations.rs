@@ -1,4 +1,8 @@
-use std::{collections::HashMap, rc::Rc, vec};
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+    vec,
+};
 
 use crate::{
     cfg::{Cfg, Function},
@@ -25,10 +29,14 @@ impl GenerationPass for FunctionMarkupPass {
                 let mut walked = Vec::new();
                 let mut queue = vec![Rc::clone(&node)];
                 let mut found = Vec::new();
+                let mut defs = HashSet::new();
 
                 // For all items in the queue
                 'inner: while let Some(n) = queue.pop() {
                     walked.push(Rc::clone(&n));
+                    if let Some(def) = n.node().stores_to() {
+                        defs.insert(def.data);
+                    }
 
                     // If we reach the program entry, there's an issue
                     if n.node().is_program_entry() {
@@ -64,6 +72,7 @@ impl GenerationPass for FunctionMarkupPass {
                         walked,
                         Rc::clone(entry_node),
                         Rc::clone(&node),
+                        defs,
                     ));
 
                     // The label function map can have multiple entries corresponding to the single
