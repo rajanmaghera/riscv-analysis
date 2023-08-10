@@ -111,6 +111,9 @@ impl CanGetURIString for LSPFileReader {
 }
 
 impl FileReader for LSPFileReader {
+    fn get_text(&self, uuid: uuid::Uuid) -> Option<String> {
+        self.file_uris.get(&uuid).map(|x| x.text.clone())
+    }
     fn get_filename(&self, uuid: uuid::Uuid) -> Option<String> {
         self.file_uris.get(&uuid).map(|x| x.uri.clone())
     }

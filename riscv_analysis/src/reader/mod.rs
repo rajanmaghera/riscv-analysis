@@ -24,5 +24,7 @@ pub trait FileReader: Sized {
         in_file: Option<uuid::Uuid>,
     ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError>;
 
+    fn get_text(&self, uuid: uuid::Uuid) -> Option<String>;
+
     fn get_filename(&self, uuid: uuid::Uuid) -> Option<String>;
 }
