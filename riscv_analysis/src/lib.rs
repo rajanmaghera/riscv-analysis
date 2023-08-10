@@ -28,6 +28,7 @@
 
 pub mod analysis;
 pub mod cfg;
+pub mod fix;
 pub mod gen;
 pub mod lints;
 pub mod parser;
