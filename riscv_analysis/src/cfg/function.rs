@@ -12,7 +12,9 @@ pub struct Function {
     pub nodes: Vec<Rc<CFGNode>>,
     pub entry: Rc<CFGNode>, // Is only a FuncEntry node
     pub exit: Rc<CFGNode>,  // Multiple exit points will be converted to
-                            // a single exit point
+    // a single exit point
+    /// The registers that are set ever in the function
+    pub defs: HashSet<Register>,
 }
 
 impl Function {
@@ -27,8 +29,18 @@ impl Function {
                 .join(", "),
         )
     }
-    pub fn new(nodes: Vec<Rc<CFGNode>>, entry: Rc<CFGNode>, exit: Rc<CFGNode>) -> Self {
-        Function { nodes, entry, exit }
+    pub fn new(
+        nodes: Vec<Rc<CFGNode>>,
+        entry: Rc<CFGNode>,
+        exit: Rc<CFGNode>,
+        defs: HashSet<Register>,
+    ) -> Self {
+        Function {
+            nodes,
+            entry,
+            exit,
+            defs,
+        }
     }
 
     #[must_use]
@@ -44,5 +56,13 @@ impl Function {
     #[must_use]
     pub fn returns(&self) -> HashSet<Register> {
         self.exit.live_in().intersection_c(&RegSets::ret())
+    }
+
+    #[must_use]
+    pub fn to_save(&self) -> HashSet<Register> {
+        self.defs
+            .intersection_c(&RegSets::callee_saved())
+            // remove sp
+            .difference_c(&vec![Register::X2].into_iter().collect())
     }
 }
