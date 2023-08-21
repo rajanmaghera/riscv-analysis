@@ -5,13 +5,13 @@ use crate::{
     passes::{CFGError, GenerationPass},
 };
 
+/// Calculate the next and previous nodes for each node in the CFG.
+///
+/// This allows for easier (and required) traversal of the CFG.
+/// This must be run before most passes.
 pub struct NodeDirectionPass;
 impl GenerationPass for NodeDirectionPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CFGError>> {
-        // PASS 2:
-        // --------------------
-        // Calculate directions
-
         let nodes = &cfg.nodes;
         let mut prev = None;
         for node in nodes {

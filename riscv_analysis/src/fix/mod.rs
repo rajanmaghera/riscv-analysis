@@ -39,6 +39,13 @@ impl Manipulation {
     }
 
     #[must_use]
+    pub fn raw_pos(&self) -> usize {
+        match self {
+            Manipulation::Insert(_, pos, _, _) => pos.raw_index,
+        }
+    }
+
+    #[must_use]
     pub fn file(&self) -> uuid::Uuid {
         match self {
             Manipulation::Insert(file, _, _, _) => *file,
@@ -84,46 +91,25 @@ pub fn fix_stack(func: &Rc<Function>) -> Vec<Manipulation> {
 
     let offset = count + 4;
 
-    // determine what the lines to insert the text into
+    // Move range to beginning of line
+    let mut entry_range = entry.node().range().start;
+    entry_range.raw_index -= entry_range.column;
+    entry_range.column = 0;
 
-    // Depending on where the entry and exit points are,
-    // the number of lines to offset each insertion by will be different
-    // We simply have to determine this by using sound logic
-
-    // if the entry is the same file as the exit and it comes after the exit, then we use an offset
-    let entry_offset = if entry.node().file() == exit.node().file()
-        && entry.node().range().start.line > exit.node().range().start.line
-    {
-        offset
-    } else {
-        0
-    };
-
-    // if the exit is the same file as the entry and it comes after the exit, then we use an offset
-    let exit_offset = if exit.node().file() == entry.node().file()
-        && exit.node().range().start.line > entry.node().range().start.line
-    {
-        offset
-    } else {
-        0
-    };
+    let mut exit_range = exit.node().range().start;
+    exit_range.raw_index -= exit_range.column;
+    exit_range.column = 0;
 
     vec![
         Manipulation::Insert(
             entry.node().file(),
-            Position {
-                line: entry.node().range().start.line + entry_offset,
-                column: entry.node().range().start.column,
-            },
+            entry_range,
             entry_text,
             offset,
         ),
         Manipulation::Insert(
             exit.node().file(),
-            Position {
-                line: exit.node().range().start.line + exit_offset,
-                column: exit.node().range().start.column,
-            },
+            exit_range,
             exit_text,
             offset,
         ),

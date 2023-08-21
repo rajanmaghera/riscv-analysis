@@ -111,70 +111,48 @@ impl IOFileReader {
             end_change: usize,
         }
 
-        let mut changed_files: HashMap<uuid::Uuid, (String, String)> = HashMap::new();
+        // map of file uuid to (path, source, offet pos, offset lines)
+        let mut changed_files: HashMap<uuid::Uuid, (String, String, i64, i64)> = HashMap::new();
         let mut changed_ranges = Vec::new();
 
         for fix in fixes {
             // check if we already have changed this file
             // otherwise, get the file details
-            let (path, source) = if let Some(x) = changed_files.get(&fix.file()) {
-                (x.0.clone(), x.1.clone())
+            let (path, source, mut offset, mut offset_lines) = if let Some(x) = changed_files.get(&fix.file()) {
+                (x.0.clone(), x.1.clone(), x.2, x.3)
+
             } else {
                 let file_details = self
                     .files
                     .get(&fix.file())
                     .ok_or(ManipulationError::InternalError)?;
-                changed_files.insert(fix.file(), file_details.clone());
-                file_details.clone()
+                let res = file_details.clone();
+                // changed_files.insert(fix.file(), (res.0.clone(), res.1.clone(), 0));
+                (res.0, res.1, 0, 0)
             };
 
-            let mut pos: usize = 0;
-            let mut row: usize = 0;
-            let mut col: usize = 0;
-            let mut found = false;
-            while pos < source.len() {
-                if let Some(ch) = source.as_bytes().get(pos) {
-                    if ch == &b'\n' {
-                        row += 1;
-                        col = 0;
-                    } else {
-                        col += 1;
-                    }
-                } else {
-                    break;
-                }
-
-                if row > fix.line() {
-                    break;
-                }
-
-                if row == fix.line() && col == fix.column() {
-                    found = true;
-                    break;
-                }
-
-                pos += 1;
-            }
-
-            if !found {
-                return Err(ManipulationError::InternalError);
-            }
+            let row = fix.line();
+            let pos = fix.raw_pos() - 1;
 
             let file = fix.file();
             // insert fix text into source
             match fix {
                 Manipulation::Insert(_, _, s, lines) => {
                     let mut new_source = source.clone();
-                    new_source.insert_str(pos, &s);
+                    // we know that the insert only inserts, so we can be safe returning the offset
+                    // as usize
+                    new_source.insert_str(pos + offset as usize, &s);
                     changed_ranges.push(ChangedRanges {
                         filename: path.clone(),
                         file,
-                        begin_window: row - 2,
-                        end_window: row + lines + 1,
-                        begin_change: row,
-                        end_change: row + lines - 1,
+                        begin_window: row - 2 + offset_lines as usize,
+                        end_window: row + lines + offset_lines as usize + 1,
+                        begin_change: row + offset_lines as usize,
+                        end_change: row + lines + offset_lines as usize - 1,
                     });
-                    changed_files.insert(file, (path.clone(), new_source));
+                    offset += s.len() as i64;
+                    offset_lines += lines as i64;
+                    changed_files.insert(file, (path.clone(), new_source, offset, offset_lines));
                 }
             }
         }
@@ -215,7 +193,7 @@ impl IOFileReader {
         }
 
         if apply_changes {
-            for (path, source) in changed_files.values() {
+            for (path, source, _, _) in changed_files.values() {
                 let mut file = std::fs::File::create(path).unwrap();
                 file.write_all(source.as_bytes()).unwrap();
             }

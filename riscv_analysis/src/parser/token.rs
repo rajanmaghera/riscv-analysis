@@ -10,6 +10,7 @@ use crate::passes::DiagnosticLocation;
 pub struct Position {
     pub line: usize,
     pub column: usize,
+    pub raw_index: usize,
 }
 
 #[derive(Debug, PartialEq, Clone, PartialOrd, Ord, Eq, Default, Serialize, Deserialize)]
@@ -129,8 +130,8 @@ impl Default for Info {
             token: Token::Newline,
             file: Uuid::nil(),
             pos: Range {
-                start: Position { line: 0, column: 0 },
-                end: Position { line: 0, column: 0 },
+                start: Position { line: 0, column: 0, raw_index: 0 },
+                end: Position { line: 0, column: 0, raw_index: 0 },
             },
         }
     }

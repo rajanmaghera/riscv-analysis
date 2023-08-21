@@ -118,6 +118,7 @@ impl Lexer {
         Position {
             line: self.row,
             column,
+            raw_index: self.pos,
         }
     }
 }
