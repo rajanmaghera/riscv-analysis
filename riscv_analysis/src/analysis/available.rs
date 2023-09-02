@@ -204,9 +204,16 @@ impl GenerationPass for AvailableValuePass {
                 // that change our outs.
 
                 rule_expand_address_for_load(&node.node(), &mut out_reg_n, &node.reg_values_in());
+                rule_value_from_stack(&node.node(), &mut out_reg_n, &node.stack_values_in());
+                rule_zero_to_const(
+                    &mut out_reg_n,
+                    &node.reg_values_in(),
+                    &mut out_stack_n,
+                    &node.stack_values_in(),
+                );
                 rule_perform_math_ops(&node.node(), &mut out_reg_n, &node.reg_values_in());
                 rule_known_values_to_stack(&node.node(), &mut out_stack_n, &node.reg_values_in());
-                rule_value_from_stack(&node.node(), &mut out_reg_n, &node.stack_values_in());
+                // TODO stack reset?
 
                 // If either of the outs changed, replace the old outs with the new outs
                 // and mark that we changed something.
@@ -224,6 +231,42 @@ impl GenerationPass for AvailableValuePass {
             }
         }
         Ok(())
+    }
+}
+
+/// Rule that converts all zero registers to constant zeros.
+///
+/// If a register that an available value reads from is the zero register, then
+/// replace it with a constant zero. This is because constants are easier
+/// to deal with than registers and the analysis has no idea how to deal
+/// with the zero register.
+fn rule_zero_to_const(
+    available_out: &mut HashMap<Register, AvailableValue>,
+    available_in: &HashMap<Register, AvailableValue>,
+    stack_out: &mut HashMap<i32, AvailableValue>,
+    stack_in: &HashMap<i32, AvailableValue>,
+) {
+    for val in available_in {
+        match val.1 {
+            AvailableValue::OriginalRegisterWithScalar(r, i)
+            | AvailableValue::RegisterWithScalar(r, i) => {
+                if r == &Register::X0 {
+                    available_out.insert(*val.0, AvailableValue::Constant(0 + i));
+                }
+            }
+            _ => {}
+        }
+    }
+    for val in stack_in {
+        match val.1 {
+            AvailableValue::OriginalRegisterWithScalar(r, i)
+            | AvailableValue::RegisterWithScalar(r, i) => {
+                if r == &Register::X0 {
+                    stack_out.insert(*val.0, AvailableValue::Constant(0 + i));
+                }
+            }
+            _ => {}
+        }
     }
 }
 
