@@ -118,18 +118,18 @@ impl IOFileReader {
         for fix in fixes {
             // check if we already have changed this file
             // otherwise, get the file details
-            let (path, source, mut offset, mut offset_lines) = if let Some(x) = changed_files.get(&fix.file()) {
-                (x.0.clone(), x.1.clone(), x.2, x.3)
-
-            } else {
-                let file_details = self
-                    .files
-                    .get(&fix.file())
-                    .ok_or(ManipulationError::InternalError)?;
-                let res = file_details.clone();
-                // changed_files.insert(fix.file(), (res.0.clone(), res.1.clone(), 0));
-                (res.0, res.1, 0, 0)
-            };
+            let (path, source, mut offset, mut offset_lines) =
+                if let Some(x) = changed_files.get(&fix.file()) {
+                    (x.0.clone(), x.1.clone(), x.2, x.3)
+                } else {
+                    let file_details = self
+                        .files
+                        .get(&fix.file())
+                        .ok_or(ManipulationError::InternalError)?;
+                    let res = file_details.clone();
+                    // changed_files.insert(fix.file(), (res.0.clone(), res.1.clone(), 0));
+                    (res.0, res.1, 0, 0)
+                };
 
             let row = fix.line();
             let pos = fix.raw_pos() - 1;

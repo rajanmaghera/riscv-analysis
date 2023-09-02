@@ -130,8 +130,16 @@ impl Default for Info {
             token: Token::Newline,
             file: Uuid::nil(),
             pos: Range {
-                start: Position { line: 0, column: 0, raw_index: 0 },
-                end: Position { line: 0, column: 0, raw_index: 0 },
+                start: Position {
+                    line: 0,
+                    column: 0,
+                    raw_index: 0,
+                },
+                end: Position {
+                    line: 0,
+                    column: 0,
+                    raw_index: 0,
+                },
             },
         }
     }

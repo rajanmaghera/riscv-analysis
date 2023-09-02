@@ -101,17 +101,7 @@ pub fn fix_stack(func: &Rc<Function>) -> Vec<Manipulation> {
     exit_range.column = 0;
 
     vec![
-        Manipulation::Insert(
-            entry.node().file(),
-            entry_range,
-            entry_text,
-            offset,
-        ),
-        Manipulation::Insert(
-            exit.node().file(),
-            exit_range,
-            exit_text,
-            offset,
-        ),
+        Manipulation::Insert(entry.node().file(), entry_range, entry_text, offset),
+        Manipulation::Insert(exit.node().file(), exit_range, exit_text, offset),
     ]
 }
