@@ -9,7 +9,7 @@ use crate::{
         CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
         EcallCheck, GarbageInputValueCheck, LostCalleeSavedRegisterCheck, SaveToZeroCheck,
         StackCheckPass,
-    },
+    }, parser::ParserNode,
 };
 
 use super::{CFGError, GenerationPass, LintError, LintPass};
@@ -22,8 +22,8 @@ pub struct DebugInfo {
 
 pub struct Manager;
 impl Manager {
-    pub fn gen_full_cfg(cfg: Cfg) -> Result<Cfg, Box<CFGError>> {
-        let mut cfg = cfg;
+    pub fn gen_full_cfg(cfg: Vec<ParserNode>) -> Result<Cfg, Box<CFGError>> {
+        let mut cfg = Cfg::new(cfg)?;
 
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
@@ -45,7 +45,7 @@ impl Manager {
         CalleeSavedGarbageReadCheck::run(cfg, errors);
         LostCalleeSavedRegisterCheck::run(cfg, errors);
     }
-    pub fn run(cfg: Cfg) -> Result<Vec<LintError>, Box<CFGError>> {
+    pub fn run(cfg: Vec<ParserNode>) -> Result<Vec<LintError>, Box<CFGError>> {
         let mut errors = Vec::new();
         let cfg = Self::gen_full_cfg(cfg)?;
         Self::run_diagnostics(&cfg, &mut errors);

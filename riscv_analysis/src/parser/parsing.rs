@@ -1,6 +1,5 @@
 use uuid::Uuid;
 
-use crate::cfg::Cfg;
 use crate::parser::inst::{
     ArithType, BranchType, CSRIType, CSRType, IArithType, Inst, JumpLinkRType, JumpLinkType,
     PseudoType, Type,
@@ -45,16 +44,7 @@ impl<T: FileReader + Clone> RVParser<T> {
             .iter()
             .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
 
-        let cfg = match Cfg::new(parsed.0) {
-            Ok(cfg) => cfg,
-            Err(err) => {
-                diags.push(DiagnosticItem::from(*err));
-                diags.sort();
-                return diags;
-            }
-        };
-
-        let res = Manager::run(cfg);
+        let res = Manager::run(parsed.0);
         match res {
             Ok(lints) => {
                 lints

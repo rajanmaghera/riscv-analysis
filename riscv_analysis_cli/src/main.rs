@@ -6,7 +6,6 @@ use std::{collections::HashMap, iter::Peekable, str::FromStr};
 use bat::line_range::{LineRange, LineRanges};
 use bat::{Input, PrettyPrinter};
 use colored::Colorize;
-use riscv_analysis::cfg::Cfg;
 use riscv_analysis::fix::{fix_stack, Manipulation};
 use riscv_analysis::parser::{Info, LabelString, Lexer, RVParser, With};
 use riscv_analysis::passes::DiagnosticItem;
@@ -334,17 +333,7 @@ fn main() {
                 .iter()
                 .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
 
-            let cfg = match Cfg::new(parsed.0) {
-                Ok(cfg) => cfg,
-                Err(err) => {
-                    diags.push(DiagnosticItem::from(*err));
-                    diags.sort();
-                    diags.display_errors(&parser);
-                    return;
-                }
-            };
-
-            match Manager::gen_full_cfg(cfg) {
+            match Manager::gen_full_cfg(parsed.0) {
                 Ok(full_cfg) => {
                     // if debug, print out the cfg
                     if lint.yaml {
@@ -377,8 +366,7 @@ fn main() {
                     .expect("unable to convert path to string"),
                 false,
             );
-            let cfg = Cfg::new(parsed.0).expect("unable to create cfg");
-            let cfg = Manager::gen_full_cfg(cfg).expect("unable to generate full cfg");
+            let cfg = Manager::gen_full_cfg(parsed.0).expect("unable to generate full cfg");
 
             let func = cfg
                 .label_function_map
@@ -441,8 +429,7 @@ mod tests {
 
                 let parsed = parser.parse(filename, false);
 
-                let cfg = Cfg::new(parsed.0).unwrap();
-                let res: Cfg = Manager::gen_full_cfg(cfg).unwrap();
+                let res: Cfg = Manager::gen_full_cfg(parsed.0).unwrap();
                 let res = CFGWrapper::from(&res);
 
                 // deserialize the yaml file
