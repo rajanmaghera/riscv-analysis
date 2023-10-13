@@ -94,6 +94,63 @@ impl Display for ManipulationError {
     }
 }
 
+#[derive(Copy, Clone)]
+enum OffsetItem {
+    /// Add (1) chars and (2) lines at index (0)
+    ///
+    /// When this is in play, any line after or including (0) idx
+    /// has (1) added to it.
+    Add(usize, usize, usize),
+    /// Remove (1) chars and (2) lines at index (0)
+    ///
+    /// When this is in play, any char after the end of the range
+    /// is removed. No offset should ever be in the range, so the
+    /// program will panic if dones so.
+    Remove(usize, usize, usize),
+}
+
+/// Offset adjustments when changes are made
+///
+/// All offset items in the list are relative to the original
+/// offset at the beginning.
+#[derive(Clone)]
+struct OffsetList(Vec<OffsetItem>);
+
+impl OffsetList {
+    fn new() -> Self {
+        OffsetList(Vec::new())
+    }
+    fn add_change(&mut self, item: OffsetItem) {
+        self.0.push(item);
+    }
+
+    fn real_offset(&self, mut idx: usize, mut line_orig: usize) -> (usize, usize) {
+        for off in self.0.iter() {
+            match off {
+                OffsetItem::Add(id, chars, line) => {
+                    if idx >= *id {
+                        idx += chars;
+                    }
+                    if line_orig >= *line {
+                        line_orig += line;
+                    }
+                }
+                OffsetItem::Remove(id, chars, line) => {
+                    if idx >= *id && idx < *id + *chars {
+                        idx = *id
+                    } else if idx >= *id {
+                        idx -= chars;
+                    }
+                    if line_orig >= *line {
+                        line_orig -= line;
+                    }
+                }
+            }
+        }
+        (idx, line_orig)
+    }
+}
+
 impl IOFileReader {
     fn new() -> Self {
         IOFileReader {
@@ -111,66 +168,105 @@ impl IOFileReader {
         }
 
         // map of file uuid to (path, source, offet pos, offset lines)
-        let mut changed_files: HashMap<uuid::Uuid, (String, String, i64, i64)> = HashMap::new();
+        let mut changed_files: HashMap<uuid::Uuid, (String, String, OffsetList)> = HashMap::new();
         let mut changed_ranges = Vec::new();
 
         for fix in fixes {
             // check if we already have changed this file
             // otherwise, get the file details
-            let (path, source, mut offset, mut offset_lines) =
-                if let Some(x) = changed_files.get(&fix.file()) {
-                    (x.0.clone(), x.1.clone(), x.2, x.3)
-                } else {
-                    let file_details = self
-                        .files
-                        .get(&fix.file())
-                        .ok_or(ManipulationError::InternalError)?;
-                    let res = file_details.clone();
-                    // changed_files.insert(fix.file(), (res.0.clone(), res.1.clone(), 0));
-                    (res.0, res.1, 0, 0)
-                };
+            let (path, source, mut offset_list) = if let Some(x) = changed_files.get(&fix.file()) {
+                (x.0.clone(), x.1.clone(), x.2.clone())
+            } else {
+                let file_details = self
+                    .files
+                    .get(&fix.file())
+                    .ok_or(ManipulationError::InternalError)?;
+                let res = file_details.clone();
+                // changed_files.insert(fix.file(), (res.0.clone(), res.1.clone(), 0));
+                (res.0, res.1, OffsetList::new())
+            };
 
             let row = fix.line();
             let pos = fix.raw_pos() - 1;
 
             let file = fix.file();
+
             // insert fix text into source
+            // TODO need to make this work when things change
             match fix {
                 Manipulation::Insert(_, _, s, lines) => {
                     let mut new_source = source.clone();
-                    // we know that the insert only inserts, so we can be safe returning the offset
-                    // as usize
-                    new_source.insert_str(pos + offset as usize, &s);
+                    dbg!(&new_source);
+                    let (pos, row) = offset_list.real_offset(pos, row);
+                    new_source.insert_str(pos, &s);
+                    dbg!(&new_source);
                     changed_ranges.push(ChangedRanges {
                         filename: path.clone(),
                         file,
-                        begin_window: row - 2 + offset_lines as usize,
-                        end_window: row + lines + offset_lines as usize + 1,
-                        begin_change: row + offset_lines as usize,
-                        end_change: row + lines + offset_lines as usize - 1,
+                        begin_window: row - 2,
+                        end_window: row + lines as usize + 1,
+                        begin_change: row,
+                        end_change: row + lines as usize - 1,
                     });
-                    offset += s.len() as i64;
-                    offset_lines += lines as i64;
-                    changed_files.insert(file, (path.clone(), new_source, offset, offset_lines));
+                    offset_list.add_change(OffsetItem::Add(pos, s.len(), lines));
+                    changed_files.insert(file, (path.clone(), new_source, offset_list));
+                }
+                Manipulation::Replace(_, range, s, lines_removed, lines_added) => {
+                    let mut new_source = source.clone();
+                    let len = range.end.raw_index - range.start.raw_index;
+                    let (pos, _) = offset_list.real_offset(pos, row);
+                    new_source.drain(std::ops::Range {
+                        start: pos as usize,
+                        end: pos + len as usize,
+                    });
+                    offset_list.add_change(OffsetItem::Remove(pos, len, lines_removed));
+                    let (pos, row) = offset_list.real_offset(pos, row);
+                    new_source.insert_str((range.start.raw_index as isize - 1) as usize, &s);
+
+                    changed_ranges.push(ChangedRanges {
+                        filename: path.clone(),
+                        file,
+                        begin_window: row - 2,
+                        end_window: row + lines_added - lines_removed + 1,
+                        begin_change: row,
+                        end_change: row + lines_added - lines_removed as usize - 1,
+                    });
+                    offset_list.add_change(OffsetItem::Add(pos, s.len(), lines_added));
+                    changed_files.insert(file, (path.clone(), new_source, offset_list));
                 }
             }
         }
 
         // display changed ranges
-        for changed_range in changed_ranges {
-            let input =
-                Input::from_reader(changed_files.get(&changed_range.file).unwrap().1.as_bytes())
-                    .name(changed_range.filename.clone());
+        // FIXME we just show the whole file to be easier for now, need to make it more specific in
+        // the future.
+        // for changed_range in changed_ranges {
+        //     let input =
+        //         Input::from_reader(changed_files.get(&changed_range.file).unwrap().1.as_bytes())
+        //             .name(changed_range.filename.clone());
+        //     PrettyPrinter::new()
+        //         .input(input)
+        //         .line_numbers(true)
+        //         .header(true)
+        //         .grid(true)
+        //         .line_ranges(LineRanges::from(vec![LineRange::new(
+        //             changed_range.begin_window + 1,
+        //             changed_range.end_window + 1,
+        //         )]))
+        //         .highlight_range(changed_range.begin_change + 1, changed_range.end_change + 1)
+        //         .print()
+        //         .unwrap();
+        // }
+        let inputs = changed_files
+            .iter()
+            .map(|x| Input::from_reader(x.1 .1.as_bytes()).name(x.1 .0.clone()));
+
+        for x in inputs {
             PrettyPrinter::new()
-                .input(input)
+                .input(x)
                 .line_numbers(true)
                 .header(true)
                 .grid(true)
-                .line_ranges(LineRanges::from(vec![LineRange::new(
-                    changed_range.begin_window + 1,
-                    changed_range.end_window + 1,
-                )]))
-                .highlight_range(changed_range.begin_change + 1, changed_range.end_change + 1)
                 .print()
                 .unwrap();
         }
@@ -192,7 +288,7 @@ impl IOFileReader {
         }
 
         if apply_changes {
-            for (path, source, _, _) in changed_files.values() {
+            for (path, source, _) in changed_files.values() {
                 let mut file = std::fs::File::create(path).unwrap();
                 file.write_all(source.as_bytes()).unwrap();
             }

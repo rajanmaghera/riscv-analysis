@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::{HashMap, HashSet},
     rc::Rc,
     vec,
@@ -33,6 +34,7 @@ impl GenerationPass for FunctionMarkupPass {
 
                 // For all items in the queue
                 'inner: while let Some(n) = queue.pop() {
+                    dbg!(n.node().token().text);
                     walked.push(Rc::clone(&n));
                     if let Some(def) = n.node().stores_to() {
                         defs.insert(def.data);
@@ -73,6 +75,7 @@ impl GenerationPass for FunctionMarkupPass {
                         Rc::clone(entry_node),
                         Rc::clone(&node),
                         defs,
+                        RefCell::default(),
                     ));
 
                     // The label function map can have multiple entries corresponding to the single
@@ -110,7 +113,7 @@ impl GenerationPass for FunctionMarkupPass {
 
                         // Convert node to jump
                         let inf = Info {
-                            token: crate::parser::Token::Symbol("return".to_string()),
+                            token: crate::parser::Token::Symbol("return(impl_jump)".to_string()),
                             pos: return_node.node().range().clone(),
                             file: return_node.node().file(),
                         };
@@ -125,6 +128,10 @@ impl GenerationPass for FunctionMarkupPass {
                             existing_return_node.node().token(),
                         );
                         return_node.set_node(new_node);
+
+                        // Add to list of other exits (that are implicitly turned into uncond
+                        // jumps)
+                        existing_func.add_other_exit(return_node);
                     } else {
                         for label in entry_node.labels() {
                             label_function_map.insert(label.clone(), Rc::clone(&func));
