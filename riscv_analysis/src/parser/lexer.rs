@@ -245,8 +245,11 @@ impl Iterator for Lexer {
                 } else if self.ch == ':' {
                     // this is a label
                     self.next_char();
+
+                    // TODO why isnt this get_pos? has to do with column?
                     let mut end = start;
                     end.column += symbol_str.len();
+                    end.raw_index += symbol_str.len();
 
                     return Some(Info {
                         token: Token::Label(symbol_str.clone()),
@@ -255,8 +258,10 @@ impl Iterator for Lexer {
                     });
                 }
 
+                // TODO why isnt this get_pos? has to do with column?
                 let mut end = start;
                 end.column += symbol_str.len();
+                end.raw_index += symbol_str.len();
 
                 Some(Info {
                     token: Token::Symbol(symbol_str.clone()),
