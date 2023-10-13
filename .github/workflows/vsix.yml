@@ -15,7 +15,7 @@ jobs:
               name: install wasm-pack
 
             - name: package wasm
-              run: wasm-pack build --target nodejs --out-dir ./lsp/server
+              run: wasm-pack build --target nodejs --out-dir ../lsp/server/pkg
               working-directory: ./riscv_analysis_lsp
 
             - name: Package VS Code extension
