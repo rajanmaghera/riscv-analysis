@@ -11,6 +11,13 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
+            - uses: jetli/wasm-pack-action@v0.4.0
+              name: install wasm-pack
+
+            - name: package wasm
+              run: wasm-pack build --target nodejs --out-dir ./lsp/server
+              working-directory: ./riscv_analysis_lsp
+
             - name: Package VS Code extension
               id: package
               uses: nhedger/package-vscode-extension@v1
