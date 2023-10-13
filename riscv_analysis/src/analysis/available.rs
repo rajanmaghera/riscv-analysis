@@ -251,7 +251,7 @@ fn rule_zero_to_const(
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
                 if r == &Register::X0 {
-                    available_out.insert(*val.0, AvailableValue::Constant(0 + i));
+                    available_out.insert(*val.0, AvailableValue::Constant(*i));
                 }
             }
             _ => {}
@@ -262,7 +262,7 @@ fn rule_zero_to_const(
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
                 if r == &Register::X0 {
-                    stack_out.insert(*val.0, AvailableValue::Constant(0 + i));
+                    stack_out.insert(*val.0, AvailableValue::Constant(*i));
                 }
             }
             _ => {}
