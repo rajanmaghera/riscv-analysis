@@ -1,4 +1,7 @@
 on:
+    push:
+        branches:
+            - ci-vsix-build
     release:
         types: [created]
 
@@ -8,16 +11,27 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
-            - uses: actions/setup-node@v1
+            - name: Package VS Code extension
+              id: package
+              uses: nhedger/package-vscode-extension@v1
               with:
-                  node-version: 12
-            - uses: actions/cache@v1
+                extensionPath: ./lsp
+
+            - name: Publish VS Code extension artifact
+              uses: actions/upload-artifact@v3
               with:
-                  path: ~/.npm
-                  key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-                  restore-keys: |
-                      ${{ runner.os }}-node-
-            - run: npm ci
-            - run: npm run release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                name: my-extension
+                path: ${{ steps.package.outputs.packagePath }}
+            # - uses: actions/setup-node@v1
+            #   with:
+            #       node-version: 12
+            # - uses: actions/cache@v1
+            #   with:
+            #       path: ~/.npm
+            #       key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+            #       restore-keys: |
+            #           ${{ runner.os }}-node-
+            # - run: npm ci
+            # - run: npm run release
+            #   env:
+            #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
