@@ -27,7 +27,10 @@ impl Manager {
 
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
+        AvailableValuePass::run(&mut cfg)?;
+        EcallTerminationPass::run(&mut cfg)?;
         FunctionMarkupPass::run(&mut cfg)?;
+
         AvailableValuePass::run(&mut cfg)?;
         EcallTerminationPass::run(&mut cfg)?;
         // EliminateDeadCodeDirectionsPass::run(&mut cfg)?; // to eliminate ecall terminated code
