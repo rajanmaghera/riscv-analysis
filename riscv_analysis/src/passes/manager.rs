@@ -9,7 +9,8 @@ use crate::{
         CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
         EcallCheck, GarbageInputValueCheck, LostCalleeSavedRegisterCheck, SaveToZeroCheck,
         StackCheckPass,
-    }, parser::ParserNode,
+    },
+    parser::ParserNode,
 };
 
 use super::{CFGError, GenerationPass, LintError, LintPass};
@@ -27,8 +28,11 @@ impl Manager {
 
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
-        AvailableValuePass::run(&mut cfg)?;
-        EcallTerminationPass::run(&mut cfg)?;
+        // AvailableValuePass::run(&mut cfg)?;
+        // EcallTerminationPass::run(&mut cfg)?;
+        // TODO big issue, we need to run all of these
+        // at the same time, otherwise some function terminations
+        // do not register.
         FunctionMarkupPass::run(&mut cfg)?;
 
         AvailableValuePass::run(&mut cfg)?;
