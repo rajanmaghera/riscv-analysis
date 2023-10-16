@@ -29,8 +29,6 @@ impl GenerationPass for LivenessPass {
                 if let Some((func, _)) = node.calls_to(cfg) {
                     // live_in[F_exit] = live_in[F_exit] U gen[F_exit] (live_out[n] AND u_def[F_exit])
                     // We take the union of the existing live_in to match multiple call sites
-                    // dbg!(func.name());
-                    // dbg!(func.arguments());
                     let func_exit_live_in = node
                         .live_out()
                         .intersection_c(&func.exit.u_def())
