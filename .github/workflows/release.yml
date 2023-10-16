@@ -25,5 +25,6 @@ jobs:
       with:
         RUSTTARGET: ${{ matrix.target }}
         ARCHIVE_TYPES: ${{ matrix.archive }}
+        TOOLCHAIN_VERSION: stable
         EXTRA_FILES: "README.md LICENSE"
         SRC_DIR: "riscv_analysis_cli"
