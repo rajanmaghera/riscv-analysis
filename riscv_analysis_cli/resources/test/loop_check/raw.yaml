@@ -34,6 +34,8 @@
     - 2
     - 0
     10: !c 10
+  live_out:
+  - 10
   u_def:
   - 10
 - node: !IArith
@@ -62,6 +64,10 @@
     - 0
     10: !c 10
     11: !c 20
+  live_in:
+  - 10
+  live_out:
+  - 10
   u_def:
   - 10
   - 11
@@ -93,6 +99,10 @@
     10: !c 10
     11: !c 20
     12: !c 30
+  live_in:
+  - 10
+  live_out:
+  - 10
   u_def:
   - 10
   - 11
@@ -119,6 +129,8 @@
     2: !ors
     - 2
     - 0
+  live_in:
+  - 10
   live_out:
   - 10
   u_def:
@@ -214,11 +226,6 @@
   func_exit: 27
   nexts:
   - 10
-  reg_values_in:
-    2: !ors
-    - 2
-    - 0
-    17: !c 10
   reg_values_out:
     1: !ors
     - 1
@@ -2666,3 +2673,4 @@
   - 2
   - 8
   - 10
+
