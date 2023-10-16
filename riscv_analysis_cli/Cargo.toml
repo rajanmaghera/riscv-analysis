@@ -19,7 +19,7 @@ path = "src/main.rs"
 riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-alpha" }
 clap = { version = "4.3.8", features = ["derive"] }
 serde_yaml = "0.9"
-bat = "0.23.0"
+bat = "0.24.0"
 colored = "2.0.4"
 
 [dependencies.uuid]
