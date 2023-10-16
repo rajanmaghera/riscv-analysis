@@ -1,7 +1,4 @@
 on:
-    push:
-        branches:
-            - ci-vsix-build
     release:
         types: [created]
 
@@ -12,27 +9,18 @@ jobs:
         steps:
             - uses: actions/checkout@v2
             - uses: jetli/wasm-pack-action@v0.4.0
-              name: install wasm-pack
             - uses: actions/setup-node@v1
               with:
                   node-version: 16
 
-            - name: package wasm
+            - name: Build WASM
               run: wasm-pack build --target nodejs --out-dir ../lsp/server/pkg
               working-directory: ./riscv_analysis_lsp
 
-            - name: install dependencies
+            - name: Install extension dependencies
               run: npm install
               working-directory: ./lsp
             
-            - name: install vsce cli
-              run: npm install -g vsce
-              working-directory: ./lsp
-
-            # - name: package extension
-            #   run: vsce package
-            #   working-directory: ./lsp
-
             - name: Package VS Code extension
               id: package
               uses: nhedger/package-vscode-extension@v1
@@ -44,13 +32,14 @@ jobs:
               with:
                 name: my-extension
                 path: ${{ steps.package.outputs.packagePath }}
-            # - uses: actions/cache@v1
-            #   with:
-            #       path: ~/.npm
-            #       key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-            #       restore-keys: |
-            #           ${{ runner.os }}-node-
-            # - run: npm ci
-            # - run: npm run release
-            #   env:
-            #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Upload file
+              uses: actions/upload-release-asset@v1.0.1
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                upload_url: ${{ github.event.release.upload_url }}
+                asset_path: ${{ steps.package.outputs.packagePath }}
+                asset_name: ${{ steps.package.outputs.packagePath }}
+                asset_content_type: application/zip
+        
