@@ -15,7 +15,7 @@ jobs:
               name: install wasm-pack
             - uses: actions/setup-node@v1
               with:
-                  node-version: 12
+                  node-version: 16
 
             - name: package wasm
               run: wasm-pack build --target nodejs --out-dir ../lsp/server/pkg
@@ -24,18 +24,26 @@ jobs:
             - name: install dependencies
               run: npm install
               working-directory: ./lsp
+            
+            - name: install vsce cli
+              run: npm install -g vsce
+              working-directory: ./lsp
 
-            - name: Package VS Code extension
-              id: package
-              uses: nhedger/package-vscode-extension@v1
-              with:
-                extensionPath: ./lsp
+            - name: package extension
+              run: vsce package
+              working-directory: ./lsp
 
-            - name: Publish VS Code extension artifact
-              uses: actions/upload-artifact@v3
-              with:
-                name: my-extension
-                path: ${{ steps.package.outputs.packagePath }}
+            # - name: Package VS Code extension
+            #   id: package
+            #   uses: nhedger/package-vscode-extension@v1
+            #   with:
+            #     extensionPath: ./lsp
+
+            # - name: Publish VS Code extension artifact
+            #   uses: actions/upload-artifact@v3
+            #   with:
+            #     name: my-extension
+            #     path: ${{ steps.package.outputs.packagePath }}
             # - uses: actions/cache@v1
             #   with:
             #       path: ~/.npm
