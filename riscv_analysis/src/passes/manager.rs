@@ -28,11 +28,8 @@ impl Manager {
 
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
-        // AvailableValuePass::run(&mut cfg)?;
-        // EcallTerminationPass::run(&mut cfg)?;
-        // TODO big issue, we need to run all of these
-        // at the same time, otherwise some function terminations
-        // do not register.
+        AvailableValuePass::run(&mut cfg)?;
+        EcallTerminationPass::run(&mut cfg)?;
         FunctionMarkupPass::run(&mut cfg)?;
 
         AvailableValuePass::run(&mut cfg)?;
