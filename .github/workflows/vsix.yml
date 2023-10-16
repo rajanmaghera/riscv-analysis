@@ -29,21 +29,21 @@ jobs:
               run: npm install -g vsce
               working-directory: ./lsp
 
-            - name: package extension
-              run: vsce package
-              working-directory: ./lsp
+            # - name: package extension
+            #   run: vsce package
+            #   working-directory: ./lsp
 
-            # - name: Package VS Code extension
-            #   id: package
-            #   uses: nhedger/package-vscode-extension@v1
-            #   with:
-            #     extensionPath: ./lsp
+            - name: Package VS Code extension
+              id: package
+              uses: nhedger/package-vscode-extension@v1
+              with:
+                extensionPath: ./lsp
 
-            # - name: Publish VS Code extension artifact
-            #   uses: actions/upload-artifact@v3
-            #   with:
-            #     name: my-extension
-            #     path: ${{ steps.package.outputs.packagePath }}
+            - name: Publish VS Code extension artifact
+              uses: actions/upload-artifact@v3
+              with:
+                name: my-extension
+                path: ${{ steps.package.outputs.packagePath }}
             # - uses: actions/cache@v1
             #   with:
             #       path: ~/.npm
