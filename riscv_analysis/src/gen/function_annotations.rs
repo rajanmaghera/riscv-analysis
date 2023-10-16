@@ -23,7 +23,7 @@ impl GenerationPass for FunctionMarkupPass {
         // --------------------
         // Graph traversal to find functions
 
-        for node in cfg.into_iter() {
+        for node in &*cfg {
             if node.node().is_return() {
                 // Walk backwards from return label to find function starts
                 let mut walked = Vec::new();
@@ -50,7 +50,7 @@ impl GenerationPass for FunctionMarkupPass {
                     }
 
                     // Otherwise, add all previous nodes to the queue
-                    for prev in n.prevs().iter() {
+                    for prev in &*n.prevs() {
                         if !walked.contains(prev) {
                             queue.push(Rc::clone(prev));
                         }
