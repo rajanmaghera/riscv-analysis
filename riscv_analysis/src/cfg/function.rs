@@ -1,8 +1,8 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{collections::HashSet, rc::Rc, cell::RefCell};
 
 use crate::{
     analysis::CustomClonedSets,
-    parser::{LabelString, RegSets, Register, With},
+    parser::{LabelString, RegSets, Register, With, Info},
 };
 
 use super::CFGNode;
@@ -15,6 +15,12 @@ pub struct Function {
     // a single exit point
     /// The registers that are set ever in the function
     pub defs: HashSet<Register>,
+    /// Multiple exit points if there are any.
+    ///
+    /// To handle stack fixes where there are multiple
+    /// exit points, we keep track of all the exits. This
+    /// is not *usually* used for analysis but could be.
+    pub other_exits: RefCell<HashSet<Rc<CFGNode>>>,
 }
 
 impl Function {
@@ -34,12 +40,14 @@ impl Function {
         entry: Rc<CFGNode>,
         exit: Rc<CFGNode>,
         defs: HashSet<Register>,
+        other_exits: RefCell<HashSet<Rc<CFGNode>>>
     ) -> Self {
         Function {
             nodes,
             entry,
             exit,
             defs,
+            other_exits,
         }
     }
 
@@ -64,5 +72,33 @@ impl Function {
             .intersection_c(&RegSets::callee_saved())
             // remove sp
             .difference_c(&vec![Register::X2].into_iter().collect())
+    }
+
+    pub fn add_other_exit(&self, other_exit: Rc<CFGNode>) {
+        let mut i = self.other_exits.borrow_mut();
+        i.insert(other_exit);
+
+    }
+
+    #[must_use]
+    pub fn get_empty_label(&self) -> String {
+        // get the first label
+        let labels = self.labels();
+        let label = labels.iter().next();
+        let prefix = match label {
+            Some(x) => {
+                x.data.0.clone()
+            }
+            None => {
+                "Func".into()
+            }
+        };
+
+        let mut i = 1;
+        while let Some(_) = labels.get(&With::new(LabelString(format!("{}__exit{}", prefix, i)), Info::default())) {
+            i += 1;
+        };
+
+        format!("{}__exit{}", prefix, i)
     }
 }

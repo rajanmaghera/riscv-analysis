@@ -6,16 +6,16 @@ import {
 	createConnection,
 	TextDocuments,
 	Diagnostic,
-	DiagnosticSeverity,
 	ProposedFeatures,
 	InitializeParams,
 	DidChangeConfigurationNotification,
 	CompletionItem,
-	CompletionItemKind,
 	TextDocumentPositionParams,
 	TextDocumentSyncKind,
 	InitializeResult,
-	WorkspaceFolder
+	CodeAction,
+	Command,
+	CodeActionKind,
 } from 'vscode-languageserver/node';
 
 import {
@@ -64,6 +64,10 @@ connection.onInitialize((params: InitializeParams) => {
 			// Tell the client that this server supports code completion.
 			completionProvider: {
 				resolveProvider: true
+			},
+			codeActionProvider: true,
+			executeCommandProvider: {
+				commands: ['sample.fixMe']
 			}
 		}
 	};
@@ -77,25 +81,32 @@ connection.onInitialize((params: InitializeParams) => {
 	return result;
 });
 
+connection.onHover((params) => {
+    let doc = params.textDocument.uri;
+    let pos = params.position;
+
+})
+
+connection.onCodeAction((params) => {
+	const textDocument = documents.get(params.textDocument.uri);
+	if (textDocument === undefined) {
+		return undefined;
+	}
+	const title = `With User Input from ${params.range.start.character + 1} to ${params.range.end.character + 1}`;
+	return [CodeAction.create(title, Command.create(title, 'sample.fixMe', textDocument.uri), CodeActionKind.RefactorRewrite)];
+});
+
+connection.onExecuteCommand((params) => {
+	connection.console.log("Command executed: " + params.command);
+});
+
+
 connection.onInitialized(() => {
 	if (hasConfigurationCapability) {
 		// Register for all configuration changes.
 		connection.client.register(DidChangeConfigurationNotification.type, undefined);
 	}
 	if (hasWorkspaceFolderCapability) {
-
-
-		// connection.workspace.getWorkspaceFolders().then(folders => {
-
-		// 	workspaceFolders = folders;
-		// 	connection.console.log("Folders: " + JSON.stringify(folders));
-
-		// 	if (folders) {
-		// 		connection.console.log('Workspace folder change event received.');
-		// 	}
-
-		// });
-
 		connection.workspace.onDidChangeWorkspaceFolders(_event => {
 			connection.console.log('Workspace folder change event received.');
 		});
@@ -237,7 +248,7 @@ async function validateAllTextDocuments(): Promise<void> {
 // 				} else {
 // 					imported_files.push(uri);
 // 				}
-// 			} 
+// 			}
 // 		}
 
 // 		let doc = documents.get(uri);
