@@ -50,7 +50,7 @@ impl Function {
 
     #[must_use]
     pub fn arguments(&self) -> HashSet<Register> {
-        self.entry.live_in().intersection_c(&RegSets::argument())
+        self.entry.live_out().intersection_c(&RegSets::argument())
     }
 
     #[must_use]

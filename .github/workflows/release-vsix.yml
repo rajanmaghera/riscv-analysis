@@ -1,0 +1,45 @@
+on:
+    release:
+        types: [created]
+
+jobs:
+    release-extension:
+        name: release vscode extension
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - uses: jetli/wasm-pack-action@v0.4.0
+            - uses: actions/setup-node@v1
+              with:
+                  node-version: 16
+
+            - name: Build WASM
+              run: wasm-pack build --target nodejs --out-dir ../lsp/server/pkg
+              working-directory: ./riscv_analysis_lsp
+
+            - name: Install extension dependencies
+              run: npm install
+              working-directory: ./lsp
+            
+            - name: Package VS Code extension
+              id: package
+              uses: nhedger/package-vscode-extension@v1
+              with:
+                extensionPath: ./lsp
+
+            - name: Publish VS Code extension artifact
+              uses: actions/upload-artifact@v3
+              with:
+                name: my-extension
+                path: ${{ steps.package.outputs.packagePath }}
+
+            - name: Upload file
+              uses: actions/upload-release-asset@v1.0.1
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                upload_url: ${{ github.event.release.upload_url }}
+                asset_path: ${{ steps.package.outputs.packagePath }}
+                asset_name: ${{ steps.package.outputs.packagePath }}
+                asset_content_type: application/zip
+        

@@ -35,12 +35,12 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
-let diagnosticsSentTo: string[] = []; // a list of uris whose diagnostics have been sent to the client. We want to clear diagnostics for files that are not open anymore
+const diagnosticsSentTo: string[] = []; // a list of uris whose diagnostics have been sent to the client. We want to clear diagnostics for files that are not open anymore
 
 
 connection.onInitialize((params: InitializeParams) => {
 
-	
+
 
 	const capabilities = params.capabilities;
 
@@ -183,7 +183,7 @@ async function getAllCompletions(): Promise<CompletionItem[]> {
 async function validateAllTextDocuments(): Promise<void> {
 
 	// get all open files
-	let all = documents.all();
+	const all = documents.all();
 
 	// new type for document
 	type RVDocument = {
@@ -197,8 +197,8 @@ async function validateAllTextDocuments(): Promise<void> {
 	};
 
 	// map each file to new doc type
-	let rvDocuments: RVDocument[] = [];
-	for (let doc of all) {
+	const rvDocuments: RVDocument[] = [];
+	for (const doc of all) {
 		rvDocuments.push({ uri: doc.uri, text: doc.getText() });
 	}
 
@@ -206,7 +206,7 @@ async function validateAllTextDocuments(): Promise<void> {
 	const mm = await rust;
 	try {
 		const result = mm.riscv_get_diagnostics(rvDocuments) as RVDiagnostic[];
-		for (let diag of result) {
+		for (const diag of result) {
 			connection.sendDiagnostics(diag);
 		}
 	}
@@ -268,9 +268,9 @@ async function validateAllTextDocuments(): Promise<void> {
 // 		// we also need to keep track of the "visited files"
 // 		// so we don't get stuck in a loop
 
-		
-	
-		
+
+
+
 
 
 // 		// connection.console.log("Server result: " + JSON.stringify(result));
@@ -287,7 +287,7 @@ async function validateAllTextDocuments(): Promise<void> {
 // });
 
 connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-	let items = await getAllCompletions();
+	const items = await getAllCompletions();
 	return items;
 });
 

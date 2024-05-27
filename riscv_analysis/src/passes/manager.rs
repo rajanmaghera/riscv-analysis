@@ -9,7 +9,8 @@ use crate::{
         CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
         EcallCheck, GarbageInputValueCheck, LostCalleeSavedRegisterCheck, SaveToZeroCheck,
         StackCheckPass,
-    }, parser::ParserNode,
+    },
+    parser::ParserNode,
 };
 
 use super::{CFGError, GenerationPass, LintError, LintPass};
@@ -27,7 +28,10 @@ impl Manager {
 
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
+        AvailableValuePass::run(&mut cfg)?;
+        EcallTerminationPass::run(&mut cfg)?;
         FunctionMarkupPass::run(&mut cfg)?;
+
         AvailableValuePass::run(&mut cfg)?;
         EcallTerminationPass::run(&mut cfg)?;
         // EliminateDeadCodeDirectionsPass::run(&mut cfg)?; // to eliminate ecall terminated code

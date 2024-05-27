@@ -27,7 +27,7 @@ impl Cfg {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the previous nodes onto the queue
-        queue.extend(node.prevs().clone().into_iter());
+        queue.extend(node.prevs().clone());
 
         // keep track of visited nodes
         #[allow(clippy::mutable_key_type)]
@@ -60,7 +60,7 @@ impl Cfg {
         let mut ranges = Vec::new();
         // push the next nodes onto the queue
 
-        queue.extend(node.nexts().clone().into_iter());
+        queue.extend(node.nexts().clone());
 
         // keep track of visited nodes
         #[allow(clippy::mutable_key_type)]

@@ -16,18 +16,88 @@ use super::Function;
 
 #[derive(Debug)]
 pub struct CFGNode {
+    /// Parser node that this CFG node is wrapping.
     node: RefCell<ParserNode>,
+    /// Any labels that refer to this instruction.
     pub labels: HashSet<With<LabelString>>,
+    /// Is this node inside the data section?
     pub data_section: bool,
+    /// CFG nodes that come after this one (forward edges).
     nexts: RefCell<HashSet<Rc<CFGNode>>>,
+    /// CFG nodes that come before this one (backward edges).
     prevs: RefCell<HashSet<Rc<CFGNode>>>,
+    /// If this CFG node is part of a function, which function
+    /// is it part of?
+    ///
+    /// Every CFG node can only ever be part of one function. 
+    /// We do not allow one node to be part of more than one.
     function: RefCell<Option<Rc<Function>>>,
+    /// Map each register to the available value that is set before
+    /// the instruction represented by this CFG node is run.
+    ///
+    /// The maps will contain all known registers and their known
+    /// values. This means that many values might be duplicated above
+    /// and below this CFG node.
     reg_values_in: RefCell<HashMap<Register, AvailableValue>>,
+    /// Map each register to the available value that is set after
+    /// the instruction represented by this CFG node is run.
+    ///
+    /// The maps will contain all known registers and their known
+    /// values. This means that many values might be duplicated above
+    /// and below this CFG node.
     reg_values_out: RefCell<HashMap<Register, AvailableValue>>,
+    /// Map each stack location offset to the available value 
+    /// that is set before the instruction represented by this
+    /// CFG node is run.
+    ///
+    /// The stack location offset is the offset added to the
+    /// stack pointer to get a specific available value. For example,
+    /// the integer `-8` will map to the value at address `sp - 8`.
+    ///
+    /// The stack pointer is always referring to the stack pointer
+    /// value at the beginning of the function body.
+    ///
+    /// In the current implementation, only 32-bit values are
+    /// kept track of on the stack. This is because the register
+    /// is 32-bit.
     stack_values_in: RefCell<HashMap<i32, AvailableValue>>,
+    /// Map each stack location offset to the available value 
+    /// that is set after the instruction represented by this
+    /// CFG node is run.
+    ///
+    /// The stack location offset is the offset added to the
+    /// stack pointer to get a specific available value. For example,
+    /// the integer `-8` will map to the value at address `sp - 8`.
+    ///
+    /// The stack pointer is always referring to the stack pointer
+    /// value at the beginning of the function body.
+    ///
+    /// In the current implementation, only 32-bit values are
+    /// kept track of on the stack. This is because the register
+    /// is 32-bit.
     stack_values_out: RefCell<HashMap<i32, AvailableValue>>,
+    /// The set of registers that are live before the instruction 
+    /// represented by this CFG node is run.
     live_in: RefCell<HashSet<Register>>,
+    /// The set of registers that are live after the instruction 
+    /// represented by this CFG node is run.
     live_out: RefCell<HashSet<Register>>,
+    /// The set of registers that have unconditionally been set after
+    /// the instruction represented by this CFG node is run.
+    ///
+    /// Registers that are unconditionally set are those that, no matter
+    /// what control flow is taken, will always be set to some value. For
+    /// this field, we do not care what the value is set to. We only care
+    /// about whether it has been set/overwritten.
+    ///
+    /// Unconditionally set registers must be set in every path. For example,
+    /// if there is a divergent if-else branch and the target block sets a register,
+    /// that register will be contained in the u_def set at the end of the function
+    /// if it is also set in the fallthrough block.
+    ///
+    /// Unconditionally set registers are used to determine the set of registers
+    /// that might be return values. A return value register must be unconditionally
+    /// set by the time a function returns.
     u_def: RefCell<HashSet<Register>>,
 }
 

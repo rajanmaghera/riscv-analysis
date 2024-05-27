@@ -240,7 +240,7 @@ impl Register {
 
     #[must_use]
     pub fn all() -> HashSet<Register> {
-        vec![
+        [
             Register::X0,
             Register::X1,
             Register::X2,
