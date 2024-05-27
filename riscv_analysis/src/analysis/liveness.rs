@@ -1,6 +1,6 @@
 use crate::{
     parser::RegSets,
-    passes::{CFGError, GenerationPass},
+    passes::{CfgError, GenerationPass},
 };
 use std::collections::HashSet;
 
@@ -9,7 +9,7 @@ use super::CustomClonedSets;
 pub struct LivenessPass;
 impl GenerationPass for LivenessPass {
     #[allow(clippy::too_many_lines)]
-    fn run(cfg: &mut crate::cfg::Cfg) -> Result<(), Box<CFGError>> {
+    fn run(cfg: &mut crate::cfg::Cfg) -> Result<(), Box<CfgError>> {
         let mut changed = true;
         #[allow(clippy::mutable_key_type)]
         let mut visited = HashSet::new();

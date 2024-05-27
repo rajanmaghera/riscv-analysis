@@ -13,7 +13,7 @@ use crate::{
     parser::ParserNode,
 };
 
-use super::{CFGError, GenerationPass, LintError, LintPass};
+use super::{CfgError, GenerationPass, LintError, LintPass};
 
 #[derive(Default)]
 pub struct DebugInfo {
@@ -23,7 +23,7 @@ pub struct DebugInfo {
 
 pub struct Manager;
 impl Manager {
-    pub fn gen_full_cfg(cfg: Vec<ParserNode>) -> Result<Cfg, Box<CFGError>> {
+    pub fn gen_full_cfg(cfg: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
         let mut cfg = Cfg::new(cfg)?;
 
         NodeDirectionPass::run(&mut cfg)?;
@@ -49,7 +49,7 @@ impl Manager {
         CalleeSavedGarbageReadCheck::run(cfg, errors);
         LostCalleeSavedRegisterCheck::run(cfg, errors);
     }
-    pub fn run(cfg: Vec<ParserNode>) -> Result<Vec<LintError>, Box<CFGError>> {
+    pub fn run(cfg: Vec<ParserNode>) -> Result<Vec<LintError>, Box<CfgError>> {
         let mut errors = Vec::new();
         let cfg = Self::gen_full_cfg(cfg)?;
         Self::run_diagnostics(&cfg, &mut errors);

@@ -1,7 +1,7 @@
 use crate::analysis::AvailableRegisterValues;
 use crate::analysis::AvailableValue;
 use crate::analysis::CustomClonedSets;
-use crate::cfg::CFGNode;
+use crate::cfg::CfgNode;
 use crate::cfg::Cfg;
 use crate::parser::ParserNode;
 use crate::parser::RegSets;
@@ -23,7 +23,7 @@ impl Cfg {
     /// This function works by traversing the previous nodes until it finds a node that stores to the given register.
     /// This is used to correctly mark up the first store to a register that might
     /// have been incorrect.
-    fn error_ranges_for_first_store(node: &Rc<CFGNode>, item: Register) -> Vec<With<Register>> {
+    fn error_ranges_for_first_store(node: &Rc<CfgNode>, item: Register) -> Vec<With<Register>> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the previous nodes onto the queue
@@ -55,7 +55,7 @@ impl Cfg {
 
     // TODO move to a more appropriate place
     // TODO make better, what even is this?
-    fn error_ranges_for_first_usage(node: &Rc<CFGNode>, item: Register) -> Vec<With<Register>> {
+    fn error_ranges_for_first_usage(node: &Rc<CfgNode>, item: Register) -> Vec<With<Register>> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the next nodes onto the queue

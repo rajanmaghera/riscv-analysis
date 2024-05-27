@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::parser::{LabelString, RegSets};
 use crate::parser::{ParserNode, Register};
-use crate::passes::{CFGError, GenerationPass};
+use crate::passes::{CfgError, GenerationPass};
 
 use super::{CustomDifference, CustomIntersection, CustomInto, CustomUnion, CustomUnionFilterMap};
 
@@ -133,7 +133,7 @@ impl AvailableStackHelpers for HashMap<Register, AvailableValue> {
 ///
 pub struct AvailableValuePass;
 impl GenerationPass for AvailableValuePass {
-    fn run(cfg: &mut crate::cfg::Cfg) -> Result<(), Box<CFGError>> {
+    fn run(cfg: &mut crate::cfg::Cfg) -> Result<(), Box<CfgError>> {
         let mut changed = true;
 
         // Because of this type of algorithm, there might be a back branch,
