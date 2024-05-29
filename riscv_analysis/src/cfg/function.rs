@@ -5,13 +5,13 @@ use crate::{
     parser::{LabelString, RegSets, Register, With},
 };
 
-use super::CFGNode;
+use super::CfgNode;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
-    pub nodes: Vec<Rc<CFGNode>>,
-    pub entry: Rc<CFGNode>, // Is only a FuncEntry node
-    pub exit: Rc<CFGNode>,  // Multiple exit points will be converted to
+    pub nodes: Vec<Rc<CfgNode>>,
+    pub entry: Rc<CfgNode>, // Is only a FuncEntry node
+    pub exit: Rc<CfgNode>,  // Multiple exit points will be converted to
     // a single exit point
     /// The registers that are set ever in the function
     pub defs: HashSet<Register>,
@@ -30,9 +30,9 @@ impl Function {
         )
     }
     pub fn new(
-        nodes: Vec<Rc<CFGNode>>,
-        entry: Rc<CFGNode>,
-        exit: Rc<CFGNode>,
+        nodes: Vec<Rc<CfgNode>>,
+        entry: Rc<CfgNode>,
+        exit: Rc<CfgNode>,
         defs: HashSet<Register>,
     ) -> Self {
         Function {

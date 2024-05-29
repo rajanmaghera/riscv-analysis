@@ -337,7 +337,7 @@ fn main() {
                 Ok(full_cfg) => {
                     // if debug, print out the cfg
                     if lint.yaml {
-                        let wrapped = riscv_analysis::cfg::CFGWrapper::from(&full_cfg);
+                        let wrapped = riscv_analysis::cfg::CfgWrapper::from(&full_cfg);
                         println!("{}", serde_yaml::to_string(&wrapped).unwrap());
                     } else if lint.debug {
                         println!("{}", full_cfg);
@@ -407,8 +407,8 @@ fn main() {
 mod tests {
 
     use crate::IOFileReader;
-    use riscv_analysis::cfg::CFGWrapper;
     use riscv_analysis::cfg::Cfg;
+    use riscv_analysis::cfg::CfgWrapper;
     use riscv_analysis::parser::RVParser;
     use riscv_analysis::passes::Manager;
 
@@ -430,15 +430,15 @@ mod tests {
                 let parsed = parser.parse(filename, false);
 
                 let res: Cfg = Manager::gen_full_cfg(parsed.0).unwrap();
-                let res = CFGWrapper::from(&res);
+                let res = CfgWrapper::from(&res);
 
                 // deserialize the yaml file
                 let compare = std::fs::read_to_string(compare).unwrap();
-                let compare: CFGWrapper = serde_yaml::from_str(&compare).unwrap();
+                let compare: CfgWrapper = serde_yaml::from_str(&compare).unwrap();
 
                 // read the res into yaml format to match
                 let res = serde_yaml::to_string(&res).unwrap();
-                let res: CFGWrapper = serde_yaml::from_str(&res).unwrap();
+                let res: CfgWrapper = serde_yaml::from_str(&res).unwrap();
 
                 assert_eq!(res, compare);
             }

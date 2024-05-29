@@ -8,12 +8,12 @@ use crate::{
     cfg::{Cfg, Function},
     parser::Register,
     parser::{Info, JumpLinkType, LabelString, ParserNode, With},
-    passes::{CFGError, DiagnosticLocation, GenerationPass},
+    passes::{CfgError, DiagnosticLocation, GenerationPass},
 };
 
 pub struct FunctionMarkupPass;
 impl GenerationPass for FunctionMarkupPass {
-    fn run(cfg: &mut Cfg) -> Result<(), Box<CFGError>> {
+    fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
         let mut label_function_map: HashMap<
             crate::parser::With<crate::parser::LabelString>,
             Rc<Function>,
@@ -40,7 +40,7 @@ impl GenerationPass for FunctionMarkupPass {
 
                     // If we reach the program entry, there's an issue
                     if n.node().is_program_entry() {
-                        return Err(Box::new(CFGError::NoLabelForReturn(node.node())));
+                        return Err(Box::new(CfgError::NoLabelForReturn(node.node())));
                     }
 
                     // If we find a function entry, we're done
@@ -59,7 +59,7 @@ impl GenerationPass for FunctionMarkupPass {
 
                 // If we found multiple function entries, we have a problem
                 if found.len() > 1 {
-                    return Err(Box::new(CFGError::MultipleLabelsForReturn(
+                    return Err(Box::new(CfgError::MultipleLabelsForReturn(
                         node.node(),
                         found.iter().flat_map(|x| x.labels.clone()).collect(),
                     )));
@@ -137,7 +137,7 @@ impl GenerationPass for FunctionMarkupPass {
                     }
                 } else {
                     // If we found no function entries, we have a problem
-                    return Err(Box::new(CFGError::NoLabelForReturn(node.node())));
+                    return Err(Box::new(CfgError::NoLabelForReturn(node.node())));
                 }
             }
         }

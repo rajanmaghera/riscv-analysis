@@ -8,7 +8,7 @@ use crate::{
     parser::{ParserNode, Register},
 };
 
-use super::{CFGNode, Cfg};
+use super::{Cfg, CfgNode};
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct NodeWrapper {
@@ -81,7 +81,7 @@ pub struct NodeWrapper {
 }
 
 impl NodeWrapper {
-    fn from(node: &CFGNode, cfg: &Cfg) -> Self {
+    fn from(node: &CfgNode, cfg: &Cfg) -> Self {
         NodeWrapper {
             node: node.node(),
             labels: node.labels.iter().map(|x| x.data.0.clone()).collect(),
@@ -129,11 +129,11 @@ impl NodeWrapper {
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
-pub struct CFGWrapper(Vec<NodeWrapper>);
+pub struct CfgWrapper(Vec<NodeWrapper>);
 
-impl From<&Cfg> for CFGWrapper {
+impl From<&Cfg> for CfgWrapper {
     fn from(cfg: &Cfg) -> Self {
-        CFGWrapper(
+        CfgWrapper(
             cfg.nodes
                 .iter()
                 .map(|x| NodeWrapper::from(x, cfg))

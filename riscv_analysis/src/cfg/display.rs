@@ -5,7 +5,7 @@ use std::{
 
 use itertools::Itertools;
 
-use super::{CFGNode, Cfg};
+use super::{Cfg, CfgNode};
 
 pub trait SetListString {
     fn str(&self) -> String;
@@ -40,7 +40,7 @@ where
     }
 }
 
-impl Display for CFGNode {
+impl Display for CfgNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}\n", self.node()))?;
         f.write_fmt(format_args!("  | LIVI | {}\n", self.live_in().str()))?;

@@ -1,13 +1,13 @@
 use crate::cfg::Cfg;
 
-use super::{CFGError, LintError};
+use super::{CfgError, LintError};
 
 pub trait GenerationPass {
-    fn run(cfg: &mut Cfg) -> Result<(), Box<CFGError>>;
+    fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>>;
 }
 
 pub trait AssertionPass {
-    fn run(cfg: &Cfg) -> Result<(), Box<CFGError>>;
+    fn run(cfg: &Cfg) -> Result<(), Box<CfgError>>;
 }
 
 pub trait LintPass {
