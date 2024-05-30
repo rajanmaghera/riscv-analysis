@@ -74,6 +74,12 @@ pub enum Token {
     Directive(String),
     /// String: text enclosed in double quotes
     String(String),
+    /// Comment: text starting with #
+
+    /// This is used to mark a comment. A comment is a
+    /// line of text that is ignored by the assembler,
+    /// but they are useful for human readers.
+    Comment(String), 
 }
 
 impl Token {
@@ -87,6 +93,7 @@ impl Token {
             Token::Symbol(s) => s.clone(),
             Token::Directive(d) => format!(".{d}"),
             Token::String(s) => format!("\"{s}\""),
+            ,
         }
     }
 }
