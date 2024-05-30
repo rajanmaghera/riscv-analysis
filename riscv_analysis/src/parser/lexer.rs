@@ -188,19 +188,43 @@ impl Iterator for Lexer {
                 })
             }
             '#' => {
-                // skip line till newline
-                while self.ch != '\n' && self.ch != EOF_CONST {
+                // // skip line till newline
+                // while self.ch != '\n' && self.ch != EOF_CONST {
+                //     self.next_char();
+                // }
+
+                // if self.ch == EOF_CONST {
+                //     return None;
+                // }
+                // self.next_char();
+
+                // Some(Info {
+                //     token: Token::Newline,
+                //     pos: self.get_range(),
+                //     file: self.source_id,
+                // })
+
+                // comment
+
+                let start = self.get_pos();
+                self.next_char();
+
+                let mut comment_str: String = String::new();
+
+                while self.is_symbol_item() && self.ch != '\n' && self.ch != EOF_CONST {
+                    comment_str += &self.ch.to_string();
                     self.next_char();
                 }
 
-                if self.ch == EOF_CONST {
+                let end = self.get_pos();
+
+                if comment_str.is_empty() {
                     return None;
                 }
-                self.next_char();
 
                 Some(Info {
-                    token: Token::Newline,
-                    pos: self.get_range(),
+                    token: Token::Directive(comment_str.clone()),
+                    pos: Range { start, end },
                     file: self.source_id,
                 })
             }
@@ -312,7 +336,6 @@ mod tests {
         );
     }
 
-    
 
     #[test]
     fn lex_ints() {
@@ -327,6 +350,7 @@ mod tests {
             ]
         );
     }
+
 
     #[test]
     fn lex_long() {
@@ -380,8 +404,8 @@ mod tests {
                 Token::Symbol("x2".into()),
                 Token::Symbol("x2".into()),
                 Token::Symbol("x3".into()),
-                Token::Comment(" hello, world!@", into()),
-                Token::Comment("DKSAOKLJu3iou12o"),
+                Token::Comment(" hello, world!@".to_string()),
+                Token::Comment("DKSAOKLJu3iou12o".to_string()),
                 Token::Newline,
                 Token::Label("BLCOK".to_string()),
                 Token::Newline,
