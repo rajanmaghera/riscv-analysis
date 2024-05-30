@@ -302,6 +302,19 @@ mod tests {
     }
 
     #[test]
+    fn lex_comment() {
+        let tokens = tokenize("# comments are needed");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Symbol(" comments are needed".to_owned()),
+            ]
+        );
+    }
+
+    
+
+    #[test]
     fn lex_ints() {
         let tokens = tokenize("0x1234,    0b1010, 1234  -222");
         assert_eq!(
@@ -367,6 +380,8 @@ mod tests {
                 Token::Symbol("x2".into()),
                 Token::Symbol("x2".into()),
                 Token::Symbol("x3".into()),
+                Token::Comment(" hello, world!@", into()),
+                Token::Comment("DKSAOKLJu3iou12o"),
                 Token::Newline,
                 Token::Label("BLCOK".to_string()),
                 Token::Newline,

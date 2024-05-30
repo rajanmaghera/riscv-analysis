@@ -93,7 +93,7 @@ impl Token {
             Token::Symbol(s) => s.clone(),
             Token::Directive(d) => format!(".{d}"),
             Token::String(s) => format!("\"{s}\""),
-            ,
+            Token::Comment(c) => format!("#{c}:"),
         }
     }
 }
@@ -222,7 +222,8 @@ impl Display for Token {
             Token::Label(s) => writeln!(f, "LABEL({s})"),
             Token::Symbol(s) => write!(f, "SYMBOL({s})"),
             Token::Directive(s) => write!(f, "DIRECTIVE({s})"),
-            Token::String(s) => write!(f, "STRING({s})"),
+            Token::String(s) => write!(f, "STRING({s})")
+            Token::Comment(s) => write!(f, "COMMENT{s}")
             Token::Newline => write!(f, "NEWLINE"),
             Token::LParen => write!(f, "LPAREN"),
             Token::RParen => write!(f, "RPAREN"),
