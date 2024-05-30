@@ -15,6 +15,11 @@ use super::{CustomDifference, CustomIntersection, CustomInto, CustomUnion, Custo
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 
+/// A memory location on the stack.
+pub enum MemoryLocation{
+    StackOffset(i32),
+}
+
 /// A value that is available at some point in the program.
 ///
 /// This is used to determine which values at certain locations (registers, memory)
@@ -243,8 +248,8 @@ impl GenerationPass for AvailableValuePass {
 fn rule_zero_to_const(
     available_out: &mut HashMap<Register, AvailableValue>,
     available_in: &HashMap<Register, AvailableValue>,
-    stack_out: &mut HashMap<i32, AvailableValue>,
-    stack_in: &HashMap<i32, AvailableValue>,
+    stack_out: &mut HashMap<MemoryLocation, AvailableValue>,
+    stack_in: &HashMap<MemoryLocation, AvailableValue>,
 ) {
     for val in available_in {
         match val.1 {
@@ -361,14 +366,15 @@ fn rule_perform_math_ops(
 fn rule_value_from_stack(
     node: &ParserNode,
     available_out: &mut HashMap<Register, AvailableValue>,
-    stack_in: &HashMap<i32, AvailableValue>,
+    stack_in: &HashMap<MemoryLocation, AvailableValue>,
 ) {
     if let Some(reg) = node.stores_to() {
         if let Some(AvailableValue::MemoryAtOriginalRegister(psp, off)) =
             available_out.get(&reg.data)
         {
             if psp.is_sp() {
-                if let Some(stack_val) = stack_in.get(off) {
+                let stack_offset =  MemoryLocation::StackOffset(off);
+                if let Some(stack_val) = stack_in.get(stack_offset) {
                     available_out.insert(reg.data, stack_val.clone());
                 }
             }
@@ -383,19 +389,20 @@ fn rule_value_from_stack(
 /// value at the entry of the function (B), then replace A with B.
 fn rule_known_values_to_stack(
     _node: &ParserNode,
-    stack_out: &mut HashMap<i32, AvailableValue>,
+    stack_out: &mut HashMap<MemoryLocation, AvailableValue>,
     available_in: &HashMap<Register, AvailableValue>,
 ) {
     for (pos, val) in stack_out.clone() {
         if let AvailableValue::RegisterWithScalar(reg, off) = val {
             if let Some(item) = available_in.get(&reg) {
+                let stack_offset = MemoryLocation::StackOffset(pos);
                 match item {
                     AvailableValue::Constant(x) => {
-                        stack_out.insert(pos, AvailableValue::Constant(*x + off));
+                        stack_out.insert(stack_offset, AvailableValue::Constant(*x + off));
                     }
                     AvailableValue::OriginalRegisterWithScalar(reg2, off3) => {
                         stack_out.insert(
-                            pos,
+                            stack_offset,
                             AvailableValue::OriginalRegisterWithScalar(*reg2, *off3 + off),
                         );
                     }
