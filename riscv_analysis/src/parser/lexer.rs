@@ -211,7 +211,7 @@ impl Iterator for Lexer {
 
                 let mut comment_str: String = String::new();
 
-                while self.is_symbol_item() && self.ch != '\n' && self.ch != EOF_CONST {
+                while self.ch != '\n' && self.ch != EOF_CONST {
                     comment_str += &self.ch.to_string();
                     self.next_char();
                 }
@@ -223,7 +223,7 @@ impl Iterator for Lexer {
                 }
 
                 Some(Info {
-                    token: Token::Directive(comment_str.clone()),
+                    token: Token::Comment(comment_str.clone()),
                     pos: Range { start, end },
                     file: self.source_id,
                 })
@@ -312,6 +312,13 @@ mod tests {
     }
 
     #[test]
+    fn lex_comment() {
+        let tokens = tokenize("# comments are needed");
+        assert_eq!(tokens, vec![Token::Comment(" comments are needed".to_owned())]);
+    }
+   
+
+    #[test]
     fn lex_instruction() {
         let tokens = tokenize("add s0, s0, s2");
         assert_eq!(
@@ -325,16 +332,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn lex_comment() {
-        let tokens = tokenize("# comments are needed");
-        assert_eq!(
-            tokens,
-            vec![
-                Token::Symbol(" comments are needed".to_owned()),
-            ]
-        );
-    }
 
 
     #[test]
@@ -404,8 +401,7 @@ mod tests {
                 Token::Symbol("x2".into()),
                 Token::Symbol("x2".into()),
                 Token::Symbol("x3".into()),
-                Token::Comment(" hello, world!@".to_string()),
-                Token::Comment("DKSAOKLJu3iou12o".to_string()),
+                Token::Comment(" hello, world!@#DKSAOKLJu3iou12o".to_string()),
                 Token::Newline,
                 Token::Label("BLCOK".to_string()),
                 Token::Newline,
