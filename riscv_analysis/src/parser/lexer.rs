@@ -316,6 +316,12 @@ mod tests {
         let tokens = tokenize("# comments are needed");
         assert_eq!(tokens, vec![Token::Comment(" comments are needed".to_owned())]);
     }
+
+    #[test]
+    fn lex_directive() {
+        let tokens = tokenize(".text");
+        assert_eq!(tokens, vec![Token::Directive("text".to_owned())]);
+    }
    
 
     #[test]
@@ -386,9 +392,9 @@ mod tests {
     }
 
     #[test]
-    fn lex_comments() {
+    fn lex_all_tokens() {
         let lexer = tokenize(
-            "add x2,x2,x3 # hello, world!@#DKSAOKLJu3iou12o\nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
+            ".text add x2,x2,x3 # hello, world!@#DKSAOKLJu3iou12o\nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
         );
 
         assert_eq!(
@@ -397,6 +403,7 @@ mod tests {
                 .map(|t| t.token.clone())
                 .collect::<Vec<Token>>(),
             vec![
+                Token::Directive("text".to_string()),
                 Token::Symbol("add".into()),
                 Token::Symbol("x2".into()),
                 Token::Symbol("x2".into()),
