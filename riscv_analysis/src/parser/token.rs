@@ -1,44 +1,168 @@
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
+use std::ops::{Add, Sub};
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-#[derive(Debug, PartialEq, Copy, Clone, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Copy, Clone, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Position {
+    /// Line, zero indexed
     pub line: usize,
+    /// Column, zero indexed.
+    ///
+    /// Column could point to a non-existant value. The behaviour of the position is to add a column to the range when advancing.
     pub column: usize,
+    /// Raw index of character.
     pub raw_index: usize,
 }
 
-#[derive(Debug, PartialEq, Clone, PartialOrd, Ord, Eq, Default, Serialize, Deserialize)]
+impl Position {
+    pub fn new(line: usize, column: usize, raw_index: usize) -> Position {
+        Position {
+            line,
+            column,
+            raw_index,
+        }
+    }
+}
+
+impl Add<usize> for Position {
+    type Output = Position;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        Position {
+            line: self.line,
+            column: self.column + rhs,
+            raw_index: self.raw_index,
+        }
+    }
+}
+
+impl Sub for Position {
+    type Output = usize;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.column - rhs.column
+    }
+}
+
+impl Position {
+    pub fn add_line(&mut self) {
+        self.line += 1;
+        self.column = 0;
+        self.raw_index += 1;
+    }
+
+    pub fn add_char(&mut self) {
+        *self = *self + 1usize;
+        self.raw_index += 1;
+    }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Range {
+    /// Start position of range, inclusive
     pub start: Position,
+    /// End position of range, exclusive
     pub end: Position,
+    /// Source of range
+    pub source: Uuid,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Info {
-    pub token: Token,
-    pub pos: Range,
-    pub file: Uuid,
+impl Range {
+    pub fn new(start: Position, end: Position, source: Uuid) -> Range {
+        Range { start, end, source }
+    }
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
-pub struct RawToken {
-    pub text: String,
-    pub pos: Range,
-    pub file: Uuid,
+#[cfg(test)]
+impl Default for Range {
+    fn default() -> Self {
+        Self {
+            start: Position {
+                line: 0,
+                column: 0,
+                raw_index: 0,
+            },
+            end: Position {
+                line: 0,
+                column: 0,
+                raw_index: 0,
+            },
+            source: Default::default(),
+        }
+    }
 }
 
-/// Token type for the parser
+#[derive(Debug, PartialEq, Copy, Clone)]
+#[non_exhaustive]
+pub struct Token<'a> {
+    pub token: TokenType<'a>,
+    pub range: Range,
+}
+
+impl<'a> Token<'a> {
+    pub fn new(token: TokenType<'a>, range: Range) -> Token {
+        Token { token, range }
+    }
+}
+
+#[cfg(test)]
+impl<'a> Default for Token<'a> {
+    fn default() -> Self {
+        Self {
+            token: Default::default(),
+            range: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct SourceText<'a> {
+    pub text: &'a str,
+    pub range: Range,
+}
+
+impl<'a> SourceText<'a> {
+    pub fn new(text: &'a str, range: Range) -> SourceText {
+        SourceText { text, range }
+    }
+
+    pub fn into_token(self, token: TokenType) -> Token {
+        Token::new(token, self.range)
+    }
+}
+
+pub trait WithRange {
+    fn with_range(&self, range: Range) -> SourceText;
+}
+
+pub trait WithRangeFromSized: WithRange {
+    fn with_range_size(&self, start: Position, file: Uuid) -> SourceText;
+}
+
+impl<'a> WithRange for &'a str {
+    fn with_range(&self, range: Range) -> SourceText {
+        SourceText::new(self, range)
+    }
+}
+
+impl<'a> WithRangeFromSized for &'a str {
+    fn with_range_size(&self, start: Position, file: Uuid) -> SourceText {
+        SourceText::new(self, Range::new(start, start + self.len(), file))
+    }
+}
+
+/// TokenType type for the parser
 ///
 /// This is the token type for the parser. It is used to
 /// determine what the token is, and what to do with it.
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
-pub enum Token {
+#[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize, Default)]
+pub enum TokenType<'a> {
     /// Left Parenthesis '('
     LParen,
     /// Right Parenthesis ')'
@@ -51,14 +175,14 @@ pub enum Token {
     /// This is used to mark a label entry point in the code.
     /// It is used to mark the start of a function, or a jump
     /// target.
-    Label(String),
+    Label(&'a str),
     /// Symbol: text not matching any special token types
     ///
     /// This is used to mark a symbol. A symbol is a
     /// generic token that can be converted into a
     /// more specific type. The types include
     /// instructions, registers, numbers, and special CSR numbers/regs.
-    Symbol(String),
+    Symbol(&'a str),
     /// Directive: text starting with '.'
     ///
     /// This is used to mark a directive. A directive is a
@@ -71,42 +195,33 @@ pub enum Token {
     /// specified in the directive. This case has to be handled
     /// specially, as the file is not parsed, but rather
     /// included as is.
-    Directive(String),
+    Directive(&'a str),
     /// String: text enclosed in double quotes
-    String(String),
+    String(&'a str),
 }
 
-impl Token {
+impl<'a> TokenType<'a> {
     #[must_use]
     pub fn as_original_string(&self) -> String {
         match self {
-            Token::LParen => "(".to_owned(),
-            Token::RParen => ")".to_owned(),
-            Token::Newline => "\n".to_owned(),
-            Token::Label(l) => format!("{l}:"),
-            Token::Symbol(s) => s.clone(),
-            Token::Directive(d) => format!(".{d}"),
-            Token::String(s) => format!("\"{s}\""),
+            TokenType::LParen => "(".to_owned(),
+            TokenType::RParen => ")".to_owned(),
+            TokenType::Newline => "\n".to_owned(),
+            TokenType::Label(l) => format!("{l}:"),
+            TokenType::Symbol(s) => s.to_string(),
+            TokenType::Directive(d) => format!(".{d}"),
+            TokenType::String(s) => format!("\"{s}\""),
         }
     }
 }
 
-impl PartialEq<Token> for Info {
-    fn eq(&self, other: &Token) -> bool {
-        self.token == *other
-    }
-}
-impl<T> With<T> {
-    pub fn info(&self) -> Info {
-        Info {
-            file: self.file,
-            token: self.token.clone(),
-            pos: self.pos.clone(),
-        }
+impl<'a, T> With<'a, T> {
+    pub fn as_token(&self) -> &Token {
+        &self.token
     }
 }
 
-impl<T> PartialOrd for With<T>
+impl<'a, T> PartialOrd for With<'a, T>
 where
     T: PartialOrd,
 {
@@ -115,7 +230,7 @@ where
     }
 }
 
-impl<T> Ord for With<T>
+impl<'a, T> Ord for With<'a, T>
 where
     T: Ord,
 {
@@ -124,36 +239,37 @@ where
     }
 }
 
-impl Default for Info {
-    fn default() -> Self {
-        Info {
-            token: Token::Newline,
-            file: Uuid::nil(),
-            pos: Range {
-                start: Position {
-                    line: 0,
-                    column: 0,
-                    raw_index: 0,
-                },
-                end: Position {
-                    line: 0,
-                    column: 0,
-                    raw_index: 0,
-                },
-            },
-        }
+#[derive(Clone)]
+pub struct With<'a, T> {
+    pub data: T,
+    pub token: Token<'a>,
+}
+
+pub trait WithToken: Sized {
+    fn with_token<'a>(self, token: Token<'a>) -> With<'a, Self> {
+        With::new(self, token)
     }
 }
 
-#[derive(Clone)]
-pub struct With<T> {
-    pub token: Token,
-    pub pos: Range,
-    pub file: Uuid,
-    pub data: T,
+#[cfg(test)]
+pub trait WithTokenTestDefault: Sized {
+    fn with_test_token<'a>(self) -> With<'a, Self> {
+        With::new(self, Token::default())
+    }
 }
 
-impl<T> Serialize for With<T>
+#[cfg(test)]
+impl<T> WithTokenTestDefault for T {}
+
+impl<T> WithToken for T {}
+
+impl<'a, T> With<'a, T> {
+    fn new(data: T, token: Token) -> Self {
+        With { data, token }
+    }
+}
+
+impl<'a, T> Serialize for With<'a, T>
 where
     T: Serialize,
 {
@@ -162,21 +278,17 @@ where
     }
 }
 
-impl<'de, T> Deserialize<'de> for With<T>
+#[cfg(test)]
+impl<'a, 'de, T> Deserialize<'de> for With<'a, T>
 where
     T: Deserialize<'de>,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(With {
-            token: Token::default(),
-            pos: Range::default(),
-            file: Uuid::nil(),
-            data: T::deserialize(deserializer)?,
-        })
+        Ok(T::deserialize(deserializer)?.with_test_token())
     }
 }
 
-impl<T> std::fmt::Debug for With<T>
+impl<'a, T> std::fmt::Debug for With<'a, T>
 where
     T: std::fmt::Debug,
 {
@@ -185,7 +297,7 @@ where
     }
 }
 
-impl<T> std::fmt::Display for With<T>
+impl<'a, T> std::fmt::Display for With<'a, T>
 where
     T: std::fmt::Display,
 {
@@ -194,7 +306,7 @@ where
     }
 }
 
-impl<T> Hash for With<T>
+impl<'a, T> Hash for With<'a, T>
 where
     T: Hash,
 {
@@ -203,28 +315,28 @@ where
     }
 }
 
-impl Display for Info {
+impl<'a> Display for Token<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.token)
     }
 }
 
-impl Display for Token {
+impl<'a> Display for TokenType<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Label(s) => writeln!(f, "LABEL({s})"),
-            Token::Symbol(s) => write!(f, "SYMBOL({s})"),
-            Token::Directive(s) => write!(f, "DIRECTIVE({s})"),
-            Token::String(s) => write!(f, "STRING({s})"),
-            Token::Newline => write!(f, "NEWLINE"),
-            Token::LParen => write!(f, "LPAREN"),
-            Token::RParen => write!(f, "RPAREN"),
+            TokenType::Label(s) => writeln!(f, "LABEL({s})"),
+            TokenType::Symbol(s) => write!(f, "SYMBOL({s})"),
+            TokenType::Directive(s) => write!(f, "DIRECTIVE({s})"),
+            TokenType::String(s) => write!(f, "STRING({s})"),
+            TokenType::Newline => write!(f, "NEWLINE"),
+            TokenType::LParen => write!(f, "LPAREN"),
+            TokenType::RParen => write!(f, "RPAREN"),
         }
     }
 }
 
-pub struct VecTokenDisplayWrapper<'a>(&'a Vec<Info>);
-impl<'a> Display for VecTokenDisplayWrapper<'a> {
+pub struct VecTokenTypeDisplayWrapper<'a>(&'a Vec<Token<'a>>);
+impl<'a> Display for VecTokenTypeDisplayWrapper<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for t in self.0 {
             write!(f, "{t}")?;
@@ -233,13 +345,13 @@ impl<'a> Display for VecTokenDisplayWrapper<'a> {
     }
 }
 
-pub trait ToDisplayForTokenVec {
-    fn to_display(&self) -> VecTokenDisplayWrapper;
+pub trait ToDisplayForTokenTypeVec {
+    fn to_display(&self) -> VecTokenTypeDisplayWrapper;
 }
 
-impl ToDisplayForTokenVec for Vec<Info> {
-    fn to_display(&self) -> VecTokenDisplayWrapper {
-        VecTokenDisplayWrapper(self)
+impl<'a> ToDisplayForTokenTypeVec for Vec<Token<'a>> {
+    fn to_display(&self) -> VecTokenTypeDisplayWrapper {
+        VecTokenTypeDisplayWrapper(self)
     }
 }
 
@@ -254,16 +366,16 @@ impl std::fmt::Display for Range {
     }
 }
 
-impl<T> DiagnosticLocation for With<T> {
+impl<'a, T> DiagnosticLocation for With<'a, T> {
     fn range(&self) -> Range {
-        self.pos.clone()
+        self.token.range
     }
     fn file(&self) -> Uuid {
-        self.file
+        self.token.range.source
     }
 }
 
-impl<T> PartialEq<With<T>> for With<T>
+impl<'a, T> PartialEq<With<'a, T>> for With<'a, T>
 where
     T: PartialEq<T>,
 {
@@ -272,50 +384,20 @@ where
     }
 }
 
-impl<T> Eq for With<T> where T: Eq {}
+impl<'a, T> Eq for With<'a, T> where T: Eq {}
 
-impl<T> With<T>
-where
-    T: PartialEq<T>,
-{
-    pub fn new(data: T, info: Info) -> Self {
-        With {
-            token: info.token,
-            pos: info.pos,
-            file: info.file,
-            data,
-        }
-    }
-}
-
-impl<T> TryFrom<Info> for With<T>
-where
-    T: TryFrom<Info>,
-{
-    type Error = T::Error;
-
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
-        Ok(With {
-            pos: value.pos.clone(),
-            token: value.token.clone(),
-            file: value.file,
-            data: T::try_from(value)?,
-        })
-    }
-}
-
-impl TryFrom<Info> for String {
+impl<'a> TryFrom<Token<'a>> for &'a str {
     type Error = String;
 
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) | Token::String(s) => Ok(s),
+            TokenType::Symbol(s) | TokenType::String(s) => Ok(s),
             _ => Err(format!("Expected symbol or string, got {:?}", value.token)),
         }
     }
 }
 
-impl<T> PartialEq<T> for With<T>
+impl<'a, T> PartialEq<T> for With<'a, T>
 where
     T: PartialEq<T>,
 {
@@ -324,13 +406,13 @@ where
     }
 }
 
-trait TokenExpression {
+trait TokenTypeExpression {
     fn debug_tokens(&self);
 }
 
-impl TokenExpression for Vec<Token> {
+impl<'a> TokenTypeExpression for Vec<TokenType<'a>> {
     fn debug_tokens(&self) {
-        print!("Tokens: ");
+        print!("TokenTypes: ");
         for item in self {
             print!("[{item}]");
         }

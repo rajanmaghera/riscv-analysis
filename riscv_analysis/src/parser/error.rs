@@ -7,7 +7,7 @@ use crate::{
     reader::FileReaderError,
 };
 
-use super::{Info, ParserNode, With};
+use super::{ParserNode, Token, With};
 
 #[derive(Debug, Clone)]
 /// Lexer error
@@ -15,16 +15,16 @@ use super::{Info, ParserNode, With};
 /// These are errors that tell the parser to deal with separately. This do not
 /// inherently mean that the code is wrong, but rather that the parser must go
 /// down an alternate path to parse the code.
-pub enum LexError {
-    Expected(Vec<ExpectedType>, Info),
-    IsNewline(Info),
-    Ignored(Info),
-    UnexpectedToken(Info),
+pub enum LexError<'a> {
+    Expected(Vec<ExpectedType>, Token<'a>),
+    IsNewline(Token<'a>),
+    Ignored(Token<'a>),
+    UnexpectedTokenType(Token<'a>),
     UnexpectedEOF,
     NeedTwoNodes(Box<ParserNode>, Box<ParserNode>),
-    UnexpectedError(Info),
-    UnknownDirective(Info),
-    UnsupportedDirective(Info),
+    UnexpectedError(Token<'a>),
+    UnknownDirective(Token<'a>),
+    UnsupportedDirective(Token<'a>),
 }
 
 #[derive(Debug, Clone)]
@@ -33,15 +33,15 @@ pub enum LexError {
 /// These are errors that tell the user their code is wrong. These are errors
 /// that the parser recovers from by skipping the line, and continuing to parse
 /// the rest of the file. The user should see these errors within their editor
-pub enum ParseError {
-    Expected(Vec<ExpectedType>, Info),
-    Unsupported(Info),
-    UnexpectedToken(Info),
-    UnexpectedError(Info),
-    UnknownDirective(Info),
-    CyclicDependency(Info),
-    FileNotFound(With<String>),
-    IOError(With<String>, String),
+pub enum ParseError<'a> {
+    Expected(Vec<ExpectedType>, Token<'a>),
+    Unsupported(Token<'a>),
+    UnexpectedTokenType(Token<'a>),
+    UnexpectedError(Token<'a>),
+    UnknownDirective(Token<'a>),
+    CyclicDependency(Token<'a>),
+    FileNotFound(With<'a, String>),
+    IOError(With<'a, String>, String),
 }
 
 impl FileReaderError {
@@ -58,7 +58,7 @@ impl FileReaderError {
     }
 }
 
-impl Display for ParseError {
+impl<'a> Display for ParseError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             ParseError::Expected(expected, found) => {
@@ -74,7 +74,7 @@ impl Display for ParseError {
                 )
             }
             ParseError::Unsupported(_) => write!(f, "Unsupported operation"),
-            ParseError::UnexpectedToken(_) => write!(f, "Unexpected token"),
+            ParseError::UnexpectedTokenType(_) => write!(f, "Unexpected token"),
             ParseError::UnexpectedError(_) => write!(f, "Unexpected error"),
             ParseError::UnknownDirective(_) => write!(f, "Unknown directive"),
             ParseError::CyclicDependency(_) => write!(f, "Cyclic dependency"),
@@ -84,7 +84,7 @@ impl Display for ParseError {
     }
 }
 
-impl DiagnosticMessage for ParseError {
+impl<'a> DiagnosticMessage for ParseError<'a> {
     fn related(&self) -> Option<Vec<crate::passes::RelatedDiagnosticItem>> {
         None
     }
@@ -113,7 +113,7 @@ impl DiagnosticMessage for ParseError {
             ParseError::Unsupported(_) => "Unsupported operation.\n\n\
                 This token or directive is not supported by this program. Please file a bug report or ignore\
                 this error.".to_string(),
-            ParseError::UnexpectedToken(_) => "Unexpected token.\n\n\
+            ParseError::UnexpectedTokenType(_) => "Unexpected token.\n\n\
             This token was not expected here. This is likely a typo or an unsupported item."
                 .to_string(),
             ParseError::UnexpectedError(_) => {
@@ -148,12 +148,12 @@ impl PartialOrd for dyn DiagnosticLocation {
     }
 }
 
-impl DiagnosticLocation for ParseError {
+impl<'a> DiagnosticLocation for ParseError<'a> {
     fn file(&self) -> Uuid {
         match self {
             ParseError::Expected(_, info)
             | ParseError::Unsupported(info)
-            | ParseError::UnexpectedToken(info)
+            | ParseError::UnexpectedTokenType(info)
             | ParseError::UnexpectedError(info)
             | ParseError::UnknownDirective(info)
             | ParseError::CyclicDependency(info) => info.file,
@@ -165,7 +165,7 @@ impl DiagnosticLocation for ParseError {
         match self {
             ParseError::Expected(_, info)
             | ParseError::Unsupported(info)
-            | ParseError::UnexpectedToken(info)
+            | ParseError::UnexpectedTokenType(info)
             | ParseError::UnexpectedError(info)
             | ParseError::UnknownDirective(info)
             | ParseError::CyclicDependency(info) => info.pos.clone(),
@@ -174,12 +174,12 @@ impl DiagnosticLocation for ParseError {
     }
 }
 
-impl From<&ParseError> for WarningLevel {
+impl<'a> From<&ParseError<'a>> for WarningLevel {
     fn from(e: &ParseError) -> Self {
         match e {
             ParseError::Expected(_, _)
             | ParseError::Unsupported(_)
-            | ParseError::UnexpectedToken(_)
+            | ParseError::UnexpectedTokenType(_)
             | ParseError::UnexpectedError(_)
             | ParseError::UnknownDirective(_)
             | ParseError::CyclicDependency(_)

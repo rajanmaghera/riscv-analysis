@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
-    Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry, IArith,
-    JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, RawToken, Store,
+    Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveType, DirectiveType, FuncEntry, IArith,
+    JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, SourceText, Store,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,7 +41,7 @@ pub enum ParserNode {
 
 impl ParserNode {
     #[must_use]
-    pub fn token(&self) -> RawToken {
+    pub fn token(&self) -> SourceText {
         match self {
             ParserNode::Arith(x) => x.token.clone(),
             ParserNode::IArith(x) => x.token.clone(),
@@ -123,7 +123,7 @@ impl ParserNode {
         rd: With<Register>,
         rs1: With<Register>,
         rs2: With<Register>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::Arith(Arith {
             inst,
@@ -141,7 +141,7 @@ impl ParserNode {
         rd: With<Register>,
         rs1: With<Register>,
         imm: With<Imm>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::IArith(IArith {
             inst,
@@ -158,7 +158,7 @@ impl ParserNode {
         inst: With<JumpLinkType>,
         rd: With<Register>,
         name: With<LabelString>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::JumpLink(JumpLink {
             inst,
@@ -175,7 +175,7 @@ impl ParserNode {
         rd: With<Register>,
         rs1: With<Register>,
         imm: With<Imm>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::JumpLinkR(JumpLinkR {
             inst,
@@ -188,7 +188,7 @@ impl ParserNode {
     }
 
     #[must_use]
-    pub fn new_basic(inst: With<BasicType>, token: RawToken) -> ParserNode {
+    pub fn new_basic(inst: With<BasicType>, token: SourceText) -> ParserNode {
         ParserNode::Basic(Basic {
             inst,
             key: Uuid::new_v4(),
@@ -198,9 +198,9 @@ impl ParserNode {
 
     #[must_use]
     pub fn new_directive(
-        dir_token: With<DirectiveToken>,
+        dir_token: With<DirectiveType>,
         dir: DirectiveType,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::Directive(Directive {
             dir_token,
@@ -216,7 +216,7 @@ impl ParserNode {
         rs1: With<Register>,
         rs2: With<Register>,
         name: With<LabelString>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::Branch(Branch {
             inst,
@@ -234,7 +234,7 @@ impl ParserNode {
         rs1: With<Register>,
         rs2: With<Register>,
         imm: With<Imm>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::Store(Store {
             inst,
@@ -252,7 +252,7 @@ impl ParserNode {
         rd: With<Register>,
         rs1: With<Register>,
         imm: With<Imm>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::Load(Load {
             inst,
@@ -270,7 +270,7 @@ impl ParserNode {
         rd: With<Register>,
         csr: With<CSRImm>,
         rs1: With<Register>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::Csr(Csr {
             inst,
@@ -283,7 +283,7 @@ impl ParserNode {
     }
 
     #[must_use]
-    pub fn new_func_entry(file: Uuid, token: RawToken) -> ParserNode {
+    pub fn new_func_entry(file: Uuid, token: SourceText) -> ParserNode {
         ParserNode::FuncEntry(FuncEntry {
             key: Uuid::new_v4(),
             file,
@@ -292,7 +292,7 @@ impl ParserNode {
     }
 
     #[must_use]
-    pub fn new_program_entry(file: Uuid, token: RawToken) -> ParserNode {
+    pub fn new_program_entry(file: Uuid, token: SourceText) -> ParserNode {
         ParserNode::ProgramEntry(ProgramEntry {
             key: Uuid::new_v4(),
             file,
@@ -306,7 +306,7 @@ impl ParserNode {
         rd: With<Register>,
         csr: With<CSRImm>,
         imm: With<Imm>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::CsrI(CsrI {
             inst,
@@ -319,7 +319,7 @@ impl ParserNode {
     }
 
     #[must_use]
-    pub fn new_label(name: With<LabelString>, token: RawToken) -> ParserNode {
+    pub fn new_label(name: With<LabelString>, token: SourceText) -> ParserNode {
         ParserNode::Label(Label {
             name,
             key: Uuid::new_v4(),
@@ -332,7 +332,7 @@ impl ParserNode {
         inst: With<PseudoType>,
         rd: With<Register>,
         name: With<LabelString>,
-        token: RawToken,
+        token: SourceText,
     ) -> ParserNode {
         ParserNode::LoadAddr(LoadAddr {
             inst,

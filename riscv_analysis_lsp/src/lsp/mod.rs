@@ -1,7 +1,6 @@
 // Type conversions for LSP
 
 use std::collections::HashMap;
-use std::iter::Peekable;
 
 use lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range,
@@ -122,7 +121,7 @@ impl FileReader for LSPFileReader {
         &mut self,
         path: &str,
         in_file: Option<uuid::Uuid>,
-    ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError> {
+    ) -> Result<(Uuid, FullLexer<'a>), FileReaderError> {
         // if there is an in_file, find its path and use that as the parent
         let fulluri = match in_file {
             Some(uuid) => {
@@ -150,7 +149,7 @@ impl FileReader for LSPFileReader {
         // if file found, return lexer
         let doc = doc.unwrap();
         let lexer = Lexer::new(&doc.1.text, doc.0);
-        Ok((doc.0, lexer.peekable()))
+        Ok(FullLexer::new(&doc.1.text, doc.0))
     }
 }
 

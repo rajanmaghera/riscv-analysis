@@ -1,30 +1,28 @@
-use std::iter::Peekable;
-
+use crate::parser::Lexer;
 use uuid::Uuid;
 
-use crate::parser::Lexer;
+mod error;
+pub use error::*;
 
-#[derive(Debug)]
-pub enum FileReaderError {
-    IOErr(String),
-    InternalFileNotFound,
-    FileAlreadyRead(String),
-    Unexpected,
-    InvalidPath,
-}
+mod full_lexer;
+pub use full_lexer::*;
 
-pub trait FileReader: Sized {
+mod lexing_string;
+pub use lexing_string::*;
+
+/// An item that can read and keep track of files that will be read.
+pub trait FileReader: Sized + Clone {
     /// Import and read a file into the reader
     ///
-    /// Returns the UUID of the file and a peekable lexer. This lexer will allow
+    /// Returns the UUID of the file and a lexer. This lexer will allow
     /// you to search the file. Each file has its own attached lexer.
     fn import_file(
         &mut self,
         path: &str,
-        in_file: Option<uuid::Uuid>,
-    ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError>;
+        in_file: Option<Uuid>,
+    ) -> Result<LexingString, FileReaderError>;
 
-    fn get_text(&self, uuid: uuid::Uuid) -> Option<String>;
+    fn get_text(&self, uuid: uuid::Uuid) -> Option<&str>;
 
-    fn get_filename(&self, uuid: uuid::Uuid) -> Option<String>;
+    fn get_filename(&self, uuid: uuid::Uuid) -> Option<&str>;
 }

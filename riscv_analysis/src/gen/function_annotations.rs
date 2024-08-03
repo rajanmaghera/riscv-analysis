@@ -7,7 +7,7 @@ use std::{
 use crate::{
     cfg::{Cfg, Function},
     parser::Register,
-    parser::{Info, JumpLinkType, LabelString, ParserNode, With},
+    parser::{JumpLinkType, LabelString, ParserNode, Token, With},
     passes::{CFGError, DiagnosticLocation, GenerationPass},
 };
 
@@ -109,8 +109,8 @@ impl GenerationPass for FunctionMarkupPass {
                         existing_return_node.insert_prev(Rc::clone(&return_node));
 
                         // Convert node to jump
-                        let inf = Info {
-                            token: crate::parser::Token::Symbol("return".to_string()),
+                        let inf = Token {
+                            token: crate::parser::TokenType::Symbol("return".to_string()),
                             pos: return_node.node().range().clone(),
                             file: return_node.node().file(),
                         };

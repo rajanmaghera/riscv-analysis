@@ -1,274 +1,211 @@
+use std::str::Chars;
+
 use uuid::Uuid;
 
-use crate::parser::token::Token;
-use crate::parser::token::{Info, Position, Range};
+use crate::parser::token::TokenType;
+use crate::parser::token::{Position, Range, Token};
+
+use super::{SourceText, WithRangeFromSized};
 
 const EOF_CONST: char = 3 as char;
+
+trait PeekableOverlay: Iterator {
+    fn peek(&mut self) -> Option<&<Self as Iterator>::Item>;
+    fn next_if(
+        &mut self,
+        func: impl FnOnce(&<Self as Iterator>::Item) -> bool,
+    ) -> Option<<Self as Iterator>::Item> {
+        let next = self.peek()?;
+        if func(next) {
+            Some(self.next()?)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> PeekableOverlay for Chars<'a> {
+    fn peek(&mut self) -> Option<&<Self as Iterator>::Item> {
+        self.as_str().chars().nth(1).as_ref()
+    }
+}
 
 /// Lexer for RISC-V assembly
 ///
 /// The lexer implements the Iterator trait, so it can be used in a for loop for
 /// getting the next token.
-pub struct Lexer {
-    source: String,
+pub struct Lexer<'a> {
+    source: Chars<'a>,
     pub source_id: Uuid,
-    ch: char,
-    /// The position that will be read next
-    pos: usize,
-    /// The row that will be read next
-    row: usize,
-    /// The column that will be read next
-    col: usize,
+    /// The position that was just read.
+    ///
+    /// This field will be none if nothing was read. The attached character is the character at that location.
+    last_read: Option<(Position, char)>,
 }
 
-impl Lexer {
+trait LexerInspection {
+    /// Check if the current character is whitespace, excluding newlines.
+    ///
+    /// This function will return true if the current character is a space,
+    /// tab, or comma. Newlines are not considered whitespace as it is a
+    /// token in the lexer.
+    fn is_lexwhitespace(self) -> bool;
+
+    /// Check if the current character is a character usable in a symbol.
+    ///
+    /// This function will return true if the current character is a lowercase
+    /// or uppercase letter, an underscore, or a dash.
+    fn is_symbol_char(self) -> bool;
+
+    /// Check if the current character is a character usable in a symbol
+    /// or a digit.
+    fn is_symbol_item(self) -> bool;
+
+    fn is_newline(self) -> bool;
+}
+
+impl LexerInspection for char {
+    fn is_lexwhitespace(self) -> bool {
+        self == ' ' || self == '\t' || self == ','
+    }
+
+    fn is_symbol_char(self) -> bool {
+        self.is_ascii_lowercase() || self.is_ascii_uppercase() || self == '_' || self == '-'
+    }
+
+    fn is_symbol_item(self) -> bool {
+        self.is_symbol_char() || self.is_ascii_digit()
+    }
+
+    fn is_newline(self) -> bool {
+        self == '\n'
+    }
+}
+
+impl<'a> Lexer<'a> {
     /// Create a new lexer from a string.
-    pub fn new<S: Into<String>>(source: S, id: Uuid) -> Lexer {
-        let mut lex = Lexer {
-            source: source.into(),
+    pub fn new(source: &str, id: Uuid) -> Lexer {
+        Lexer {
+            source: source.chars(),
             source_id: id,
-            ch: '\0',
-            pos: 0,
-            row: 0,
-            col: 0,
-        };
-        lex.next_char();
-        lex
+            last_read: None,
+        }
+    }
+
+    pub fn pos(&self) -> Option<Position> {
+        Some(self.last_read?.0)
+    }
+
+    fn increment_position(&mut self, next_char: char) -> char {
+        match self.last_read {
+            Some((mut pos, mut char)) => {
+                if char == '\n' {
+                    pos.add_line();
+                } else {
+                    pos.add_char();
+                }
+                char = next_char;
+            }
+            None => {
+                self.last_read = Some((Position::new(0, 0, 0), next_char));
+            }
+        }
+        next_char
     }
 
     /// Get the next character in the source.
     ///
     /// This function will update the current character and the position
     /// of the Lexer struct.
-    fn next_char(&mut self) {
-        let b = self.source.as_bytes();
+    #[must_use]
+    fn consume_char(&mut self) -> Option<char> {
+        Some(self.increment_position(self.source.next()?))
+    }
 
-        if self.pos >= self.source.len() {
-            self.ch = EOF_CONST;
-        } else {
-            match b.get(self.pos) {
-                Some(c) => self.ch = *c as char,
-                None => self.ch = EOF_CONST,
+    #[must_use]
+    fn consume_char_if(&mut self, func: impl FnOnce(&char) -> bool) -> Option<char> {
+        Some(self.increment_position(self.source.next_if(func)?))
+    }
+
+    /// Skip all whitespace.
+    ///
+    /// This will leave the consumable in a spot where the next item will need to be "consumed".
+    fn skip_while(&mut self, func: impl Fn(char) -> bool) {
+        loop {
+            let next_char = match self.source.peek() {
+                Some(c) => c,
+                None => return,
+            };
+
+            if !func(*next_char) {
+                break;
             }
         }
-
-        if self.ch == '\n' {
-            self.row += 1;
-            self.col = 0;
-        } else {
-            self.col += 1;
-        }
-
-        self.pos += 1;
     }
 
-    /// Check if the current character is whitespace, excluding newlines.
-    ///
-    /// This function will return true if the current character is a space,
-    /// tab, or comma. Newlines are not considered whitespace as it is a
-    /// token in the lexer.
-    fn is_ws(&self) -> bool {
-        self.ch == ' ' || self.ch == '\t' || self.ch == ','
-    }
-
-    /// Check if the current character is a character usable in a symbol.
-    ///
-    /// This function will return true if the current character is a lowercase
-    /// or uppercase letter, an underscore, or a dash.
-    fn is_symbol_char(&self) -> bool {
-        let c = self.ch;
-        c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_' || c == '-'
-    }
-
-    /// Check if the current character is a character usable in a symbol
-    /// or a digit.
-    fn is_symbol_item(&self) -> bool {
-        let c = self.ch;
-        self.is_symbol_char() || c.is_ascii_digit()
-    }
-
-    /// Skip whitespace.
-    ///
-    /// This function will skip all whitespace characters, excluding newlines.
-    fn skip_ws(&mut self) {
-        while self.is_ws() {
-            self.next_char();
-        }
+    /// Consume while condition is true.
+    fn consume_while(&mut self, func: impl Fn(&char) -> bool) -> Option<SourceText> {
+        let base_text = self.source.as_str();
+        let first_char = self.consume_char_if(func)?;
+        let start = self.pos()?;
+        while let Some(_) = self.consume_char_if(func) {}
+        let end = self.pos()? + 1usize;
+        let text = &base_text[..end - start];
+        Some(text.with_range_size(start, self.source_id))
     }
 
     /// Get a range from the current character.
     ///
     /// This function will return a range with the start and end position
     /// being the current position of the lexer.
-    fn get_range(&self) -> Range {
-        let mut end = self.get_pos();
-        end.column += 1;
-        Range {
-            start: self.get_pos(),
-            end,
-        }
+    fn get_range_of_char(&self) -> Option<Range> {
+        Some(Range::new(
+            self.pos()?,
+            self.pos()? + 1usize,
+            self.source_id,
+        ))
     }
 
-    /// Get the current position of the lexer.
-    ///
-    /// This function will return the current position of the lexer.
-    fn get_pos(&self) -> Position {
-        let column = if self.col == 0 { 0 } else { self.col - 1 };
-
-        Position {
-            line: self.row,
-            column,
-            raw_index: self.pos,
-        }
+    fn get_token_of_char(&self, token: TokenType) -> Option<Token> {
+        Some(Token::new(token, self.get_range_of_char()?))
     }
 }
 
-impl Iterator for Lexer {
-    type Item = Info;
+impl<'a> Lexer<'a> {}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token<'a>;
 
     #[allow(clippy::too_many_lines)]
     fn next(&mut self) -> Option<Self::Item> {
-        self.skip_ws();
-
-        match self.ch {
-            '\n' => {
-                let pos = self.get_range();
-
-                self.next_char();
-
-                Some(Info {
-                    token: Token::Newline,
-                    file: self.source_id,
-                    pos,
-                })
-            }
-            '(' => {
-                let pos = self.get_range();
-                self.next_char();
-
-                Some(Info {
-                    token: Token::LParen,
-                    file: self.source_id,
-                    pos,
-                })
-            }
-            ')' => {
-                let pos = self.get_range();
-                self.next_char();
-
-                Some(Info {
-                    token: Token::RParen,
-                    file: self.source_id,
-                    pos,
-                })
-            }
-            '.' => {
-                // directive
-
-                let start = self.get_pos();
-                self.next_char();
-
-                let mut dir_str: String = String::new();
-
-                while self.is_symbol_item() {
-                    dir_str += &self.ch.to_string();
-                    self.next_char();
+        self.skip_while(|b| b.is_lexwhitespace());
+        loop {
+            break match self.consume_char()? {
+                '\n' => Some(self.get_token_of_char(TokenType::Newline)?),
+                '(' => Some(self.get_token_of_char(TokenType::LParen))?,
+                ')' => Some(self.get_token_of_char(TokenType::RParen)?),
+                '.' => {
+                    let val = self.consume_while(|c| c.is_symbol_item())?;
+                    Some(val.into_token(TokenType::Directive(val.text)))
                 }
-
-                let end = self.get_pos();
-
-                if dir_str.is_empty() {
-                    return None;
+                '#' => {
+                    self.skip_while(|b| !b.is_newline());
+                    continue;
                 }
-
-                Some(Info {
-                    token: Token::Directive(dir_str.clone()),
-                    pos: Range { start, end },
-                    file: self.source_id,
-                })
-            }
-            '#' => {
-                // skip line till newline
-                while self.ch != '\n' && self.ch != EOF_CONST {
-                    self.next_char();
+                '"' => {
+                    let val = self.consume_while(|c| *c != '"')?;
+                    Some(val.into_token(TokenType::String(val.text)))
                 }
+                _ => {
+                    let val = self.consume_while(|c| c.is_symbol_item())?;
 
-                if self.ch == EOF_CONST {
-                    return None;
+                    if let Some(_) = self.consume_char_if(|c| *c == ':') {
+                        Some(val.into_token(TokenType::Label(&val.text)))
+                    } else {
+                        Some(val.into_token(TokenType::Symbol(&val.text)))
+                    }
                 }
-                self.next_char();
-
-                Some(Info {
-                    token: Token::Newline,
-                    pos: self.get_range(),
-                    file: self.source_id,
-                })
-            }
-
-            '"' => {
-                // string
-                let start = self.get_pos();
-                let mut string_str: String = String::new();
-
-                self.next_char();
-
-                while self.ch != '"' {
-                    string_str += &self.ch.to_string();
-                    self.next_char();
-                }
-
-                self.next_char();
-
-                let end = self.get_pos();
-
-                self.next_char();
-
-                Some(Info {
-                    token: Token::String(string_str.clone()),
-                    pos: Range { start, end },
-                    file: self.source_id,
-                })
-            }
-            _ => {
-                let start = self.get_pos();
-
-                let mut symbol_str: String = String::new();
-
-                while self.is_symbol_item() {
-                    symbol_str += &self.ch.to_string();
-                    self.next_char();
-                }
-
-                if symbol_str.is_empty() {
-                    // this is an error or end of line?
-                    return None;
-                } else if self.ch == ':' {
-                    // this is a label
-                    self.next_char();
-
-                    // TODO why isnt this get_pos? has to do with column?
-                    let mut end = start;
-                    end.column += symbol_str.len();
-                    end.raw_index += symbol_str.len();
-
-                    return Some(Info {
-                        token: Token::Label(symbol_str.clone()),
-                        pos: Range { start, end },
-                        file: self.source_id,
-                    });
-                }
-
-                // TODO why isnt this get_pos? has to do with column?
-                let mut end = start;
-                end.column += symbol_str.len();
-                end.raw_index += symbol_str.len();
-
-                Some(Info {
-                    token: Token::Symbol(symbol_str.clone()),
-                    pos: Range { start, end },
-                    file: self.source_id,
-                })
-            }
+            };
         }
     }
 }
@@ -276,15 +213,17 @@ impl Iterator for Lexer {
 #[cfg(test)]
 mod tests {
 
-    use crate::parser::{Info, Lexer, Token};
-    fn tokenize<S: Into<String>>(input: S) -> Vec<Info> {
-        Lexer::new(input, uuid::Uuid::nil()).collect()
+    use crate::parser::{Lexer, TokenType};
+    fn tokenize(input: &str) -> Vec<TokenType> {
+        Lexer::new(input, uuid::Uuid::nil())
+            .map(|it| it.token)
+            .collect()
     }
 
     #[test]
     fn lex_label() {
         let tokens = tokenize("My_Label:");
-        assert_eq!(tokens, vec![Token::Label("My_Label".to_owned())]);
+        assert_eq!(tokens, vec![TokenType::Label("My_Label")]);
     }
 
     #[test]
@@ -293,10 +232,10 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Symbol("add".to_owned()),
-                Token::Symbol("s0".to_owned()),
-                Token::Symbol("s0".to_owned()),
-                Token::Symbol("s2".to_owned()),
+                TokenType::Symbol("add"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s2"),
             ]
         );
     }
@@ -307,10 +246,10 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Symbol("0x1234".to_owned()),
-                Token::Symbol("0b1010".to_owned()),
-                Token::Symbol("1234".to_owned()),
-                Token::Symbol("-222".to_owned()),
+                TokenType::Symbol("0x1234"),
+                TokenType::Symbol("0b1010"),
+                TokenType::Symbol("1234"),
+                TokenType::Symbol("-222"),
             ]
         );
     }
@@ -323,30 +262,30 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Symbol("add".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x3".into()),
-                Token::Newline,
-                Token::Label("BLCOK".to_owned()),
-                Token::Newline,
-                Token::Newline,
-                Token::Newline,
-                Token::Symbol("sub".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a1".into()),
-                Token::Newline,
-                Token::Label("my_block".to_owned()),
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
-                Token::Newline,
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
+                TokenType::Symbol("add"),
+                TokenType::Symbol("x2"),
+                TokenType::Symbol("x2"),
+                TokenType::Symbol("x3"),
+                TokenType::Newline,
+                TokenType::Label("BLCOK"),
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Symbol("sub"),
+                TokenType::Symbol("a0"),
+                TokenType::Symbol("a0"),
+                TokenType::Symbol("a1"),
+                TokenType::Newline,
+                TokenType::Label("my_block"),
+                TokenType::Symbol("add"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s2"),
+                TokenType::Newline,
+                TokenType::Symbol("add"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s2"),
             ]
         );
     }
@@ -358,35 +297,32 @@ mod tests {
         );
 
         assert_eq!(
-            lexer
-                .iter()
-                .map(|t| t.token.clone())
-                .collect::<Vec<Token>>(),
+            lexer,
             vec![
-                Token::Symbol("add".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x3".into()),
-                Token::Newline,
-                Token::Label("BLCOK".to_string()),
-                Token::Newline,
-                Token::Newline,
-                Token::Newline,
-                Token::Symbol("sub".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a1".into()),
-                Token::Newline, // ERROR HERE
-                Token::Label("my_block".to_string()),
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
-                Token::Newline, // ERROR HERE
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
+                TokenType::Symbol("add"),
+                TokenType::Symbol("x2"),
+                TokenType::Symbol("x2"),
+                TokenType::Symbol("x3"),
+                TokenType::Newline,
+                TokenType::Label("BLCOK"),
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Symbol("sub"),
+                TokenType::Symbol("a0"),
+                TokenType::Symbol("a0"),
+                TokenType::Symbol("a1"),
+                TokenType::Newline, // ERROR HERE
+                TokenType::Label("my_block"),
+                TokenType::Symbol("add"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s2"),
+                TokenType::Newline, // ERROR HERE
+                TokenType::Symbol("add"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s0"),
+                TokenType::Symbol("s2"),
             ]
         );
     }

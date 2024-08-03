@@ -1,16 +1,16 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::Deref};
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
-    ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, DirectiveToken, IArithType,
-    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, RawToken,
-    Register, StoreType, With,
+    ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, DirectiveType, IArithType,
+    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, Register,
+    SourceText, StoreType, With,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Arith {
+pub struct Arith<'a> {
     pub inst: With<ArithType>,
     pub rd: With<Register>,
     pub rs1: With<Register>,
@@ -18,7 +18,15 @@ pub struct Arith {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText<'a>,
+}
+
+impl<'a> Deref for Arith<'a> {
+    type Target = SourceText<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.token
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,7 +38,7 @@ pub struct IArith {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,7 +47,7 @@ pub struct Label {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JumpLink {
@@ -49,7 +57,7 @@ pub struct JumpLink {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,7 +69,7 @@ pub struct JumpLinkR {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,7 +78,7 @@ pub struct Basic {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,7 +90,7 @@ pub struct Branch {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,7 +102,7 @@ pub struct Load {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,7 +114,7 @@ pub struct Store {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize)]
@@ -167,12 +175,12 @@ impl Display for DirectiveType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Directive {
-    pub dir_token: With<DirectiveToken>,
+    pub dir_token: With<DirectiveType>,
     pub dir: DirectiveType,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -184,7 +192,7 @@ pub struct Csr {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -196,7 +204,7 @@ pub struct CsrI {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -205,7 +213,7 @@ pub struct Ignore {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -216,7 +224,7 @@ pub struct LoadAddr {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -226,7 +234,7 @@ pub struct FuncEntry {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -236,5 +244,5 @@ pub struct ProgramEntry {
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
-    pub token: RawToken,
+    pub token: SourceText,
 }

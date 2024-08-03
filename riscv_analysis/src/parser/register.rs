@@ -1,6 +1,6 @@
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::parser::token::{Info, Token};
+use crate::parser::token::{Token, TokenType};
 use std::{
     collections::HashSet,
     convert::TryFrom,
@@ -46,12 +46,12 @@ pub enum Register {
     X31,
 }
 
-impl TryFrom<Info> for Register {
+impl<'a> TryFrom<Token<'a>> for Register {
     type Error = ();
 
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) => Register::from_str(&s),
+            TokenType::Symbol(s) => Register::from_str(&s),
             _ => Err(()),
         }
     }

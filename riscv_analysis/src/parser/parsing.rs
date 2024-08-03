@@ -5,18 +5,17 @@ use crate::parser::inst::{
     PseudoType, Type,
 };
 use crate::parser::token::With;
-use crate::parser::{DataType, RawToken, Register};
-use crate::parser::{DirectiveToken, LexError};
-use crate::parser::{DirectiveType, ParserNode};
-use crate::parser::{Lexer, Token};
+use crate::parser::ParserNode;
+use crate::parser::{DataType, Register, SourceText};
+use crate::parser::{DirectiveType, LexError};
+use crate::parser::{Lexer, TokenType};
 use crate::passes::{DiagnosticItem, Manager};
-use crate::reader::FileReader;
+use crate::reader::{FileReader, FullLexer};
 use serde::Deserialize;
-use std::iter::Peekable;
 use std::str::FromStr;
 
 use super::imm::{CSRImm, Imm};
-use super::token::Info;
+use super::token::Token;
 use super::{ExpectedType, LabelString, ParseError, Range};
 
 #[derive(Deserialize, Clone)]
@@ -27,15 +26,14 @@ pub struct RVDocument {
 pub trait CanGetURIString: FileReader {
     fn get_uri_string(&self, uuid: Uuid) -> RVDocument;
 }
+
 /// Parser for RISC-V assembly
-pub struct RVParser<T>
-where
-    T: FileReader + Clone,
-{
-    lexer_stack: Vec<Peekable<Lexer>>,
+pub struct RVParser<'a, T: FileReader> {
+    lexer_stack: Vec<FullLexer<'a>>,
     pub reader: T,
 }
-impl<T: FileReader + Clone> RVParser<T> {
+
+impl<'a, T: FileReader> RVParser<'a, T> {
     pub fn run(&mut self, base: &str) -> Vec<DiagnosticItem> {
         let mut diags = Vec::new();
         let parsed = self.parse(base, false);
@@ -57,7 +55,7 @@ impl<T: FileReader + Clone> RVParser<T> {
         diags
     }
 
-    pub fn new(reader: T) -> RVParser<T> {
+    pub fn new(reader: T) -> RVParser<'a, T> {
         RVParser {
             lexer_stack: Vec::new(),
             reader,
@@ -72,7 +70,7 @@ impl<T: FileReader + Clone> RVParser<T> {
         let lexer = self.lexer();
         if let Some(x) = lexer {
             for token in x.by_ref() {
-                if token == Token::Newline {
+                if token == TokenType::Newline {
                     break;
                 }
             }
@@ -94,16 +92,16 @@ impl<T: FileReader + Clone> RVParser<T> {
         let lexer = match self.reader.import_file(base, None) {
             Ok(x) => x,
             Err(e) => {
-                parse_errors.push(e.to_parse_error(With::new(base.to_owned(), Info::default())));
+                parse_errors.push(e.to_parse_error(With::new(base.to_owned(), Token::default())));
                 return (nodes, parse_errors);
             }
         };
-        self.lexer_stack.push(lexer.1);
+        self.lexer_stack.push(lexer.into());
 
         // Add program entry node
         nodes.push(ParserNode::new_program_entry(
             lexer.0,
-            RawToken {
+            SourceText {
                 text: String::new(),
                 pos: Range::default(),
                 file: lexer.0,
@@ -124,7 +122,7 @@ impl<T: FileReader + Clone> RVParser<T> {
                                 );
                                 match lex2 {
                                     Ok(x2) => {
-                                        self.lexer_stack.push(x2.1);
+                                        self.lexer_stack.push(x2.into());
                                     }
                                     Err(x2) => {
                                         parse_errors.push(x2.to_parse_error(path.clone()));
@@ -142,8 +140,8 @@ impl<T: FileReader + Clone> RVParser<T> {
                         self.recover_from_parse_error();
                     }
                     LexError::IsNewline(_) => {}
-                    LexError::UnexpectedToken(got) => {
-                        parse_errors.push(ParseError::UnexpectedToken(got));
+                    LexError::UnexpectedTokenType(got) => {
+                        parse_errors.push(ParseError::UnexpectedTokenType(got));
                         self.recover_from_parse_error();
                     }
                     LexError::UnexpectedEOF => {
@@ -171,23 +169,23 @@ impl<T: FileReader + Clone> RVParser<T> {
         (nodes, parse_errors)
     }
 
-    fn lexer(&mut self) -> Option<&mut Peekable<Lexer>> {
+    fn lexer(&mut self) -> Option<&mut FullLexer> {
         let item = &mut self.lexer_stack;
         item.last_mut()
     }
 }
 
-impl Info {
+impl Token {
     fn as_lparen(&self) -> Result<(), LexError> {
         match self.token {
-            Token::LParen => Ok(()),
+            TokenType::LParen => Ok(()),
             _ => Err(LexError::Expected(vec![ExpectedType::LParen], self.clone())),
         }
     }
 
     fn as_rparen(&self) -> Result<(), LexError> {
         match self.token {
-            Token::RParen => Ok(()),
+            TokenType::RParen => Ok(()),
             _ => Err(LexError::Expected(vec![ExpectedType::RParen], self.clone())),
         }
     }
@@ -247,10 +245,10 @@ impl<'a> AnnotatedLexer<'a> {
         self.get_any()?.as_string()
     }
 
-    fn get_any(&mut self) -> Result<Info, LexError> {
+    fn get_any(&mut self) -> Result<Token, LexError> {
         let item = self.lexer.next().ok_or(LexError::UnexpectedEOF)?;
-        if self.raw_token == RawToken::default() {
-            self.raw_token = RawToken {
+        if self.raw_token == SourceText::default() {
+            self.raw_token = SourceText {
                 text: item.token.as_original_string(),
                 pos: item.pos.clone(),
                 file: item.file,
@@ -265,33 +263,33 @@ impl<'a> AnnotatedLexer<'a> {
         Ok(item)
     }
 
-    fn peek_any(&mut self) -> Result<&Info, LexError> {
+    fn peek_any(&mut self) -> Result<&Token, LexError> {
         self.lexer.peek().ok_or(LexError::UnexpectedEOF)
     }
 }
 
 struct AnnotatedLexer<'a> {
-    lexer: &'a mut Peekable<Lexer>,
-    raw_token: RawToken,
+    lexer: &'a mut FullLexer<'a>,
+    raw_token: SourceText<'a>,
 }
-impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
-    type Error = LexError;
+impl<'a> TryFrom<&mut FullLexer<'a>> for ParserNode {
+    type Error = LexError<'a>;
 
     // TODO enforce that all "missing" values for With<> resolve to the token
     // of the instruction
 
     #[allow(clippy::too_many_lines)]
-    fn try_from(val: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
+    fn try_from(val: &mut FullLexer<'a>) -> Result<Self, Self::Error> {
         use LexError::{Expected, Ignored, IsNewline, NeedTwoNodes};
 
         let mut lex = AnnotatedLexer {
             lexer: val,
-            raw_token: RawToken::default(),
+            raw_token: SourceText::default(),
         };
 
         let next_node = lex.get_any()?;
         match &next_node.token {
-            Token::Symbol(s) => {
+            TokenType::Symbol(s) => {
                 if let Ok(inst) = Inst::from_str(s) {
                     let node = match Type::from(&inst) {
                         Type::CsrI(inst) => {
@@ -895,7 +893,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                     next_node.clone(),
                 ))
             }
-            Token::Label(s) => Ok(ParserNode::new_label(
+            TokenType::Label(s) => Ok(ParserNode::new_label(
                 With::new(
                     LabelString::from_str(s).map_err(|_| {
                         LexError::Expected(vec![ExpectedType::Label], next_node.clone())
@@ -904,10 +902,10 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                 ),
                 lex.raw_token,
             )),
-            Token::Directive(dir) => {
-                if let Ok(directive) = DirectiveToken::from_str(dir) {
+            TokenType::Directive(dir) => {
+                if let Ok(directive) = DirectiveType::from_str(dir) {
                     match directive {
-                        DirectiveToken::Align => {
+                        DirectiveType::Align => {
                             let imm = lex.get_imm()?;
                             Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
@@ -915,7 +913,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 lex.raw_token,
                             ))
                         }
-                        DirectiveToken::Ascii => {
+                        DirectiveType::Ascii => {
                             let string = lex.get_string()?;
                             Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
@@ -926,7 +924,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 lex.raw_token,
                             ))
                         }
-                        DirectiveToken::Asciz | DirectiveToken::String => {
+                        DirectiveType::Asciz | DirectiveType::String => {
                             let string = lex.get_string()?;
                             Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
@@ -937,19 +935,19 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 lex.raw_token,
                             ))
                         }
-                        DirectiveToken::Byte
-                        | DirectiveToken::Double
-                        | DirectiveToken::Dword
-                        | DirectiveToken::Float
-                        | DirectiveToken::Word
-                        | DirectiveToken::Half => {
+                        DirectiveType::Byte
+                        | DirectiveType::Double
+                        | DirectiveType::Dword
+                        | DirectiveType::Float
+                        | DirectiveType::Word
+                        | DirectiveType::Half => {
                             let data_type = match directive {
-                                DirectiveToken::Byte => DataType::Byte,
-                                DirectiveToken::Double => DataType::Double,
-                                DirectiveToken::Dword => DataType::Dword,
-                                DirectiveToken::Float => DataType::Float,
-                                DirectiveToken::Word => DataType::Word,
-                                DirectiveToken::Half => DataType::Half,
+                                DirectiveType::Byte => DataType::Byte,
+                                DirectiveType::Double => DataType::Double,
+                                DirectiveType::Dword => DataType::Dword,
+                                DirectiveType::Float => DataType::Float,
+                                DirectiveType::Word => DataType::Word,
+                                DirectiveType::Half => DataType::Half,
                                 _ => return Err(LexError::UnexpectedError(next_node)),
                             };
 
@@ -958,7 +956,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             let mut values = Vec::new();
                             loop {
                                 let next = lex.peek_any()?;
-                                if let Token::Newline = next.token {
+                                if let TokenType::Newline = next.token {
                                     // consume newline
                                     lex.get_any()?;
                                     continue;
@@ -977,19 +975,19 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 lex.raw_token,
                             ))
                         }
-                        DirectiveToken::Data => Ok(ParserNode::new_directive(
+                        DirectiveType::Data => Ok(ParserNode::new_directive(
                             With::new(directive, next_node.clone()),
                             DirectiveType::DataSection,
                             lex.raw_token,
                         )),
-                        DirectiveToken::Macro => {
+                        DirectiveType::Macro => {
                             // macros are unsupported
                             // we will just ignore them until the we reach endmacro
                             loop {
                                 let next = lex.get_any()?;
-                                if let Token::Directive(dir2) = next.token {
-                                    if let Ok(new_dir) = DirectiveToken::from_str(&dir2) {
-                                        if new_dir == DirectiveToken::EndMacro {
+                                if let TokenType::Directive(dir2) = next.token {
+                                    if let Ok(new_dir) = DirectiveType::from_str(&dir2) {
+                                        if new_dir == DirectiveType::EndMacro {
                                             break;
                                         }
                                     }
@@ -997,13 +995,13 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             }
                             Err(LexError::Ignored(next_node))
                         }
-                        DirectiveToken::EndMacro => Err(LexError::Ignored(next_node)),
-                        DirectiveToken::Section
-                        | DirectiveToken::Extern
-                        | DirectiveToken::Eqv
-                        | DirectiveToken::Global
-                        | DirectiveToken::Globl => Err(LexError::UnsupportedDirective(next_node)),
-                        DirectiveToken::Include => {
+                        DirectiveType::EndMacro => Err(LexError::Ignored(next_node)),
+                        DirectiveType::Section
+                        | DirectiveType::Extern
+                        | DirectiveType::Eqv
+                        | DirectiveType::Global
+                        | DirectiveType::Globl => Err(LexError::UnsupportedDirective(next_node)),
+                        DirectiveType::Include => {
                             let filename = lex.get_string()?;
                             Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
@@ -1011,7 +1009,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 lex.raw_token,
                             ))
                         }
-                        DirectiveToken::Space => {
+                        DirectiveType::Space => {
                             let imm = lex.get_imm()?;
                             Ok(ParserNode::new_directive(
                                 With::new(directive, next_node.clone()),
@@ -1019,7 +1017,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 lex.raw_token,
                             ))
                         }
-                        DirectiveToken::Text => Ok(ParserNode::new_directive(
+                        DirectiveType::Text => Ok(ParserNode::new_directive(
                             With::new(directive, next_node.clone()),
                             DirectiveType::TextSection,
                             lex.raw_token,
@@ -1029,9 +1027,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                     Err(LexError::UnknownDirective(next_node.clone()))
                 }
             }
-            Token::Newline => Err(IsNewline(next_node)),
-            Token::LParen | Token::RParen | Token::String(_) => {
-                Err(LexError::UnexpectedToken(next_node))
+            TokenType::Newline => Err(IsNewline(next_node)),
+            TokenType::LParen | TokenType::RParen | TokenType::String(_) => {
+                Err(LexError::UnexpectedTokenType(next_node))
             }
         }
     }

@@ -16,7 +16,7 @@ use crate::{
 use super::{CFGError, GenerationPass, LintError, LintPass};
 
 #[derive(Default)]
-pub struct DebugInfo {
+pub struct DebugToken {
     pub output: bool,
     pub yaml: bool,
 }

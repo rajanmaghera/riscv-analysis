@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::parser::Lexer;
-use crate::parser::{Info, Position, Range, Token, With};
+use crate::parser::{Token, Position, Range, TokenType, With};
 
 impl<T> With<T>
 where
@@ -9,7 +9,7 @@ where
 {
     pub fn blank(data: T) -> Self {
         With {
-            token: Token::Symbol(String::new()),
+            token: TokenType::Symbol(String::new()),
             pos: Range {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
@@ -90,8 +90,8 @@ macro_rules! exp {
 #[macro_export]
 macro_rules! token {
     ($x:expr) => {
-        Info {
-            token: Token::Symbol($x.to_owned()),
+        Token {
+            token: TokenType::Symbol($x.to_owned()),
             pos: Range {
                 start: Position { line: 0, column: 0 },
                 end: Position {

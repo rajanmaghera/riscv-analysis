@@ -1,13 +1,13 @@
 use std::fmt::Display;
 use std::io::Write;
 use std::vec;
-use std::{collections::HashMap, iter::Peekable, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use bat::line_range::{LineRange, LineRanges};
 use bat::{Input, PrettyPrinter};
 use colored::Colorize;
 use riscv_analysis::fix::{fix_stack, Manipulation};
-use riscv_analysis::parser::{Info, LabelString, Lexer, RVParser, With};
+use riscv_analysis::parser::{LabelString, Lexer, RVParser, Token, With};
 use riscv_analysis::passes::DiagnosticItem;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -219,7 +219,7 @@ impl FileReader for IOFileReader {
         &mut self,
         path: &str,
         in_file: Option<uuid::Uuid>,
-    ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError> {
+    ) -> Result<(Uuid, FullLexer<'a>), FileReaderError> {
         let path = if let Some(id) = in_file {
             // get parent from uuid
             let parent = self.files.get(&id).map(|(path, _)| path);
@@ -264,23 +264,20 @@ impl FileReader for IOFileReader {
         }
 
         // create lexer
-        let lexer = Lexer::new(file, uuid);
+        let lexer = Lexer::new(&file, uuid);
 
-        Ok((uuid, lexer.peekable()))
+        Ok(FullLexer::new(&file, uuid))
     }
 }
 
 trait ErrorDisplay {
-    fn display_errors<T: FileReader + Clone>(&self, parser: &RVParser<T>);
+    fn display_errors<T: FileReader>(&self, parser: &RVParser<T>);
 }
 
 impl ErrorDisplay for Vec<DiagnosticItem> {
-    fn display_errors<T: FileReader + Clone>(&self, parser: &RVParser<T>) {
+    fn display_errors<T: FileReader>(&self, parser: &RVParser<T>) {
         for err in self {
-            let filename = parser
-                .reader
-                .get_filename(err.file)
-                .unwrap_or("unknown".to_owned());
+            let filename = parser.reader.get_filename(err.file).unwrap_or("unknown");
             let text = parser.reader.get_text(err.file).unwrap();
             PrettyPrinter::new()
                 .input(
@@ -372,7 +369,7 @@ fn main() {
                 .label_function_map
                 .get(&With::new(
                     LabelString(fix.func_name.clone()),
-                    Info::default(),
+                    Token::default(),
                 ))
                 .expect("unable to find function");
             let fixes = fix_stack(func);
@@ -391,10 +388,7 @@ fn main() {
             for err in parsed.1 {
                 println!(
                     "({}, {}): {}",
-                    parser
-                        .reader
-                        .get_filename(err.file())
-                        .unwrap_or("unknown".to_owned()),
+                    parser.reader.get_filename(err.file()).unwrap_or("unknown"),
                     err.range(),
                     err
                 );
