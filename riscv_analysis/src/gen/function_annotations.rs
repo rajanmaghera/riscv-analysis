@@ -10,17 +10,21 @@ use crate::{
     passes::{CFGError, GenerationPass},
 };
 
+struct MarkData {
+    pub found: HashSet<Register>,
+    pub returns: HashSet<Rc<CFGNode>>,
+}
+
 pub struct FunctionMarkupPass;
 
 impl FunctionMarkupPass {
     fn mark_reachable(entry: Rc<CFGNode>, func: Rc<Function>)
-                      -> Result<HashSet<Register>, Box<CFGError>> {
+                      -> Result<MarkData, Box<CFGError>> {
         // Initialize data for graph search
         let mut queue = vec![entry.clone()];
         let mut seen = HashSet::new();
-
-        // Which registers does this function write to?
-        let mut found = HashSet::new();
+        let mut found = HashSet::new();     // Registers this function writes to
+        let mut returns = HashSet::new();   // Return instructions in this function
 
         // Traverse the CFG for all nodes reachable from the entry point
         while let Some(node) = queue.pop() {
@@ -36,15 +40,28 @@ impl FunctionMarkupPass {
             if node.function().is_some() {
                 return Err(Box::new(
                     CFGError::MultipleFunctions(node.node(), entry.labels())
-                ))
+                ));
             }
 
-            // Mark this node as being a part of this function
+            // If this node has a different function label, something is wrong
+            if node.is_function_entry().is_some()
+                && !node.labels().is_subset(&func.labels()) {
+                return Err(Box::new(
+                    CFGError::MultipleFunctions(node.node(), node.labels())
+                ));
+            }
+
+            // Mark the node as being a part of the given function
             node.set_function(func.clone());
 
-            // Collect any registers written to by this instruction
+            // Collect any registers written to by the node
             if let Some(dest) = node.node().stores_to() {
                 found.insert(dest.data);
+            }
+
+            // Collect return instructions
+            if node.node().is_return() {
+                returns.insert(node.clone());
             }
 
             // Add all successor nodes to the queue
@@ -54,7 +71,13 @@ impl FunctionMarkupPass {
             }
         }
 
-        return Ok(found);
+        // Error out if the function has more than one return
+        // TODO: Handle functions with more than one return statement
+        if returns.len() != 1 {
+            unimplemented!();
+        }
+
+        return Ok(MarkData { found, returns });
     }
 }
 
@@ -92,7 +115,7 @@ impl GenerationPass for FunctionMarkupPass {
             // Mark all CFG nodes that are reachable from this entry point
             // FIXME: What to do if there is more than one return
             match Self::mark_reachable(entry, func.clone()) {
-                Ok(defs) => { func.insert_defs(defs); },
+                Ok(data) => { func.insert_defs(data.found); },
                 Err(e) => { return Err(e); }
             }
         }
