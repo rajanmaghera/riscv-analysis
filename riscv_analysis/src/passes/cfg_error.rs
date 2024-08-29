@@ -27,6 +27,10 @@ pub enum CFGError {
     UnexpectedError,
     /// Assertion error
     AssertionError,
+
+    /// Multiple functions. Used when an instruction is found to belong to more
+    /// than one function.
+    MultipleFunctions(ParserNode, HashSet<With<LabelString>>),
 }
 
 trait SetListString {
@@ -64,6 +68,9 @@ impl Display for CFGError {
             }
             CFGError::UnexpectedError => write!(f, "Unexpected error"),
             CFGError::AssertionError => write!(f, "Assertion error"),
+            CFGError::MultipleFunctions(_, labels) => {
+                write!(f, "Instruction in multiple functions: {}", labels.as_str_list())
+            }
         }
     }
 }
@@ -76,6 +83,7 @@ impl From<&CFGError> for WarningLevel {
             | CFGError::MultipleLabelsForReturn(_, _)
             | CFGError::NoLabelForReturn(_)
             | CFGError::UnexpectedError
+            | CFGError::MultipleFunctions(_, _)
             | CFGError::AssertionError => WarningLevel::Error,
         }
     }
@@ -84,7 +92,9 @@ impl From<&CFGError> for WarningLevel {
 impl DiagnosticLocation for CFGError {
     fn file(&self) -> uuid::Uuid {
         match self {
-            CFGError::MultipleLabelsForReturn(node, _) | CFGError::NoLabelForReturn(node) => {
+            CFGError::MultipleLabelsForReturn(node, _)
+                | CFGError::NoLabelForReturn(node)
+                | CFGError::MultipleFunctions(node, _)=> {
                 node.file()
             }
             CFGError::LabelsNotDefined(labels) => labels.iter().next().unwrap().file(),
@@ -95,7 +105,9 @@ impl DiagnosticLocation for CFGError {
 
     fn range(&self) -> crate::parser::Range {
         match self {
-            CFGError::MultipleLabelsForReturn(node, _) | CFGError::NoLabelForReturn(node) => {
+            CFGError::MultipleLabelsForReturn(node, _)
+                | CFGError::NoLabelForReturn(node)
+                | CFGError::MultipleFunctions(node, _) => {
                 node.range()
             }
             CFGError::LabelsNotDefined(labels) => labels.iter().next().unwrap().range(),
@@ -149,6 +161,13 @@ impl DiagnosticMessage for CFGError {
                 ".to_string(),
             CFGError::UnexpectedError => "An unexpected error occurred. Please file a bug.".to_string(),
             CFGError::AssertionError => "An unexpected assertion error occurred. Please file a bug.".to_string(),
+            CFGError::MultipleFunctions(_, labels) => {
+                format!(
+                    // FIXME: Make a better description
+                    "An instruction is in the code has many function headers: {}",
+                    labels.as_str_list()
+                )
+            }
         }
     }
 }

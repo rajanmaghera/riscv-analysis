@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{collections::HashSet, rc::Rc, cell::RefCell};
 
 use crate::{
     analysis::CustomClonedSets,
@@ -14,7 +14,7 @@ pub struct Function {
     pub exit: Rc<CFGNode>,  // Multiple exit points will be converted to
     // a single exit point
     /// The registers that are set ever in the function
-    pub defs: HashSet<Register>,
+    pub defs: RefCell<HashSet<Register>>,
 }
 
 impl Function {
@@ -33,13 +33,12 @@ impl Function {
         nodes: Vec<Rc<CFGNode>>,
         entry: Rc<CFGNode>,
         exit: Rc<CFGNode>,
-        defs: HashSet<Register>,
     ) -> Self {
         Function {
             nodes,
             entry,
             exit,
-            defs,
+            defs: RefCell::new(HashSet::new()),
         }
     }
 
@@ -61,8 +60,14 @@ impl Function {
     #[must_use]
     pub fn to_save(&self) -> HashSet<Register> {
         self.defs
+            .borrow()
             .intersection_c(&RegSets::callee_saved())
             // remove sp
             .difference_c(&vec![Register::X2].into_iter().collect())
+    }
+
+    /// Insert the set of registers used by this function.
+    pub fn insert_defs(&self, defs: HashSet<Register>) {
+        *self.defs.borrow_mut() = defs;
     }
 }
