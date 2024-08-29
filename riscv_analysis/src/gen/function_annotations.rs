@@ -37,17 +37,11 @@ impl FunctionMarkupPass {
 
             // If this node is already marked, then two (or more) functions
             // share some code
-            if node.function().is_some() {
+            if let Some(func) = node.function().as_deref() {
+                let labels: HashSet<_>
+                    = node.labels().union(&func.labels()).map(|e| e.clone()).collect();
                 return Err(Box::new(
-                    CFGError::MultipleFunctions(node.node(), entry.labels())
-                ));
-            }
-
-            // If this node has a different function label, something is wrong
-            if node.is_function_entry().is_some()
-                && !node.labels().is_subset(&func.labels()) {
-                return Err(Box::new(
-                    CFGError::MultipleFunctions(node.node(), node.labels())
+                    CFGError::MultipleFunctions(node.node(), labels)
                 ));
             }
 
@@ -71,7 +65,7 @@ impl FunctionMarkupPass {
             }
         }
 
-        // Error out if the function has more than one return
+        // If there is more than one return, signal an error
         // TODO: Handle functions with more than one return statement
         if returns.len() != 1 {
             unimplemented!();
