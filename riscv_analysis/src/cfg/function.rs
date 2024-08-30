@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc, cell::RefCell};
+use std::{collections::HashSet, rc::Rc, cell::{RefCell, Ref}};
 
 use crate::{
     analysis::CustomClonedSets,
@@ -9,12 +9,18 @@ use super::CFGNode;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
-    pub nodes: Vec<Rc<CFGNode>>,
-    pub entry: Rc<CFGNode>, // Is only a FuncEntry node
-    pub exit: Rc<CFGNode>,  // Multiple exit points will be converted to
-    // a single exit point
+    /// List of all nodes in the function. May not be in any particular order.
+    nodes: RefCell<Vec<Rc<CFGNode>>>,
+
+    /// Entry node of the function.
+    pub entry: Rc<CFGNode>,
+
+    /// Exit node of the function. Multiple exit points will be converted to a
+    /// single exit point.
+    pub exit: Rc<CFGNode>,
+
     /// The registers that are set ever in the function
-    pub defs: RefCell<HashSet<Register>>,
+    defs: RefCell<HashSet<Register>>,
 }
 
 impl Function {
@@ -35,7 +41,7 @@ impl Function {
         exit: Rc<CFGNode>,
     ) -> Self {
         Function {
-            nodes,
+            nodes: RefCell::new(nodes),
             entry,
             exit,
             defs: RefCell::new(HashSet::new()),
@@ -57,17 +63,31 @@ impl Function {
         self.exit.live_in().intersection_c(&RegSets::ret())
     }
 
+    /// Insert the set of registers used by this function.
+    pub fn insert_defs(&self, defs: HashSet<Register>) {
+        *self.defs.borrow_mut() = defs;
+    }
+
+    /// Return the set of written registers.
+    pub fn defs(&self) -> Ref<HashSet<Register>> {
+        self.defs.borrow()
+    }
+
     #[must_use]
     pub fn to_save(&self) -> HashSet<Register> {
-        self.defs
-            .borrow()
+        self.defs()
             .intersection_c(&RegSets::callee_saved())
             // remove sp
             .difference_c(&vec![Register::X2].into_iter().collect())
     }
 
-    /// Insert the set of registers used by this function.
-    pub fn insert_defs(&self, defs: HashSet<Register>) {
-        *self.defs.borrow_mut() = defs;
+    /// Insert the instructions composing this function.
+    pub fn insert_nodes(&self, instructions: Vec<Rc<CFGNode>>) {
+        *self.nodes.borrow_mut() = instructions;
+    }
+
+    /// Return the instructions in the function.
+    pub fn nodes(&self) -> Ref<Vec<Rc<CFGNode>>> {
+        self.nodes.borrow()
     }
 }

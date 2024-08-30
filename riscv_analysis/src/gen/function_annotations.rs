@@ -12,6 +12,7 @@ use crate::{
 
 struct MarkData {
     pub found: HashSet<Register>,
+    pub instructions: Vec<Rc<CFGNode>>,
     pub returns: HashSet<Rc<CFGNode>>,
 }
 
@@ -22,8 +23,8 @@ impl FunctionMarkupPass {
                       -> Result<MarkData, Box<CFGError>> {
         // Initialize data for graph search
         let mut queue = vec![entry.clone()];
-        let mut seen = HashSet::new();
-        let mut found = HashSet::new();     // Registers this function writes to
+        let mut seen = HashSet::new();      // CFG nodes seen during the traversal
+        let mut defs = HashSet::new();      // Registers this function writes to
         let mut returns = HashSet::new();   // Return instructions in this function
 
         // Traverse the CFG for all nodes reachable from the entry point
@@ -41,7 +42,7 @@ impl FunctionMarkupPass {
                 let labels: HashSet<_>
                     = node.labels().union(&func.labels()).map(|e| e.clone()).collect();
                 return Err(Box::new(
-                    CFGError::MultipleFunctions(node.node(), labels)
+                    CFGError::OverlappingFunctions(node.node(), labels)
                 ));
             }
 
@@ -50,7 +51,7 @@ impl FunctionMarkupPass {
 
             // Collect any registers written to by the node
             if let Some(dest) = node.node().stores_to() {
-                found.insert(dest.data);
+                defs.insert(dest.data);
             }
 
             // Collect return instructions
@@ -71,7 +72,12 @@ impl FunctionMarkupPass {
             unimplemented!();
         }
 
-        return Ok(MarkData { found, returns });
+        let instructions = seen.into_iter().collect();
+        return Ok(MarkData {
+            found: defs,
+            instructions,
+            returns,
+        });
     }
 }
 
@@ -109,7 +115,10 @@ impl GenerationPass for FunctionMarkupPass {
             // Mark all CFG nodes that are reachable from this entry point
             // FIXME: What to do if there is more than one return
             match Self::mark_reachable(entry, func.clone()) {
-                Ok(data) => { func.insert_defs(data.found); },
+                Ok(data) => {
+                    func.insert_defs(data.found);
+                    func.insert_nodes(data.instructions);
+                },
                 Err(e) => { return Err(e); }
             }
         }
