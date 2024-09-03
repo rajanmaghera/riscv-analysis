@@ -13,6 +13,7 @@ use std::fmt::Write;
 /// On stack fix with an input function, we will:
 /// - insert stack updates to entry
 /// - find exit points of code, if there is one, insert stack updates
+///
 /// TODO if there are multiple exit points, convert to a single exit point by adding
 ///   a label in between
 
