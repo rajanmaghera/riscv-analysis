@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc, cell::{RefCell, Ref}};
+use std::{cell::{Ref, RefCell}, collections::HashSet, hash::Hash, rc::Rc};
 
 use crate::{
     analysis::CustomClonedSets,
@@ -9,6 +9,9 @@ use super::CFGNode;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
+    /// Labels for the entry point of this function
+    labels: HashSet<With<LabelString>>,
+
     /// List of all nodes in the function. May not be in any particular order.
     nodes: RefCell<Vec<Rc<CFGNode>>>,
 
@@ -23,6 +26,12 @@ pub struct Function {
     defs: RefCell<HashSet<Register>>,
 }
 
+impl Hash for Function {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.name().hash(state);
+    }
+}
+
 impl Function {
     #[must_use]
     pub fn name(&self) -> LabelString {
@@ -35,12 +44,15 @@ impl Function {
                 .join(", "),
         )
     }
+
     pub fn new(
+        labels: Vec<With<LabelString>>,
         nodes: Vec<Rc<CFGNode>>,
         entry: Rc<CFGNode>,
         exit: Rc<CFGNode>,
     ) -> Self {
         Function {
+            labels: labels.into_iter().collect::<HashSet<_>>(),
             nodes: RefCell::new(nodes),
             entry,
             exit,

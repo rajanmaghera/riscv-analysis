@@ -5,6 +5,8 @@ use std::{
 
 use itertools::Itertools;
 
+use crate::parser::{Label, LabelString};
+
 use super::{CFGNode, Cfg};
 
 pub trait SetListString {
@@ -42,9 +44,13 @@ where
 
 impl Display for CFGNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fn_label = match self.function().as_ref() {
-            Some(func) => func.name().0,
-            None => "N/A".to_string(),
+        let fn_label = match self.functions().len() {
+            0 => "N/A".to_string(),
+            _ => self.functions()
+                     .iter()
+                     .map(|f| f.name().0)
+                     .collect::<Vec<String>>()
+                     .join(" | "),
         };
 
         f.write_fmt(format_args!("{}\n", self.node()))?;

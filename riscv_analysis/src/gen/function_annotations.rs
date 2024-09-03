@@ -36,18 +36,8 @@ impl FunctionMarkupPass {
                 seen.insert(node.clone());
             }
 
-            // If this node is already marked, then two (or more) functions
-            // share some code
-            if let Some(func) = node.function().as_deref() {
-                let labels: HashSet<_>
-                    = node.labels().union(&func.labels()).map(|e| e.clone()).collect();
-                return Err(Box::new(
-                    CFGError::OverlappingFunctions(node.node(), labels)
-                ));
-            }
-
             // Mark the node as being a part of the given function
-            node.set_function(func.clone());
+            node.insert_function(func.clone());
 
             // Collect any registers written to by the node
             if let Some(dest) = node.node().stores_to() {
@@ -98,19 +88,23 @@ impl GenerationPass for FunctionMarkupPass {
                 continue;
             }
 
-            // Insert a new function into the CFG
-            let func = Rc::new(Function::new(
-                // FIXME: Dummy values
-                vec![], entry.clone(), entry.clone()
-            ));
-
+            // Get the labels for the entry block
             let labels = entry.labels()
                               .iter()
                               .map(|l| l.clone())
                               .collect::<Vec<_>>();
+
+            // Insert a new function into the CFG
+            let func = Rc::new(Function::new(
+                labels.clone(),
+                // FIXME: Dummy values
+                vec![], entry.clone(), entry.clone()
+            ));
+
             for label in labels.iter() {
                 label_function_map.insert(label.clone(), func.clone());
             }
+
 
             // Mark all CFG nodes that are reachable from this entry point
             // FIXME: What to do if there is more than one return

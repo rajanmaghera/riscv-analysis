@@ -31,7 +31,7 @@ pub struct CFGNode {
     ///
     /// Every CFG node can only ever be part of one function. 
     /// We do not allow one node to be part of more than one.
-    function: RefCell<Option<Rc<Function>>>,
+    function: RefCell<HashSet<Rc<Function>>>,
     /// Map each register to the available value that is set before
     /// the instruction represented by this CFG node is run.
     ///
@@ -110,7 +110,7 @@ impl CFGNode {
             data_section,
             nexts: RefCell::new(HashSet::new()),
             prevs: RefCell::new(HashSet::new()),
-            function: RefCell::new(None),
+            function: RefCell::new(HashSet::new()),
             reg_values_in: RefCell::new(HashMap::new()),
             reg_values_out: RefCell::new(HashMap::new()),
             stack_values_in: RefCell::new(HashMap::new()),
@@ -137,12 +137,15 @@ impl CFGNode {
         self.prevs.borrow()
     }
 
-    pub fn function(&self) -> Ref<Option<Rc<Function>>> {
+    /// Return the functions that this node belongs to.
+    pub fn functions(&self) -> Ref<HashSet<Rc<Function>>> {
         self.function.borrow()
     }
 
-    pub fn set_function(&self, function: Rc<Function>) {
-        *self.function.borrow_mut() = Some(function);
+    /// Mark this node as belonging to a given function. Each node can belong to
+    /// more than one function.
+    pub fn insert_function(&self, function: Rc<Function>) {
+        (*self.function.borrow_mut()).insert(function);
     }
 
     pub fn reg_values_in(&self) -> HashMap<Register, AvailableValue> {
@@ -260,13 +263,21 @@ impl CFGNode {
         self.prevs.borrow_mut().clear();
     }
 
+    /// If this node is an entry point, return the corresponding function.
     pub fn is_function_entry(&self) -> Option<Rc<Function>> {
-        if let Some(func) = self.function().clone() {
+        for func in self.functions().iter() {
+            let func = func.clone();
             if &*func.entry == self {
-                return Some(func);
+                return Some(func)
             }
         }
-        None
+
+        return None;
+    }
+
+    /// Return true if this node is part of a function.
+    pub fn has_function(&self) -> bool {
+        return self.functions().len() > 0;
     }
 
     pub fn labels(&self) -> HashSet<With<LabelString>> {

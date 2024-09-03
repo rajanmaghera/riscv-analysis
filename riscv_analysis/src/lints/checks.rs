@@ -169,20 +169,23 @@ impl LintPass for ControlFlowCheck {
                     // Note: this also accounts for functions being at the beginning
                     // of a program, as the ProgEntry node will be the previous node
                     if let Some(prev_node) = node.prevs().iter().next() {
-                        if let Some(function) = node.function().clone() {
+                        for function in node.functions().iter() {
                             if prev_node.node().is_program_entry() {
                                 errors.push(LintError::FirstInstructionIsFunction(
                                     node.node().clone(),
-                                    function,
+                                    function.clone(),
                                 ));
                             } else {
                                 errors.push(LintError::InvalidJumpToFunction(
                                     node.node().clone(),
                                     prev_node.node().clone(),
-                                    function,
+                                    function.clone(),
                                 ));
                             }
+
                         }
+                        // if let Some(function) = node.functions().clone() {
+                        // }
                     }
                 }
                 ParserNode::ProgramEntry(_) => {}
@@ -368,8 +371,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
             // as the value is mean to be modified
             if let Some(reg) = node.node().stores_to() {
                 if callee.contains(&reg.data) {
-                    let func = node.function().clone();
-                    if func.is_some()
+                    if node.has_function()
                         && node.reg_values_in().get(&reg.data)
                             == Some(&AvailableValue::OriginalRegisterWithScalar(reg.data, 0))
                     {
