@@ -201,7 +201,7 @@ impl LintPass for ControlFlowCheck {
 pub struct EcallCheck;
 impl LintPass for EcallCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for (_i, node) in cfg.clone().into_iter().enumerate() {
+        for node in cfg.clone().into_iter() {
             if node.node().is_ecall() && node.known_ecall().is_none() {
                 errors.push(LintError::UnknownEcall(node.node().clone()));
             }
@@ -304,7 +304,7 @@ impl LintPass for StackCheckPass {
 pub struct CalleeSavedGarbageReadCheck;
 impl LintPass for CalleeSavedGarbageReadCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for (_i, node) in cfg.nodes.clone().into_iter().enumerate() {
+        for node in cfg.nodes.clone().into_iter() {
             for read in node.node().reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
