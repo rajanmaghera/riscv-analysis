@@ -29,6 +29,14 @@ impl IntoIterator for &Cfg {
     }
 }
 
+impl Cfg {
+    /// Get an iterator over the `Cfg` nodes.
+    #[must_use]
+    pub fn iter(&self) -> std::vec::IntoIter<Rc<CFGNode>> {
+        self.into_iter()
+    }
+}
+
 trait BaseCFGGen {
     fn call_names(&self) -> HashSet<With<LabelString>>;
     fn jump_names(&self) -> HashSet<With<LabelString>>;
