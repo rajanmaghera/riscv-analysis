@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
-use itertools::Itertools;
-
 use crate::{
     cfg::{Cfg, Function},
     parser::{Position, Range},
     passes::DiagnosticLocation,
 };
+use itertools::Itertools;
+use std::fmt::Write;
 
 /// SUPPORT FOR STACK FIXES
 
@@ -77,15 +77,19 @@ pub fn fix_stack(func: &Rc<Function>) -> Vec<Manipulation> {
         count * 4,
         regs.iter()
             .enumerate()
-            .map(|(i, reg)| format!("sw {}, {}(sp)\n", reg, i * 4))
-            .collect::<String>()
+            .fold(String::new(), |mut out, (i, reg)| {
+                writeln!(out, "sw {}, {}(sp)", reg, i * 4).unwrap();
+                out
+            })
     );
     let exit_text = format!(
         "\n# restore from stack\n{}addi sp, sp, {}\n\n",
         regs.iter()
             .enumerate()
-            .map(|(i, reg)| format!("lw {}, {}(sp)\n", reg, i * 4))
-            .collect::<String>(),
+            .fold(String::new(), |mut out, (i, reg)| {
+                writeln!(out, "lw {}, {}(sp)", reg, i * 4).unwrap();
+                out
+            }),
         count * 4
     );
 
