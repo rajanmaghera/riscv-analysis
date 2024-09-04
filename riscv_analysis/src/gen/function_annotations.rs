@@ -13,7 +13,7 @@ use crate::{
 struct MarkData {
     pub found: HashSet<Register>,
     pub instructions: Vec<Rc<CFGNode>>,
-    pub returns: HashSet<Rc<CFGNode>>,
+    pub returns: Rc<CFGNode>,
 }
 
 pub struct FunctionMarkupPass;
@@ -25,7 +25,7 @@ impl FunctionMarkupPass {
         let mut queue = vec![entry.clone()];
         let mut seen = HashSet::new();      // CFG nodes seen during the traversal
         let mut defs = HashSet::new();      // Registers this function writes to
-        let mut returns = HashSet::new();   // Return instructions in this function
+        let mut returns = None;             // Return instructions in this function
 
         // Traverse the CFG for all nodes reachable from the entry point
         while let Some(node) = queue.pop() {
@@ -46,7 +46,7 @@ impl FunctionMarkupPass {
 
             // Collect return instructions
             if node.node().is_return() {
-                returns.insert(node.clone());
+                returns = Some(node.clone());
             }
 
             // Add all successor nodes to the queue
@@ -56,18 +56,14 @@ impl FunctionMarkupPass {
             }
         }
 
-        // If there is more than one return, signal an error
+        let instructions = seen.into_iter().collect();
+
         // TODO: Handle functions with more than one return statement
-        if returns.len() != 1 {
+        if let Some(ret) = returns {
+            return Ok(MarkData { found: defs, instructions, returns: ret });
+        } else {
             unimplemented!();
         }
-
-        let instructions = seen.into_iter().collect();
-        return Ok(MarkData {
-            found: defs,
-            instructions,
-            returns,
-        });
     }
 }
 
@@ -96,9 +92,7 @@ impl GenerationPass for FunctionMarkupPass {
 
             // Insert a new function into the CFG
             let func = Rc::new(Function::new(
-                labels.clone(),
-                // FIXME: Dummy values
-                vec![], entry.clone(), entry.clone()
+                labels.clone(), vec![], entry.clone(), entry.clone()
             ));
 
             for label in labels.iter() {
