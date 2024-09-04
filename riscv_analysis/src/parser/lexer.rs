@@ -276,9 +276,14 @@ impl Iterator for Lexer {
 #[cfg(test)]
 mod tests {
 
-    use crate::parser::{Info, Lexer, Token};
-    fn tokenize<S: Into<String>>(input: S) -> Vec<Info> {
-        Lexer::new(input, uuid::Uuid::nil()).collect()
+    // TODO: These tests only test the token output, but not the ranges or the
+    // IDs of the file. Those need to be tested and documented.
+
+    use crate::parser::{Lexer, Token};
+    fn tokenize<S: Into<String>>(input: S) -> Vec<Token> {
+        Lexer::new(input, uuid::Uuid::nil())
+            .map(|x| x.token)
+            .collect()
     }
 
     #[test]
@@ -358,10 +363,7 @@ mod tests {
         );
 
         assert_eq!(
-            lexer
-                .iter()
-                .map(|t| t.token.clone())
-                .collect::<Vec<Token>>(),
+            lexer,
             vec![
                 Token::Symbol("add".into()),
                 Token::Symbol("x2".into()),
