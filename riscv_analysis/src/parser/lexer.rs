@@ -293,6 +293,12 @@ mod tests {
     }
 
     #[test]
+    fn lex_directive() {
+        let tokens = tokenize(".text");
+        assert_eq!(tokens, vec![Token::Directive("text".to_owned())]);
+    }
+
+    #[test]
     fn lex_instruction() {
         let tokens = tokenize("add s0, s0, s2");
         assert_eq!(
