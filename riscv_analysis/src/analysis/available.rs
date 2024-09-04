@@ -310,19 +310,13 @@ fn rule_perform_math_ops(
 ) {
     if let Some(reg) = node.stores_to() {
         let lhs = match node {
-            ParserNode::Arith(expr) => available_in
-                .get(&expr.rs1.data)
-                .map(std::clone::Clone::clone),
-            ParserNode::IArith(expr) => available_in
-                .get(&expr.rs1.data)
-                .map(std::clone::Clone::clone),
+            ParserNode::Arith(expr) => available_in.get(&expr.rs1.data).cloned(),
+            ParserNode::IArith(expr) => available_in.get(&expr.rs1.data).cloned(),
             _ => None,
         };
 
         let rhs = match node {
-            ParserNode::Arith(expr) => available_in
-                .get(&expr.rs2.data)
-                .map(std::clone::Clone::clone),
+            ParserNode::Arith(expr) => available_in.get(&expr.rs2.data).cloned(),
             ParserNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
             _ => None,
         };

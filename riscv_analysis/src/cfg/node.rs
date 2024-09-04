@@ -29,7 +29,7 @@ pub struct CFGNode {
     /// If this CFG node is part of a function, which function
     /// is it part of?
     ///
-    /// Every CFG node can only ever be part of one function. 
+    /// Every CFG node can only ever be part of one function.
     /// We do not allow one node to be part of more than one.
     function: RefCell<Option<Rc<Function>>>,
     /// Map each register to the available value that is set before
@@ -46,7 +46,7 @@ pub struct CFGNode {
     /// values. This means that many values might be duplicated above
     /// and below this CFG node.
     reg_values_out: RefCell<HashMap<Register, AvailableValue>>,
-    /// Map each stack location offset to the available value 
+    /// Map each stack location offset to the available value
     /// that is set before the instruction represented by this
     /// CFG node is run.
     ///
@@ -61,7 +61,7 @@ pub struct CFGNode {
     /// kept track of on the stack. This is because the register
     /// is 32-bit.
     stack_values_in: RefCell<HashMap<i32, AvailableValue>>,
-    /// Map each stack location offset to the available value 
+    /// Map each stack location offset to the available value
     /// that is set after the instruction represented by this
     /// CFG node is run.
     ///
@@ -76,10 +76,10 @@ pub struct CFGNode {
     /// kept track of on the stack. This is because the register
     /// is 32-bit.
     stack_values_out: RefCell<HashMap<i32, AvailableValue>>,
-    /// The set of registers that are live before the instruction 
+    /// The set of registers that are live before the instruction
     /// represented by this CFG node is run.
     live_in: RefCell<HashSet<Register>>,
-    /// The set of registers that are live after the instruction 
+    /// The set of registers that are live after the instruction
     /// represented by this CFG node is run.
     live_out: RefCell<HashSet<Register>>,
     /// The set of registers that have unconditionally been set after
@@ -92,7 +92,7 @@ pub struct CFGNode {
     ///
     /// Unconditionally set registers must be set in every path. For example,
     /// if there is a divergent if-else branch and the target block sets a register,
-    /// that register will be contained in the u_def set at the end of the function
+    /// that register will be contained in the `u_def` set at the end of the function
     /// if it is also set in the fallthrough block.
     ///
     /// Unconditionally set registers are used to determine the set of registers

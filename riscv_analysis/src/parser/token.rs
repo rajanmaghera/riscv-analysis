@@ -323,17 +323,3 @@ where
         self.data == *other
     }
 }
-
-trait TokenExpression {
-    fn debug_tokens(&self);
-}
-
-impl TokenExpression for Vec<Token> {
-    fn debug_tokens(&self) {
-        print!("Tokens: ");
-        for item in self {
-            print!("[{item}]");
-        }
-        println!();
-    }
-}
