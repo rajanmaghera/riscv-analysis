@@ -417,14 +417,15 @@ mod tests {
     }
 
     #[test]
-    fn lex_comments() {
+    fn lex_all_tokens() {
         let lexer = tokenize(
-            "add x2,x2,x3 # hello, world!@#DKSAOKLJu3iou12o\nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
+            ".text add x2,x2,x3 # hello, world!@#DKSAOKLJu3iou12o\nBLCOK:\n\n\nsub a0 a0 a1\nmy_block: add s0, s0, s2\nadd s0, s0, s2",
         );
 
         assert_eq!(
             lexer,
             vec![
+                Token::Directive("text".to_string()),
                 Token::Symbol("add".into()),
                 Token::Symbol("x2".into()),
                 Token::Symbol("x2".into()),
