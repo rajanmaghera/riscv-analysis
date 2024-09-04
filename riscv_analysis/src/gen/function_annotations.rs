@@ -6,8 +6,8 @@ use std::{
 
 use crate::{
     cfg::{CFGNode, Cfg, Function},
-    parser::Register,
-    passes::{CFGError, GenerationPass},
+    parser::{Info, JumpLinkType, LabelString, ParserNode, Register, With},
+    passes::{CFGError, DiagnosticLocation, GenerationPass},
 };
 
 struct MarkData {
@@ -46,7 +46,39 @@ impl FunctionMarkupPass {
 
             // Collect return instructions
             if node.node().is_return() {
-                returns = Some(node.clone());
+                // Set the newly found return to be an jump to the previously
+                // found return.
+                if let Some(ref prev_ret) = returns {
+                    let found_ret = Rc::clone(&node);
+
+                    // Fix the prevs & nexts of both returns
+                    found_ret.clear_nexts();
+                    found_ret.insert_next(Rc::clone(prev_ret));
+                    prev_ret.insert_prev(Rc::clone(&found_ret));
+
+                    // Convert the found return into a jump
+                    let info = Info {
+                        token: crate::parser::Token::Symbol("return".to_string()),
+                        pos: found_ret.node().range().clone(),
+                        file: found_ret.node().file(),
+                    };
+
+                    let inst = With::new(JumpLinkType::Jal, info.clone());
+                    let rd = With::new(Register::X0, info.clone());
+                    let name = With::new(LabelString("__return__".to_string()), info.clone());
+                    let new_node = ParserNode::new_jump_link(
+                        inst,
+                        rd,
+                        name,
+                        prev_ret.node().token(),
+                    );
+                    found_ret.set_node(new_node);
+                }
+
+                // If this is the first return node, save it
+                else {
+                    returns = Some(node.clone());
+                }
             }
 
             // Add all successor nodes to the queue
@@ -58,7 +90,7 @@ impl FunctionMarkupPass {
 
         let instructions = seen.into_iter().collect();
 
-        // TODO: Handle functions with more than one return statement
+        // TODO: Handle functions with no return statements
         if let Some(ret) = returns {
             return Ok(MarkData { found: defs, instructions, returns: ret });
         } else {
