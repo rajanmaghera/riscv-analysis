@@ -31,13 +31,13 @@ impl GenerationPass for LivenessPass {
                     // We take the union of the existing live_in to match multiple call sites
                     let func_exit_live_in = node
                         .live_out()
-                        .intersection_c(&func.exit.u_def())
-                        .union_c(&func.exit.live_in())
-                        .union_c(&func.exit.node().gen_reg());
+                        .intersection_c(&func.exit().u_def())
+                        .union_c(&func.exit().live_in())
+                        .union_c(&func.exit().node().gen_reg());
 
-                    if func_exit_live_in != func.exit.live_in() {
+                    if func_exit_live_in != func.exit().live_in() {
                         changed = true;
-                        func.exit.set_live_in(func_exit_live_in.clone());
+                        func.exit().set_live_in(func_exit_live_in.clone());
                     }
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - kill[n] | (u_def[F_exit] AND return-registers)
@@ -58,7 +58,7 @@ impl GenerationPass for LivenessPass {
                         .reduce(|acc, x| acc.intersection_c(&x))
                         .unwrap_or_default()
                         .difference_c(&RegSets::caller_saved())
-                        .union_c(&(func.exit.u_def().intersection_c(&RegSets::ret())));
+                        .union_c(&(func.exit().u_def().intersection_c(&RegSets::ret())));
 
                     // live_in[n] = (live_in[F] & argument-registers) U (live_out[n] - kill[n])
                     // kill[n] = caller-saved

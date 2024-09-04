@@ -20,7 +20,7 @@ pub struct Function {
 
     /// Exit node of the function. Multiple exit points will be converted to a
     /// single exit point.
-    pub exit: Rc<CFGNode>,
+    exit: RefCell<Rc<CFGNode>>,
 
     /// The registers that are set ever in the function
     defs: RefCell<HashSet<Register>>,
@@ -55,7 +55,7 @@ impl Function {
             labels: labels.into_iter().collect::<HashSet<_>>(),
             nodes: RefCell::new(nodes),
             entry,
-            exit,
+            exit: RefCell::new(exit),
             defs: RefCell::new(HashSet::new()),
         }
     }
@@ -72,7 +72,7 @@ impl Function {
 
     #[must_use]
     pub fn returns(&self) -> HashSet<Register> {
-        self.exit.live_in().intersection_c(&RegSets::ret())
+        self.exit().live_in().intersection_c(&RegSets::ret())
     }
 
     /// Insert the set of registers used by this function.
@@ -101,5 +101,16 @@ impl Function {
     /// Return the instructions in the function.
     pub fn nodes(&self) -> Ref<Vec<Rc<CFGNode>>> {
         self.nodes.borrow()
+    }
+
+    /// Return the exit node of this function. In general, this corresponds to a
+    /// `ret` instruction.
+    pub fn exit(&self) -> Ref<Rc<CFGNode>> {
+        self.exit.borrow()
+    }
+
+    /// Set the exit node of this function.
+    pub fn set_exit(&self, node: Rc<CFGNode>) {
+        *self.exit.borrow_mut() = node;
     }
 }

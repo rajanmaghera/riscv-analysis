@@ -92,7 +92,7 @@ impl NodeWrapper {
             func_exit: node.functions().iter().map(|func| {
                 cfg.nodes
                     .iter()
-                    .position(|other| func.exit.node().id() == other.node().id())
+                    .position(|other| func.exit().node().id() == other.node().id())
                     .unwrap()
             }).collect::<Vec<_>>(),
             nexts: node

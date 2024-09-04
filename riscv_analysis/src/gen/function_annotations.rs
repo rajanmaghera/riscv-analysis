@@ -106,6 +106,7 @@ impl GenerationPass for FunctionMarkupPass {
                 Ok(data) => {
                     func.insert_defs(data.found);
                     func.insert_nodes(data.instructions);
+                    func.set_exit(data.returns);
                 },
                 Err(e) => { return Err(e); }
             }

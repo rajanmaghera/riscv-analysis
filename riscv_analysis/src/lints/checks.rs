@@ -331,7 +331,7 @@ pub struct CalleeSavedRegisterCheck;
 impl LintPass for CalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for func in cfg.label_function_map.values() {
-            let exit_vals = func.exit.reg_values_in();
+            let exit_vals = func.exit().reg_values_in();
             for reg in RegSets::callee_saved() {
                 match exit_vals.get(&reg) {
                     Some(AvailableValue::OriginalRegisterWithScalar(reg2, offset))
@@ -345,7 +345,7 @@ impl LintPass for CalleeSavedRegisterCheck {
                         // This means that we are overwriting a callee-saved register
                         // We will traverse the function to find the first time
                         // from the return point that that register was overwritten.
-                        let ranges = Cfg::error_ranges_for_first_store(&func.exit, reg);
+                        let ranges = Cfg::error_ranges_for_first_store(&func.exit(), reg);
                         for range in ranges {
                             errors.push(LintError::OverwriteCalleeSavedRegister(range));
                         }
