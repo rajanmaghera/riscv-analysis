@@ -130,6 +130,9 @@ impl Iterator for Lexer {
     fn next(&mut self) -> Option<Self::Item> {
         self.skip_ws();
 
+        // TODO(rajan): ensure that we are consistent with whether the tokens are included or not in the Token representation
+        // TODO(rajan): should we introduce a new token type for the comment hash (#) and directive hash (.)?
+
         match self.ch {
             '\n' => {
                 let pos = self.get_range();
@@ -188,19 +191,27 @@ impl Iterator for Lexer {
                 })
             }
             '#' => {
-                // skip line till newline
+                // Convert comments to token
+
+                let start = self.get_pos();
+                self.next_char();
+
+                let mut comment_str: String = String::new();
+
                 while self.ch != '\n' && self.ch != EOF_CONST {
+                    comment_str += &self.ch.to_string();
                     self.next_char();
                 }
 
-                if self.ch == EOF_CONST {
-                    return None;
-                }
-                self.next_char();
+                let end = self.get_pos();
+
+                // Empty comment strings are allowed, in the case of a
+                // comment with a new line. We don't strip any whitespace
+                // for comments here.
 
                 Some(Info {
-                    token: Token::Newline,
-                    pos: self.get_range(),
+                    token: Token::Comment(comment_str.clone()),
+                    pos: Range { start, end },
                     file: self.source_id,
                 })
             }
@@ -293,6 +304,49 @@ mod tests {
     }
 
     #[test]
+    fn lex_comment() {
+        let tokens = tokenize("# comments are needed");
+        assert_eq!(
+            tokens,
+            vec![Token::Comment(" comments are needed".to_owned())]
+        );
+    }
+
+    #[test]
+    fn lex_comments_with_differing_whitespaces() {
+        let tokens =
+            tokenize("#\n#\n# new line comments  with lots of \t whitespace and other special .text characters is allowed  jal ra, x0   \n\n  #.text\n#li a0, 0");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Comment("".to_owned()),
+                Token::Newline,
+                Token::Comment("".to_owned()),
+                Token::Newline,
+                Token::Comment(" new line comments  with lots of \t whitespace and other special .text characters is allowed  jal ra, x0   ".to_owned()),
+                Token::Newline,
+                Token::Newline,
+                Token::Comment(".text".to_owned()),
+                Token::Newline,
+                Token::Comment("li a0, 0".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_empty_comment_as_final_character() {
+        let tokens = tokenize("#this is a comment\n#");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Comment("this is a comment".to_owned()),
+                Token::Newline,
+                Token::Comment("".to_owned()),
+            ]
+        )
+    }
+
+    #[test]
     fn lex_directive() {
         let tokens = tokenize(".text");
         assert_eq!(tokens, vec![Token::Directive("text".to_owned())]);
@@ -375,6 +429,7 @@ mod tests {
                 Token::Symbol("x2".into()),
                 Token::Symbol("x2".into()),
                 Token::Symbol("x3".into()),
+                Token::Comment(" hello, world!@#DKSAOKLJu3iou12o".to_string()),
                 Token::Newline,
                 Token::Label("BLCOK".to_string()),
                 Token::Newline,
