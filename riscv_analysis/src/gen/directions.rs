@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{
     cfg::Cfg,
-    passes::{CFGError, GenerationPass},
+    passes::{CfgError, GenerationPass},
 };
 
 /// Calculate the next and previous nodes for each node in the CFG.
@@ -11,7 +11,7 @@ use crate::{
 /// This must be run before most passes.
 pub struct NodeDirectionPass;
 impl GenerationPass for NodeDirectionPass {
-    fn run(cfg: &mut Cfg) -> Result<(), Box<CFGError>> {
+    fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
         let nodes = &cfg.nodes;
         let mut prev = None;
         for node in nodes {
@@ -20,7 +20,7 @@ impl GenerationPass for NodeDirectionPass {
                 let jump_to_node = nodes
                     .iter()
                     .find(|n| n.labels.contains(&label))
-                    .ok_or_else(|| CFGError::UnexpectedError)?;
+                    .ok_or_else(|| CfgError::UnexpectedError)?;
 
                 node.insert_next(Rc::clone(jump_to_node));
                 jump_to_node.insert_prev(Rc::clone(node));

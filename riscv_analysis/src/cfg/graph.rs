@@ -3,24 +3,24 @@ use crate::parser::DirectiveType;
 use crate::parser::LabelString;
 use crate::parser::ParserNode;
 use crate::parser::With;
-use crate::passes::CFGError;
+use crate::passes::CfgError;
 use crate::passes::DiagnosticLocation;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use super::CFGNode;
+use super::CfgNode;
 use super::Function;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Cfg {
-    pub nodes: Vec<Rc<CFGNode>>,
-    pub label_node_map: HashMap<String, Rc<CFGNode>>,
+    pub nodes: Vec<Rc<CfgNode>>,
+    pub label_node_map: HashMap<String, Rc<CfgNode>>,
     pub label_function_map: HashMap<With<LabelString>, Rc<Function>>,
 }
 
 impl IntoIterator for &Cfg {
-    type Item = Rc<CFGNode>;
+    type Item = Rc<CfgNode>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     // nested iterator for blocks
@@ -32,19 +32,19 @@ impl IntoIterator for &Cfg {
 impl Cfg {
     /// Get an iterator over the `Cfg` nodes.
     #[must_use]
-    pub fn iter(&self) -> std::vec::IntoIter<Rc<CFGNode>> {
+    pub fn iter(&self) -> std::vec::IntoIter<Rc<CfgNode>> {
         self.into_iter()
     }
 }
 
-trait BaseCFGGen {
+trait BaseCfgGen {
     fn call_names(&self) -> HashSet<With<LabelString>>;
     fn jump_names(&self) -> HashSet<With<LabelString>>;
     fn label_names(&self) -> HashSet<With<LabelString>>;
     fn load_names(&self) -> HashSet<With<LabelString>>;
 }
 
-impl BaseCFGGen for Vec<ParserNode> {
+impl BaseCfgGen for Vec<ParserNode> {
     fn call_names(&self) -> HashSet<With<LabelString>> {
         self.iter()
             .filter_map(parser::ParserNode::calls_to)
@@ -73,7 +73,7 @@ impl BaseCFGGen for Vec<ParserNode> {
     }
 }
 impl Cfg {
-    pub fn new(old_nodes: Vec<ParserNode>) -> Result<Cfg, Box<CFGError>> {
+    pub fn new(old_nodes: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
         let mut current_labels = HashSet::new();
@@ -95,7 +95,7 @@ impl Cfg {
             .collect::<HashSet<With<LabelString>>>();
 
         if !undefined_labels.is_empty() {
-            return Err(Box::new(CFGError::LabelsNotDefined(undefined_labels)));
+            return Err(Box::new(CfgError::LabelsNotDefined(undefined_labels)));
         }
 
         let mut data_section = false;
@@ -111,7 +111,7 @@ impl Cfg {
 
                     // Check for duplicate labels
                     if !all_labels.insert(s.name.clone()) {
-                        return Err(Box::new(CFGError::DuplicateLabel(s.name)));
+                        return Err(Box::new(CfgError::DuplicateLabel(s.name)));
                     }
                 }
                 ParserNode::Directive(x) if x.dir == DirectiveType::DataSection => {
@@ -128,7 +128,7 @@ impl Cfg {
                         .next()
                         .is_some()
                     {
-                        let rc_node = Rc::new(CFGNode::new(
+                        let rc_node = Rc::new(CfgNode::new(
                             ParserNode::new_func_entry(node.file(), node.token()),
                             current_labels.clone(),
                             data_section,
@@ -146,9 +146,9 @@ impl Cfg {
                         current_labels.clear();
 
                         // Add the node to the graph
-                        nodes.push(Rc::new(CFGNode::new(node, HashSet::new(), data_section)));
+                        nodes.push(Rc::new(CfgNode::new(node, HashSet::new(), data_section)));
                     } else {
-                        let rc_node = Rc::new(CFGNode::new(
+                        let rc_node = Rc::new(CfgNode::new(
                             node.clone(),
                             current_labels.clone(),
                             data_section,
