@@ -3,7 +3,7 @@ use std::hash::Hash;
 
 use crate::parser::Register;
 
-use super::AvailableValue;
+use super::{AvailableValue, MemoryLocation};
 
 pub trait CustomIntersection {
     #[must_use]
@@ -145,18 +145,19 @@ impl CustomUnion<i32> for i32 {
     }
 }
 
-impl<S> CustomUnionFilterMap<Option<(i32, AvailableValue)>, (i32, AvailableValue)>
-    for HashMap<i32, AvailableValue, S>
+impl<S>
+    CustomUnionFilterMap<Option<(MemoryLocation, AvailableValue)>, (MemoryLocation, AvailableValue)>
+    for HashMap<MemoryLocation, AvailableValue, S>
 where
     S: std::hash::BuildHasher + Default + Clone,
 {
-    fn union_filter_map<F>(&self, other: &Option<(i32, AvailableValue)>, f: F) -> Self
+    fn union_filter_map<F>(&self, other: &Option<(MemoryLocation, AvailableValue)>, f: F) -> Self
     where
-        F: Fn(&(i32, AvailableValue)) -> Option<(i32, AvailableValue)>,
+        F: Fn(&(MemoryLocation, AvailableValue)) -> Option<(MemoryLocation, AvailableValue)>,
     {
         let mut out = self.clone();
         if let Some((off, val)) = other {
-            if let Some((new_off, new_val)) = f(&(*off, val.clone())) {
+            if let Some((new_off, new_val)) = f(&(off.clone(), val.clone())) {
                 out.insert(new_off, new_val);
             }
         }

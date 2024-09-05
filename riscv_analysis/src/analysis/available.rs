@@ -11,6 +11,7 @@ use crate::parser::{LabelString, RegSets};
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
 
+use super::memory_location::MemoryLocation;
 use super::{CustomDifference, CustomIntersection, CustomInto, CustomUnion, CustomUnionFilterMap};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -90,15 +91,15 @@ trait AvailableStackHelpers {
     ///
     /// This is used to determine the offset of the stack pointer in relation
     /// to the value it was at the beginning of the function or graph.
-    fn stack_offset(&self) -> Option<i32>;
+    fn stack_offset(&self) -> Option<MemoryLocation>;
 }
 
 impl AvailableStackHelpers for HashMap<Register, AvailableValue> {
-    fn stack_offset(&self) -> Option<i32> {
+    fn stack_offset(&self) -> Option<MemoryLocation> {
         if let Some(AvailableValue::OriginalRegisterWithScalar(reg, off)) = self.get(&Register::X2)
         {
             if reg == &Register::X2 {
-                return Some(*off);
+                return Some(MemoryLocation::StackOffset(*off));
             }
         }
         None
@@ -191,9 +192,17 @@ impl GenerationPass for AvailableValuePass {
                     node.stack_values_in().union_filter_map(
                         &node.node().gen_stack_value(),
                         |(off, val)| {
-                            node.reg_values_in()
-                                .stack_offset()
-                                .map(|curr_stack| (curr_stack + off, val.clone()))
+                            node.reg_values_in().stack_offset().map(|curr_stack| {
+                                match (curr_stack, off) {
+                                    (
+                                        MemoryLocation::StackOffset(curr_stack_i),
+                                        MemoryLocation::StackOffset(off_i),
+                                    ) => (
+                                        MemoryLocation::StackOffset(curr_stack_i + off_i),
+                                        val.clone(),
+                                    ),
+                                }
+                            })
                         },
                     )
                 };
@@ -243,8 +252,8 @@ impl GenerationPass for AvailableValuePass {
 fn rule_zero_to_const(
     available_out: &mut HashMap<Register, AvailableValue>,
     available_in: &HashMap<Register, AvailableValue>,
-    stack_out: &mut HashMap<i32, AvailableValue>,
-    stack_in: &HashMap<i32, AvailableValue>,
+    stack_out: &mut HashMap<MemoryLocation, AvailableValue>,
+    stack_in: &HashMap<MemoryLocation, AvailableValue>,
 ) {
     for val in available_in {
         match val.1 {
@@ -262,7 +271,7 @@ fn rule_zero_to_const(
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
                 if r == &Register::X0 {
-                    stack_out.insert(*val.0, AvailableValue::Constant(*i));
+                    stack_out.insert(val.0.clone(), AvailableValue::Constant(*i));
                 }
             }
             _ => {}
@@ -355,14 +364,14 @@ fn rule_perform_math_ops(
 fn rule_value_from_stack(
     node: &ParserNode,
     available_out: &mut HashMap<Register, AvailableValue>,
-    stack_in: &HashMap<i32, AvailableValue>,
+    stack_in: &HashMap<MemoryLocation, AvailableValue>,
 ) {
     if let Some(reg) = node.stores_to() {
         if let Some(AvailableValue::MemoryAtOriginalRegister(psp, off)) =
             available_out.get(&reg.data)
         {
             if psp.is_sp() {
-                if let Some(stack_val) = stack_in.get(off) {
+                if let Some(stack_val) = stack_in.get(&MemoryLocation::StackOffset(*off)) {
                     available_out.insert(reg.data, stack_val.clone());
                 }
             }
@@ -377,7 +386,7 @@ fn rule_value_from_stack(
 /// value at the entry of the function (B), then replace A with B.
 fn rule_known_values_to_stack(
     _node: &ParserNode,
-    stack_out: &mut HashMap<i32, AvailableValue>,
+    stack_out: &mut HashMap<MemoryLocation, AvailableValue>,
     available_in: &HashMap<Register, AvailableValue>,
 ) {
     for (pos, val) in stack_out.clone() {

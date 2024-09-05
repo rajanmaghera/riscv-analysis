@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{
-    analysis::AvailableValue,
+    analysis::{AvailableValue, MemoryLocation},
     parser::{ParserNode, Register},
 };
 
@@ -53,13 +53,13 @@ pub struct NodeWrapper {
         skip_serializing_if = "HashMap::is_empty",
         serialize_with = "sorted_map"
     )]
-    pub stack_values_in: HashMap<i32, AvailableValue>,
+    pub stack_values_in: HashMap<MemoryLocation, AvailableValue>,
     #[serde(
         default,
         skip_serializing_if = "HashMap::is_empty",
         serialize_with = "sorted_map"
     )]
-    pub stack_values_out: HashMap<i32, AvailableValue>,
+    pub stack_values_out: HashMap<MemoryLocation, AvailableValue>,
     #[serde(
         default,
         skip_serializing_if = "HashSet::is_empty",

@@ -12,3 +12,4 @@ pub use set_traits::*;
 mod display;
 
 mod memory_location;
+pub use memory_location::*;

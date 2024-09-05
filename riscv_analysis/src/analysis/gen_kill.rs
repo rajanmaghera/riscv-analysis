@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::parser::{IArithType, ParserNode, RegSets, Register};
 
-use super::AvailableValue;
+use super::{AvailableValue, MemoryLocation};
 
 impl ParserNode {
     #[must_use]
@@ -46,12 +46,12 @@ impl ParserNode {
     }
 
     #[must_use]
-    pub fn gen_stack_value(&self) -> Option<(i32, AvailableValue)> {
+    pub fn gen_stack_value(&self) -> Option<(MemoryLocation, AvailableValue)> {
         match self {
             ParserNode::Store(expr) => {
                 if expr.rs1 == Register::X2 {
                     Some((
-                        expr.imm.data.0,
+                        MemoryLocation::StackOffset(expr.imm.data.0),
                         AvailableValue::RegisterWithScalar(expr.rs2.data, 0),
                     ))
                 } else {
