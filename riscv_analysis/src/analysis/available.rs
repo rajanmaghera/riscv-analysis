@@ -159,16 +159,16 @@ impl GenerationPass for AvailableValuePass {
                     .unwrap_or_default();
                 node.set_reg_values_in(in_reg_n);
 
-                // in_stacks[n] = AND out_stacks[p] for all p in prev[n]
-                let in_stack_n = node
+                // in_memory[n] = AND out_memory[p] for all p in prev[n]
+                let in_memory_n = node
                     .prevs()
                     .clone()
                     .into_iter()
                     .filter(|x| visited.contains(x))
-                    .map(|x| x.stack_values_out())
+                    .map(|x| x.memory_values_out())
                     .reduce(|acc, x| x.intersection(&acc))
                     .unwrap_or_default();
-                node.set_stack_values_in(in_stack_n);
+                node.set_memory_values_in(in_memory_n);
 
                 // out[n] = gen[n] U (in[n] - kill[n]) U (callee_saved if n is entry)
                 let mut out_reg_n = node
@@ -184,13 +184,13 @@ impl GenerationPass for AvailableValuePass {
                         node.node().is_program_entry(),
                     );
 
-                // out_stacks[n] = (gen_stacks[n] if we know the location of the stack pointer) U in_stacks[n]
+                // out_memory[n] = (gen_memory[n] if we know the location of the stack pointer) U in_memory[n]
                 // (There is no kill_stacks[n])
-                let mut out_stack_n = if node.node().is_any_entry() {
+                let mut out_memory_n = if node.node().is_any_entry() {
                     HashMap::new()
                 } else {
-                    node.stack_values_in().union_filter_map(
-                        &node.node().gen_stack_value(),
+                    node.memory_values_in().union_filter_map(
+                        &node.node().gen_memory_value(),
                         |(off, val)| {
                             node.reg_values_in().stack_offset().map(|curr_stack| {
                                 match (curr_stack, off) {
@@ -213,15 +213,15 @@ impl GenerationPass for AvailableValuePass {
                 // that change our outs.
 
                 rule_expand_address_for_load(&node.node(), &mut out_reg_n, &node.reg_values_in());
-                rule_value_from_stack(&node.node(), &mut out_reg_n, &node.stack_values_in());
+                rule_value_from_stack(&node.node(), &mut out_reg_n, &node.memory_values_in());
                 rule_zero_to_const(
                     &mut out_reg_n,
                     &node.reg_values_in(),
-                    &mut out_stack_n,
-                    &node.stack_values_in(),
+                    &mut out_memory_n,
+                    &node.memory_values_in(),
                 );
                 rule_perform_math_ops(&node.node(), &mut out_reg_n, &node.reg_values_in());
-                rule_known_values_to_stack(&node.node(), &mut out_stack_n, &node.reg_values_in());
+                rule_known_values_to_stack(&node.node(), &mut out_memory_n, &node.reg_values_in());
                 // TODO stack reset?
 
                 // If either of the outs changed, replace the old outs with the new outs
@@ -230,9 +230,9 @@ impl GenerationPass for AvailableValuePass {
                     changed = true;
                     node.set_reg_values_out(out_reg_n);
                 }
-                if out_stack_n != node.stack_values_out() {
+                if out_memory_n != node.memory_values_out() {
                     changed = true;
-                    node.set_stack_values_out(out_stack_n);
+                    node.set_memory_values_out(out_memory_n);
                 }
 
                 // Add node to visited
@@ -252,8 +252,8 @@ impl GenerationPass for AvailableValuePass {
 fn rule_zero_to_const(
     available_out: &mut HashMap<Register, AvailableValue>,
     available_in: &HashMap<Register, AvailableValue>,
-    stack_out: &mut HashMap<MemoryLocation, AvailableValue>,
-    stack_in: &HashMap<MemoryLocation, AvailableValue>,
+    memory_out: &mut HashMap<MemoryLocation, AvailableValue>,
+    memory_in: &HashMap<MemoryLocation, AvailableValue>,
 ) {
     for val in available_in {
         match val.1 {
@@ -266,12 +266,12 @@ fn rule_zero_to_const(
             _ => {}
         }
     }
-    for val in stack_in {
+    for val in memory_in {
         match val.1 {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
                 if r == &Register::X0 {
-                    stack_out.insert(val.0.clone(), AvailableValue::Constant(*i));
+                    memory_out.insert(val.0.clone(), AvailableValue::Constant(*i));
                 }
             }
             _ => {}
@@ -364,14 +364,14 @@ fn rule_perform_math_ops(
 fn rule_value_from_stack(
     node: &ParserNode,
     available_out: &mut HashMap<Register, AvailableValue>,
-    stack_in: &HashMap<MemoryLocation, AvailableValue>,
+    memory_in: &HashMap<MemoryLocation, AvailableValue>,
 ) {
     if let Some(reg) = node.stores_to() {
         if let Some(AvailableValue::MemoryAtOriginalRegister(psp, off)) =
             available_out.get(&reg.data)
         {
             if psp.is_sp() {
-                if let Some(stack_val) = stack_in.get(&MemoryLocation::StackOffset(*off)) {
+                if let Some(stack_val) = memory_in.get(&MemoryLocation::StackOffset(*off)) {
                     available_out.insert(reg.data, stack_val.clone());
                 }
             }
@@ -386,18 +386,18 @@ fn rule_value_from_stack(
 /// value at the entry of the function (B), then replace A with B.
 fn rule_known_values_to_stack(
     _node: &ParserNode,
-    stack_out: &mut HashMap<MemoryLocation, AvailableValue>,
+    memory_out: &mut HashMap<MemoryLocation, AvailableValue>,
     available_in: &HashMap<Register, AvailableValue>,
 ) {
-    for (pos, val) in stack_out.clone() {
+    for (pos, val) in memory_out.clone() {
         if let AvailableValue::RegisterWithScalar(reg, off) = val {
             if let Some(item) = available_in.get(&reg) {
                 match item {
                     AvailableValue::Constant(x) => {
-                        stack_out.insert(pos, AvailableValue::Constant(*x + off));
+                        memory_out.insert(pos, AvailableValue::Constant(*x + off));
                     }
                     AvailableValue::OriginalRegisterWithScalar(reg2, off3) => {
-                        stack_out.insert(
+                        memory_out.insert(
                             pos,
                             AvailableValue::OriginalRegisterWithScalar(*reg2, *off3 + off),
                         );

@@ -379,7 +379,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
                         let mut found = false;
 
                         // check stack values:
-                        let stack = node.stack_values_out();
+                        let stack = node.memory_values_out();
                         for (_, val) in stack {
                             if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) = val {
                                 if reg2 == reg.data && offset == 0 {

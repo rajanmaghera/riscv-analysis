@@ -50,11 +50,11 @@ pub struct CfgNode {
     /// Map each memory location to the available value
     /// that is set before the instruction represented by this
     /// CFG node is run.
-    stack_values_in: RefCell<HashMap<MemoryLocation, AvailableValue>>,
+    memory_values_in: RefCell<HashMap<MemoryLocation, AvailableValue>>,
     /// Map each memory location to the available value
     /// that is set after the instruction represented by this
     /// CFG node is run.
-    stack_values_out: RefCell<HashMap<MemoryLocation, AvailableValue>>,
+    memory_values_out: RefCell<HashMap<MemoryLocation, AvailableValue>>,
     /// The set of registers that are live before the instruction
     /// represented by this CFG node is run.
     live_in: RefCell<HashSet<Register>>,
@@ -92,8 +92,8 @@ impl CfgNode {
             function: RefCell::new(None),
             reg_values_in: RefCell::new(HashMap::new()),
             reg_values_out: RefCell::new(HashMap::new()),
-            stack_values_in: RefCell::new(HashMap::new()),
-            stack_values_out: RefCell::new(HashMap::new()),
+            memory_values_in: RefCell::new(HashMap::new()),
+            memory_values_out: RefCell::new(HashMap::new()),
             live_in: RefCell::new(HashSet::new()),
             live_out: RefCell::new(HashSet::new()),
             u_def: RefCell::new(HashSet::new()),
@@ -140,20 +140,20 @@ impl CfgNode {
         *self.reg_values_out.borrow_mut() = available_out;
     }
 
-    pub fn stack_values_in(&self) -> HashMap<MemoryLocation, AvailableValue> {
-        self.stack_values_in.borrow().clone()
+    pub fn memory_values_in(&self) -> HashMap<MemoryLocation, AvailableValue> {
+        self.memory_values_in.borrow().clone()
     }
 
-    pub fn set_stack_values_in(&self, stack_in: HashMap<MemoryLocation, AvailableValue>) {
-        *self.stack_values_in.borrow_mut() = stack_in;
+    pub fn set_memory_values_in(&self, memory_in: HashMap<MemoryLocation, AvailableValue>) {
+        *self.memory_values_in.borrow_mut() = memory_in;
     }
 
-    pub fn stack_values_out(&self) -> HashMap<MemoryLocation, AvailableValue> {
-        self.stack_values_out.borrow().clone()
+    pub fn memory_values_out(&self) -> HashMap<MemoryLocation, AvailableValue> {
+        self.memory_values_out.borrow().clone()
     }
 
-    pub fn set_stack_values_out(&self, stack_out: HashMap<MemoryLocation, AvailableValue>) {
-        *self.stack_values_out.borrow_mut() = stack_out;
+    pub fn set_memory_values_out(&self, memory_out: HashMap<MemoryLocation, AvailableValue>) {
+        *self.memory_values_out.borrow_mut() = memory_out;
     }
 
     pub fn live_in(&self) -> HashSet<Register> {

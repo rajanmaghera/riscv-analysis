@@ -46,7 +46,7 @@ impl ParserNode {
     }
 
     #[must_use]
-    pub fn gen_stack_value(&self) -> Option<(MemoryLocation, AvailableValue)> {
+    pub fn gen_memory_value(&self) -> Option<(MemoryLocation, AvailableValue)> {
         match self {
             ParserNode::Store(expr) => {
                 if expr.rs1 == Register::X2 {

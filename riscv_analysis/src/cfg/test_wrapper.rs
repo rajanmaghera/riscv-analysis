@@ -53,13 +53,13 @@ pub struct NodeWrapper {
         skip_serializing_if = "HashMap::is_empty",
         serialize_with = "sorted_map"
     )]
-    pub stack_values_in: HashMap<MemoryLocation, AvailableValue>,
+    pub memory_values_in: HashMap<MemoryLocation, AvailableValue>,
     #[serde(
         default,
         skip_serializing_if = "HashMap::is_empty",
         serialize_with = "sorted_map"
     )]
-    pub stack_values_out: HashMap<MemoryLocation, AvailableValue>,
+    pub memory_values_out: HashMap<MemoryLocation, AvailableValue>,
     #[serde(
         default,
         skip_serializing_if = "HashSet::is_empty",
@@ -119,8 +119,8 @@ impl NodeWrapper {
                 .collect(),
             reg_values_in: node.reg_values_in(),
             reg_values_out: node.reg_values_out(),
-            stack_values_in: node.stack_values_in(),
-            stack_values_out: node.stack_values_out(),
+            memory_values_in: node.memory_values_in(),
+            memory_values_out: node.memory_values_out(),
             live_in: node.live_in(),
             live_out: node.live_out(),
             u_def: node.u_def(),
