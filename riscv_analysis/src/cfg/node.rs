@@ -15,7 +15,7 @@ use super::Cfg;
 use super::Function;
 
 #[derive(Debug)]
-pub struct CFGNode {
+pub struct CfgNode {
     /// Parser node that this CFG node is wrapping.
     node: RefCell<ParserNode>,
     /// Any labels that refer to this instruction.
@@ -23,9 +23,9 @@ pub struct CFGNode {
     /// Is this node inside the data section?
     pub data_section: bool,
     /// CFG nodes that come after this one (forward edges).
-    nexts: RefCell<HashSet<Rc<CFGNode>>>,
+    nexts: RefCell<HashSet<Rc<CfgNode>>>,
     /// CFG nodes that come before this one (backward edges).
-    prevs: RefCell<HashSet<Rc<CFGNode>>>,
+    prevs: RefCell<HashSet<Rc<CfgNode>>>,
     /// If this CFG node is part of a function, which function
     /// is it part of?
     ///
@@ -101,10 +101,10 @@ pub struct CFGNode {
     u_def: RefCell<HashSet<Register>>,
 }
 
-impl CFGNode {
+impl CfgNode {
     #[must_use]
     pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>, data_section: bool) -> Self {
-        CFGNode {
+        CfgNode {
             node: RefCell::new(node),
             labels,
             data_section,
@@ -129,11 +129,11 @@ impl CFGNode {
         self.node.borrow().clone()
     }
 
-    pub fn nexts(&self) -> Ref<HashSet<Rc<CFGNode>>> {
+    pub fn nexts(&self) -> Ref<HashSet<Rc<CfgNode>>> {
         self.nexts.borrow()
     }
 
-    pub fn prevs(&self) -> Ref<HashSet<Rc<CFGNode>>> {
+    pub fn prevs(&self) -> Ref<HashSet<Rc<CfgNode>>> {
         self.prevs.borrow()
     }
 
@@ -236,11 +236,11 @@ impl CFGNode {
         self.known_ecall() == Some(10) || self.known_ecall() == Some(93)
     }
 
-    pub fn insert_next(&self, next: Rc<CFGNode>) {
+    pub fn insert_next(&self, next: Rc<CfgNode>) {
         self.nexts.borrow_mut().insert(next);
     }
 
-    pub fn remove_next(&self, next: &Rc<CFGNode>) {
+    pub fn remove_next(&self, next: &Rc<CfgNode>) {
         self.nexts.borrow_mut().remove(next);
     }
 
@@ -248,11 +248,11 @@ impl CFGNode {
         self.nexts.borrow_mut().clear();
     }
 
-    pub fn insert_prev(&self, prev: Rc<CFGNode>) {
+    pub fn insert_prev(&self, prev: Rc<CfgNode>) {
         self.prevs.borrow_mut().insert(prev);
     }
 
-    pub fn remove_prev(&self, prev: &Rc<CFGNode>) {
+    pub fn remove_prev(&self, prev: &Rc<CfgNode>) {
         self.prevs.borrow_mut().remove(prev);
     }
 
@@ -274,15 +274,15 @@ impl CFGNode {
     }
 }
 
-impl Hash for CFGNode {
+impl Hash for CfgNode {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.node().hash(state);
     }
 }
 
-impl PartialEq for CFGNode {
+impl PartialEq for CfgNode {
     fn eq(&self, other: &Self) -> bool {
         self.node == other.node
     }
 }
-impl Eq for CFGNode {}
+impl Eq for CfgNode {}
