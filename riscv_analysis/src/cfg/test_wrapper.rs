@@ -20,7 +20,15 @@ pub struct NodeWrapper {
         serialize_with = "sorted_set"
     )]
     pub labels: HashSet<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+    )]
     pub func_entry: Vec<usize>,
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+    )]
     pub func_exit: Vec<usize>,
     #[serde(
         default,

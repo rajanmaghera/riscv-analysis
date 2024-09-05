@@ -291,8 +291,10 @@
 - node: !FuncEntry {}
   labels:
   - bar
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   nexts:
   - 12
   reg_values_out:
@@ -375,8 +377,10 @@
     rd: 2
     rs1: 2
     imm: -4
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   nexts:
   - 13
   prevs:
@@ -508,8 +512,10 @@
     rs1: 2
     rs2: 1
     imm: 0
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   nexts:
   - 14
   prevs:
@@ -644,8 +650,10 @@
     rs1: 2
     rs2: 8
     imm: 4
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   nexts:
   - 15
   prevs:
@@ -785,8 +793,10 @@
     rd: 8
     rs1: 0
     imm: 2
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   nexts:
   - 16
   prevs:
@@ -926,8 +936,10 @@
     inst: Jal
     rd: 1
     name: foo
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   nexts:
   - 17
   prevs:
@@ -1062,8 +1074,10 @@
     rd: 1
     rs1: 2
     imm: 0
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   nexts:
   - 18
   prevs:
@@ -1198,8 +1212,10 @@
     rd: 8
     rs1: 2
     imm: 4
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   nexts:
   - 19
   prevs:
@@ -1341,8 +1357,10 @@
     rd: 2
     rs1: 2
     imm: 4
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   nexts:
   - 20
   prevs:
@@ -1487,8 +1505,10 @@
     rd: 0
     rs1: 1
     imm: 0
-  func_entry: 11
-  func_exit: 20
+  func_entry:
+  - 11
+  func_exit:
+  - 20
   prevs:
   - 19
   reg_values_in:
@@ -1614,8 +1634,10 @@
 - node: !FuncEntry {}
   labels:
   - foo
-  func_entry: 21
-  func_exit: 23
+  func_entry:
+  - 21
+  func_exit:
+  - 23
   nexts:
   - 22
   reg_values_out:
@@ -1698,8 +1720,10 @@
     rd: 10
     rs1: 10
     rs2: 11
-  func_entry: 21
-  func_exit: 23
+  func_entry:
+  - 21
+  func_exit:
+  - 23
   nexts:
   - 23
   prevs:
@@ -1829,8 +1853,10 @@
     rd: 0
     rs1: 1
     imm: 0
-  func_entry: 21
-  func_exit: 23
+  func_entry:
+  - 21
+  func_exit:
+  - 23
   prevs:
   - 22
   reg_values_in:
