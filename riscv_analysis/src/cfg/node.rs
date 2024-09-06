@@ -264,13 +264,12 @@ impl CfgNode {
     /// If this node is an entry point, return the corresponding function.
     pub fn is_function_entry(&self) -> Option<Rc<Function>> {
         for func in self.functions().iter() {
-            let func = func.clone();
+            let func = Rc::clone(func);
             if &*func.entry() == self {
                 return Some(func)
             }
         }
-
-        return None;
+        None
     }
 
     /// Return true if this node is part of a function.

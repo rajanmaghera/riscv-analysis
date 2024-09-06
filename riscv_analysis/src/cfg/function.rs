@@ -109,7 +109,7 @@ impl Function {
 
     /// Return the entry node of this function.
     pub fn entry(&self) -> Rc<CfgNode> {
-        self.entry.clone()
+        Rc::clone(&self.entry)
     }
 
     /// Return the exit node of this function. In general, this corresponds to a

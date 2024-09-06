@@ -5,8 +5,6 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::parser::{Label, LabelString};
-
 use super::{CfgNode, Cfg};
 
 pub trait SetListString {
@@ -48,7 +46,7 @@ impl Display for CfgNode {
             0 => "N/A".to_string(),
             _ => self.functions()
                      .iter()
-                     .map(|f| f.name().0)
+                     .map(|func| func.name().0)
                      .join(" | "),
         };
 
@@ -62,7 +60,7 @@ impl Display for CfgNode {
         ))?;
         f.write_fmt(format_args!("  | UDEF | {}\n", self.u_def().str()))?;
         f.write_fmt(format_args!("  | NEXT | {}\n", self.nexts().len()))?;
-        f.write_fmt(format_args!("  | FN   | {}\n", fn_label))?;
+        f.write_fmt(format_args!("  | FN   | {fn_label}\n"))?;
 
         Ok(())
     }

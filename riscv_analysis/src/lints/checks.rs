@@ -173,13 +173,13 @@ impl LintPass for ControlFlowCheck {
                             if prev_node.node().is_program_entry() {
                                 errors.push(LintError::FirstInstructionIsFunction(
                                     node.node().clone(),
-                                    function.clone(),
+                                    Rc::clone(function),
                                 ));
                             } else {
                                 errors.push(LintError::InvalidJumpToFunction(
                                     node.node().clone(),
                                     prev_node.node().clone(),
-                                    function.clone(),
+                                    Rc::clone(function),
                                 ));
                             }
 
@@ -368,41 +368,40 @@ impl LintPass for LostCalleeSavedRegisterCheck {
             // We intentionally do not check for callee-saved registers
             // as the value is mean to be modified
             if let Some(reg) = node.node().stores_to() {
-                if callee.contains(&reg.data) {
-                    if node.is_part_of_some_function()
-                        && node.reg_values_in().get(&reg.data)
-                            == Some(&AvailableValue::OriginalRegisterWithScalar(reg.data, 0))
-                    {
-                        // Check that the value exists somewhere in the available values
-                        // like the stack.
-                        // if not, then we have a problem
-                        let mut found = false;
+                if callee.contains(&reg.data)
+                    && node.is_part_of_some_function()
+                    && node.reg_values_in().get(&reg.data)
+                    == Some(&AvailableValue::OriginalRegisterWithScalar(reg.data, 0))
+                {
+                    // Check that the value exists somewhere in the available values
+                    // like the stack.
+                    // if not, then we have a problem
+                    let mut found = false;
 
-                        // check stack values:
-                        let stack = node.stack_values_out();
-                        for (_, val) in stack {
-                            if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) = val {
-                                if reg2 == reg.data && offset == 0 {
-                                    found = true;
-                                    break;
-                                }
+                    // check stack values:
+                    let stack = node.stack_values_out();
+                    for (_, val) in stack {
+                        if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) = val {
+                            if reg2 == reg.data && offset == 0 {
+                                found = true;
+                                break;
                             }
                         }
+                    }
 
-                        // check register values:
-                        let regs = node.reg_values_out();
-                        for (_, val) in regs {
-                            if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) = val {
-                                if reg2 == reg.data && offset == 0 {
-                                    found = true;
-                                    break;
-                                }
+                    // check register values:
+                    let regs = node.reg_values_out();
+                    for (_, val) in regs {
+                        if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) = val {
+                            if reg2 == reg.data && offset == 0 {
+                                found = true;
+                                break;
                             }
                         }
+                    }
 
-                        if !found {
-                            errors.push(LintError::LostRegisterValue(reg));
-                        }
+                    if !found {
+                        errors.push(LintError::LostRegisterValue(reg));
                     }
                 }
             }
