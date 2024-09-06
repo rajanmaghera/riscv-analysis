@@ -184,8 +184,6 @@ impl LintPass for ControlFlowCheck {
                             }
 
                         }
-                        // if let Some(function) = node.functions().clone() {
-                        // }
                     }
                 }
                 ParserNode::ProgramEntry(_) => {}
