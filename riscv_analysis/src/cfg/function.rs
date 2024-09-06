@@ -94,23 +94,23 @@ impl Function {
     }
 
     /// Insert the instructions composing this function.
-    pub fn insert_nodes(&self, instructions: Vec<Rc<CFGNode>>) {
+    pub fn insert_nodes(&self, instructions: Vec<Rc<CfgNode>>) {
         *self.nodes.borrow_mut() = instructions;
     }
 
     /// Return the instructions in the function.
-    pub fn nodes(&self) -> Ref<Vec<Rc<CFGNode>>> {
+    pub fn nodes(&self) -> Ref<Vec<Rc<CfgNode>>> {
         self.nodes.borrow()
     }
 
     /// Return the exit node of this function. In general, this corresponds to a
     /// `ret` instruction.
-    pub fn exit(&self) -> Ref<Rc<CFGNode>> {
+    pub fn exit(&self) -> Ref<Rc<CfgNode>> {
         self.exit.borrow()
     }
 
     /// Set the exit node of this function.
-    pub fn set_exit(&self, node: Rc<CFGNode>) {
+    pub fn set_exit(&self, node: Rc<CfgNode>) {
         *self.exit.borrow_mut() = node;
     }
 }

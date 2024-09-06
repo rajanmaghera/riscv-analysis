@@ -12,15 +12,15 @@ use crate::{
 
 struct MarkData {
     pub found: HashSet<Register>,
-    pub instructions: Vec<Rc<CFGNode>>,
-    pub returns: Rc<CFGNode>,
+    pub instructions: Vec<Rc<CfgNode>>,
+    pub returns: Rc<CfgNode>,
 }
 
 pub struct FunctionMarkupPass;
 
 impl FunctionMarkupPass {
-    fn mark_reachable(entry: Rc<CFGNode>, func: Rc<Function>)
-                      -> Result<MarkData, Box<CFGError>> {
+    fn mark_reachable(entry: Rc<CfgNode>, func: Rc<Function>)
+                      -> Result<MarkData, Box<CfgError>> {
         // Initialize data for graph search
         let mut queue = vec![entry.clone()];
         let mut seen = HashSet::new();      // CFG nodes seen during the traversal

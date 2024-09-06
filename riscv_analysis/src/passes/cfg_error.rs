@@ -66,7 +66,7 @@ impl Display for CfgError {
             CfgError::NoLabelForReturn(_) => {
                 write!(f, "No label for return")
             }
-            CfGError::UnexpectedError => write!(f, "Unexpected error"),
+            CfgError::UnexpectedError => write!(f, "Unexpected error"),
             CfgError::AssertionError => write!(f, "Assertion error"),
             CfgError::OverlappingFunctions(_, labels) => {
                 write!(f, "Instruction in multiple functions: {}", labels.as_str_list())
