@@ -274,7 +274,7 @@ impl CfgNode {
     }
 
     /// Return true if this node is part of a function.
-    pub fn has_function(&self) -> bool {
+    pub fn is_part_of_some_function(&self) -> bool {
         return self.functions().len() > 0;
     }
 

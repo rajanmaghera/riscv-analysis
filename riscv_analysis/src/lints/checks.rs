@@ -369,7 +369,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
             // as the value is mean to be modified
             if let Some(reg) = node.node().stores_to() {
                 if callee.contains(&reg.data) {
-                    if node.has_function()
+                    if node.is_part_of_some_function()
                         && node.reg_values_in().get(&reg.data)
                             == Some(&AvailableValue::OriginalRegisterWithScalar(reg.data, 0))
                     {
