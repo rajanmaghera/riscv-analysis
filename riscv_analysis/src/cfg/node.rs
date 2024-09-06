@@ -26,11 +26,9 @@ pub struct CfgNode {
     nexts: RefCell<HashSet<Rc<CfgNode>>>,
     /// CFG nodes that come before this one (backward edges).
     prevs: RefCell<HashSet<Rc<CfgNode>>>,
-    /// If this CFG node is part of a function, which function
-    /// is it part of?
+    /// Which functions, if any, is this node a part of.
     ///
-    /// Every CFG node can only ever be part of one function.
-    /// We do not allow one node to be part of more than one.
+    /// Note that a node could be a part of 0, 1 or more functions.
     function: RefCell<HashSet<Rc<Function>>>,
     /// Map each register to the available value that is set before
     /// the instruction represented by this CFG node is run.
