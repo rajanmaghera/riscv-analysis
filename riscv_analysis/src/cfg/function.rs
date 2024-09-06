@@ -79,8 +79,8 @@ impl Function {
         self.exit().live_in().intersection_c(&RegSets::ret())
     }
 
-    /// Insert the set of registers used by this function.
-    pub fn insert_defs(&self, defs: HashSet<Register>) {
+    /// Set the registers used by this function.
+    pub fn set_defs(&self, defs: HashSet<Register>) {
         *self.defs.borrow_mut() = defs;
     }
 
@@ -97,8 +97,8 @@ impl Function {
             .difference_c(&vec![Register::X2].into_iter().collect())
     }
 
-    /// Insert the instructions composing this function.
-    pub fn insert_nodes(&self, instructions: Vec<Rc<CfgNode>>) {
+    /// Set the instructions composing this function.
+    pub fn set_nodes(&self, instructions: Vec<Rc<CfgNode>>) {
         *self.nodes.borrow_mut() = instructions;
     }
 

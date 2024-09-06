@@ -136,8 +136,8 @@ impl GenerationPass for FunctionMarkupPass {
             // FIXME: What to do if there is more than one return
             match Self::mark_reachable(entry, func.clone()) {
                 Ok(data) => {
-                    func.insert_defs(data.found);
-                    func.insert_nodes(data.instructions);
+                    func.set_defs(data.found);
+                    func.set_nodes(data.instructions);
                     func.set_exit(data.returns);
                 },
                 Err(e) => { return Err(e); }
