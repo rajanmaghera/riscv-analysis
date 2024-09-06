@@ -265,7 +265,7 @@ impl CfgNode {
     pub fn is_function_entry(&self) -> Option<Rc<Function>> {
         for func in self.functions().iter() {
             let func = func.clone();
-            if &*func.entry == self {
+            if &*func.entry() == self {
                 return Some(func)
             }
         }

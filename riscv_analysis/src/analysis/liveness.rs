@@ -64,7 +64,7 @@ impl GenerationPass for LivenessPass {
                     // kill[n] = caller-saved
                     let live_in_temp = node.live_out().difference_c(&RegSets::caller_saved());
                     let live_in = func
-                        .entry
+                        .entry()
                         .live_out()
                         .intersection_c(&RegSets::argument())
                         .union_c(&live_in_temp);

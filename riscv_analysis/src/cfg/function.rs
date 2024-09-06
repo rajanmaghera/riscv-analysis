@@ -19,7 +19,7 @@ pub struct Function {
     nodes: RefCell<Vec<Rc<CfgNode>>>,
 
     /// Entry node of the function.
-    pub entry: Rc<CfgNode>,
+    entry: Rc<CfgNode>,
 
     /// Exit node of the function. Multiple exit points will be converted to a
     /// single exit point.
@@ -105,6 +105,11 @@ impl Function {
     /// Return the instructions in the function.
     pub fn nodes(&self) -> Ref<Vec<Rc<CfgNode>>> {
         self.nodes.borrow()
+    }
+
+    /// Return the entry node of this function.
+    pub fn entry(&self) -> Rc<CfgNode> {
+        self.entry.clone()
     }
 
     /// Return the exit node of this function. In general, this corresponds to a
