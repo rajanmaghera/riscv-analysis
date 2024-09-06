@@ -49,7 +49,6 @@ impl Display for CfgNode {
             _ => self.functions()
                      .iter()
                      .map(|f| f.name().0)
-                     .collect::<Vec<String>>()
                      .join(" | "),
         };
 
