@@ -1,5 +1,4 @@
 {
-
 	"name": "riscv-analysis-client",
 	"description": "RISC-V Assembly Language Server",
 	"author": "Rajan Maghera",
@@ -14,6 +13,7 @@
 		"vscode": "^1.75.0"
 	},
 	"dependencies": {
+		"@types/node": "^20.14.10",
 		"vscode-languageclient": "^8.1.0"
 	},
 	"devDependencies": {

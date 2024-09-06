@@ -13,6 +13,7 @@
 		"node": "*"
 	},
 	"dependencies": {
+		"@types/node": "^20.14.10",
 		"vscode-languageserver": "^8.1.0",
 		"vscode-languageserver-textdocument": "^1.0.8"
 	},
