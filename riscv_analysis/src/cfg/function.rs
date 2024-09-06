@@ -1,4 +1,5 @@
 use std::{cell::{Ref, RefCell}, collections::HashSet, hash::Hash, rc::Rc};
+use uuid::Uuid;
 
 use crate::{
     analysis::CustomClonedSets,
@@ -9,6 +10,8 @@ use super::CfgNode;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
+    uuid: Uuid,
+
     /// Labels for the entry point of this function
     labels: HashSet<With<LabelString>>,
 
@@ -28,7 +31,7 @@ pub struct Function {
 
 impl Hash for Function {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.name().hash(state);
+        self.uuid.hash(state);
     }
 }
 
@@ -52,6 +55,7 @@ impl Function {
         exit: Rc<CfgNode>,
     ) -> Self {
         Function {
+            uuid: Uuid::new_v4(),
             labels: labels.into_iter().collect::<HashSet<_>>(),
             nodes: RefCell::new(nodes),
             entry,
