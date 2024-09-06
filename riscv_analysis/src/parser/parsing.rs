@@ -194,22 +194,22 @@ impl Info {
 
     fn as_reg(&self) -> Result<With<Register>, LexError> {
         With::<Register>::try_from(self.clone())
-            .map_err(|_| LexError::Expected(vec![ExpectedType::Register], self.clone()))
+            .map_err(|()| LexError::Expected(vec![ExpectedType::Register], self.clone()))
     }
 
     fn as_imm(&self) -> Result<With<Imm>, LexError> {
         With::<Imm>::try_from(self.clone())
-            .map_err(|_| LexError::Expected(vec![ExpectedType::Imm], self.clone()))
+            .map_err(|()| LexError::Expected(vec![ExpectedType::Imm], self.clone()))
     }
 
     fn as_label(&self) -> Result<With<LabelString>, LexError> {
         With::<LabelString>::try_from(self.clone())
-            .map_err(|_| LexError::Expected(vec![ExpectedType::Label], self.clone()))
+            .map_err(|()| LexError::Expected(vec![ExpectedType::Label], self.clone()))
     }
 
     fn as_csrimm(&self) -> Result<With<CSRImm>, LexError> {
         With::<CSRImm>::try_from(self.clone())
-            .map_err(|_| LexError::Expected(vec![ExpectedType::CSRImm], self.clone()))
+            .map_err(|()| LexError::Expected(vec![ExpectedType::CSRImm], self.clone()))
     }
 
     fn as_string(&self) -> Result<With<String>, LexError> {
@@ -897,7 +897,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
             }
             Token::Label(s) => Ok(ParserNode::new_label(
                 With::new(
-                    LabelString::from_str(s).map_err(|_| {
+                    LabelString::from_str(s).map_err(|()| {
                         LexError::Expected(vec![ExpectedType::Label], next_node.clone())
                     })?,
                     next_node,

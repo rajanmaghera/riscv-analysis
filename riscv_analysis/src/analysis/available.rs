@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::parser::{LabelString, RegSets};
 use crate::parser::{ParserNode, Register};
-use crate::passes::{CFGError, GenerationPass};
+use crate::passes::{CfgError, GenerationPass};
 
 use super::{CustomDifference, CustomIntersection, CustomInto, CustomUnion, CustomUnionFilterMap};
 
@@ -133,7 +133,7 @@ impl AvailableStackHelpers for HashMap<Register, AvailableValue> {
 ///
 pub struct AvailableValuePass;
 impl GenerationPass for AvailableValuePass {
-    fn run(cfg: &mut crate::cfg::Cfg) -> Result<(), Box<CFGError>> {
+    fn run(cfg: &mut crate::cfg::Cfg) -> Result<(), Box<CfgError>> {
         let mut changed = true;
 
         // Because of this type of algorithm, there might be a back branch,
@@ -310,19 +310,13 @@ fn rule_perform_math_ops(
 ) {
     if let Some(reg) = node.stores_to() {
         let lhs = match node {
-            ParserNode::Arith(expr) => available_in
-                .get(&expr.rs1.data)
-                .map(std::clone::Clone::clone),
-            ParserNode::IArith(expr) => available_in
-                .get(&expr.rs1.data)
-                .map(std::clone::Clone::clone),
+            ParserNode::Arith(expr) => available_in.get(&expr.rs1.data).cloned(),
+            ParserNode::IArith(expr) => available_in.get(&expr.rs1.data).cloned(),
             _ => None,
         };
 
         let rhs = match node {
-            ParserNode::Arith(expr) => available_in
-                .get(&expr.rs2.data)
-                .map(std::clone::Clone::clone),
+            ParserNode::Arith(expr) => available_in.get(&expr.rs2.data).cloned(),
             ParserNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
             _ => None,
         };

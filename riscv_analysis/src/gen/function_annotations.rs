@@ -5,9 +5,9 @@ use std::{
 };
 
 use crate::{
-    cfg::{CFGNode, Cfg, Function},
+    cfg::{CfgNode, Cfg, Function},
     parser::{Info, JumpLinkType, LabelString, ParserNode, Register, With},
-    passes::{CFGError, DiagnosticLocation, GenerationPass},
+    passes::{CfgError, DiagnosticLocation, GenerationPass},
 };
 
 struct MarkData {
@@ -100,7 +100,7 @@ impl FunctionMarkupPass {
 }
 
 impl GenerationPass for FunctionMarkupPass {
-    fn run(cfg: &mut Cfg) -> Result<(), Box<CFGError>> {
+    fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
         let mut label_function_map: HashMap<
             crate::parser::With<crate::parser::LabelString>,
             Rc<Function>,

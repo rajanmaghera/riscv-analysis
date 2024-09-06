@@ -7,7 +7,7 @@ use itertools::Itertools;
 
 use crate::parser::{Label, LabelString};
 
-use super::{CFGNode, Cfg};
+use super::{CfgNode, Cfg};
 
 pub trait SetListString {
     fn str(&self) -> String;
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl Display for CFGNode {
+impl Display for CfgNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let fn_label = match self.functions().len() {
             0 => "N/A".to_string(),

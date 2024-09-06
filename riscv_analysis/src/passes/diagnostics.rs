@@ -43,11 +43,7 @@ impl Eq for DiagnosticItem {}
 
 impl PartialOrd for DiagnosticItem {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.file == other.file {
-            self.range.partial_cmp(&other.range)
-        } else {
-            None
-        }
+        Some(self.cmp(other))
     }
 }
 

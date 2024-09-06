@@ -15,7 +15,7 @@ use super::Cfg;
 use super::Function;
 
 #[derive(Debug)]
-pub struct CFGNode {
+pub struct CfgNode {
     /// Parser node that this CFG node is wrapping.
     node: RefCell<ParserNode>,
     /// Any labels that refer to this instruction.
@@ -23,13 +23,13 @@ pub struct CFGNode {
     /// Is this node inside the data section?
     pub data_section: bool,
     /// CFG nodes that come after this one (forward edges).
-    nexts: RefCell<HashSet<Rc<CFGNode>>>,
+    nexts: RefCell<HashSet<Rc<CfgNode>>>,
     /// CFG nodes that come before this one (backward edges).
-    prevs: RefCell<HashSet<Rc<CFGNode>>>,
+    prevs: RefCell<HashSet<Rc<CfgNode>>>,
     /// If this CFG node is part of a function, which function
     /// is it part of?
     ///
-    /// Every CFG node can only ever be part of one function. 
+    /// Every CFG node can only ever be part of one function.
     /// We do not allow one node to be part of more than one.
     function: RefCell<HashSet<Rc<Function>>>,
     /// Map each register to the available value that is set before
@@ -46,7 +46,7 @@ pub struct CFGNode {
     /// values. This means that many values might be duplicated above
     /// and below this CFG node.
     reg_values_out: RefCell<HashMap<Register, AvailableValue>>,
-    /// Map each stack location offset to the available value 
+    /// Map each stack location offset to the available value
     /// that is set before the instruction represented by this
     /// CFG node is run.
     ///
@@ -61,7 +61,7 @@ pub struct CFGNode {
     /// kept track of on the stack. This is because the register
     /// is 32-bit.
     stack_values_in: RefCell<HashMap<i32, AvailableValue>>,
-    /// Map each stack location offset to the available value 
+    /// Map each stack location offset to the available value
     /// that is set after the instruction represented by this
     /// CFG node is run.
     ///
@@ -76,10 +76,10 @@ pub struct CFGNode {
     /// kept track of on the stack. This is because the register
     /// is 32-bit.
     stack_values_out: RefCell<HashMap<i32, AvailableValue>>,
-    /// The set of registers that are live before the instruction 
+    /// The set of registers that are live before the instruction
     /// represented by this CFG node is run.
     live_in: RefCell<HashSet<Register>>,
-    /// The set of registers that are live after the instruction 
+    /// The set of registers that are live after the instruction
     /// represented by this CFG node is run.
     live_out: RefCell<HashSet<Register>>,
     /// The set of registers that have unconditionally been set after
@@ -92,7 +92,7 @@ pub struct CFGNode {
     ///
     /// Unconditionally set registers must be set in every path. For example,
     /// if there is a divergent if-else branch and the target block sets a register,
-    /// that register will be contained in the u_def set at the end of the function
+    /// that register will be contained in the `u_def` set at the end of the function
     /// if it is also set in the fallthrough block.
     ///
     /// Unconditionally set registers are used to determine the set of registers
@@ -101,10 +101,10 @@ pub struct CFGNode {
     u_def: RefCell<HashSet<Register>>,
 }
 
-impl CFGNode {
+impl CfgNode {
     #[must_use]
     pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>, data_section: bool) -> Self {
-        CFGNode {
+        CfgNode {
             node: RefCell::new(node),
             labels,
             data_section,
@@ -129,11 +129,11 @@ impl CFGNode {
         self.node.borrow().clone()
     }
 
-    pub fn nexts(&self) -> Ref<HashSet<Rc<CFGNode>>> {
+    pub fn nexts(&self) -> Ref<HashSet<Rc<CfgNode>>> {
         self.nexts.borrow()
     }
 
-    pub fn prevs(&self) -> Ref<HashSet<Rc<CFGNode>>> {
+    pub fn prevs(&self) -> Ref<HashSet<Rc<CfgNode>>> {
         self.prevs.borrow()
     }
 
@@ -239,11 +239,11 @@ impl CFGNode {
         self.known_ecall() == Some(10) || self.known_ecall() == Some(93)
     }
 
-    pub fn insert_next(&self, next: Rc<CFGNode>) {
+    pub fn insert_next(&self, next: Rc<CfgNode>) {
         self.nexts.borrow_mut().insert(next);
     }
 
-    pub fn remove_next(&self, next: &Rc<CFGNode>) {
+    pub fn remove_next(&self, next: &Rc<CfgNode>) {
         self.nexts.borrow_mut().remove(next);
     }
 
@@ -251,11 +251,11 @@ impl CFGNode {
         self.nexts.borrow_mut().clear();
     }
 
-    pub fn insert_prev(&self, prev: Rc<CFGNode>) {
+    pub fn insert_prev(&self, prev: Rc<CfgNode>) {
         self.prevs.borrow_mut().insert(prev);
     }
 
-    pub fn remove_prev(&self, prev: &Rc<CFGNode>) {
+    pub fn remove_prev(&self, prev: &Rc<CfgNode>) {
         self.prevs.borrow_mut().remove(prev);
     }
 
@@ -285,15 +285,15 @@ impl CFGNode {
     }
 }
 
-impl Hash for CFGNode {
+impl Hash for CfgNode {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.node().hash(state);
     }
 }
 
-impl PartialEq for CFGNode {
+impl PartialEq for CfgNode {
     fn eq(&self, other: &Self) -> bool {
         self.node == other.node
     }
 }
-impl Eq for CFGNode {}
+impl Eq for CfgNode {}

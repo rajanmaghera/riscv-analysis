@@ -1,24 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::fmt::Display;
 use std::hash::Hash;
 
 use crate::parser::Register;
 
 use super::AvailableValue;
-
-trait CustomDefault {
-    fn def() -> Self;
-}
-
-impl<U, T> CustomDefault for std::collections::hash_map::IntoIter<U, T>
-where
-    T: Eq + Hash + Clone,
-    U: Eq + Hash + Clone + Display,
-{
-    fn def() -> Self {
-        HashMap::new().into_iter()
-    }
-}
 
 pub trait CustomIntersection {
     #[must_use]

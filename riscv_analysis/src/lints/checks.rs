@@ -1,7 +1,7 @@
 use crate::analysis::AvailableRegisterValues;
 use crate::analysis::AvailableValue;
 use crate::analysis::CustomClonedSets;
-use crate::cfg::CFGNode;
+use crate::cfg::CfgNode;
 use crate::cfg::Cfg;
 use crate::parser::ParserNode;
 use crate::parser::RegSets;
@@ -23,7 +23,7 @@ impl Cfg {
     /// This function works by traversing the previous nodes until it finds a node that stores to the given register.
     /// This is used to correctly mark up the first store to a register that might
     /// have been incorrect.
-    fn error_ranges_for_first_store(node: &Rc<CFGNode>, item: Register) -> Vec<With<Register>> {
+    fn error_ranges_for_first_store(node: &Rc<CfgNode>, item: Register) -> Vec<With<Register>> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the previous nodes onto the queue
@@ -55,7 +55,7 @@ impl Cfg {
 
     // TODO move to a more appropriate place
     // TODO make better, what even is this?
-    fn error_ranges_for_first_usage(node: &Rc<CFGNode>, item: Register) -> Vec<With<Register>> {
+    fn error_ranges_for_first_usage(node: &Rc<CfgNode>, item: Register) -> Vec<With<Register>> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the next nodes onto the queue
@@ -204,7 +204,7 @@ impl LintPass for ControlFlowCheck {
 pub struct EcallCheck;
 impl LintPass for EcallCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for (_i, node) in cfg.clone().into_iter().enumerate() {
+        for node in &cfg.clone() {
             if node.node().is_ecall() && node.known_ecall().is_none() {
                 errors.push(LintError::UnknownEcall(node.node().clone()));
             }
@@ -307,7 +307,7 @@ impl LintPass for StackCheckPass {
 pub struct CalleeSavedGarbageReadCheck;
 impl LintPass for CalleeSavedGarbageReadCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for (_i, node) in cfg.nodes.clone().into_iter().enumerate() {
+        for node in &cfg.nodes.clone() {
             for read in node.node().reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers

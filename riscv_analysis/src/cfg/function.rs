@@ -5,7 +5,7 @@ use crate::{
     parser::{LabelString, RegSets, Register, With},
 };
 
-use super::CFGNode;
+use super::CfgNode;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
@@ -13,14 +13,14 @@ pub struct Function {
     labels: HashSet<With<LabelString>>,
 
     /// List of all nodes in the function. May not be in any particular order.
-    nodes: RefCell<Vec<Rc<CFGNode>>>,
+    nodes: RefCell<Vec<Rc<CfgNode>>>,
 
     /// Entry node of the function.
-    pub entry: Rc<CFGNode>,
+    pub entry: Rc<CfgNode>,
 
     /// Exit node of the function. Multiple exit points will be converted to a
     /// single exit point.
-    exit: RefCell<Rc<CFGNode>>,
+    exit: RefCell<Rc<CfgNode>>,
 
     /// The registers that are set ever in the function
     defs: RefCell<HashSet<Register>>,
@@ -47,9 +47,9 @@ impl Function {
 
     pub fn new(
         labels: Vec<With<LabelString>>,
-        nodes: Vec<Rc<CFGNode>>,
-        entry: Rc<CFGNode>,
-        exit: Rc<CFGNode>,
+        nodes: Vec<Rc<CfgNode>>,
+        entry: Rc<CfgNode>,
+        exit: Rc<CfgNode>,
     ) -> Self {
         Function {
             labels: labels.into_iter().collect::<HashSet<_>>(),

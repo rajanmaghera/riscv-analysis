@@ -29,7 +29,6 @@ mod error;
 pub use error::*;
 
 mod display;
-pub use display::*;
 
 mod data_eq_wrapper;
 pub use data_eq_wrapper::*;

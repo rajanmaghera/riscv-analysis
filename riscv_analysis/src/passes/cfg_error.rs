@@ -5,14 +5,14 @@ use crate::parser::{LabelString, ParserNode, With};
 use super::{DiagnosticLocation, DiagnosticMessage, WarningLevel};
 
 #[derive(Debug, Clone)]
-// TODO CFGErrors that do not require the whole thing to be re-run
+// TODO CfgErrors that do not require the whole thing to be re-run
 
-/// `CFGError` is an error that occurs while generating an annotated CFG.
+/// `CfgError` is an error that occurs while generating an annotated CFG.
 ///
 /// These errors are non-recoverable and will cause the program to exit at
 /// the point of error. As much effort should be done to avoid these errors
 /// and to use `LintErrors`, as those are recoverable.
-pub enum CFGError {
+pub enum CfgError {
     /// This error occurs when a label is used but not defined.
     LabelsNotDefined(HashSet<With<LabelString>>),
     /// This error occurs when a label is defined more than once.
@@ -51,73 +51,73 @@ where
     }
 }
 
-impl Display for CFGError {
+impl Display for CfgError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CFGError::LabelsNotDefined(labels) => {
+            CfgError::LabelsNotDefined(labels) => {
                 write!(f, "Labels not defined: {}", labels.as_str_list())
             }
-            CFGError::DuplicateLabel(label) => {
+            CfgError::DuplicateLabel(label) => {
                 write!(f, "Duplicate label: {label}")
             }
-            CFGError::MultipleLabelsForReturn(_, labels) => {
+            CfgError::MultipleLabelsForReturn(_, labels) => {
                 write!(f, "Multiple labels for return: {}", labels.as_str_list())
             }
-            CFGError::NoLabelForReturn(_) => {
+            CfgError::NoLabelForReturn(_) => {
                 write!(f, "No label for return")
             }
-            CFGError::UnexpectedError => write!(f, "Unexpected error"),
-            CFGError::AssertionError => write!(f, "Assertion error"),
-            CFGError::OverlappingFunctions(_, labels) => {
+            CfGError::UnexpectedError => write!(f, "Unexpected error"),
+            CfgError::AssertionError => write!(f, "Assertion error"),
+            CfgError::OverlappingFunctions(_, labels) => {
                 write!(f, "Instruction in multiple functions: {}", labels.as_str_list())
             }
         }
     }
 }
 
-impl From<&CFGError> for WarningLevel {
-    fn from(value: &CFGError) -> Self {
+impl From<&CfgError> for WarningLevel {
+    fn from(value: &CfgError) -> Self {
         match value {
-            CFGError::LabelsNotDefined(_)
-            | CFGError::DuplicateLabel(_)
-            | CFGError::MultipleLabelsForReturn(_, _)
-            | CFGError::NoLabelForReturn(_)
-            | CFGError::UnexpectedError
-            | CFGError::OverlappingFunctions(_, _)
-            | CFGError::AssertionError => WarningLevel::Error,
+            CfgError::LabelsNotDefined(_)
+            | CfgError::DuplicateLabel(_)
+            | CfgError::MultipleLabelsForReturn(_, _)
+            | CfgError::NoLabelForReturn(_)
+            | CfgError::UnexpectedError
+            | CfgError::OverlappingFunctions(_, _)
+            | CfgError::AssertionError => WarningLevel::Error,
         }
     }
 }
 
-impl DiagnosticLocation for CFGError {
+impl DiagnosticLocation for CfgError {
     fn file(&self) -> uuid::Uuid {
         match self {
-            CFGError::MultipleLabelsForReturn(node, _)
-                | CFGError::NoLabelForReturn(node)
-                | CFGError::OverlappingFunctions(node, _)=> {
+            CfgError::MultipleLabelsForReturn(node, _)
+                | CfgError::NoLabelForReturn(node)
+                | CfgError::OverlappingFunctions(node, _) => {
                 node.file()
             }
-            CFGError::LabelsNotDefined(labels) => labels.iter().next().unwrap().file(),
-            CFGError::DuplicateLabel(label) => label.file(),
-            CFGError::UnexpectedError | CFGError::AssertionError => uuid::Uuid::nil(),
+            CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().file(),
+            CfgError::DuplicateLabel(label) => label.file(),
+            CfgError::UnexpectedError | CfgError::AssertionError => uuid::Uuid::nil(),
         }
     }
 
     fn range(&self) -> crate::parser::Range {
         match self {
-            CFGError::MultipleLabelsForReturn(node, _)
-                | CFGError::NoLabelForReturn(node)
-                | CFGError::OverlappingFunctions(node, _) => {
+            CfgError::MultipleLabelsForReturn(node, _)
+                | CfgError::NoLabelForReturn(node)
+                | CfgError::OverlappingFunctions(node, _) => {
                 node.range()
             }
-            CFGError::LabelsNotDefined(labels) => labels.iter().next().unwrap().range(),
-            CFGError::DuplicateLabel(label) => label.range(),
-            CFGError::UnexpectedError | CFGError::AssertionError => crate::parser::Range::default(),
+            CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().range(),
+            CfgError::DuplicateLabel(label) => label.range(),
+            CfgError::UnexpectedError | CfgError::AssertionError => crate::parser::Range::default(),
         }
     }
 }
 
-impl DiagnosticMessage for CFGError {
+impl DiagnosticMessage for CfgError {
     fn related(&self) -> Option<Vec<super::RelatedDiagnosticItem>> {
         None
     }
@@ -133,14 +133,14 @@ impl DiagnosticMessage for CFGError {
     }
     fn long_description(&self) -> String {
         match self {
-            CFGError::DuplicateLabel(label) => format!(
+            CfgError::DuplicateLabel(label) => format!(
                 "The label {label} is defined more than once. Labels must be unique."
             ),
-            CFGError::LabelsNotDefined(labels) => format!(
+            CfgError::LabelsNotDefined(labels) => format!(
                 "The labels {} are used but not defined. Labels must be defined within your file.",
                 labels.as_str_list()
             ),
-            CFGError::MultipleLabelsForReturn(_, labels) => format!(
+            CfgError::MultipleLabelsForReturn(_, labels) => format!(
                 "The return statement can be reached by multiple function labels: {}.\n\n\
                 Every return statement should only be reachable by one label. This also ensures\
                 that every instruction is reachable by only one label and is ever only part of a single function.\n\n\
@@ -150,7 +150,7 @@ impl DiagnosticMessage for CFGError {
                 for each function.",
                 labels.as_str_list()
             ),
-            CFGError::NoLabelForReturn(_) => "The return statement can be reached by no function labels.\n\n\
+            CfgError::NoLabelForReturn(_) => "The return statement can be reached by no function labels.\n\n\
                 Every return statement should be reachable by one label. This also ensures\
                 that every instruction is reachable by only one label and is ever only part of a single function.\n\n\
                 This return statement might be placed in code that isn't in a function. For example, you might have a
@@ -159,9 +159,9 @@ impl DiagnosticMessage for CFGError {
                 A label is considered a function if it has been called by a [jal] instruction. This code might also be\
                 missing from your file or imports.
                 ".to_string(),
-            CFGError::UnexpectedError => "An unexpected error occurred. Please file a bug.".to_string(),
-            CFGError::AssertionError => "An unexpected assertion error occurred. Please file a bug.".to_string(),
-            CFGError::OverlappingFunctions(_, labels) => format!(
+            CfgError::UnexpectedError => "An unexpected error occurred. Please file a bug.".to_string(),
+            CfgError::AssertionError => "An unexpected assertion error occurred. Please file a bug.".to_string(),
+            CfgError::OverlappingFunctions(_, labels) => format!(
                 // FIXME: Make a better description
                 "This instruction is located in more than one function: {}.\n\n\
                  This can occur when there is function call to the middle of a function, or if two (or more) \
