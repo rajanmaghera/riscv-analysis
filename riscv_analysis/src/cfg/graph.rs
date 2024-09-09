@@ -11,6 +11,7 @@ use std::rc::Rc;
 
 use super::CfgNode;
 use super::Function;
+use super::Segment;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Cfg {
@@ -98,8 +99,8 @@ impl Cfg {
             return Err(Box::new(CfgError::LabelsNotDefined(undefined_labels)));
         }
 
-        let mut data_section = false;
-
+        // Code always begins in the text segment if it is not defined.
+        let mut segment = Segment::Text;
         // PASS 1:
         // --------------------
         // Add nodes to graph
@@ -115,10 +116,10 @@ impl Cfg {
                     }
                 }
                 ParserNode::Directive(x) if x.dir == DirectiveType::DataSection => {
-                    data_section = true;
+                    segment = Segment::Data;
                 }
                 ParserNode::Directive(x) if x.dir == DirectiveType::TextSection => {
-                    data_section = false;
+                    segment = Segment::Text;
                 }
                 _ => {
                     // If any of the labels are a function call, add a function entry node
@@ -131,7 +132,7 @@ impl Cfg {
                         let rc_node = Rc::new(CfgNode::new(
                             ParserNode::new_func_entry(node.file(), node.token()),
                             current_labels.clone(),
-                            data_section,
+                            segment,
                         ));
 
                         // Add the node to the graph
@@ -146,13 +147,10 @@ impl Cfg {
                         current_labels.clear();
 
                         // Add the node to the graph
-                        nodes.push(Rc::new(CfgNode::new(node, HashSet::new(), data_section)));
+                        nodes.push(Rc::new(CfgNode::new(node, HashSet::new(), segment)));
                     } else {
-                        let rc_node = Rc::new(CfgNode::new(
-                            node.clone(),
-                            current_labels.clone(),
-                            data_section,
-                        ));
+                        let rc_node =
+                            Rc::new(CfgNode::new(node.clone(), current_labels.clone(), segment));
 
                         // Add the node to the graph
                         nodes.push(Rc::clone(&rc_node));
