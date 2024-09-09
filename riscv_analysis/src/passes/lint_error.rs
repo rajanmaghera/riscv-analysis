@@ -35,6 +35,7 @@ pub enum LintError {
     InvalidJumpToFunction(ParserNode, ParserNode, Rc<Function>),
     DeadAssignment(With<Register>),
     SaveToZero(With<Register>),
+    InvalidSegment(ParserNode),
     UnknownEcall(ParserNode),
     UnknownStack(ParserNode),        // stack value is not definitely known
     InvalidStackPointer(ParserNode), // stack value is being overwritten
@@ -61,6 +62,7 @@ impl From<&LintError> for WarningLevel {
         match val {
             LintError::DeadAssignment(_)
             | LintError::SaveToZero(_)
+            | LintError::InvalidSegment(_)
             | LintError::InvalidJumpToFunction(..)
             | LintError::FirstInstructionIsFunction(..)
             | LintError::LostRegisterValue(_)
@@ -86,6 +88,7 @@ impl std::fmt::Display for LintError {
             LintError::InvalidUseAfterCall(_, func, _) => {
                 write!(f, "Invalid use after call to function {}", func.name())
             }
+            LintError::InvalidSegment(_) => write!(f, "Node is in the incorrect segment"),
             LintError::InvalidJumpToFunction(..) => write!(f, "Invalid jump to function"),
             LintError::FirstInstructionIsFunction(_, func) => {
                 write!(f, "First instruction is in function {}", func.name())
@@ -202,6 +205,7 @@ impl DiagnosticLocation for LintError {
             | LintError::FirstInstructionIsFunction(r, _)
             | LintError::UnknownEcall(r)
             | LintError::UnreachableCode(r)
+            | LintError::InvalidSegment(r)
             | LintError::UnknownStack(r)
             | LintError::InvalidStackPointer(r)
             | LintError::InvalidStackOffsetUsage(r, _)
@@ -220,6 +224,7 @@ impl DiagnosticLocation for LintError {
             LintError::FirstInstructionIsFunction(r, _)
             | LintError::InvalidJumpToFunction(r, _, _)
             | LintError::UnknownEcall(r)
+            | LintError::InvalidSegment(r)
             | LintError::UnreachableCode(r)
             | LintError::UnknownStack(r)
             | LintError::InvalidStackPointer(r)
