@@ -534,8 +534,8 @@
     27: !ors
     - 27
     - 0
-  stack_values_out:
-    -4: !ors
+  memory_values_out:
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -668,12 +668,12 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -4: !ors
+  memory_values_in:
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -4: !ors
+  memory_values_out:
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -801,12 +801,12 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -4: !ors
+  memory_values_in:
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -4: !ors
+  memory_values_out:
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -931,12 +931,12 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -4: !ors
+  memory_values_in:
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -4: !ors
+  memory_values_out:
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -1059,15 +1059,15 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -4: !ors
+  memory_values_in:
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -8: !ors
+  memory_values_out:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -1187,18 +1187,18 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -8: !ors
+  memory_values_in:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -8: !ors
+  memory_values_out:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -1318,18 +1318,18 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -8: !ors
+  memory_values_in:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -8: !ors
+  memory_values_out:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -1452,18 +1452,18 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -8: !ors
+  memory_values_in:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -8: !ors
+  memory_values_out:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -1586,18 +1586,18 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -8: !ors
+  memory_values_in:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -8: !ors
+  memory_values_out:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -1722,18 +1722,18 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -8: !ors
+  memory_values_in:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -8: !ors
+  memory_values_out:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -1861,18 +1861,18 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -8: !ors
+  memory_values_in:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -8: !ors
+  memory_values_out:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -2001,18 +2001,18 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -8: !ors
+  memory_values_in:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -8: !ors
+  memory_values_out:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -2140,18 +2140,18 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -8: !ors
+  memory_values_in:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -8: !ors
+  memory_values_out:
+    so-8: !ors
     - 9
     - 0
-    -4: !ors
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -2280,12 +2280,12 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -4: !ors
+  memory_values_in:
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -4: !ors
+  memory_values_out:
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -2412,12 +2412,12 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -4: !ors
+  memory_values_in:
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -4: !ors
+  memory_values_out:
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -2548,12 +2548,12 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -4: !ors
+  memory_values_in:
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -4: !ors
+  memory_values_out:
+    so-4: !ors
     - 8
     - 0
   live_in:
@@ -2683,12 +2683,12 @@
     27: !ors
     - 27
     - 0
-  stack_values_in:
-    -4: !ors
+  memory_values_in:
+    so-4: !ors
     - 8
     - 0
-  stack_values_out:
-    -4: !ors
+  memory_values_out:
+    so-4: !ors
     - 8
     - 0
   live_in:

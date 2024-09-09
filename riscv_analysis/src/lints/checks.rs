@@ -377,7 +377,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
                     // like the stack.
                     // if not, then we have a problem
                     let mut found = false;
-
+                        
                     // check stack values:
                     let stack = node.memory_values_out();
                     for (_, val) in stack {
