@@ -218,9 +218,9 @@ impl FileReader for IOFileReader {
     fn import_file(
         &mut self,
         path: &str,
-        in_file: Option<uuid::Uuid>,
+        parent_file: Option<uuid::Uuid>,
     ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError> {
-        let path = if let Some(id) = in_file {
+        let path = if let Some(id) = parent_file {
             // get parent from uuid
             let parent = self.files.get(&id).map(|(path, _)| path);
             if let Some(parent) = parent {

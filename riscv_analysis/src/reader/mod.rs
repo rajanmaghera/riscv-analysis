@@ -21,7 +21,7 @@ pub trait FileReader: Sized {
     fn import_file(
         &mut self,
         path: &str,
-        in_file: Option<uuid::Uuid>,
+        parent_file: Option<uuid::Uuid>,
     ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError>;
 
     fn get_text(&self, uuid: uuid::Uuid) -> Option<String>;

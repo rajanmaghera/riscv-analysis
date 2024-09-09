@@ -123,10 +123,10 @@ impl FileReader for LSPFileReader {
     fn import_file(
         &mut self,
         path: &str,
-        in_file: Option<uuid::Uuid>,
+        parent_file: Option<uuid::Uuid>,
     ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError> {
-        // if there is an in_file, find its path and use that as the parent
-        let fulluri = match in_file {
+        // if there is an parent_file, find its path and use that as the parent
+        let fulluri = match parent_file {
             Some(uuid) => {
                 let doc = self.file_uris.get(&uuid).unwrap();
                 let uri = lsp_types::Url::parse(&doc.uri).unwrap();
