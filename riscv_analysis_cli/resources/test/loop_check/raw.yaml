@@ -222,8 +222,10 @@
 - node: !FuncEntry {}
   labels:
   - func1
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 10
   reg_values_out:
@@ -305,8 +307,10 @@
     rd: 2
     rs1: 2
     imm: -4
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 11
   prevs:
@@ -436,8 +440,10 @@
     rs1: 2
     rs2: 8
     imm: 0
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 12
   prevs:
@@ -570,8 +576,10 @@
     rd: 8
     rs1: 0
     imm: 32
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 13
   prevs:
@@ -709,8 +717,10 @@
     name: L2
   labels:
   - L1
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 14
   - 24
@@ -839,8 +849,10 @@
     rd: 2
     rs1: 2
     imm: -4
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 15
   prevs:
@@ -965,8 +977,10 @@
     rs1: 2
     rs2: 9
     imm: 0
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 16
   prevs:
@@ -1093,8 +1107,10 @@
     rd: 9
     rs1: 0
     imm: 64
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 17
   prevs:
@@ -1223,8 +1239,10 @@
     rd: 18
     rs1: 0
     imm: 39
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 18
   prevs:
@@ -1355,8 +1373,10 @@
     rd: 9
     rs1: 9
     rs2: 8
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 19
   prevs:
@@ -1488,8 +1508,10 @@
     rd: 9
     rs1: 9
     rs2: 10
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 20
   prevs:
@@ -1619,8 +1641,10 @@
     rd: 9
     rs1: 2
     imm: 0
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 21
   prevs:
@@ -1753,8 +1777,10 @@
     rd: 2
     rs1: 2
     imm: 4
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 22
   prevs:
@@ -1891,8 +1917,10 @@
     rd: 8
     rs1: 8
     imm: -1
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 23
   prevs:
@@ -2028,8 +2056,10 @@
     inst: Jal
     rd: 0
     name: L1
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 13
   prevs:
@@ -2168,8 +2198,10 @@
     rs2: 0
   labels:
   - L2
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 25
   prevs:
@@ -2295,8 +2327,10 @@
     rd: 8
     rs1: 2
     imm: 0
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 26
   prevs:
@@ -2426,8 +2460,10 @@
     rd: 2
     rs1: 2
     imm: 4
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   nexts:
   - 27
   prevs:
@@ -2561,8 +2597,10 @@
     rd: 0
     rs1: 1
     imm: 0
-  func_entry: 9
-  func_exit: 27
+  func_entry:
+  - 9
+  func_exit:
+  - 27
   prevs:
   - 26
   reg_values_in:

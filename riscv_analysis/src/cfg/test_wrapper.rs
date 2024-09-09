@@ -20,10 +20,16 @@ pub struct NodeWrapper {
         serialize_with = "sorted_set"
     )]
     pub labels: HashSet<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub func_entry: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub func_exit: Option<usize>,
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+    )]
+    pub func_entry: Vec<usize>,
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+    )]
+    pub func_exit: Vec<usize>,
     #[serde(
         default,
         skip_serializing_if = "HashSet::is_empty",
@@ -85,18 +91,18 @@ impl NodeWrapper {
         NodeWrapper {
             node: node.node(),
             labels: node.labels.iter().map(|x| x.data.0.clone()).collect(),
-            func_entry: node.function().clone().map(|x| {
+            func_entry: node.functions().iter().map(|func| {
                 cfg.nodes
                     .iter()
-                    .position(|y| x.entry.node().id() == y.node().id())
+                    .position(|other| func.entry().node().id() == other.node().id())
                     .unwrap()
-            }),
-            func_exit: node.function().clone().map(|x| {
+            }).collect::<Vec<_>>(),
+            func_exit: node.functions().iter().map(|func| {
                 cfg.nodes
                     .iter()
-                    .position(|y| x.exit.node().id() == y.node().id())
+                    .position(|other| func.exit().node().id() == other.node().id())
                     .unwrap()
-            }),
+            }).collect::<Vec<_>>(),
             nexts: node
                 .nexts()
                 .iter()

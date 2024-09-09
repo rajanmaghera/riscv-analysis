@@ -1,4 +1,5 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{cell::{Ref, RefCell}, collections::HashSet, hash::Hash, rc::Rc};
+use uuid::Uuid;
 
 use crate::{
     analysis::CustomClonedSets,
@@ -9,12 +10,29 @@ use super::CfgNode;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
-    pub nodes: Vec<Rc<CfgNode>>,
-    pub entry: Rc<CfgNode>, // Is only a FuncEntry node
-    pub exit: Rc<CfgNode>,  // Multiple exit points will be converted to
-    // a single exit point
+    uuid: Uuid,
+
+    /// Labels for the entry point of this function
+    labels: HashSet<With<LabelString>>,
+
+    /// List of all nodes in the function. May not be in any particular order.
+    nodes: RefCell<Vec<Rc<CfgNode>>>,
+
+    /// Entry node of the function.
+    entry: Rc<CfgNode>,
+
+    /// Exit node of the function. Multiple exit points will be converted to a
+    /// single exit point.
+    exit: RefCell<Rc<CfgNode>>,
+
     /// The registers that are set ever in the function
-    pub defs: HashSet<Register>,
+    defs: RefCell<HashSet<Register>>,
+}
+
+impl Hash for Function {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.uuid.hash(state);
+    }
 }
 
 impl Function {
@@ -29,17 +47,20 @@ impl Function {
                 .join(", "),
         )
     }
+
     pub fn new(
+        labels: Vec<With<LabelString>>,
         nodes: Vec<Rc<CfgNode>>,
         entry: Rc<CfgNode>,
         exit: Rc<CfgNode>,
-        defs: HashSet<Register>,
     ) -> Self {
         Function {
-            nodes,
+            uuid: Uuid::new_v4(),
+            labels: labels.into_iter().collect::<HashSet<_>>(),
+            nodes: RefCell::new(nodes),
             entry,
-            exit,
-            defs,
+            exit: RefCell::new(exit),
+            defs: RefCell::new(HashSet::new()),
         }
     }
 
@@ -55,14 +76,50 @@ impl Function {
 
     #[must_use]
     pub fn returns(&self) -> HashSet<Register> {
-        self.exit.live_in().intersection_c(&RegSets::ret())
+        self.exit().live_in().intersection_c(&RegSets::ret())
+    }
+
+    /// Set the registers used by this function.
+    pub fn set_defs(&self, defs: HashSet<Register>) {
+        *self.defs.borrow_mut() = defs;
+    }
+
+    /// Return the set of written registers.
+    pub fn defs(&self) -> Ref<HashSet<Register>> {
+        self.defs.borrow()
     }
 
     #[must_use]
     pub fn to_save(&self) -> HashSet<Register> {
-        self.defs
+        self.defs()
             .intersection_c(&RegSets::callee_saved())
             // remove sp
             .difference_c(&vec![Register::X2].into_iter().collect())
+    }
+
+    /// Set the instructions composing this function.
+    pub fn set_nodes(&self, instructions: Vec<Rc<CfgNode>>) {
+        *self.nodes.borrow_mut() = instructions;
+    }
+
+    /// Return the instructions in the function.
+    pub fn nodes(&self) -> Ref<Vec<Rc<CfgNode>>> {
+        self.nodes.borrow()
+    }
+
+    /// Return the entry node of this function.
+    pub fn entry(&self) -> Rc<CfgNode> {
+        Rc::clone(&self.entry)
+    }
+
+    /// Return the exit node of this function. In general, this corresponds to a
+    /// `ret` instruction.
+    pub fn exit(&self) -> Ref<Rc<CfgNode>> {
+        self.exit.borrow()
+    }
+
+    /// Set the exit node of this function.
+    pub fn set_exit(&self, node: Rc<CfgNode>) {
+        *self.exit.borrow_mut() = node;
     }
 }

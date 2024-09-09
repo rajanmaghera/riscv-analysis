@@ -68,8 +68,8 @@ pub fn get_function_label_ranges(cfg: &Cfg) -> Vec<Range> {
 #[must_use]
 pub fn fix_stack(func: &Rc<Function>) -> Vec<Manipulation> {
     // go to the beginning of the function
-    let entry = &func.entry;
-    let exit = &func.exit;
+    let entry = &func.entry();
+    let exit = &func.exit();
     // sorted to make the output nicer
     let regs = func.to_save().into_iter().sorted().collect_vec();
     let count = regs.len();

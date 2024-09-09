@@ -5,7 +5,7 @@ use std::{
 
 use itertools::Itertools;
 
-use super::{Cfg, CfgNode};
+use super::{CfgNode, Cfg};
 
 pub trait SetListString {
     fn str(&self) -> String;
@@ -42,6 +42,14 @@ where
 
 impl Display for CfgNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fn_label = match self.functions().len() {
+            0 => "N/A".to_string(),
+            _ => self.functions()
+                     .iter()
+                     .map(|func| func.name().0)
+                     .join(" | "),
+        };
+
         f.write_fmt(format_args!("{}\n", self.node()))?;
         f.write_fmt(format_args!("  | LIVI | {}\n", self.live_in().str()))?;
         f.write_fmt(format_args!("  | LIVO | {}\n", self.live_out().str()))?;
@@ -52,6 +60,7 @@ impl Display for CfgNode {
         ))?;
         f.write_fmt(format_args!("  | UDEF | {}\n", self.u_def().str()))?;
         f.write_fmt(format_args!("  | NEXT | {}\n", self.nexts().len()))?;
+        f.write_fmt(format_args!("  | FN   | {fn_label}\n"))?;
 
         Ok(())
     }
