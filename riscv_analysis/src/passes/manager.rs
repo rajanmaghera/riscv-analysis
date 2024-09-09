@@ -7,8 +7,8 @@ use crate::{
     },
     lints::{
         CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
-        EcallCheck, GarbageInputValueCheck, LostCalleeSavedRegisterCheck, SaveToZeroCheck,
-        StackCheckPass,
+        EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck,
+        SaveToZeroCheck, StackCheckPass,
     },
     parser::ParserNode,
 };
@@ -41,6 +41,7 @@ impl Manager {
     pub fn run_diagnostics(cfg: &Cfg, errors: &mut Vec<LintError>) {
         SaveToZeroCheck::run(cfg, errors);
         DeadValueCheck::run(cfg, errors);
+        InstructionInTextCheck::run(cfg, errors);
         EcallCheck::run(cfg, errors);
         ControlFlowCheck::run(cfg, errors);
         GarbageInputValueCheck::run(cfg, errors);
