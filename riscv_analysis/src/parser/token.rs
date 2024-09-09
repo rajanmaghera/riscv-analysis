@@ -74,6 +74,11 @@ pub enum Token {
     Directive(String),
     /// String: text enclosed in double quotes
     String(String),
+    /// Comment: text starting with # up until the first newline.
+    /// A comment is a line of text that is ignored by
+    /// the assembler, but they are useful for human readers.
+    /// They may be used to annotate the assembler in the future.
+    Comment(String),
 }
 
 impl Token {
@@ -87,6 +92,7 @@ impl Token {
             Token::Symbol(s) => s.clone(),
             Token::Directive(d) => format!(".{d}"),
             Token::String(s) => format!("\"{s}\""),
+            Token::Comment(c) => format!("#{c}:"),
         }
     }
 }
@@ -216,6 +222,7 @@ impl Display for Token {
             Token::Symbol(s) => write!(f, "SYMBOL({s})"),
             Token::Directive(s) => write!(f, "DIRECTIVE({s})"),
             Token::String(s) => write!(f, "STRING({s})"),
+            Token::Comment(s) => write!(f, "COMMENT{s}"),
             Token::Newline => write!(f, "NEWLINE"),
             Token::LParen => write!(f, "LPAREN"),
             Token::RParen => write!(f, "RPAREN"),
