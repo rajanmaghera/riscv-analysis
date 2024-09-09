@@ -8,7 +8,7 @@ use bat::{Input, PrettyPrinter};
 use colored::Colorize;
 use riscv_analysis::fix::{fix_stack, Manipulation};
 use riscv_analysis::parser::{Info, LabelString, Lexer, RVParser, With};
-use riscv_analysis::passes::DiagnosticItem;
+use riscv_analysis::passes::{DiagnosticItem, WarningLevel};
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -282,10 +282,16 @@ impl ErrorDisplay for Vec<DiagnosticItem> {
                 .get_filename(err.file)
                 .unwrap_or("unknown".to_owned());
             let text = parser.reader.get_text(err.file).unwrap();
+
+            let level = match err.level {
+                WarningLevel::Warning => "WARNING",
+                WarningLevel::Error => "ERROR",
+            };
+
             PrettyPrinter::new()
                 .input(
                     Input::from_reader(text.as_bytes())
-                        .kind("File")
+                        .kind(format!("{} in file", level))
                         .name(filename.clone()),
                 )
                 .header(true)
