@@ -330,7 +330,7 @@ fn main() {
             let mut parser = RVParser::new(reader);
 
             let mut diags = Vec::new();
-            let parsed = parser.parse(
+            let parsed = parser.parse_from_file(
                 lint.input
                     .to_str()
                     .expect("unable to convert path to string"),
@@ -368,7 +368,7 @@ fn main() {
         Commands::Fix(fix) => {
             let reader = IOFileReader::new();
             let mut parser = RVParser::new(reader);
-            let parsed = parser.parse(
+            let parsed = parser.parse_from_file(
                 fix.input
                     .to_str()
                     .expect("unable to convert path to string"),
@@ -390,7 +390,7 @@ fn main() {
             // Debug mode that prints out parsing errors only
             let reader = IOFileReader::new();
             let mut parser = RVParser::new(reader);
-            let parsed = parser.parse(
+            let parsed = parser.parse_from_file(
                 debu.input
                     .to_str()
                     .expect("unable to convert path to string"),
@@ -435,7 +435,7 @@ mod tests {
                 let reader = IOFileReader::new();
                 let mut parser = RVParser::new(reader);
 
-                let parsed = parser.parse(filename, false);
+                let parsed = parser.parse_from_file(filename, false);
 
                 let res: Cfg = Manager::gen_full_cfg(parsed.0).unwrap();
                 let res = CfgWrapper::from(&res);

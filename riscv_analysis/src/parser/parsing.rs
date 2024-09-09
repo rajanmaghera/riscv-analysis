@@ -38,7 +38,7 @@ where
 impl<T: FileReader + Clone> RVParser<T> {
     pub fn run(&mut self, base: &str) -> Vec<DiagnosticItem> {
         let mut diags = Vec::new();
-        let parsed = self.parse(base, false);
+        let parsed = self.parse_from_file(base, false);
         parsed
             .1
             .iter()
@@ -82,7 +82,7 @@ impl<T: FileReader + Clone> RVParser<T> {
     /// Parse files
     ///
     /// This function is responsible for parsing the file. It will continue until no imports are left.
-    pub fn parse(
+    pub fn parse_from_file(
         &mut self,
         base: &str,
         ignore_imports: bool,
