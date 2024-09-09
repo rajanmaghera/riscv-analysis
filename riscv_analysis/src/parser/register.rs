@@ -3,7 +3,6 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::parser::token::{Info, Token};
 use std::{
     collections::HashSet,
-    convert::TryFrom,
     fmt::Display,
     hash::{Hash, Hasher},
     str::FromStr,

@@ -1,13 +1,13 @@
 use std::fmt::Display;
 use std::io::Write;
 use std::vec;
-use std::{collections::HashMap, iter::Peekable, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use bat::line_range::{LineRange, LineRanges};
 use bat::{Input, PrettyPrinter};
 use colored::Colorize;
 use riscv_analysis::fix::{fix_stack, Manipulation};
-use riscv_analysis::parser::{Info, LabelString, Lexer, RVParser, With};
+use riscv_analysis::parser::{Info, LabelString, RVParser, With};
 use riscv_analysis::passes::{DiagnosticItem, SeverityLevel};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -219,7 +219,7 @@ impl FileReader for IOFileReader {
         &mut self,
         path: &str,
         parent_file: Option<uuid::Uuid>,
-    ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError> {
+    ) -> Result<(Uuid, String), FileReaderError> {
         let path = if let Some(id) = parent_file {
             // get parent from uuid
             let parent = self.files.get(&id).map(|(path, _)| path);
@@ -263,10 +263,7 @@ impl FileReader for IOFileReader {
             return Err(FileReaderError::FileAlreadyRead(path));
         }
 
-        // create lexer
-        let lexer = Lexer::new(file, uuid);
-
-        Ok((uuid, lexer.peekable()))
+        Ok((uuid, file))
     }
 }
 

@@ -112,21 +112,22 @@ impl<T: FileReader + Clone> RVParser<T> {
 
         // import base lexer
         let lexer = match self.reader.import_file(base, None) {
-            Ok(x) => x,
+            Ok(x) => Lexer::new(x.1, x.0),
             Err(e) => {
                 parse_errors.push(e.to_parse_error(With::new(base.to_owned(), Info::default())));
                 return (nodes, parse_errors);
             }
         };
-        self.lexer_stack.push(lexer.1);
+        let first_uuid = lexer.source_id;
+        self.lexer_stack.push(lexer.peekable());
 
         // Add program entry node
         nodes.push(ParserNode::new_program_entry(
-            lexer.0,
+            first_uuid,
             RawToken {
                 text: String::new(),
                 pos: Range::default(),
-                file: lexer.0,
+                file: first_uuid,
             },
         ));
 
@@ -138,8 +139,9 @@ impl<T: FileReader + Clone> RVParser<T> {
                     if !ignore_imports {
                         if let Some(path) = x.get_include_path() {
                             match self.reader.import_file(&path.data, Some(path.file)) {
-                                Ok(new_lexer) => {
-                                    self.lexer_stack.push(new_lexer.1);
+                                Ok((new_uuid, new_text)) => {
+                                    self.lexer_stack
+                                        .push(Lexer::new(new_text, new_uuid).peekable());
                                 }
                                 Err(error) => {
                                     parse_errors.push(error.to_parse_error(path.clone()));

@@ -1,8 +1,4 @@
-use std::iter::Peekable;
-
 use uuid::Uuid;
-
-use crate::parser::Lexer;
 
 #[derive(Debug)]
 pub enum FileReaderError {
@@ -14,15 +10,14 @@ pub enum FileReaderError {
 }
 
 pub trait FileReader: Sized {
-    /// Import and read a file into the reader
+    /// Import and read a file into the reader.
     ///
-    /// Returns the UUID of the file and a peekable lexer. This lexer will allow
-    /// you to search the file. Each file has its own attached lexer.
+    /// Returns the UUID of the file and a string containing the file's contents.
     fn import_file(
         &mut self,
         path: &str,
         parent_file: Option<uuid::Uuid>,
-    ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError>;
+    ) -> Result<(Uuid, String), FileReaderError>;
 
     fn get_text(&self, uuid: uuid::Uuid) -> Option<String>;
 

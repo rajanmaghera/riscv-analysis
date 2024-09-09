@@ -1,15 +1,13 @@
 // Type conversions for LSP
 
-use std::collections::HashMap;
-use std::iter::Peekable;
-
 use lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range,
 };
-use riscv_analysis::parser::{CanGetURIString, Lexer, RVDocument, RVParser, Range as MyRange};
+use riscv_analysis::parser::{CanGetURIString, RVDocument, RVParser, Range as MyRange};
 use riscv_analysis::passes::DiagnosticItem;
 use riscv_analysis::passes::SeverityLevel;
 use riscv_analysis::reader::{FileReader, FileReaderError};
+use std::collections::HashMap;
 
 mod completion;
 pub use completion::*;
@@ -124,7 +122,7 @@ impl FileReader for LSPFileReader {
         &mut self,
         path: &str,
         parent_file: Option<uuid::Uuid>,
-    ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError> {
+    ) -> Result<(Uuid, String), FileReaderError> {
         // if there is an parent_file, find its path and use that as the parent
         let fulluri = match parent_file {
             Some(uuid) => {
@@ -151,8 +149,7 @@ impl FileReader for LSPFileReader {
 
         // if file found, return lexer
         let doc = doc.unwrap();
-        let lexer = Lexer::new(&doc.1.text, doc.0);
-        Ok((doc.0, lexer.peekable()))
+        Ok((doc.0, doc.1.text))
     }
 }
 
