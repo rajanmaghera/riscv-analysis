@@ -30,6 +30,7 @@ pub mod analysis;
 pub mod cfg;
 pub mod fix;
 pub mod gen;
+pub mod helpers;
 pub mod lints;
 pub mod parser;
 pub mod passes;
