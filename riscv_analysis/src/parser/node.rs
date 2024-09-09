@@ -427,6 +427,25 @@ impl ParserNode {
         matches!(self, ParserNode::ProgramEntry(_))
     }
 
+    /// Check if a node is an instruction.
+    #[must_use]
+    pub fn is_instruction(&self) -> bool {
+        matches!(
+            self,
+            ParserNode::Arith(_)
+                | ParserNode::IArith(_)
+                | ParserNode::JumpLink(_)
+                | ParserNode::JumpLinkR(_)
+                | ParserNode::Basic(_)
+                | ParserNode::Branch(_)
+                | ParserNode::Store(_)
+                | ParserNode::Load(_)
+                | ParserNode::LoadAddr(_)
+                | ParserNode::Csr(_)
+                | ParserNode::CsrI(_)
+        )
+    }
+
     /// Either loads or stores to a memory location
     #[must_use]
     pub fn uses_memory_location(&self) -> Option<(Register, Imm)> {
