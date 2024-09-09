@@ -18,3 +18,6 @@ pub use display::*;
 
 mod test_wrapper;
 pub use test_wrapper::*;
+
+mod segment;
+pub use segment::*;
