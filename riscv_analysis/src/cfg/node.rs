@@ -1,4 +1,5 @@
 use crate::analysis::AvailableValue;
+use crate::analysis::MemoryLocation;
 use crate::parser::LabelString;
 use crate::parser::ParserNode;
 use crate::parser::Register;
@@ -46,36 +47,14 @@ pub struct CfgNode {
     /// values. This means that many values might be duplicated above
     /// and below this CFG node.
     reg_values_out: RefCell<HashMap<Register, AvailableValue>>,
-    /// Map each stack location offset to the available value
+    /// Map each memory location to the available value
     /// that is set before the instruction represented by this
     /// CFG node is run.
-    ///
-    /// The stack location offset is the offset added to the
-    /// stack pointer to get a specific available value. For example,
-    /// the integer `-8` will map to the value at address `sp - 8`.
-    ///
-    /// The stack pointer is always referring to the stack pointer
-    /// value at the beginning of the function body.
-    ///
-    /// In the current implementation, only 32-bit values are
-    /// kept track of on the stack. This is because the register
-    /// is 32-bit.
-    stack_values_in: RefCell<HashMap<i32, AvailableValue>>,
-    /// Map each stack location offset to the available value
+    memory_values_in: RefCell<HashMap<MemoryLocation, AvailableValue>>,
+    /// Map each memory location to the available value
     /// that is set after the instruction represented by this
     /// CFG node is run.
-    ///
-    /// The stack location offset is the offset added to the
-    /// stack pointer to get a specific available value. For example,
-    /// the integer `-8` will map to the value at address `sp - 8`.
-    ///
-    /// The stack pointer is always referring to the stack pointer
-    /// value at the beginning of the function body.
-    ///
-    /// In the current implementation, only 32-bit values are
-    /// kept track of on the stack. This is because the register
-    /// is 32-bit.
-    stack_values_out: RefCell<HashMap<i32, AvailableValue>>,
+    memory_values_out: RefCell<HashMap<MemoryLocation, AvailableValue>>,
     /// The set of registers that are live before the instruction
     /// represented by this CFG node is run.
     live_in: RefCell<HashSet<Register>>,
@@ -113,8 +92,8 @@ impl CfgNode {
             function: RefCell::new(None),
             reg_values_in: RefCell::new(HashMap::new()),
             reg_values_out: RefCell::new(HashMap::new()),
-            stack_values_in: RefCell::new(HashMap::new()),
-            stack_values_out: RefCell::new(HashMap::new()),
+            memory_values_in: RefCell::new(HashMap::new()),
+            memory_values_out: RefCell::new(HashMap::new()),
             live_in: RefCell::new(HashSet::new()),
             live_out: RefCell::new(HashSet::new()),
             u_def: RefCell::new(HashSet::new()),
@@ -161,20 +140,20 @@ impl CfgNode {
         *self.reg_values_out.borrow_mut() = available_out;
     }
 
-    pub fn stack_values_in(&self) -> HashMap<i32, AvailableValue> {
-        self.stack_values_in.borrow().clone()
+    pub fn memory_values_in(&self) -> HashMap<MemoryLocation, AvailableValue> {
+        self.memory_values_in.borrow().clone()
     }
 
-    pub fn set_stack_values_in(&self, stack_in: HashMap<i32, AvailableValue>) {
-        *self.stack_values_in.borrow_mut() = stack_in;
+    pub fn set_memory_values_in(&self, memory_in: HashMap<MemoryLocation, AvailableValue>) {
+        *self.memory_values_in.borrow_mut() = memory_in;
     }
 
-    pub fn stack_values_out(&self) -> HashMap<i32, AvailableValue> {
-        self.stack_values_out.borrow().clone()
+    pub fn memory_values_out(&self) -> HashMap<MemoryLocation, AvailableValue> {
+        self.memory_values_out.borrow().clone()
     }
 
-    pub fn set_stack_values_out(&self, stack_out: HashMap<i32, AvailableValue>) {
-        *self.stack_values_out.borrow_mut() = stack_out;
+    pub fn set_memory_values_out(&self, memory_out: HashMap<MemoryLocation, AvailableValue>) {
+        *self.memory_values_out.borrow_mut() = memory_out;
     }
 
     pub fn live_in(&self) -> HashSet<Register> {
