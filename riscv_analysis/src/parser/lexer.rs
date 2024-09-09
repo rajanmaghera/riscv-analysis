@@ -169,9 +169,10 @@ impl Iterator for Lexer {
                 // directive
 
                 let start = self.get_pos();
-                self.next_char();
 
                 let mut dir_str: String = String::new();
+                dir_str += &self.ch.to_string();
+                self.next_char();
 
                 while self.is_symbol_item() {
                     dir_str += &self.ch.to_string();
@@ -180,8 +181,8 @@ impl Iterator for Lexer {
 
                 let end = self.get_pos();
 
-                if dir_str.is_empty() {
-                    return None;
+                if dir_str == "." {
+                    return self.next();
                 }
 
                 Some(Info {
@@ -349,7 +350,7 @@ mod tests {
     #[test]
     fn lex_directive() {
         let tokens = tokenize(".text");
-        assert_eq!(tokens, vec![Token::Directive("text".to_owned())]);
+        assert_eq!(tokens, vec![Token::Directive(".text".to_owned())]);
     }
 
     #[test]
@@ -425,7 +426,7 @@ mod tests {
         assert_eq!(
             lexer,
             vec![
-                Token::Directive("text".to_string()),
+                Token::Directive(".text".to_string()),
                 Token::Symbol("add".into()),
                 Token::Symbol("x2".into()),
                 Token::Symbol("x2".into()),
