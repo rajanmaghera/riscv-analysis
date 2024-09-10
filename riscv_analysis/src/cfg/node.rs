@@ -14,6 +14,7 @@ use std::rc::Rc;
 use super::environment_in_outs;
 use super::Cfg;
 use super::Function;
+use super::Segment;
 
 #[derive(Debug)]
 pub struct CfgNode {
@@ -21,8 +22,8 @@ pub struct CfgNode {
     node: RefCell<ParserNode>,
     /// Any labels that refer to this instruction.
     pub labels: HashSet<With<LabelString>>,
-    /// Is this node inside the data section?
-    pub data_section: bool,
+    /// Which segment is this node in?
+    segment: Segment,
     /// CFG nodes that come after this one (forward edges).
     nexts: RefCell<HashSet<Rc<CfgNode>>>,
     /// CFG nodes that come before this one (backward edges).
@@ -80,11 +81,11 @@ pub struct CfgNode {
 
 impl CfgNode {
     #[must_use]
-    pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>, data_section: bool) -> Self {
+    pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>, segment: Segment) -> Self {
         CfgNode {
             node: RefCell::new(node),
             labels,
-            data_section,
+            segment,
             nexts: RefCell::new(HashSet::new()),
             prevs: RefCell::new(HashSet::new()),
             function: RefCell::new(HashSet::new()),
@@ -258,6 +259,14 @@ impl CfgNode {
 
     pub fn labels(&self) -> HashSet<With<LabelString>> {
         self.labels.clone()
+    }
+
+    /// Get the segment that this node is in.
+    ///
+    /// The segment is the section of the program that this node is in.
+    /// For example, the `.text` section or the `.data` section.
+    pub fn segment(&self) -> Segment {
+        self.segment
     }
 }
 

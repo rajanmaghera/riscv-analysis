@@ -1,8 +1,8 @@
 use crate::analysis::AvailableRegisterValues;
 use crate::analysis::AvailableValue;
 use crate::analysis::CustomClonedSets;
-use crate::cfg::CfgNode;
 use crate::cfg::Cfg;
+use crate::cfg::CfgNode;
 use crate::parser::ParserNode;
 use crate::parser::RegSets;
 use crate::parser::Register;

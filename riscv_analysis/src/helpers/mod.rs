@@ -1,7 +1,26 @@
-#![allow(dead_code)]
+use crate::parser::{Position, Range, RawToken, Token, With};
 
-use crate::parser::Lexer;
-use crate::parser::{Info, Position, Range, Token, With};
+impl RawToken {
+    #[must_use]
+    pub fn blank() -> Self {
+        RawToken {
+            text: String::new(),
+            pos: Range {
+                start: Position {
+                    raw_index: 0,
+                    line: 0,
+                    column: 0,
+                },
+                end: Position {
+                    raw_index: 0,
+                    line: 0,
+                    column: 0,
+                },
+            },
+            file: uuid::Uuid::nil(),
+        }
+    }
+}
 
 impl<T> With<T>
 where
@@ -11,8 +30,16 @@ where
         With {
             token: Token::Symbol(String::new()),
             pos: Range {
-                start: Position { line: 0, column: 0 },
-                end: Position { line: 0, column: 0 },
+                start: Position {
+                    raw_index: 0,
+                    line: 0,
+                    column: 0,
+                },
+                end: Position {
+                    raw_index: 0,
+                    line: 0,
+                    column: 0,
+                },
             },
             file: uuid::Uuid::nil(),
             data,
@@ -25,11 +52,12 @@ where
 #[macro_export]
 macro_rules! arith {
     ($inst:ident $rd:ident $rs1:ident $rs2:ident) => {
-        ParserNode::new_arith(
-            With::blank(ArithType::$inst),
-            With::blank(Register::$rd),
-            With::blank(Register::$rs1),
-            With::blank(Register::$rs2),
+        $crate::parser::ParserNode::new_arith(
+            $crate::parser::With::blank($crate::parser::ArithType::$inst),
+            $crate::parser::With::blank($crate::parser::Register::$rd),
+            $crate::parser::With::blank($crate::parser::Register::$rs1),
+            $crate::parser::With::blank($crate::parser::Register::$rs2),
+            $crate::parser::RawToken::blank(),
         )
     };
 }
@@ -37,11 +65,23 @@ macro_rules! arith {
 #[macro_export]
 macro_rules! iarith {
     ($inst:ident $rd:ident $rs1:ident $imm:expr) => {
-        ParserNode::new_iarith(
-            With::blank(IArithType::$inst),
-            With::blank(Register::$rd),
-            With::blank(Register::$rs1),
-            With::blank(Imm($imm)),
+        $crate::parser::ParserNode::new_iarith(
+            $crate::parser::With::blank($crate::parser::IArithType::$inst),
+            $crate::parser::With::blank($crate::parser::Register::$rd),
+            $crate::parser::With::blank($crate::parser::Register::$rs1),
+            $crate::parser::With::blank($crate::parser::Imm($imm)),
+            $crate::parser::RawToken::blank(),
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! directive {
+    ($dir_token:ident, $dir_type:ident) => {
+        $crate::parser::ParserNode::new_directive(
+            $crate::parser::With::blank($crate::parser::DirectiveToken::$dir_token),
+            $crate::parser::DirectiveType::$dir_type,
+            $crate::parser::RawToken::blank(),
         )
     };
 }
@@ -49,11 +89,12 @@ macro_rules! iarith {
 #[macro_export]
 macro_rules! load {
     ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
-        ParserNode::new_load(
-            With::blank(LoadType::$inst),
-            With::blank(Register::$rd),
-            With::blank(Register::$rs1),
-            With::blank(Imm($imm)),
+        $crate::parser::ParserNode::new_load(
+            $crate::parser::With::blank($crate::parser::LoadType::$inst),
+            $crate::parser::With::blank($crate::parser::Register::$rd),
+            $crate::parser::With::blank($crate::parser::Register::$rs1),
+            $crate::parser::With::blank($crate::parser::Imm($imm)),
+            $crate::parser::RawToken::blank(),
         )
     };
 }
@@ -61,11 +102,12 @@ macro_rules! load {
 #[macro_export]
 macro_rules! store {
     ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
-        ParserNode::new_store(
-            With::blank(StoreType::$inst),
-            With::blank(Register::$rd),
-            With::blank(Register::$rs1),
-            With::blank(Imm($imm)),
+        $crate::parser::ParserNode::new_store(
+            $crate::parser::With::blank($crate::parser::StoreType::$inst),
+            $crate::parser::With::blank($crate::parser::Register::$rd),
+            $crate::parser::With::blank($crate::parser::Register::$rs1),
+            $crate::parser::With::blank($crate::parser::Imm($imm)),
+            $crate::parser::RawToken::blank(),
         )
     };
 }
