@@ -8,7 +8,7 @@ use lsp_types::{
 };
 use riscv_analysis::parser::{CanGetURIString, Lexer, RVDocument, RVParser, Range as MyRange};
 use riscv_analysis::passes::DiagnosticItem;
-use riscv_analysis::passes::WarningLevel;
+use riscv_analysis::passes::SeverityLevel;
 use riscv_analysis::reader::{FileReader, FileReaderError};
 
 mod completion;
@@ -40,11 +40,11 @@ trait WarningInto {
     fn to_severity(&self) -> DiagnosticSeverity;
 }
 
-impl WarningInto for WarningLevel {
+impl WarningInto for SeverityLevel {
     fn to_severity(&self) -> DiagnosticSeverity {
         match self {
-            WarningLevel::Warning => DiagnosticSeverity::WARNING,
-            WarningLevel::Error => DiagnosticSeverity::ERROR,
+            SeverityLevel::Warning => DiagnosticSeverity::WARNING,
+            SeverityLevel::Error => DiagnosticSeverity::ERROR,
         }
     }
 }

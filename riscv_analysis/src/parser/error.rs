@@ -3,7 +3,7 @@ use std::fmt::Display;
 use uuid::Uuid;
 
 use crate::{
-    passes::{DiagnosticLocation, DiagnosticMessage, WarningLevel},
+    passes::{DiagnosticLocation, DiagnosticMessage, SeverityLevel},
     reader::FileReaderError,
 };
 
@@ -88,7 +88,7 @@ impl DiagnosticMessage for ParseError {
     fn related(&self) -> Option<Vec<crate::passes::RelatedDiagnosticItem>> {
         None
     }
-    fn level(&self) -> WarningLevel {
+    fn level(&self) -> SeverityLevel {
         self.into()
     }
     fn title(&self) -> String {
@@ -174,7 +174,7 @@ impl DiagnosticLocation for ParseError {
     }
 }
 
-impl From<&ParseError> for WarningLevel {
+impl From<&ParseError> for SeverityLevel {
     fn from(e: &ParseError) -> Self {
         match e {
             ParseError::Expected(_, _)
@@ -184,7 +184,7 @@ impl From<&ParseError> for WarningLevel {
             | ParseError::UnknownDirective(_)
             | ParseError::CyclicDependency(_)
             | ParseError::FileNotFound(_)
-            | ParseError::IOError(_, _) => WarningLevel::Error,
+            | ParseError::IOError(_, _) => SeverityLevel::Error,
         }
     }
 }

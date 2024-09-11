@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::parser::Range;
 
-use super::WarningLevel;
+use super::SeverityLevel;
 
 pub trait DiagnosticLocation {
     fn range(&self) -> Range;
@@ -13,7 +13,7 @@ pub trait DiagnosticMessage {
     fn title(&self) -> String;
     fn description(&self) -> String;
     fn long_description(&self) -> String;
-    fn level(&self) -> WarningLevel;
+    fn level(&self) -> SeverityLevel;
     fn related(&self) -> Option<Vec<RelatedDiagnosticItem>>;
 }
 
@@ -30,7 +30,7 @@ pub struct DiagnosticItem {
     pub title: String,
     pub description: String,
     pub long_description: String,
-    pub level: WarningLevel,
+    pub level: SeverityLevel,
     pub related: Option<Vec<RelatedDiagnosticItem>>,
 }
 
