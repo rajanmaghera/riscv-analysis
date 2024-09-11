@@ -53,8 +53,10 @@ pub enum LintError {
 
 #[derive(Clone)]
 pub enum SeverityLevel {
-    Warning,
     Error,
+    Warning,
+    Information,
+    Hint,
 }
 
 impl From<&LintError> for SeverityLevel {

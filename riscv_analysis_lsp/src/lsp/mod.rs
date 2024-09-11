@@ -43,8 +43,10 @@ trait WarningInto {
 impl WarningInto for SeverityLevel {
     fn to_severity(&self) -> DiagnosticSeverity {
         match self {
-            SeverityLevel::Warning => DiagnosticSeverity::WARNING,
             SeverityLevel::Error => DiagnosticSeverity::ERROR,
+            SeverityLevel::Warning => DiagnosticSeverity::WARNING,
+            SeverityLevel::Information => DiagnosticSeverity::INFORMATION,
+            SeverityLevel::Hint => DiagnosticSeverity::HINT,
         }
     }
 }
