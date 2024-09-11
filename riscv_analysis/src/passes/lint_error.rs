@@ -52,12 +52,12 @@ pub enum LintError {
 }
 
 #[derive(Clone)]
-pub enum WarningLevel {
+pub enum SeverityLevel {
     Warning,
     Error,
 }
 
-impl From<&LintError> for WarningLevel {
+impl From<&LintError> for SeverityLevel {
     fn from(val: &LintError) -> Self {
         match val {
             LintError::DeadAssignment(_)
@@ -66,7 +66,7 @@ impl From<&LintError> for WarningLevel {
             | LintError::InvalidJumpToFunction(..)
             | LintError::FirstInstructionIsFunction(..)
             | LintError::LostRegisterValue(_)
-            | LintError::UnreachableCode(_) => WarningLevel::Warning,
+            | LintError::UnreachableCode(_) => SeverityLevel::Warning,
             LintError::UnknownEcall(_)
             | LintError::InvalidUseAfterCall(..)
             | LintError::InvalidUseBeforeAssignment(_)
@@ -74,7 +74,7 @@ impl From<&LintError> for WarningLevel {
             | LintError::InvalidStackPointer(_)
             | LintError::InvalidStackPosition(_, _)
             | LintError::InvalidStackOffsetUsage(_, _)
-            | LintError::OverwriteCalleeSavedRegister(_) => WarningLevel::Error,
+            | LintError::OverwriteCalleeSavedRegister(_) => SeverityLevel::Error,
         }
     }
 }
@@ -135,7 +135,7 @@ impl std::fmt::Display for LintError {
 }
 
 impl DiagnosticMessage for LintError {
-    fn level(&self) -> WarningLevel {
+    fn level(&self) -> SeverityLevel {
         self.into()
     }
     fn title(&self) -> String {

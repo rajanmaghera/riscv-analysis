@@ -2,7 +2,7 @@ use std::{collections::HashSet, fmt::Display};
 
 use crate::parser::{LabelString, ParserNode, With};
 
-use super::{DiagnosticLocation, DiagnosticMessage, WarningLevel};
+use super::{DiagnosticLocation, DiagnosticMessage, SeverityLevel};
 
 #[derive(Debug, Clone)]
 // TODO CfgErrors that do not require the whole thing to be re-run
@@ -75,7 +75,7 @@ impl Display for CfgError {
     }
 }
 
-impl From<&CfgError> for WarningLevel {
+impl From<&CfgError> for SeverityLevel {
     fn from(value: &CfgError) -> Self {
         match value {
             CfgError::LabelsNotDefined(_)
@@ -84,7 +84,7 @@ impl From<&CfgError> for WarningLevel {
             | CfgError::NoLabelForReturn(_)
             | CfgError::UnexpectedError
             | CfgError::OverlappingFunctions(_, _)
-            | CfgError::AssertionError => WarningLevel::Error,
+            | CfgError::AssertionError => SeverityLevel::Error,
         }
     }
 }
@@ -122,7 +122,7 @@ impl DiagnosticMessage for CfgError {
         None
     }
 
-    fn level(&self) -> WarningLevel {
+    fn level(&self) -> SeverityLevel {
         self.into()
     }
     fn title(&self) -> String {
