@@ -284,8 +284,10 @@ impl ErrorDisplay for Vec<DiagnosticItem> {
             let text = parser.reader.get_text(err.file).unwrap();
 
             let level = match err.level {
-                SeverityLevel::Warning => "WARNING",
                 SeverityLevel::Error => "ERROR",
+                SeverityLevel::Warning => "WARNING",
+                SeverityLevel::Information => "INFO",
+                SeverityLevel::Hint => "HINT",
             };
 
             PrettyPrinter::new()
