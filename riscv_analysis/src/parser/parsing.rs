@@ -24,6 +24,25 @@ pub struct RVDocument {
     pub uri: String,
     pub text: String,
 }
+
+impl ParserNode {
+    /// Return a string inside a `.include` directive, if it is a `.include` directive.
+    ///
+    /// This function returns the token representing the path that is
+    /// written in a `.include` directive. If the directive is not a `.include`
+    /// directive, it will return `None`. This path is the path used to
+    /// read from another file.
+    fn get_include_path(&self) -> Option<&With<String>> {
+        match self {
+            ParserNode::Directive(d) => match &d.dir {
+                DirectiveType::Include(path) => Some(path),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+}
+
 pub trait CanGetURIString: FileReader {
     fn get_uri_string(&self, uuid: Uuid) -> RVDocument;
 }
@@ -35,10 +54,11 @@ where
     lexer_stack: Vec<Peekable<Lexer>>,
     pub reader: T,
 }
+
 impl<T: FileReader + Clone> RVParser<T> {
     pub fn run(&mut self, base: &str) -> Vec<DiagnosticItem> {
         let mut diags = Vec::new();
-        let parsed = self.parse(base, false);
+        let parsed = self.parse_from_file(base, false);
         parsed
             .1
             .iter()
@@ -82,7 +102,7 @@ impl<T: FileReader + Clone> RVParser<T> {
     /// Parse files
     ///
     /// This function is responsible for parsing the file. It will continue until no imports are left.
-    pub fn parse(
+    pub fn parse_from_file(
         &mut self,
         base: &str,
         ignore_imports: bool,
@@ -92,21 +112,22 @@ impl<T: FileReader + Clone> RVParser<T> {
 
         // import base lexer
         let lexer = match self.reader.import_file(base, None) {
-            Ok(x) => x,
+            Ok(x) => Lexer::new(x.1, x.0),
             Err(e) => {
                 parse_errors.push(e.to_parse_error(With::new(base.to_owned(), Info::default())));
                 return (nodes, parse_errors);
             }
         };
-        self.lexer_stack.push(lexer.1);
+        let first_uuid = lexer.source_id;
+        self.lexer_stack.push(lexer.peekable());
 
         // Add program entry node
         nodes.push(ParserNode::new_program_entry(
-            lexer.0,
+            first_uuid,
             RawToken {
                 text: String::new(),
                 pos: Range::default(),
-                file: lexer.0,
+                file: first_uuid,
             },
         ));
 
@@ -116,22 +137,17 @@ impl<T: FileReader + Clone> RVParser<T> {
             match node {
                 Ok(x) => {
                     if !ignore_imports {
-                        if let ParserNode::Directive(directive) = &x {
-                            if let DirectiveType::Include(path) = &directive.dir {
-                                let lex2 = self.reader.import_file(
-                                    path.data.as_str(),
-                                    Some(directive.dir_token.file),
-                                );
-                                match lex2 {
-                                    Ok(x2) => {
-                                        self.lexer_stack.push(x2.1);
-                                    }
-                                    Err(x2) => {
-                                        parse_errors.push(x2.to_parse_error(path.clone()));
-                                    }
+                        if let Some(path) = x.get_include_path() {
+                            match self.reader.import_file(&path.data, Some(path.file)) {
+                                Ok((new_uuid, new_text)) => {
+                                    self.lexer_stack
+                                        .push(Lexer::new(new_text, new_uuid).peekable());
                                 }
-                                continue;
+                                Err(error) => {
+                                    parse_errors.push(error.to_parse_error(path.clone()));
+                                }
                             }
+                            continue;
                         }
                     }
                     nodes.push(x);
@@ -172,8 +188,7 @@ impl<T: FileReader + Clone> RVParser<T> {
     }
 
     fn lexer(&mut self) -> Option<&mut Peekable<Lexer>> {
-        let item = &mut self.lexer_stack;
-        item.last_mut()
+        self.lexer_stack.last_mut()
     }
 }
 

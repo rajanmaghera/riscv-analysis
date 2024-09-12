@@ -1,13 +1,13 @@
 use std::fmt::Display;
 use std::io::Write;
 use std::vec;
-use std::{collections::HashMap, iter::Peekable, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use bat::line_range::{LineRange, LineRanges};
 use bat::{Input, PrettyPrinter};
 use colored::Colorize;
 use riscv_analysis::fix::{fix_stack, Manipulation};
-use riscv_analysis::parser::{Info, LabelString, Lexer, RVParser, With};
+use riscv_analysis::parser::{Info, LabelString, RVParser, With};
 use riscv_analysis::passes::{DiagnosticItem, SeverityLevel};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -218,9 +218,9 @@ impl FileReader for IOFileReader {
     fn import_file(
         &mut self,
         path: &str,
-        in_file: Option<uuid::Uuid>,
-    ) -> Result<(Uuid, Peekable<Lexer>), FileReaderError> {
-        let path = if let Some(id) = in_file {
+        parent_file: Option<uuid::Uuid>,
+    ) -> Result<(Uuid, String), FileReaderError> {
+        let path = if let Some(id) = parent_file {
             // get parent from uuid
             let parent = self.files.get(&id).map(|(path, _)| path);
             if let Some(parent) = parent {
@@ -263,10 +263,7 @@ impl FileReader for IOFileReader {
             return Err(FileReaderError::FileAlreadyRead(path));
         }
 
-        // create lexer
-        let lexer = Lexer::new(file, uuid);
-
-        Ok((uuid, lexer.peekable()))
+        Ok((uuid, file))
     }
 }
 
@@ -330,7 +327,7 @@ fn main() {
             let mut parser = RVParser::new(reader);
 
             let mut diags = Vec::new();
-            let parsed = parser.parse(
+            let parsed = parser.parse_from_file(
                 lint.input
                     .to_str()
                     .expect("unable to convert path to string"),
@@ -368,7 +365,7 @@ fn main() {
         Commands::Fix(fix) => {
             let reader = IOFileReader::new();
             let mut parser = RVParser::new(reader);
-            let parsed = parser.parse(
+            let parsed = parser.parse_from_file(
                 fix.input
                     .to_str()
                     .expect("unable to convert path to string"),
@@ -390,7 +387,7 @@ fn main() {
             // Debug mode that prints out parsing errors only
             let reader = IOFileReader::new();
             let mut parser = RVParser::new(reader);
-            let parsed = parser.parse(
+            let parsed = parser.parse_from_file(
                 debu.input
                     .to_str()
                     .expect("unable to convert path to string"),
@@ -435,7 +432,7 @@ mod tests {
                 let reader = IOFileReader::new();
                 let mut parser = RVParser::new(reader);
 
-                let parsed = parser.parse(filename, false);
+                let parsed = parser.parse_from_file(filename, false);
 
                 let res: Cfg = Manager::gen_full_cfg(parsed.0).unwrap();
                 let res = CfgWrapper::from(&res);

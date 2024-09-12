@@ -44,7 +44,7 @@ where
     /// Return the imported files of a file
     fn get_imports(&mut self, base: &str) -> HashSet<String> {
         let mut imported = HashSet::new();
-        let items = self.parse(base, true);
+        let items = self.parse_from_file(base, true);
         for item in items.0 {
             if let ParserNode::Directive(x) = item {
                 if let DirectiveType::Include(name) = x.dir {
