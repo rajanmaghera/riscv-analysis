@@ -21,3 +21,6 @@ pub use test_wrapper::*;
 
 mod segment;
 pub use segment::*;
+
+mod iterator;
+pub use iterator::*;
