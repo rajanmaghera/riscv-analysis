@@ -27,3 +27,93 @@ impl LintPass for OverlappingFunctionCheck {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::lints::OverlappingFunctionCheck;
+    use crate::parser::RVStringParser;
+    use crate::passes::{LintError, LintPass, Manager};
+
+    /// Compute the lints for a given input
+    fn run_pass(input: &str) -> Vec<LintError> {
+        let (nodes, error) = RVStringParser::parse_from_text(input);
+        assert_eq!(error.len(), 0);
+
+        let cfg = Manager::gen_full_cfg(nodes).unwrap(); // Need fn annotations
+        OverlappingFunctionCheck::run_single_pass_along_cfg(&cfg)
+    }
+
+    #[test]
+    fn two_overlapping_functions() {
+        // Functions `fn_a` and `fn_b` share the same `ret` instruction
+        let input = "\
+            main:                      \n\
+                li     a0, 0           \n\
+                jal    fn_a            \n\
+                jal    fn_b            \n\
+                addi   a7, zero, 10    \n\
+                ecall                  \n\
+            fn_a:                      \n\
+                addi   a0, a0, 1       \n\
+            fn_b:                      \n\
+                addi   a0, a0, 2       \n\
+                ret                    \n";
+
+        let lints = run_pass(input);
+
+        assert_eq!(lints.len(), 1);
+        assert!(matches!(&lints[0], LintError::OverlappingFunctions(..)));
+    }
+
+    #[test]
+    fn three_overlapping_functions() {
+        // The functions `fn_a`, `fn_b`, and `fn_c` overlap
+        let input = "\
+            main:                      \n\
+                li     a0, 0           \n\
+                jal    fn_a            \n\
+                jal    fn_b            \n\
+                jal    fn_c            \n\
+                addi   a7, zero, 10    \n\
+                ecall                  \n\
+            fn_a:                      \n\
+                addi   a0, a0, 1       \n\
+            fn_b:                      \n\
+                addi   a0, a0, 2       \n\
+            fn_c:                      \n\
+                addi   a0, a0, 3       \n\
+                ret                    \n";
+
+        let lints = run_pass(input);
+
+        assert_eq!(lints.len(), 2);
+        assert!(matches!(&lints[0], LintError::OverlappingFunctions(..)));
+        assert!(matches!(&lints[1], LintError::OverlappingFunctions(..)));
+    }
+
+    #[test]
+    fn no_overlap() {
+        // The function `fn_b` has its source inside of `fn_a`, but there is no
+        // real overlap
+        let input = "\
+            main:                      \n\
+                li     a0, 0           \n\
+                jal    fn_a            \n\
+                jal    fn_b            \n\
+                addi   a7, zero, 10    \n\
+                ecall                  \n\
+            fn_a:                      \n\
+                addi   a0, a0, 1       \n\
+                j      fn_a_rest       \n\
+            fn_b:                      \n\
+                addi   a0, a0, 2       \n\
+                ret                    \n\
+            fn_a_rest:                 \n\
+                sub    a0, a0, a0      \n\
+                ret                    \n";
+
+        let lints = run_pass(input);
+
+        assert_eq!(lints.len(), 0);
+    }
+}
