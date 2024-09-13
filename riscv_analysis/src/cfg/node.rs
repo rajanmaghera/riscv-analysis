@@ -184,10 +184,10 @@ impl CfgNode {
 
     pub fn calls_to(&self, cfg: &Cfg) -> Option<(Rc<Function>, With<LabelString>)> {
         if let Some(name) = self.node().calls_to() {
-            cfg.label_function_map
-                .get(&name)
-                .cloned()
-                .map(|x| (x, name))
+            cfg.functions()
+               .get(&name)
+               .cloned()
+               .map(|x| (x, name))
         } else {
             None
         }

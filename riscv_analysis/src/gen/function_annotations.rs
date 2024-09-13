@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     rc::Rc,
     vec,
 };
@@ -103,15 +103,6 @@ impl FunctionMarkupPass {
 
 impl GenerationPass for FunctionMarkupPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
-        let mut label_function_map: HashMap<
-            crate::parser::With<crate::parser::LabelString>,
-            Rc<Function>,
-        > = HashMap::new();
-
-        // PASS 1
-        // --------------------
-        // Graph traversal to find functions
-
         for entry in &*cfg {
             // Skip all nodes that are not entry points
             if !entry.node().is_function_entry() {
@@ -130,9 +121,8 @@ impl GenerationPass for FunctionMarkupPass {
             ));
 
             for label in &labels {
-                label_function_map.insert(label.clone(), Rc::clone(&func));
+                cfg.insert_function(label.clone(), Rc::clone(&func));
             }
-
 
             // Mark all CFG nodes that are reachable from this entry point
             // FIXME: What to do if there is more than one return
@@ -146,7 +136,6 @@ impl GenerationPass for FunctionMarkupPass {
             }
         }
 
-        cfg.label_function_map = label_function_map;
         Ok(())
     }
 }
