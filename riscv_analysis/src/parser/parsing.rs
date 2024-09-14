@@ -1050,7 +1050,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                 Err(LexError::UnexpectedToken(next_node))
             }
             // Skip comment token
-            Token::Comment(_) => Err(LexError::IgnoredWithWarning(next_node)),
+            Token::Comment(_) => Err(LexError::IgnoredWithoutWarning),
         }
     }
 }

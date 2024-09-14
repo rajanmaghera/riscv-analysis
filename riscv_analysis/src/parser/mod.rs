@@ -44,3 +44,5 @@ pub use empty_file_reader::*;
 
 mod rv_string_parser;
 pub use rv_string_parser::*;
+
+mod comments;
