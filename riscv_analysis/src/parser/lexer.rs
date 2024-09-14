@@ -133,7 +133,7 @@ impl Iterator for Lexer {
         // TODO(rajan): ensure that we are consistent with whether the tokens are included or not in the Token representation
         // TODO(rajan): should we introduce a new token type for the comment hash (#) and directive hash (.)?
 
-        match self.ch {
+        let token = match self.ch {
             '\n' => {
                 let pos = self.get_range();
 
@@ -204,7 +204,10 @@ impl Iterator for Lexer {
                     self.next_char();
                 }
 
-                let end = self.get_pos();
+                // TODO: fix get_pos() instead of doing this workaround
+                let mut end = start;
+                end.column += comment_str.len();
+                end.raw_index += comment_str.len();
 
                 // Empty comment strings are allowed, in the case of a
                 // comment with a new line. We don't strip any whitespace
@@ -231,7 +234,10 @@ impl Iterator for Lexer {
 
                 self.next_char();
 
-                let end = self.get_pos();
+                // TODO: fix get_pos() instead of doing this workaround
+                let mut end = start;
+                end.column += string_str.len() + 2;
+                end.raw_index += string_str.len() + 2;
 
                 self.next_char();
 
@@ -258,7 +264,7 @@ impl Iterator for Lexer {
                     // this is a label
                     self.next_char();
 
-                    // TODO why isnt this get_pos? has to do with column?
+                    // TODO: fix get_pos() instead of doing this workaround
                     let mut end = start;
                     end.column += symbol_str.len();
                     end.raw_index += symbol_str.len();
@@ -270,7 +276,7 @@ impl Iterator for Lexer {
                     });
                 }
 
-                // TODO why isnt this get_pos? has to do with column?
+                // TODO: fix get_pos() instead of doing this workaround
                 let mut end = start;
                 end.column += symbol_str.len();
                 end.raw_index += symbol_str.len();
@@ -281,6 +287,15 @@ impl Iterator for Lexer {
                     file: self.source_id,
                 })
             }
+        };
+
+        match token {
+            Some(t) => {
+                debug_assert_eq!(t.pos.start.line, t.pos.end.line);
+                debug_assert!(t.pos.start.column <= t.pos.end.column);
+                Some(t)
+            }
+            None => None,
         }
     }
 }
