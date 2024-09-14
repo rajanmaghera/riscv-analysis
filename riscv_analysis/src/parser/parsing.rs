@@ -177,7 +177,7 @@ impl<T: FileReader + Clone> RVParser<T> {
                         parse_errors.push(ParseError::UnknownDirective(y));
                         self.recover_from_parse_error();
                     }
-                    LexError::Ignored(y) | LexError::UnsupportedDirective(y) => {
+                    LexError::IgnoredWithWarning(y) | LexError::UnsupportedDirective(y) => {
                         parse_errors.push(ParseError::Unsupported(y));
                         self.recover_from_parse_error();
                     }
@@ -297,7 +297,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
 
     #[allow(clippy::too_many_lines)]
     fn try_from(val: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
-        use LexError::{Expected, Ignored, IsNewline, NeedTwoNodes};
+        use LexError::{Expected, IgnoredWithWarning, IsNewline, NeedTwoNodes};
 
         let mut lex = AnnotatedLexer {
             lexer: val,
@@ -603,7 +603,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 lex.raw_token,
                             ))
                         }
-                        Type::Ignore(_) => Err(Ignored(next_node)),
+                        Type::Ignore(_) => Err(IgnoredWithWarning(next_node)),
                         Type::Basic(inst) => Ok(ParserNode::new_basic(
                             With::new(inst, next_node),
                             lex.raw_token,
@@ -1010,9 +1010,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     }
                                 }
                             }
-                            Err(LexError::Ignored(next_node))
+                            Err(LexError::IgnoredWithWarning(next_node))
                         }
-                        DirectiveToken::EndMacro => Err(LexError::Ignored(next_node)),
+                        DirectiveToken::EndMacro => Err(LexError::IgnoredWithWarning(next_node)),
                         DirectiveToken::Section
                         | DirectiveToken::Extern
                         | DirectiveToken::Eqv
@@ -1049,8 +1049,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                 Err(LexError::UnexpectedToken(next_node))
             }
             // Skip comment token
-            Token::Comment(_) => Err(LexError::Ignored(next_node))
-
+            Token::Comment(_) => Err(LexError::IgnoredWithWarning(next_node)),
         }
     }
 }
