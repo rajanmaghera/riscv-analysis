@@ -181,6 +181,7 @@ impl<T: FileReader + Clone> RVParser<T> {
                         parse_errors.push(ParseError::Unsupported(y));
                         self.recover_from_parse_error();
                     }
+                    LexError::IgnoredWithoutWarning => (),
                 },
             }
         }
