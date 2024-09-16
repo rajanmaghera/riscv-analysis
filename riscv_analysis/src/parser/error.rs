@@ -18,7 +18,8 @@ use super::{Info, ParserNode, With};
 pub enum LexError {
     Expected(Vec<ExpectedType>, Info),
     IsNewline(Info),
-    Ignored(Info),
+    IgnoredWithWarning(Info),
+    IgnoredWithoutWarning,
     UnexpectedToken(Info),
     UnexpectedEOF,
     NeedTwoNodes(Box<ParserNode>, Box<ParserNode>),
