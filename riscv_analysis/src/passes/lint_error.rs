@@ -10,6 +10,8 @@ use crate::parser::Range;
 use crate::parser::Register;
 use crate::parser::With;
 
+use itertools::Itertools;
+
 use super::DiagnosticLocation;
 use super::DiagnosticMessage;
 
@@ -140,7 +142,6 @@ impl std::fmt::Display for LintError {
                 write!(f, "Part of multiple functions: {}",
                        funcs.iter()
                        .map(|fun| fun.name().0)
-                       .collect::<Vec<_>>()
                        .join(" | ")
                 )
             }
