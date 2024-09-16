@@ -15,6 +15,9 @@ impl LintPass for OverlappingFunctionCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in &cfg.clone().nodes {
             // Capture entry points that are part of more than one function
+            // NOTE: We only give an error for the first line of a function,
+            //       even though there may be many overlapping instructions.
+            //       This is done to not overwhelm the user with errors.
             if node.functions().len() > 1 && node.is_function_entry().is_some() {
                 errors.push(LintError::NodeInManyFunctions(
                     node.node().clone(),
