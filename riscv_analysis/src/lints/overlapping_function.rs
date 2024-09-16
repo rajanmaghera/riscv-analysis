@@ -34,7 +34,7 @@ impl LintPass for OverlappingFunctionCheck {
 #[cfg(test)]
 mod tests {
     use crate::lints::OverlappingFunctionCheck;
-    use crate::parser::RVStringParser;
+    use crate::parser::{ParserNode, RVStringParser};
     use crate::passes::{LintError, LintPass, Manager};
 
     /// Compute the lints for a given input
@@ -65,7 +65,14 @@ mod tests {
         let lints = run_pass(input);
 
         assert_eq!(lints.len(), 1);
-        assert!(matches!(&lints[0], LintError::NodeInManyFunctions(..)));
+        assert!(matches!(
+            &lints[0], LintError::NodeInManyFunctions(node, _)
+                if matches!(
+                    node, ParserNode::FuncEntry(entry)
+                        if entry.token.text == "addi a0 a0 2"
+                )
+            )
+        );
     }
 
     #[test]
@@ -90,8 +97,22 @@ mod tests {
         let lints = run_pass(input);
 
         assert_eq!(lints.len(), 2);
-        assert!(matches!(&lints[0], LintError::NodeInManyFunctions(..)));
-        assert!(matches!(&lints[1], LintError::NodeInManyFunctions(..)));
+        assert!(matches!(
+            &lints[0], LintError::NodeInManyFunctions(node, _)
+                if matches!(
+                    node, ParserNode::FuncEntry(entry)
+                        if entry.token.text == "addi a0 a0 2"
+                )
+            )
+        );
+        assert!(matches!(
+            &lints[1], LintError::NodeInManyFunctions(node, _)
+                if matches!(
+                    node, ParserNode::FuncEntry(entry)
+                        if entry.token.text == "addi a0 a0 3"
+                )
+            )
+        );
     }
 
     #[test]
