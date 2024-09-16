@@ -16,7 +16,7 @@ impl LintPass for OverlappingFunctionCheck {
         for node in &cfg.clone().nodes {
             // Capture entry points that are part of more than one function
             if node.functions().len() > 1 && node.is_function_entry().is_some() {
-                errors.push(LintError::OverlappingFunctions(
+                errors.push(LintError::NodeInManyFunctions(
                     node.node().clone(),
                     node.functions()
                         .clone()
@@ -62,7 +62,7 @@ mod tests {
         let lints = run_pass(input);
 
         assert_eq!(lints.len(), 1);
-        assert!(matches!(&lints[0], LintError::OverlappingFunctions(..)));
+        assert!(matches!(&lints[0], LintError::NodeInManyFunctions(..)));
     }
 
     #[test]
@@ -87,8 +87,8 @@ mod tests {
         let lints = run_pass(input);
 
         assert_eq!(lints.len(), 2);
-        assert!(matches!(&lints[0], LintError::OverlappingFunctions(..)));
-        assert!(matches!(&lints[1], LintError::OverlappingFunctions(..)));
+        assert!(matches!(&lints[0], LintError::NodeInManyFunctions(..)));
+        assert!(matches!(&lints[1], LintError::NodeInManyFunctions(..)));
     }
 
     #[test]
