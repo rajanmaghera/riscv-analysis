@@ -1,10 +1,7 @@
 use crate::cfg::{Cfg, CfgNode};
 use std::{collections::HashSet, rc::Rc};
 
-/// Iterate over a CFG using the underlying node order.
-///
-/// This iterator is useful when you don't care about the order you iterate over
-/// the nodes.
+/// Iterate over all nodes in a CFG.
 pub struct CfgIterator {
     // We have to store a copy of the nodes, since the user may insert nodes
     // during the iteration.
@@ -15,10 +12,40 @@ pub struct CfgIterator {
 
 impl CfgIterator {
     /// Create a new iterator over all nodes in the CFG.
+    ///
+    /// Useful if you don't care about the order of the nodes.
     #[must_use]
     pub fn new(cfg: &Cfg) -> Self {
         Self {
             nodes: cfg.nodes.clone(),
+            index: 0,
+        }
+    }
+
+    /// Iterate over all nodes in the order that they appear in the source file.
+    ///
+    /// If there are multiple files, nodes in the same file will be grouped, but
+    /// the files will be given in to particular order.
+    pub fn source_order(cfg: &Cfg) -> Self {
+        let mut nodes = cfg.nodes.clone();
+
+        // Sort by location
+        nodes.sort_by(|a, b| {
+            let a_pos = a.node().token().pos.end.raw_index;
+            let b_pos = b.node().token().pos.end.raw_index;
+            a_pos.cmp(&b_pos)
+        });
+
+        // Sort by file. We know that `sort_by` is stable, so this has the
+        // effect of grouping by file
+        nodes.sort_by(|a, b| {
+            let a_file = a.node().token().file;
+            let b_file = b.node().token().file;
+            a_file.cmp(&b_file)
+        });
+
+        Self {
+            nodes,
             index: 0,
         }
     }
