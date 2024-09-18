@@ -373,8 +373,8 @@ fn main() {
             );
             let cfg = Manager::gen_full_cfg(parsed.0).expect("unable to generate full cfg");
 
-            let func = cfg
-                .label_function_map
+            let funcs = cfg.functions();
+            let func = funcs
                 .get(&With::new(
                     LabelString(fix.func_name.clone()),
                     Info::default(),

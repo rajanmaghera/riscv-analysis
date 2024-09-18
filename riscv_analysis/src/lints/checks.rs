@@ -328,7 +328,7 @@ impl LintPass for CalleeSavedGarbageReadCheck {
 pub struct CalleeSavedRegisterCheck;
 impl LintPass for CalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for func in cfg.label_function_map.values() {
+        for func in cfg.functions().values() {
             let exit_vals = func.exit().reg_values_in();
             for reg in RegSets::callee_saved() {
                 match exit_vals.get(&reg) {

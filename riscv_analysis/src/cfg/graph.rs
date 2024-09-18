@@ -17,7 +17,7 @@ use super::Segment;
 pub struct Cfg {
     pub nodes: Vec<Rc<CfgNode>>,
     pub label_node_map: HashMap<String, Rc<CfgNode>>,
-    pub label_function_map: HashMap<With<LabelString>, Rc<Function>>,
+    label_function_map: HashMap<With<LabelString>, Rc<Function>>,
 }
 
 impl IntoIterator for &Cfg {
@@ -35,6 +35,17 @@ impl Cfg {
     #[must_use]
     pub fn iter(&self) -> std::vec::IntoIter<Rc<CfgNode>> {
         self.into_iter()
+    }
+
+    /// Get the functions of the CFG.
+    #[must_use]
+    pub fn functions(&self) -> HashMap<With<LabelString>, Rc<Function>> {
+        self.label_function_map.clone()
+    }
+
+    /// Insert a new function
+    pub fn insert_function(&mut self, label: With<LabelString>, func: Rc<Function>) {
+        self.label_function_map.insert(label, func);
     }
 }
 
