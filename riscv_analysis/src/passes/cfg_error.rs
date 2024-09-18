@@ -27,10 +27,6 @@ pub enum CfgError {
     UnexpectedError,
     /// Assertion error
     AssertionError,
-
-    /// Multiple functions. Used when an instruction is found to belong to more
-    /// than one function.
-    OverlappingFunctions(ParserNode, HashSet<With<LabelString>>),
 }
 
 trait SetListString {
@@ -68,9 +64,6 @@ impl Display for CfgError {
             }
             CfgError::UnexpectedError => write!(f, "Unexpected error"),
             CfgError::AssertionError => write!(f, "Assertion error"),
-            CfgError::OverlappingFunctions(_, labels) => {
-                write!(f, "Instruction in multiple functions: {}", labels.as_str_list())
-            }
         }
     }
 }
@@ -83,7 +76,6 @@ impl From<&CfgError> for SeverityLevel {
             | CfgError::MultipleLabelsForReturn(_, _)
             | CfgError::NoLabelForReturn(_)
             | CfgError::UnexpectedError
-            | CfgError::OverlappingFunctions(_, _)
             | CfgError::AssertionError => SeverityLevel::Error,
         }
     }
@@ -93,8 +85,7 @@ impl DiagnosticLocation for CfgError {
     fn file(&self) -> uuid::Uuid {
         match self {
             CfgError::MultipleLabelsForReturn(node, _)
-                | CfgError::NoLabelForReturn(node)
-                | CfgError::OverlappingFunctions(node, _) => {
+                | CfgError::NoLabelForReturn(node) => {
                 node.file()
             }
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().file(),
@@ -106,8 +97,7 @@ impl DiagnosticLocation for CfgError {
     fn range(&self) -> crate::parser::Range {
         match self {
             CfgError::MultipleLabelsForReturn(node, _)
-                | CfgError::NoLabelForReturn(node)
-                | CfgError::OverlappingFunctions(node, _) => {
+                | CfgError::NoLabelForReturn(node) => {
                 node.range()
             }
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().range(),
@@ -161,14 +151,6 @@ impl DiagnosticMessage for CfgError {
                 ".to_string(),
             CfgError::UnexpectedError => "An unexpected error occurred. Please file a bug.".to_string(),
             CfgError::AssertionError => "An unexpected assertion error occurred. Please file a bug.".to_string(),
-            CfgError::OverlappingFunctions(_, labels) => format!(
-                // FIXME: Make a better description
-                "This instruction is located in more than one function: {}.\n\n\
-                 This can occur when there is function call to the middle of a function, or if two (or more) \
-                 functions share some of their code.",
-                // "An instruction is in the code has many function headers: {}",
-                labels.as_str_list()
-            ),
         }
     }
 }

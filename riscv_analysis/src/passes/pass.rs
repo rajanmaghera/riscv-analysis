@@ -40,8 +40,13 @@ pub trait LintPass {
     #[must_use]
     fn run_single_pass_along_nodes(nodes: &[ParserNode]) -> Vec<LintError> {
         let cfg = Cfg::new(nodes.into()).unwrap();
+        Self::run_single_pass_along_cfg(&cfg)
+    }
+
+    #[must_use]
+    fn run_single_pass_along_cfg(cfg: &Cfg) -> Vec<LintError> {
         let mut errors = Vec::new();
-        Self::run(&cfg, &mut errors);
+        Self::run(cfg, &mut errors);
         errors
     }
 }

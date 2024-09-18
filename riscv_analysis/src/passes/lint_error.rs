@@ -10,6 +10,8 @@ use crate::parser::Range;
 use crate::parser::Register;
 use crate::parser::With;
 
+use itertools::Itertools;
+
 use super::DiagnosticLocation;
 use super::DiagnosticMessage;
 
@@ -49,6 +51,9 @@ pub enum LintError {
                                      // NonMatchingOffset -- if the multiple of the offset does not match the instruction (ex. 4 for lw), then it is a warning
                                      // LoadAddressFromTextLabel -- if the address is a label in the text area, then it is a warning
                                      // AnyJumpToData -- if any jump is to a data label, then it is a warning (label strings should have data/text prefix)
+
+    /// An instruction is a member of more than one function.
+    NodeInManyFunctions(ParserNode, Vec<Rc<Function>>)
 }
 
 #[derive(Clone)]
@@ -68,6 +73,7 @@ impl From<&LintError> for SeverityLevel {
             | LintError::InvalidJumpToFunction(..)
             | LintError::FirstInstructionIsFunction(..)
             | LintError::LostRegisterValue(_)
+            | LintError::NodeInManyFunctions(..)
             | LintError::UnreachableCode(_) => SeverityLevel::Warning,
             LintError::UnknownEcall(_)
             | LintError::InvalidUseAfterCall(..)
@@ -130,6 +136,13 @@ impl std::fmt::Display for LintError {
                         }
                     },
                     i.abs()
+                )
+            }
+            LintError::NodeInManyFunctions(_node, funcs) => {
+                write!(f, "Part of multiple functions: {}",
+                       funcs.iter()
+                       .map(|fun| fun.name().0)
+                       .join(" | ")
                 )
             }
         }
@@ -211,6 +224,7 @@ impl DiagnosticLocation for LintError {
             | LintError::UnknownStack(r)
             | LintError::InvalidStackPointer(r)
             | LintError::InvalidStackOffsetUsage(r, _)
+            | LintError::NodeInManyFunctions(r, _)
             | LintError::InvalidStackPosition(r, _) => r.range(),
         }
     }
@@ -231,6 +245,7 @@ impl DiagnosticLocation for LintError {
             | LintError::UnknownStack(r)
             | LintError::InvalidStackPointer(r)
             | LintError::InvalidStackOffsetUsage(r, _)
+            | LintError::NodeInManyFunctions(r, _)
             | LintError::InvalidStackPosition(r, _) => r.file(),
         }
     }

@@ -7,8 +7,8 @@ use crate::{
     },
     lints::{
         CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
-        EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck,
-        SaveToZeroCheck, StackCheckPass,
+        EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck, SaveToZeroCheck,
+        StackCheckPass, OverlappingFunctionCheck,
     },
     parser::ParserNode,
 };
@@ -49,6 +49,7 @@ impl Manager {
         CalleeSavedRegisterCheck::run(cfg, errors);
         CalleeSavedGarbageReadCheck::run(cfg, errors);
         LostCalleeSavedRegisterCheck::run(cfg, errors);
+        OverlappingFunctionCheck::run(cfg, errors);
     }
     pub fn run(cfg: Vec<ParserNode>) -> Result<Vec<LintError>, Box<CfgError>> {
         let mut errors = Vec::new();
