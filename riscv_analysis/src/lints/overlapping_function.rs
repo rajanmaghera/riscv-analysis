@@ -1,7 +1,7 @@
 use crate::{
-    cfg::Cfg,
-    passes::{LintError, LintPass},
+    cfg::Cfg, parser::{Label, ParserNode, RawToken}, passes::{LintError, LintPass}
 };
+use uuid::Uuid;
 
 /// A lint to ensure warn about instructions that exist in more than one
 /// function.
@@ -19,13 +19,33 @@ impl LintPass for OverlappingFunctionCheck {
             //       even though there may be many overlapping instructions.
             //       This is done to not overwhelm the user with errors.
             if node.functions().len() > 1 && node.is_function_entry().is_some() {
-                errors.push(LintError::NodeInManyFunctions(
-                    node.node().clone(),
-                    node.functions()
-                        .clone()
-                        .into_iter()
-                        .collect::<Vec<_>>(),
-                ));
+                // HACK: Create a dummy label with the same name
+                let labels = node.labels();
+                let labels = labels
+                    .iter()
+                    .map(|l| {
+                        Label {
+                            name: l.clone(),
+                            key: Uuid::new_v4(),
+                            token: RawToken {
+                                text: l.data.0.clone(),
+                                pos: l.pos.clone(),
+                                file: l.file,
+                            },
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let label = labels.first();
+
+                if let Some(l) = label {
+                    errors.push(LintError::NodeInManyFunctions(
+                        ParserNode::Label(l.clone()),
+                        node.functions()
+                            .clone()
+                            .into_iter()
+                            .collect::<Vec<_>>(),
+                    ));
+                }
             }
         }
     }
@@ -68,8 +88,8 @@ mod tests {
         assert!(matches!(
             &lints[0], LintError::NodeInManyFunctions(node, _)
                 if matches!(
-                    node, ParserNode::FuncEntry(entry)
-                        if entry.token.text == "addi a0 a0 2"
+                    node, ParserNode::Label(label)
+                        if label.token.text == "fn_b"
                 )
             )
         );
@@ -100,16 +120,16 @@ mod tests {
         assert!(matches!(
             &lints[0], LintError::NodeInManyFunctions(node, _)
                 if matches!(
-                    node, ParserNode::FuncEntry(entry)
-                        if entry.token.text == "addi a0 a0 2"
+                    node, ParserNode::Label(label)
+                        if label.token.text == "fn_b"
                 )
             )
         );
         assert!(matches!(
             &lints[1], LintError::NodeInManyFunctions(node, _)
                 if matches!(
-                    node, ParserNode::FuncEntry(entry)
-                        if entry.token.text == "addi a0 a0 3"
+                    node, ParserNode::Label(label)
+                        if label.token.text == "fn_c"
                 )
             )
         );
