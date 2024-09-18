@@ -3,7 +3,6 @@ use crate::analysis::AvailableValue;
 use crate::analysis::CustomClonedSets;
 use crate::cfg::Cfg;
 use crate::cfg::CfgNode;
-use crate::parser::ParserNode;
 use crate::parser::RegSets;
 use crate::parser::Register;
 use crate::parser::With;
@@ -149,48 +148,6 @@ impl LintPass for DeadValueCheck {
             else if let Some(def) = node.node().stores_to() {
                 if !node.live_out().contains(&def.data) && !node.node().can_skip_save_checks() {
                     errors.push(LintError::DeadAssignment(def));
-                }
-            }
-        }
-    }
-}
-
-// Check if you can enter a function through the first line of code
-// Check if you can enter a function through a jump (a previous exists)
-// Check if any code has no previous (except for the first line of code)
-// TODO fix for program entry
-pub struct ControlFlowCheck;
-impl LintPass for ControlFlowCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in &cfg.clone() {
-            match node.node() {
-                ParserNode::FuncEntry(_) => {
-                    // If the previous nodes set is not empty
-                    // Note: this also accounts for functions being at the beginning
-                    // of a program, as the ProgEntry node will be the previous node
-                    if let Some(prev_node) = node.prevs().iter().next() {
-                        for function in node.functions().iter() {
-                            if prev_node.node().is_program_entry() {
-                                errors.push(LintError::FirstInstructionIsFunction(
-                                    node.node().clone(),
-                                    Rc::clone(function),
-                                ));
-                            } else {
-                                errors.push(LintError::InvalidJumpToFunction(
-                                    node.node().clone(),
-                                    prev_node.node().clone(),
-                                    Rc::clone(function),
-                                ));
-                            }
-
-                        }
-                    }
-                }
-                ParserNode::ProgramEntry(_) => {}
-                _ => {
-                    if node.prevs().is_empty() {
-                        errors.push(LintError::UnreachableCode(node.node().clone()));
-                    }
                 }
             }
         }
