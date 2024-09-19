@@ -59,7 +59,7 @@ impl LSPDiag for DiagnosticItem {
             uri: parser
                 .reader
                 .get_filename(self.file)
-                .unwrap_or(String::new()),
+                .unwrap_or_default(), // Empty string by default
             diagnostic: Diagnostic {
                 range: self.range.to_range(),
                 severity: Some(self.level.clone().to_severity()),
@@ -72,7 +72,8 @@ impl LSPDiag for DiagnosticItem {
                         .map(|f1| DiagnosticRelatedInformation {
                             location: Location {
                                 uri: Url::parse(
-                                    &parser.reader.get_filename(f1.file).unwrap_or(String::new()),
+                                    &parser.reader.get_filename(f1.file)
+                                                  .unwrap_or_default(), // Empty string by default
                                 )
                                 .unwrap(),
                                 range: f1.range.to_range(),
