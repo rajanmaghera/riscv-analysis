@@ -179,7 +179,10 @@ impl Iterator for Lexer {
                     self.next_char();
                 }
 
-                let end = self.get_pos();
+                // TODO: fix get_pos() instead of doing this workaround
+                let mut end = start;
+                end.column += dir_str.len();
+                end.raw_index += dir_str.len();
 
                 if dir_str == "." {
                     return self.next();
@@ -291,6 +294,7 @@ impl Iterator for Lexer {
 
         match token {
             Some(t) => {
+                // TODO: remove these debug asserts once we fix the get_pos() function
                 debug_assert_eq!(t.pos.start.line, t.pos.end.line);
                 debug_assert!(t.pos.start.column <= t.pos.end.column);
                 Some(t)
@@ -467,6 +471,51 @@ mod tests {
                 Token::Symbol("s0".into()),
                 Token::Symbol("s0".into()),
                 Token::Symbol("s2".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_all_tokens_with_newlines() {
+        let lexer = tokenize(
+            ".text\nadd x2,x2,x3 \n# hello, world!@#DKSAOKLJu3iou12o\nBLCOK:\n\n\nsub a0 a0 a1\nmy_block:\nadd s0, s0, s2\nadd s0, s0, s2\nlabel_abc: \n",
+        );
+
+        assert_eq!(
+            lexer,
+            vec![
+                Token::Directive(".text".to_string()),
+                Token::Newline,
+                Token::Symbol("add".into()),
+                Token::Symbol("x2".into()),
+                Token::Symbol("x2".into()),
+                Token::Symbol("x3".into()),
+                Token::Newline,
+                Token::Comment(" hello, world!@#DKSAOKLJu3iou12o".to_string()),
+                Token::Newline,
+                Token::Label("BLCOK".to_string()),
+                Token::Newline,
+                Token::Newline,
+                Token::Newline,
+                Token::Symbol("sub".into()),
+                Token::Symbol("a0".into()),
+                Token::Symbol("a0".into()),
+                Token::Symbol("a1".into()),
+                Token::Newline, // ERROR HERE
+                Token::Label("my_block".to_string()),
+                Token::Newline,
+                Token::Symbol("add".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s2".into()),
+                Token::Newline, // ERROR HERE
+                Token::Symbol("add".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s0".into()),
+                Token::Symbol("s2".into()),
+                Token::Newline,
+                Token::Label("label_abc".to_string()),
+                Token::Newline,
             ]
         );
     }
