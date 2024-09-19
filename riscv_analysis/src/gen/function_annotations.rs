@@ -19,24 +19,16 @@ struct MarkData {
 pub struct FunctionMarkupPass;
 
 impl FunctionMarkupPass {
-    fn mark_reachable(entry: &Rc<CfgNode>, func: &Rc<Function>)
+    fn mark_reachable(cfg: &Cfg, entry: &Rc<CfgNode>, func: &Rc<Function>)
                       -> Result<MarkData, Box<CfgError>> {
-        // Initialize data for graph search
-        let mut queue = vec![Rc::clone(entry)];
-        #[allow(clippy::mutable_key_type)]  // This is okay because we don't modify the field that is hashed
-        let mut seen = HashSet::new();      // CFG nodes seen during the traversal
         let mut defs = HashSet::new();      // Registers this function writes to
         let mut returns = None;             // Return instructions in this function
+        let mut instructions = vec![];
 
         // Traverse the CFG for all nodes reachable from the entry point
-        while let Some(node) = queue.pop() {
-            // Only process each node at most once
-            if seen.contains(&node) {
-                continue;
-            }
-            seen.insert(Rc::clone(&node));
-
+        for node in cfg.iter_nexts(Rc::clone(entry)) {
             // Mark the node as being a part of the given function
+            instructions.push(Rc::clone(&node));
             node.insert_function(Rc::clone(func));
 
             // Collect any registers written to by the node
@@ -80,15 +72,7 @@ impl FunctionMarkupPass {
                     returns = Some(Rc::clone(&node));
                 }
             }
-
-            // Add all successor nodes to the queue
-            let successors = node.nexts();
-            for suc in successors.iter() {
-                queue.push(Rc::clone(suc));
-            }
         }
-
-        let instructions = seen.into_iter().collect();
 
         if let Some(ret) = returns {
             Ok(MarkData { found: defs, instructions, returns: ret })
@@ -126,7 +110,7 @@ impl GenerationPass for FunctionMarkupPass {
 
             // Mark all CFG nodes that are reachable from this entry point
             // FIXME: What to do if there is more than one return
-            match Self::mark_reachable(&entry, &Rc::clone(&func)) {
+            match Self::mark_reachable(cfg, &entry, &Rc::clone(&func)) {
                 Ok(data) => {
                     func.set_defs(data.found);
                     func.set_nodes(data.instructions);
