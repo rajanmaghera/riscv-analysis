@@ -55,3 +55,124 @@ impl LintPass for ControlFlowCheck {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::RVStringParser;
+    use crate::passes::{LintError, LintPass, Manager};
+
+    fn run_pass(input: &str) -> Vec<LintError> {
+        let (nodes, error) = RVStringParser::parse_from_text(input);
+        assert_eq!(error.len(), 0);
+
+        let cfg = Manager::gen_full_cfg(nodes).unwrap(); // Need fn annotations
+        ControlFlowCheck::run_single_pass_along_cfg(&cfg)
+    }
+
+    #[test]
+    fn function_on_first_line() {
+        let input = "\
+            fn_a:                      \n\
+                addi   a0, a0, 1       \n\
+                ret                    \n\
+            main:                      \n\
+                li     a0, 0           \n\
+                jal    fn_a            \n\
+                addi   a7, zero, 10    \n\
+                ecall                  \n";
+
+        let lints = run_pass(input);
+
+        // Error for function on at the program entry & 4 errors for all the
+        // unreachable instructions in `main`
+        assert_eq!(lints.len(), 5);
+
+        // The first error should warn about the first instruction of `fn_a`
+        assert!(matches!(
+            &lints[0], LintError::FirstInstructionIsFunction(node, _)
+                if node.token().text == "addi a0 a0 1"
+            )
+        );
+
+        // Next four errors should be about unreachable code
+        assert!(matches!(
+            &lints[1], LintError::UnreachableCode(node, ..)
+                if node.token().text == "li a0 0"
+            )
+        );
+        assert!(matches!(
+            &lints[2], LintError::UnreachableCode(node, ..)
+                if node.token().text == "jal fn_a"
+            )
+        );
+        assert!(matches!(
+            &lints[3], LintError::UnreachableCode(node, ..)
+                if node.token().text == "addi a7 zero 10"
+            )
+        );
+        assert!(matches!(
+            &lints[4], LintError::UnreachableCode(node, ..)
+                if node.token().text == "ecall"
+            )
+        );
+    }
+
+    #[test]
+    fn jump_to_function() {
+        let input = "\
+            main:                      \n\
+                li     a0, 0           \n\
+                jal    fn_a            \n\
+                j      fn_a            \n\
+                addi   a7, zero, 10    \n\
+                ecall                  \n\
+            fn_a:                      \n\
+                addi   a0, a0, 1       \n\
+                ret                    \n\
+            ";
+
+        let lints = run_pass(input);
+
+        // Error for function on at the program entry & 2 errors for all the
+        // unreachable instructions in `main` after the `j` instruction
+        assert_eq!(lints.len(), 3);
+
+        assert!(matches!(
+            &lints[0], LintError::UnreachableCode(node, ..)
+                if node.token().text == "addi a7 zero 10"
+            )
+        );
+        assert!(matches!(
+            &lints[1], LintError::UnreachableCode(node, ..)
+                if node.token().text == "ecall"
+            )
+        );
+        assert!(matches!(
+            &lints[2], LintError::InvalidJumpToFunction(node, ..)
+                if node.token().text == "addi a0 a0 1"
+            )
+        );
+    }
+
+    #[test]
+    fn overlapping_functions() {
+        let input = "\
+            main:                      \n\
+                li     a0, 0           \n\
+                jal    fn_a            \n\
+                jal    fn_b            \n\
+                addi   a7, zero, 10    \n\
+                ecall                  \n\
+            fn_a:                      \n\
+                addi   a0, a0, 1       \n\
+            fn_b:                      \n\
+                addi   a0, a0, 2       \n\
+                ret                    \n";
+
+        let lints = run_pass(input);
+
+        // Overlapping functions should not cause a control flow error
+        assert_eq!(lints.len(), 0);
+    }
+}
