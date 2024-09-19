@@ -191,7 +191,7 @@ mod tests {
         assert_eq!(funcs.len(), 0);
 
         // All nodes should have no function annotations
-        for node in cfg.nodes {
+        for node in &cfg {
             assert_eq!(node.functions().len(), 0);
         }
     }

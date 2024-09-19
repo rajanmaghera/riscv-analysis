@@ -10,7 +10,7 @@ impl GenerationPass for EliminateDeadCodeDirectionsPass {
         // --------------------
         // Eliminate nexts and prevs for dead code
 
-        let nodes = &cfg.nodes;
+        let nodes = &cfg.nodes();
         let mut changed = true;
         while changed {
             changed = false;

@@ -262,7 +262,7 @@ impl LintPass for StackCheckPass {
 pub struct CalleeSavedGarbageReadCheck;
 impl LintPass for CalleeSavedGarbageReadCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in &cfg.nodes.clone() {
+        for node in cfg {
             for read in node.node().reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
@@ -317,7 +317,7 @@ impl LintPass for CalleeSavedRegisterCheck {
 pub struct LostCalleeSavedRegisterCheck;
 impl LintPass for LostCalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in cfg.nodes.clone() {
+        for node in cfg {
             let callee = RegSets::saved();
 
             // If: within a function, node stores to a saved register,

@@ -12,7 +12,7 @@ use crate::{
 pub struct NodeDirectionPass;
 impl GenerationPass for NodeDirectionPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
-        let nodes = &cfg.nodes;
+        let nodes = &cfg.nodes();
         let mut prev = None;
         for node in nodes {
             // If node jumps to another node, add it to the nexts of the current node and the prevs of the node it jumps to.

@@ -17,7 +17,7 @@ impl CfgIterator {
     #[must_use]
     pub fn new(cfg: &Cfg) -> Self {
         Self {
-            nodes: cfg.nodes.clone(),
+            nodes: cfg.nodes(),
             index: 0,
         }
     }
@@ -28,7 +28,7 @@ impl CfgIterator {
     /// the files will not be given in any particular order.
     #[must_use]
     pub fn source_order(cfg: &Cfg) -> Self {
-        let mut nodes = cfg.nodes.clone();
+        let mut nodes = cfg.nodes();
 
         // Sort by location
         nodes.sort_by(|a, b| {

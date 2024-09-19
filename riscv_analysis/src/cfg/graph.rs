@@ -18,7 +18,7 @@ use super::Segment;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Cfg {
-    pub nodes: Vec<Rc<CfgNode>>,
+    nodes: Vec<Rc<CfgNode>>,
     pub label_node_map: HashMap<String, Rc<CfgNode>>,
     label_function_map: HashMap<With<LabelString>, Rc<Function>>,
 }
@@ -69,6 +69,12 @@ impl Cfg {
     /// Insert a new function
     pub fn insert_function(&mut self, label: With<LabelString>, func: Rc<Function>) {
         self.label_function_map.insert(label, func);
+    }
+
+    /// Get the nodes of the CFG
+    #[must_use]
+    pub fn nodes(&self) -> Vec<Rc<CfgNode>> {
+        self.nodes.clone()
     }
 }
 
