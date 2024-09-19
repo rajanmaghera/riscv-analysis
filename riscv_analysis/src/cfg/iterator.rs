@@ -25,7 +25,8 @@ impl CfgIterator {
     /// Iterate over all nodes in the order that they appear in the source file.
     ///
     /// If there are multiple files, nodes in the same file will be grouped, but
-    /// the files will be given in to particular order.
+    /// the files will not be given in any particular order.
+    #[must_use]
     pub fn source_order(cfg: &Cfg) -> Self {
         let mut nodes = cfg.nodes.clone();
 
@@ -62,6 +63,12 @@ impl Iterator for CfgIterator {
         }
 
         None
+    }
+}
+
+impl DoubleEndedIterator for CfgIterator {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.nodes.pop()
     }
 }
 

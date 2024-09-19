@@ -103,7 +103,7 @@ impl FunctionMarkupPass {
 
 impl GenerationPass for FunctionMarkupPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
-        for entry in &*cfg {
+        for entry in cfg.iter() {
             // Skip all nodes that are not entry points
             if !entry.node().is_function_entry() {
                 continue;

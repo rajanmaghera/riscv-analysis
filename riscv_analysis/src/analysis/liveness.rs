@@ -15,7 +15,7 @@ impl GenerationPass for LivenessPass {
         let mut visited = HashSet::new();
         while changed {
             changed = false;
-            for node in cfg.into_iter().rev() {
+            for node in cfg.iter().rev() {
                 // live_out[n] = U live_in[s] for all s in next[n]
                 let live_out = node
                     .nexts()
