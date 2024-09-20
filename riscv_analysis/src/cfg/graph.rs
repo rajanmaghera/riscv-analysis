@@ -132,6 +132,8 @@ impl Cfg {
                 ParserNode::Directive(x) if x.dir == DirectiveType::TextSection => {
                     segment = Segment::Text;
                 }
+                // Ignore other types of directives
+                ParserNode::Directive(_) => {},
                 _ => {
                     // If any of the labels are a function call, add a function entry node
                     if current_labels
