@@ -240,3 +240,9 @@ impl AvailableValueMap<Register> {
         }
     }
 }
+
+impl<T: PartialEq + Eq + Hash + Display> AvailableValueMap<T> {
+    pub fn str(&self) -> String {
+        self.to_string()
+    }
+}

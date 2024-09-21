@@ -1,8 +1,8 @@
-use crate::analysis::AvailableRegisterValues;
 use crate::analysis::AvailableValue;
 use crate::analysis::CustomClonedSets;
-use crate::cfg::CfgNode;
 use crate::cfg::Cfg;
+use crate::cfg::CfgNode;
+use crate::cfg::RegisterSet;
 use crate::parser::ParserNode;
 use crate::parser::RegSets;
 use crate::parser::Register;
@@ -124,7 +124,7 @@ impl LintPass for DeadValueCheck {
             if let Some((function, call_site)) = node.calls_to(cfg) {
                 // check the expected return values of the function:
 
-                let out: HashSet<Register> = RegSets::caller_saved()
+                let out: RegisterSet = RegSets::caller_saved()
                     .difference_c(&function.returns())
                     .intersection_c(&node.live_out());
 
@@ -132,7 +132,7 @@ impl LintPass for DeadValueCheck {
                 // for each item, keep going to the next node until a use of
                 // that item is found
                 let mut ranges = Vec::new();
-                for item in out {
+                for item in &out {
                     ranges.append(&mut Cfg::error_ranges_for_first_usage(&node, item));
                 }
                 for item in ranges {
@@ -222,7 +222,7 @@ impl LintPass for GarbageInputValueCheck {
                 garbage.retain(|x| !RegSets::program_args().contains(x));
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
-                    for reg in garbage {
+                    for reg in &garbage {
                         let mut ranges_tmp = Cfg::error_ranges_for_first_usage(&node, reg);
                         ranges.append(&mut ranges_tmp);
                     }
@@ -237,7 +237,7 @@ impl LintPass for GarbageInputValueCheck {
                 garbage.retain(|reg| !RegSets::callee_saved().contains(reg));
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
-                    for reg in garbage {
+                    for reg in &garbage {
                         let mut ranges_tmp = Cfg::error_ranges_for_first_usage(&node, reg);
                         ranges.append(&mut ranges_tmp);
                     }
@@ -329,7 +329,7 @@ impl LintPass for CalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for func in cfg.label_function_map.values() {
             let exit_vals = func.exit.reg_values_in();
-            for reg in RegSets::callee_saved() {
+            for reg in &RegSets::callee_saved() {
                 match exit_vals.get(&reg) {
                     Some(AvailableValue::OriginalRegisterWithScalar(reg2, offset))
                         if reg2 == &reg && offset == &0 =>

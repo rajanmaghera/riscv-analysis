@@ -1,6 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::hash::Hash;
 
+use crate::cfg::{AvailableValueMap, RegisterSet};
 use crate::parser::Register;
 
 use super::{AvailableValue, MemoryLocation};
@@ -9,18 +10,16 @@ pub trait CustomIntersection {
     #[must_use]
     fn intersection(&self, other: &Self) -> Self;
 }
-impl<T, U, S> CustomIntersection for HashMap<T, U, S>
+impl<T> CustomIntersection for AvailableValueMap<T>
 where
     T: Eq + Hash + Clone,
-    U: Eq + Hash + Clone,
-    S: std::hash::BuildHasher + Default,
 {
     fn intersection(&self, other: &Self) -> Self {
         self.iter()
             .collect::<HashSet<_>>()
             .intersection(&other.iter().collect::<HashSet<_>>())
             .map(|x| (x.0.clone(), x.1.clone()))
-            .collect::<HashMap<_, _, _>>()
+            .collect()
     }
 }
 pub trait CustomClonedSets<T> {
@@ -32,21 +31,17 @@ pub trait CustomClonedSets<T> {
     fn difference_c(&self, other: &Self) -> Self;
 }
 
-impl<T, S> CustomClonedSets<T> for HashSet<T, S>
-where
-    T: Eq + Hash + Clone,
-    S: std::hash::BuildHasher + Default,
-{
+impl CustomClonedSets<Register> for RegisterSet {
     fn intersection_c(&self, other: &Self) -> Self {
-        self.intersection(other).cloned().collect()
+        self.intersection(other).iter().collect()
     }
 
     fn union_c(&self, other: &Self) -> Self {
-        self.union(other).cloned().collect()
+        self.union(other).iter().collect()
     }
 
     fn difference_c(&self, other: &Self) -> Self {
-        self.difference(other).cloned().collect()
+        self.difference(other).iter().collect()
     }
 }
 
@@ -55,21 +50,12 @@ pub trait CustomDifference<T> {
     fn difference(&self, other: &T) -> Self;
 }
 
-impl<T, U, S> CustomDifference<HashSet<T>> for HashMap<T, U, S>
-where
-    T: Eq + Hash + Clone,
-    U: Eq + Hash + Clone,
-    S: std::hash::BuildHasher + Default,
-{
-    fn difference(&self, other: &HashSet<T>) -> Self {
+impl CustomDifference<RegisterSet> for AvailableValueMap<Register> {
+    fn difference(&self, other: &RegisterSet) -> Self {
         self.iter()
             .filter(|(x, _)| !other.contains(x))
             .map(|(x, y)| (x.clone(), y.clone()))
             .collect()
-
-        // for reg in other{
-        //     out_n.remove(&reg);
-        // }
     }
 }
 
@@ -113,10 +99,7 @@ where
     }
 }
 
-impl<S> CustomUnion<Option<(Register, AvailableValue)>> for HashMap<Register, AvailableValue, S>
-where
-    S: std::hash::BuildHasher + Default + Clone,
-{
+impl CustomUnion<Option<(Register, AvailableValue)>> for AvailableValueMap<Register> {
     fn union(&self, other: &Option<(Register, AvailableValue)>) -> Self {
         let mut out = self.clone();
         if let Some((reg, val)) = other {
@@ -126,11 +109,8 @@ where
     }
 }
 
-impl<S> CustomUnion<HashMap<Register, AvailableValue>> for HashMap<Register, AvailableValue, S>
-where
-    S: std::hash::BuildHasher + Default + Clone,
-{
-    fn union(&self, other: &HashMap<Register, AvailableValue>) -> Self {
+impl CustomUnion<AvailableValueMap<Register>> for AvailableValueMap<Register> {
+    fn union(&self, other: &AvailableValueMap<Register>) -> Self {
         let mut out = self.clone();
         for (reg, val) in other {
             out.insert(*reg, val.clone());
@@ -145,11 +125,9 @@ impl CustomUnion<i32> for i32 {
     }
 }
 
-impl<S>
+impl
     CustomUnionFilterMap<Option<(MemoryLocation, AvailableValue)>, (MemoryLocation, AvailableValue)>
-    for HashMap<MemoryLocation, AvailableValue, S>
-where
-    S: std::hash::BuildHasher + Default + Clone,
+    for AvailableValueMap<MemoryLocation>
 {
     fn union_filter_map<F>(&self, other: &Option<(MemoryLocation, AvailableValue)>, f: F) -> Self
     where
@@ -169,11 +147,8 @@ pub trait CustomInto<T> {
     fn into_available(self) -> T;
 }
 
-impl<S> CustomInto<HashMap<Register, AvailableValue>> for HashSet<Register, S>
-where
-    S: std::hash::BuildHasher + Default + Clone,
-{
-    fn into_available(self) -> HashMap<Register, AvailableValue> {
+impl CustomInto<AvailableValueMap<Register>> for RegisterSet {
+    fn into_available(self) -> AvailableValueMap<Register> {
         self.into_iter()
             .map(|x| (x, AvailableValue::OriginalRegisterWithScalar(x, 0)))
             .collect()

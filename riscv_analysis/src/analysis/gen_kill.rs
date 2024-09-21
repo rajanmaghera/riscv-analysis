@@ -1,12 +1,13 @@
-use std::collections::HashSet;
-
-use crate::parser::{IArithType, ParserNode, RegSets, Register};
+use crate::{
+    cfg::RegisterSet,
+    parser::{IArithType, ParserNode, RegSets, Register},
+};
 
 use super::{AvailableValue, MemoryLocation};
 
 impl ParserNode {
     #[must_use]
-    pub fn kill_reg_value(&self) -> HashSet<Register> {
+    pub fn kill_reg_value(&self) -> RegisterSet {
         if self.calls_to().is_some() {
             let mut set = RegSets::caller_saved();
             set.insert(Register::X1);
@@ -17,9 +18,9 @@ impl ParserNode {
     }
 
     #[must_use]
-    pub fn kill_reg(&self) -> HashSet<Register> {
+    pub fn kill_reg(&self) -> RegisterSet {
         let regs = if self.calls_to().is_some() {
-            HashSet::new()
+            RegisterSet::new()
         } else if self.is_function_entry() {
             RegSets::caller_saved()
         } else {
@@ -28,21 +29,17 @@ impl ParserNode {
                 .unwrap_or_default()
         };
 
-        regs.into_iter()
-            .filter(|x| *x != Register::X0)
-            .collect::<HashSet<_>>()
+        regs.into_iter().filter(|x| *x != Register::X0).collect()
     }
 
     #[must_use]
-    pub fn gen_reg(&self) -> HashSet<Register> {
+    pub fn gen_reg(&self) -> RegisterSet {
         let regs = if self.is_return() {
             RegSets::callee_saved()
         } else {
             self.reads_from().into_iter().map(|x| x.data).collect()
         };
-        regs.into_iter()
-            .filter(|x| *x != Register::X0)
-            .collect::<HashSet<_>>()
+        regs.into_iter().filter(|x| *x != Register::X0).collect()
     }
 
     #[must_use]

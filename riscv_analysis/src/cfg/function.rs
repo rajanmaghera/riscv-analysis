@@ -5,7 +5,7 @@ use crate::{
     parser::{LabelString, RegSets, Register, With},
 };
 
-use super::CfgNode;
+use super::{CfgNode, RegisterSet};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
@@ -14,7 +14,7 @@ pub struct Function {
     pub exit: Rc<CfgNode>,  // Multiple exit points will be converted to
     // a single exit point
     /// The registers that are set ever in the function
-    pub defs: HashSet<Register>,
+    pub defs: RegisterSet,
 }
 
 impl Function {
@@ -33,7 +33,7 @@ impl Function {
         nodes: Vec<Rc<CfgNode>>,
         entry: Rc<CfgNode>,
         exit: Rc<CfgNode>,
-        defs: HashSet<Register>,
+        defs: RegisterSet,
     ) -> Self {
         Function {
             nodes,
@@ -49,17 +49,17 @@ impl Function {
     }
 
     #[must_use]
-    pub fn arguments(&self) -> HashSet<Register> {
+    pub fn arguments(&self) -> RegisterSet {
         self.entry.live_out().intersection_c(&RegSets::argument())
     }
 
     #[must_use]
-    pub fn returns(&self) -> HashSet<Register> {
+    pub fn returns(&self) -> RegisterSet {
         self.exit.live_in().intersection_c(&RegSets::ret())
     }
 
     #[must_use]
-    pub fn to_save(&self) -> HashSet<Register> {
+    pub fn to_save(&self) -> RegisterSet {
         self.defs
             .intersection_c(&RegSets::callee_saved())
             // remove sp

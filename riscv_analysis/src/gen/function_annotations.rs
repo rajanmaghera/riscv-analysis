@@ -1,13 +1,8 @@
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-    vec,
-};
+use std::{collections::HashMap, rc::Rc, vec};
 
 use crate::{
-    cfg::{Cfg, Function},
-    parser::Register,
-    parser::{Info, JumpLinkType, LabelString, ParserNode, With},
+    cfg::{Cfg, Function, RegisterSet},
+    parser::{Info, JumpLinkType, LabelString, ParserNode, Register, With},
     passes::{CfgError, DiagnosticLocation, GenerationPass},
 };
 
@@ -29,7 +24,7 @@ impl GenerationPass for FunctionMarkupPass {
                 let mut walked = Vec::new();
                 let mut queue = vec![Rc::clone(&node)];
                 let mut found = Vec::new();
-                let mut defs = HashSet::new();
+                let mut defs = RegisterSet::new();
 
                 // For all items in the queue
                 'inner: while let Some(n) = queue.pop() {
