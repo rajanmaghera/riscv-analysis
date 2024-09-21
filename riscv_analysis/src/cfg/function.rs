@@ -1,4 +1,9 @@
-use std::{cell::{Ref, RefCell}, collections::HashSet, hash::Hash, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashSet,
+    hash::Hash,
+    rc::Rc,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -6,7 +11,7 @@ use crate::{
     parser::{LabelString, RegSets, Register, With},
 };
 
-use super::CfgNode;
+use super::{CfgNode, RegisterSet};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
@@ -26,7 +31,7 @@ pub struct Function {
     exit: RefCell<Rc<CfgNode>>,
 
     /// The registers that are set ever in the function
-    defs: RefCell<HashSet<Register>>,
+    defs: RefCell<RegisterSet>,
 }
 
 impl Hash for Function {
@@ -60,7 +65,7 @@ impl Function {
             nodes: RefCell::new(nodes),
             entry,
             exit: RefCell::new(exit),
-            defs: RefCell::new(HashSet::new()),
+            defs: RefCell::new(RegisterSet::new()),
         }
     }
 
@@ -70,27 +75,27 @@ impl Function {
     }
 
     #[must_use]
-    pub fn arguments(&self) -> HashSet<Register> {
+    pub fn arguments(&self) -> RegisterSet {
         self.entry.live_out().intersection_c(&RegSets::argument())
     }
 
     #[must_use]
-    pub fn returns(&self) -> HashSet<Register> {
+    pub fn returns(&self) -> RegisterSet {
         self.exit().live_in().intersection_c(&RegSets::ret())
     }
 
     /// Set the registers used by this function.
-    pub fn set_defs(&self, defs: HashSet<Register>) {
+    pub fn set_defs(&self, defs: RegisterSet) {
         *self.defs.borrow_mut() = defs;
     }
 
     /// Return the set of written registers.
-    pub fn defs(&self) -> Ref<HashSet<Register>> {
+    pub fn defs(&self) -> Ref<RegisterSet> {
         self.defs.borrow()
     }
 
     #[must_use]
-    pub fn to_save(&self) -> HashSet<Register> {
+    pub fn to_save(&self) -> RegisterSet {
         self.defs()
             .intersection_c(&RegSets::callee_saved())
             // remove sp

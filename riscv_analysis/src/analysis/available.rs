@@ -1,18 +1,19 @@
 // AVAILABLE VALUE ANALYSIS
 // ========================
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::hash::Hash;
 use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
+use crate::cfg::AvailableValueMap;
 use crate::parser::{LabelString, RegSets};
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
 
 use super::memory_location::MemoryLocation;
-use super::{CustomDifference, CustomIntersection, CustomInto, CustomUnion, CustomUnionFilterMap};
+use super::{CustomIntersection, CustomInto, CustomUnionFilterMap};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 
@@ -75,7 +76,7 @@ pub trait AvailableRegisterValues {
     fn is_original_value(&self, reg: Register) -> bool;
 }
 
-impl<S: std::hash::BuildHasher> AvailableRegisterValues for HashMap<Register, AvailableValue, S> {
+impl AvailableRegisterValues for AvailableValueMap<Register> {
     fn is_original_value(&self, reg: Register) -> bool {
         self.get(&reg).map_or(false, |x| match x {
             AvailableValue::OriginalRegisterWithScalar(reg2, offset) => {
@@ -83,26 +84,6 @@ impl<S: std::hash::BuildHasher> AvailableRegisterValues for HashMap<Register, Av
             }
             _ => false,
         })
-    }
-}
-
-trait AvailableStackHelpers {
-    /// Returns the offset of the stack pointer if it is known.
-    ///
-    /// This is used to determine the offset of the stack pointer in relation
-    /// to the value it was at the beginning of the function or graph.
-    fn stack_offset(&self) -> Option<MemoryLocation>;
-}
-
-impl AvailableStackHelpers for HashMap<Register, AvailableValue> {
-    fn stack_offset(&self) -> Option<MemoryLocation> {
-        if let Some(AvailableValue::OriginalRegisterWithScalar(reg, off)) = self.get(&Register::X2)
-        {
-            if reg == &Register::X2 {
-                return Some(MemoryLocation::StackOffset(*off));
-            }
-        }
-        None
     }
 }
 
@@ -187,13 +168,13 @@ impl GenerationPass for AvailableValuePass {
                 // out_memory[n] = (gen_memory[n] if we know the location of the stack pointer) U in_memory[n]
                 // (There is no kill_stacks[n])
                 let mut out_memory_n = if node.node().is_any_entry() {
-                    HashMap::new()
+                    AvailableValueMap::new()
                 } else {
                     node.memory_values_in().union_filter_map(
                         &node.node().gen_memory_value(),
                         |(off, val)| {
                             node.reg_values_in().stack_offset().map(|curr_stack| {
-                                match (curr_stack, off) {
+                                match (MemoryLocation::StackOffset(curr_stack), off) {
                                     (
                                         MemoryLocation::StackOffset(curr_stack_i),
                                         MemoryLocation::StackOffset(off_i),
@@ -250,10 +231,10 @@ impl GenerationPass for AvailableValuePass {
 /// to deal with than registers and the analysis has no idea how to deal
 /// with the zero register.
 fn rule_zero_to_const(
-    available_out: &mut HashMap<Register, AvailableValue>,
-    available_in: &HashMap<Register, AvailableValue>,
-    memory_out: &mut HashMap<MemoryLocation, AvailableValue>,
-    memory_in: &HashMap<MemoryLocation, AvailableValue>,
+    available_out: &mut AvailableValueMap<Register>,
+    available_in: &AvailableValueMap<Register>,
+    memory_out: &mut AvailableValueMap<MemoryLocation>,
+    memory_in: &AvailableValueMap<MemoryLocation>,
 ) {
     for val in available_in {
         match val.1 {
@@ -286,8 +267,8 @@ fn rule_zero_to_const(
 /// with a reference to the specific memory location.
 fn rule_expand_address_for_load(
     node: &ParserNode,
-    available_out: &mut HashMap<Register, AvailableValue>,
-    available_in: &HashMap<Register, AvailableValue>,
+    available_out: &mut AvailableValueMap<Register>,
+    available_in: &AvailableValueMap<Register>,
 ) {
     if let Some(store_reg) = node.stores_to() {
         if let ParserNode::Load(load) = node {
@@ -314,8 +295,8 @@ fn rule_expand_address_for_load(
 /// values before and known math operations, store the new value in the register.
 fn rule_perform_math_ops(
     node: &ParserNode,
-    available_out: &mut HashMap<Register, AvailableValue>,
-    available_in: &HashMap<Register, AvailableValue>,
+    available_out: &mut AvailableValueMap<Register>,
+    available_in: &AvailableValueMap<Register>,
 ) {
     if let Some(reg) = node.stores_to() {
         let lhs = match node {
@@ -363,8 +344,8 @@ fn rule_perform_math_ops(
 /// stack into the register.
 fn rule_value_from_stack(
     node: &ParserNode,
-    available_out: &mut HashMap<Register, AvailableValue>,
-    memory_in: &HashMap<MemoryLocation, AvailableValue>,
+    available_out: &mut AvailableValueMap<Register>,
+    memory_in: &AvailableValueMap<MemoryLocation>,
 ) {
     if let Some(reg) = node.stores_to() {
         if let Some(AvailableValue::MemoryAtOriginalRegister(psp, off)) =
@@ -386,8 +367,8 @@ fn rule_value_from_stack(
 /// value at the entry of the function (B), then replace A with B.
 fn rule_known_values_to_stack(
     _node: &ParserNode,
-    memory_out: &mut HashMap<MemoryLocation, AvailableValue>,
-    available_in: &HashMap<Register, AvailableValue>,
+    memory_out: &mut AvailableValueMap<MemoryLocation>,
+    available_in: &AvailableValueMap<Register>,
 ) {
     for (pos, val) in memory_out.clone() {
         if let AvailableValue::RegisterWithScalar(reg, off) = val {

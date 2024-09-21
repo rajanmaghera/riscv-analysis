@@ -1,10 +1,10 @@
-use std::collections::HashSet;
-
 use crate::parser::Register;
+
+use super::RegisterSet;
 
 #[allow(clippy::match_same_arms)]
 #[must_use]
-pub fn environment_in_outs(call_num: i32) -> Option<(HashSet<Register>, HashSet<Register>)> {
+pub fn environment_in_outs(call_num: i32) -> Option<(RegisterSet, RegisterSet)> {
     use crate::parser::Register::{X10, X11, X12, X13};
     let vecs: (&[Register], &[Register]) = match call_num {
         1 => (&[X10], &[]),
@@ -49,7 +49,7 @@ pub fn environment_in_outs(call_num: i32) -> Option<(HashSet<Register>, HashSet<
     };
 
     Some((
-        vecs.0.iter().copied().collect::<HashSet<_>>(),
-        vecs.1.iter().copied().collect::<HashSet<_>>(),
+        vecs.0.iter().copied().collect(),
+        vecs.1.iter().copied().collect(),
     ))
 }

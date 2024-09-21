@@ -1,4 +1,5 @@
 use crate::{
+    cfg::RegisterSet,
     parser::RegSets,
     passes::{CfgError, GenerationPass},
 };
@@ -79,8 +80,12 @@ impl GenerationPass for LivenessPass {
                     }
                 } else if node.node().is_ecall() {
                     let signature = node.known_ecall_signature();
-                    let args = signature.clone().map_or(HashSet::new(), |(args, _)| args);
-                    let rets = signature.clone().map_or(HashSet::new(), |(_, rets)| rets);
+                    let args = signature
+                        .clone()
+                        .map_or(RegisterSet::new(), |(args, _)| args);
+                    let rets = signature
+                        .clone()
+                        .map_or(RegisterSet::new(), |(_, rets)| rets);
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - caller-saved | ecall_returns
                     let u_def = node

@@ -210,6 +210,13 @@ impl AvailableValueMap<Register> {
     }
 }
 
+impl<T: PartialEq + Eq + Hash + Display> AvailableValueMap<T> {
+    #[must_use]
+    pub fn str(&self) -> String {
+        self.to_string()
+    }
+}
+
 #[cfg(test)]
 mod test {
 
