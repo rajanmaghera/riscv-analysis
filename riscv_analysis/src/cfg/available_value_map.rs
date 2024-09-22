@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{analysis::AvailableValue, parser::Register};
 
-use super::RegisterSet;
-
 /// A map from a generic item to an available value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AvailableValueMap<T: PartialEq + Eq + Hash> {
@@ -208,35 +206,5 @@ impl<T: PartialEq + Eq + Hash> FromIterator<(T, AvailableValue)> for AvailableVa
             map.insert(key, value);
         }
         map
-    }
-}
-
-/// LEGACY METHODS:
-
-impl AvailableValueMap<Register> {
-    pub fn difference(&self, other: &RegisterSet) -> Self {
-        let mut new_map = self.clone();
-        new_map -= other.iter();
-        new_map
-    }
-
-    pub fn union(&self, other: &Option<(Register, AvailableValue)>) -> Self {
-        let mut new_map = self.clone();
-        if let Some((reg, value)) = other {
-            new_map.insert(*reg, value.clone());
-        }
-        new_map
-    }
-
-    pub fn union_if(&self, other: &Self, condition: bool) -> Self {
-        if condition {
-            let mut new = self.clone();
-            for (reg, value) in other {
-                new.insert(*reg, value.clone());
-            }
-            new
-        } else {
-            self.clone()
-        }
     }
 }
