@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::HashSet;
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, Serializer};
@@ -115,30 +115,8 @@ impl From<&Cfg> for CfgWrapper {
     }
 }
 
-pub fn sorted_map<S: Serializer, K: Serialize + Ord, V: Serialize, H: std::hash::BuildHasher>(
-    value: &HashMap<K, V, H>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    value
-        .iter()
-        .sorted_by_key(|v| v.0)
-        .collect::<BTreeMap<_, _>>()
-        .serialize(serializer)
-}
-
 pub fn sorted_set<S: Serializer, V: Serialize + Ord, H: std::hash::BuildHasher>(
     value: &HashSet<V, H>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    value
-        .iter()
-        .sorted()
-        .collect::<Vec<_>>()
-        .serialize(serializer)
-}
-
-pub fn sorted_vec<S: Serializer, V: Serialize + Ord>(
-    value: &[V],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     value
