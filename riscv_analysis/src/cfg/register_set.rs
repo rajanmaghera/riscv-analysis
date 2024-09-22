@@ -297,10 +297,6 @@ impl RegisterSet {
             }
         }
     }
-
-    pub fn str(&self) -> String {
-        self.to_string()
-    }
 }
 
 #[cfg(test)]
