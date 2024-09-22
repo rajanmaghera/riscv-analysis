@@ -30,7 +30,7 @@ impl GenerationPass for FunctionMarkupPass {
                 'inner: while let Some(n) = queue.pop() {
                     walked.push(Rc::clone(&n));
                     if let Some(def) = n.node().stores_to() {
-                        defs.insert(def.data);
+                        defs |= def.data;
                     }
 
                     // If we reach the program entry, there's an issue
