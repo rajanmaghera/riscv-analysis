@@ -298,8 +298,4 @@ impl RegisterSet {
             }
         }
     }
-
-    pub fn str(&self) -> String {
-        self.to_string()
-    }
 }

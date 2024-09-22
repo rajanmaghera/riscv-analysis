@@ -43,14 +43,11 @@ where
 impl Display for CfgNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}\n", self.node()))?;
-        f.write_fmt(format_args!("  | LIVI | {}\n", self.live_in().str()))?;
-        f.write_fmt(format_args!("  | LIVO | {}\n", self.live_out().str()))?;
-        f.write_fmt(format_args!("  | VALO | {}\n", self.reg_values_out().str()))?;
-        f.write_fmt(format_args!(
-            "  | STCK | {}\n",
-            self.memory_values_out().str()
-        ))?;
-        f.write_fmt(format_args!("  | UDEF | {}\n", self.u_def().str()))?;
+        f.write_fmt(format_args!("  | LIVI | {}\n", self.live_in()))?;
+        f.write_fmt(format_args!("  | LIVO | {}\n", self.live_out()))?;
+        f.write_fmt(format_args!("  | VALO | {}\n", self.reg_values_out()))?;
+        f.write_fmt(format_args!("  | STCK | {}\n", self.memory_values_out()))?;
+        f.write_fmt(format_args!("  | UDEF | {}\n", self.u_def()))?;
         f.write_fmt(format_args!("  | NEXT | {}\n", self.nexts().len()))?;
 
         Ok(())
