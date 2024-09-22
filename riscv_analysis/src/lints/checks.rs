@@ -1,8 +1,6 @@
 use crate::analysis::AvailableValue;
-use crate::analysis::CustomClonedSets;
 use crate::cfg::Cfg;
 use crate::cfg::CfgNode;
-use crate::cfg::RegisterSet;
 use crate::parser::RegSets;
 use crate::parser::Register;
 use crate::parser::With;
@@ -123,9 +121,7 @@ impl LintPass for DeadValueCheck {
             if let Some((function, call_site)) = node.calls_to(cfg) {
                 // check the expected return values of the function:
 
-                let out: RegisterSet = RegSets::caller_saved()
-                    .difference_c(&function.returns())
-                    .intersection_c(&node.live_out());
+                let out = (RegSets::caller_saved() - function.returns()) & node.live_out();
 
                 // if there is anything left, then there is an error
                 // for each item, keep going to the next node until a use of
@@ -176,8 +172,7 @@ impl LintPass for GarbageInputValueCheck {
         for node in cfg {
             if node.node().is_program_entry() {
                 // get registers
-                let mut garbage = node.live_in().clone();
-                garbage.retain(|x| !RegSets::program_args().contains(x));
+                let garbage = node.live_in() - RegSets::program_args();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
@@ -190,9 +185,7 @@ impl LintPass for GarbageInputValueCheck {
                 }
             } else if let Some(func) = node.is_function_entry() {
                 let args = func.arguments();
-                let mut garbage = node.live_in().clone();
-                garbage.retain(|reg| !args.contains(reg));
-                garbage.retain(|reg| !RegSets::callee_saved().contains(reg));
+                let garbage = node.live_in() - args - RegSets::saved();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
