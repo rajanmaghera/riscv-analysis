@@ -6,10 +6,7 @@ use std::{
 };
 use uuid::Uuid;
 
-use crate::{
-    analysis::CustomClonedSets,
-    parser::{LabelString, RegSets, Register, With},
-};
+use crate::parser::{LabelString, RegSets, Register, With};
 
 use super::{CfgNode, RegisterSet};
 
@@ -76,12 +73,12 @@ impl Function {
 
     #[must_use]
     pub fn arguments(&self) -> RegisterSet {
-        self.entry.live_out().intersection_c(&RegSets::argument())
+        self.entry.live_out() & RegSets::argument()
     }
 
     #[must_use]
     pub fn returns(&self) -> RegisterSet {
-        self.exit().live_in().intersection_c(&RegSets::ret())
+        self.exit().live_in() & RegSets::ret()
     }
 
     /// Set the registers used by this function.
@@ -96,10 +93,8 @@ impl Function {
 
     #[must_use]
     pub fn to_save(&self) -> RegisterSet {
-        self.defs()
-            .intersection_c(&RegSets::callee_saved())
-            // remove sp
-            .difference_c(&vec![Register::X2].into_iter().collect())
+        // Remove the stack pointer()
+        (*self.defs() & RegSets::callee_saved()) - Register::X2
     }
 
     /// Set the instructions composing this function.
