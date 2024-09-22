@@ -72,21 +72,6 @@ pub enum AvailableValue {
     MemoryAtOriginalRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we are sure it is the same as the original
 }
 
-pub trait AvailableRegisterValues {
-    fn is_original_value(&self, reg: Register) -> bool;
-}
-
-impl AvailableRegisterValues for AvailableValueMap<Register> {
-    fn is_original_value(&self, reg: Register) -> bool {
-        self.get(&reg).map_or(false, |x| match x {
-            AvailableValue::OriginalRegisterWithScalar(reg2, offset) => {
-                &reg == reg2 && offset == &0
-            }
-            _ => false,
-        })
-    }
-}
-
 /// Performs the available value analysis on the graph.
 ///
 /// This function contains the logic for determining which values are available
