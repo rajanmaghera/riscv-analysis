@@ -29,7 +29,7 @@ impl FunctionMarkupPass {
 
             // Collect any registers written to by the node
             if let Some(dest) = node.node().stores_to() {
-                defs.insert(dest.data);
+                defs |= dest.data;
             }
 
             // Collect return instructions
