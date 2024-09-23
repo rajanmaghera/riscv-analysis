@@ -123,7 +123,7 @@ impl Iterator for CfgNextsIterator {
 
 /// Iterate over all CFG nodes reachable from some start node, using the prevs.
 ///
-/// This iterator uses the `nexts()` functions of each CFG node. Thus if the
+/// This iterator uses the `prevs()` functions of each CFG node. Thus if the
 /// `NodeDirectionPass` has not run yet, only the start node will be iterated
 /// over.
 ///
