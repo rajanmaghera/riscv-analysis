@@ -160,7 +160,7 @@ impl CfgNode {
     }
 
     pub fn live_in(&self) -> RegisterSet {
-        self.live_in.borrow().clone()
+        *self.live_in.borrow()
     }
 
     pub fn set_live_in(&self, live_in: RegisterSet) {
@@ -168,7 +168,7 @@ impl CfgNode {
     }
 
     pub fn live_out(&self) -> RegisterSet {
-        self.live_out.borrow().clone()
+        *self.live_out.borrow()
     }
 
     pub fn set_live_out(&self, live_out: RegisterSet) {
@@ -176,7 +176,7 @@ impl CfgNode {
     }
 
     pub fn u_def(&self) -> RegisterSet {
-        self.u_def.borrow().clone()
+        *self.u_def.borrow()
     }
 
     pub fn set_u_def(&self, u_def: RegisterSet) {

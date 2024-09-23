@@ -33,7 +33,7 @@ impl GenerationPass for LivenessPass {
 
                     if func_exit_live_in != func.exit().live_in() {
                         changed = true;
-                        func.exit().set_live_in(func_exit_live_in.clone());
+                        func.exit().set_live_in(func_exit_live_in);
                     }
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - kill[n] | (u_def[F_exit] AND return-registers)
