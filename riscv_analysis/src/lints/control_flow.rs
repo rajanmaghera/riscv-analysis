@@ -66,7 +66,7 @@ mod tests {
         let (nodes, error) = RVStringParser::parse_from_text(input);
         assert_eq!(error.len(), 0);
 
-        let cfg = Manager::gen_full_cfg(nodes).unwrap(); // Need fn annotations
+        let cfg = Manager::gen_full_cfg(nodes).unwrap();
         ControlFlowCheck::run_single_pass_along_cfg(&cfg)
     }
 
@@ -173,6 +173,29 @@ mod tests {
         let lints = run_pass(input);
 
         // Overlapping functions should not cause a control flow error
+        assert_eq!(lints.len(), 0);
+    }
+
+
+    #[test]
+    fn unreachable_directive() {
+        let input = "\
+            .text                      \n\
+            main:                      \n\
+                jal     fn_a           \n\
+                la      a0, bytes      \n\
+                lw      a0, 0(a0)      \n\
+                addi    a7, zero, 10   \n\
+                ecall                  \n\
+            fn_a:                      \n\
+                addi    a0, a0, 1      \n\
+                ret                    \n\
+            .data                      \n\
+            bytes:   .space 10         \n";
+
+        let lints = run_pass(input);
+
+        // An "unreachable" directive shouldn't cause an error
         assert_eq!(lints.len(), 0);
     }
 }
