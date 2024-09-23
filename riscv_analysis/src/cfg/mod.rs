@@ -24,3 +24,6 @@ pub use segment::*;
 
 mod iterator;
 pub use iterator::*;
+
+mod register_set;
+pub use register_set::*;
