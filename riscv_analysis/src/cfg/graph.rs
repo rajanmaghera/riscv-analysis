@@ -23,16 +23,6 @@ pub struct Cfg {
     label_function_map: HashMap<With<LabelString>, Rc<Function>>,
 }
 
-// impl IntoIterator for &Cfg {
-//     type Item = Rc<CfgNode>;
-//     type IntoIter = std::vec::IntoIter<Self::Item>;
-
-//     // nested iterator for blocks
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.nodes.clone().into_iter()
-//     }
-// }
-
 impl Cfg {
     /// Get an iterator over the `Cfg` nodes.
     #[must_use]
