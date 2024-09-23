@@ -262,43 +262,6 @@ impl FromIterator<Register> for RegisterSet {
     }
 }
 
-/// LEGACY METHODS:
-
-impl RegisterSet {
-    #[must_use]
-    pub fn union(&self, other: &Self) -> Self {
-        *self | *other
-    }
-    #[must_use]
-    pub fn intersection(&self, other: &Self) -> Self {
-        *self & *other
-    }
-    #[must_use]
-    pub fn difference(&self, other: &Self) -> Self {
-        *self - *other
-    }
-
-    pub fn extend(&mut self, other: Self) {
-        *self |= other
-    }
-
-    pub fn insert(&mut self, other: Register) {
-        *self |= other
-    }
-
-    pub fn retain<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&Register) -> bool,
-    {
-        for i in 0..32 {
-            let reg = Register::from_num(i).unwrap();
-            if !f(&reg) {
-                self.unset_register(&reg);
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
