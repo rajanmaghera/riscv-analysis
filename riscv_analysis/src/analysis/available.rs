@@ -13,8 +13,6 @@ use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
 
 use super::memory_location::MemoryLocation;
-use super::{CustomIntersection, CustomInto, CustomUnionFilterMap};
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 
 /// A value that is available at some point in the program.
@@ -121,7 +119,10 @@ impl GenerationPass for AvailableValuePass {
                     .into_iter()
                     .filter(|x| visited.contains(x))
                     .map(|x| x.reg_values_out())
-                    .reduce(|acc, x| x.intersection(&acc))
+                    .reduce(|mut acc, x| {
+                        acc &= &x;
+                        acc
+                    })
                     .unwrap_or_default();
                 node.set_reg_values_in(in_reg_n);
 
@@ -132,45 +133,40 @@ impl GenerationPass for AvailableValuePass {
                     .into_iter()
                     .filter(|x| visited.contains(x))
                     .map(|x| x.memory_values_out())
-                    .reduce(|acc, x| x.intersection(&acc))
+                    .reduce(|mut acc, x| {
+                        acc &= &x;
+                        acc
+                    })
                     .unwrap_or_default();
                 node.set_memory_values_in(in_memory_n);
 
                 // out[n] = gen[n] U (in[n] - kill[n]) U (callee_saved if n is entry)
-                let mut out_reg_n = node
-                    .reg_values_in()
-                    .difference(&node.node().kill_reg_value())
-                    .union(&node.node().gen_reg_value())
-                    .union_if(
-                        &RegSets::callee_saved().into_available(),
-                        node.node().is_function_entry(),
-                    )
-                    .union_if(
-                        &RegSets::sp_ra().into_available(),
-                        node.node().is_program_entry(),
-                    );
+                let mut out_reg_n = node.reg_values_in();
+                out_reg_n -= node.node().kill_reg_value().iter();
+                if let Some((reg, reg_value)) = node.node().gen_reg_value() {
+                    out_reg_n.insert(reg, reg_value);
+                }
+                if node.node().is_function_entry() {
+                    out_reg_n.extend(RegSets::callee_saved().into_available_values());
+                }
+                if node.node().is_program_entry() {
+                    out_reg_n.extend(RegSets::sp_ra().into_available_values());
+                }
 
                 // out_memory[n] = (gen_memory[n] if we know the location of the stack pointer) U in_memory[n]
                 // (There is no kill_stacks[n])
                 let mut out_memory_n = if node.node().is_any_entry() {
                     AvailableValueMap::new()
                 } else {
-                    node.memory_values_in().union_filter_map(
-                        &node.node().gen_memory_value(),
-                        |(off, val)| {
-                            node.reg_values_in().stack_offset().map(|curr_stack| {
-                                match (MemoryLocation::StackOffset(curr_stack), off) {
-                                    (
-                                        MemoryLocation::StackOffset(curr_stack_i),
-                                        MemoryLocation::StackOffset(off_i),
-                                    ) => (
-                                        MemoryLocation::StackOffset(curr_stack_i + off_i),
-                                        val.clone(),
-                                    ),
-                                }
-                            })
-                        },
-                    )
+                    let mut map = node.memory_values_in();
+                    if let Some((MemoryLocation::StackOffset(offset), value)) =
+                        node.node().gen_memory_value()
+                    {
+                        if let Some(curr_stack) = node.reg_values_in().stack_offset() {
+                            map.insert(MemoryLocation::StackOffset(curr_stack + offset), value);
+                        }
+                    }
+                    map
                 };
 
                 // AVAILABLE VALUE/STACK ESTIMATION
