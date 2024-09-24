@@ -13,6 +13,7 @@ use super::CfgIterator;
 use super::CfgNextsIterator;
 use super::CfgNode;
 use super::CfgPrevsIterator;
+use super::CfgSourceIterator;
 use super::Function;
 use super::Segment;
 
@@ -32,8 +33,8 @@ impl Cfg {
 
     /// Get an iterator over the `Cfg` nodes in source order.
     #[must_use]
-    pub fn iter_source(&self) -> CfgIterator {
-        CfgIterator::source_order(self)
+    pub fn iter_source(&self) -> CfgSourceIterator {
+        CfgSourceIterator::new(self)
     }
 
     /// Get an iterator over the `Cfg` nodes that are reachable using the
@@ -63,13 +64,13 @@ impl Cfg {
 
     /// Get the nodes of the CFG
     #[must_use]
-    pub fn nodes(&self) -> Vec<Rc<CfgNode>> {
-        self.nodes.clone()
+    pub fn nodes(&self) -> &Vec<Rc<CfgNode>> {
+        &self.nodes
     }
 }
 
-impl IntoIterator for &Cfg {
-    type IntoIter = CfgIterator;
+impl<'a> IntoIterator for &'a Cfg {
+    type IntoIter = CfgIterator<'a>;
     type Item = Rc<CfgNode>;
 
     fn into_iter(self) -> Self::IntoIter {

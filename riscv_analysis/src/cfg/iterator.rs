@@ -2,33 +2,86 @@ use crate::cfg::{Cfg, CfgNode};
 use std::{collections::HashSet, rc::Rc};
 
 /// Iterate over all nodes in a CFG.
-pub struct CfgIterator {
-    // We have to store a copy of the nodes, since the user may insert nodes
-    // during the iteration.
-    nodes: Vec<Rc<CfgNode>>,
-    // Where we are in the iteration.
-    index: usize,
+pub struct CfgIterator<'a> {
+    nodes: &'a Vec<Rc<CfgNode>>,
+    start: usize,       // Location in the iteration
+    end: usize,
+    end_final: bool,    // True if `end` has reached the start
 }
 
-impl CfgIterator {
+impl<'a> CfgIterator<'a> {
     /// Create a new iterator over all nodes in the CFG.
     ///
     /// Useful if you don't care about the order of the nodes.
     #[must_use]
-    pub fn new(cfg: &Cfg) -> Self {
+    pub fn new(cfg: &'a Cfg) -> Self {
+        let nodes = &cfg.nodes();
         Self {
-            nodes: cfg.nodes(),
-            index: 0,
+            nodes,
+            start: 0,
+            end: nodes.len() - 1,
+            end_final: false,
         }
     }
 
-    /// Iterate over all nodes in the order that they appear in the source file.
-    ///
-    /// If there are multiple files, nodes in the same file will be grouped, but
-    /// the files will not be given in any particular order.
+    fn in_bounds(&self) -> bool {
+        self.start <= self.end && !self.end_final
+    }
+}
+
+impl<'a> Iterator for CfgIterator<'a> {
+    type Item = Rc<CfgNode>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.in_bounds() {
+            return None;
+        }
+
+        // Return the next node, if there is one
+        if let Some(node) = self.nodes.get(self.start) {
+            self.start += 1;
+            return Some(Rc::clone(node));
+        }
+
+        None
+    }
+}
+
+impl<'a> DoubleEndedIterator for CfgIterator<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if !self.in_bounds() {
+            return None;
+        }
+
+        let result = self.nodes
+                         .get(self.end)
+                         .map(Rc::clone);
+
+        if self.end == 0 {
+            self.end_final = true;
+        } else {
+            self.end -= 1;
+        }
+
+        result
+    }
+}
+
+
+/// Iterate over all nodes in the order that they appear in the source file.
+///
+/// If there are multiple files, nodes in the same file will be grouped, but
+/// the files will not be given in any particular order.
+pub struct CfgSourceIterator {
+    nodes: Vec<Rc<CfgNode>>,
+    start: usize,
+}
+
+impl CfgSourceIterator {
+    /// Create a new source order iterator
     #[must_use]
-    pub fn source_order(cfg: &Cfg) -> Self {
-        let mut nodes = cfg.nodes();
+    pub fn new(cfg: &Cfg) -> Self {
+        let mut nodes = cfg.nodes().clone();
 
         // Sort by location
         nodes.sort_by(|a, b| {
@@ -47,28 +100,22 @@ impl CfgIterator {
 
         Self {
             nodes,
-            index: 0,
+            start: 0,
         }
     }
 }
 
-impl Iterator for CfgIterator {
+impl Iterator for CfgSourceIterator {
     type Item = Rc<CfgNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Return the next node, if there is one
-        if let Some(node) = self.nodes.get(self.index) {
-            self.index += 1;
+        if let Some(node) = self.nodes.get(self.start) {
+            self.start += 1;
             return Some(Rc::clone(node));
         }
 
         None
-    }
-}
-
-impl DoubleEndedIterator for CfgIterator {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.nodes.pop()
     }
 }
 
