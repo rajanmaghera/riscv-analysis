@@ -9,32 +9,46 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
+use super::CfgIterator;
+use super::CfgNextsIterator;
 use super::CfgNode;
+use super::CfgPrevsIterator;
+use super::CfgSourceIterator;
 use super::Function;
 use super::Segment;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Cfg {
-    pub nodes: Vec<Rc<CfgNode>>,
+    nodes: Vec<Rc<CfgNode>>,
     pub label_node_map: HashMap<String, Rc<CfgNode>>,
     label_function_map: HashMap<With<LabelString>, Rc<Function>>,
-}
-
-impl IntoIterator for &Cfg {
-    type Item = Rc<CfgNode>;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    // nested iterator for blocks
-    fn into_iter(self) -> Self::IntoIter {
-        self.nodes.clone().into_iter()
-    }
 }
 
 impl Cfg {
     /// Get an iterator over the `Cfg` nodes.
     #[must_use]
-    pub fn iter(&self) -> std::vec::IntoIter<Rc<CfgNode>> {
-        self.into_iter()
+    pub fn iter(&self) -> CfgIterator {
+        CfgIterator::new(self)
+    }
+
+    /// Get an iterator over the `Cfg` nodes in source order.
+    #[must_use]
+    pub fn iter_source(&self) -> CfgSourceIterator {
+        CfgSourceIterator::new(self)
+    }
+
+    /// Get an iterator over the `Cfg` nodes that are reachable using the
+    /// nexts of `node`.
+    #[must_use]
+    pub fn iter_nexts(&self, node: Rc<CfgNode>) -> CfgNextsIterator {
+        CfgNextsIterator::new(node)
+    }
+
+    /// Get an iterator over the `Cfg` nodes that are reachable using the
+    /// prevs of `node`.
+    #[must_use]
+    pub fn iter_prevs(&self, node: Rc<CfgNode>) -> CfgPrevsIterator {
+        CfgPrevsIterator::new(node)
     }
 
     /// Get the functions of the CFG.
@@ -46,6 +60,21 @@ impl Cfg {
     /// Insert a new function
     pub fn insert_function(&mut self, label: With<LabelString>, func: Rc<Function>) {
         self.label_function_map.insert(label, func);
+    }
+
+    /// Get the nodes of the CFG
+    #[must_use]
+    pub fn nodes(&self) -> &Vec<Rc<CfgNode>> {
+        &self.nodes
+    }
+}
+
+impl<'a> IntoIterator for &'a Cfg {
+    type IntoIter = CfgIterator<'a>;
+    type Item = Rc<CfgNode>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 

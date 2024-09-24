@@ -147,7 +147,7 @@ impl GenerationPass for AvailableValuePass {
         let mut visited = HashSet::new();
         while changed {
             changed = false;
-            for node in &*cfg {
+            for node in cfg.iter() {
                 // in[n] = AND out[p] for all p in prev[n]
                 let in_reg_n = node
                     .prevs()

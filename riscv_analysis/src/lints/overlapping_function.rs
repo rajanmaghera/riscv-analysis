@@ -13,7 +13,7 @@ use uuid::Uuid;
 pub struct OverlappingFunctionCheck;
 impl LintPass for OverlappingFunctionCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in &cfg.clone().nodes {
+        for node in cfg {
             // Capture entry points that are part of more than one function
             // NOTE: We only give an error for the first line of a function,
             //       even though there may be many overlapping instructions.

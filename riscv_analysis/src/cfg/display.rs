@@ -68,7 +68,7 @@ impl Display for CfgNode {
 
 impl Display for Cfg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for node in &self.nodes {
+        for node in self {
             f.write_fmt(format_args!("{node}\n"))?;
         }
         Ok(())

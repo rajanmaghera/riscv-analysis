@@ -103,7 +103,7 @@ impl Cfg {
 pub struct SaveToZeroCheck;
 impl LintPass for SaveToZeroCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in &cfg.clone() {
+        for node in cfg {
             if let Some(register) = node.node().stores_to() {
                 if register == Register::X0 && !node.node().can_skip_save_checks() {
                     errors.push(LintError::SaveToZero(register.clone()));
@@ -116,7 +116,7 @@ impl LintPass for SaveToZeroCheck {
 pub struct DeadValueCheck;
 impl LintPass for DeadValueCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in &cfg.clone() {
+        for node in cfg {
             // check the out of the node for any uses that
             // should not be there (temporaries)
             // TODO merge with Callee saved register check
@@ -159,7 +159,7 @@ impl LintPass for DeadValueCheck {
 pub struct EcallCheck;
 impl LintPass for EcallCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in &cfg.clone() {
+        for node in cfg {
             if node.node().is_ecall() && node.known_ecall().is_none() {
                 errors.push(LintError::UnknownEcall(node.node().clone()));
             }
@@ -173,7 +173,7 @@ impl LintPass for EcallCheck {
 pub struct GarbageInputValueCheck;
 impl LintPass for GarbageInputValueCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in &cfg.clone() {
+        for node in cfg {
             if node.node().is_program_entry() {
                 // get registers
                 let mut garbage = node.live_in().clone();
@@ -217,7 +217,7 @@ impl LintPass for StackCheckPass {
         // check that the stack is never in an invalid position
         // TODO check that the stack stores always happen to a place that is negative
         // TODO move to impl methods
-        'outer: for node in &cfg.clone() {
+        'outer: for node in cfg {
             let values = node.reg_values_out();
             match values.get(&Register::X2) {
                 None => {
@@ -262,7 +262,7 @@ impl LintPass for StackCheckPass {
 pub struct CalleeSavedGarbageReadCheck;
 impl LintPass for CalleeSavedGarbageReadCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in &cfg.nodes.clone() {
+        for node in cfg {
             for read in node.node().reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
@@ -317,7 +317,7 @@ impl LintPass for CalleeSavedRegisterCheck {
 pub struct LostCalleeSavedRegisterCheck;
 impl LintPass for LostCalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        for node in cfg.nodes.clone() {
+        for node in cfg {
             let callee = RegSets::saved();
 
             // If: within a function, node stores to a saved register,

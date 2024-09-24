@@ -92,35 +92,31 @@ impl NodeWrapper {
             node: node.node(),
             labels: node.labels.iter().map(|x| x.data.0.clone()).collect(),
             func_entry: node.functions().iter().map(|func| {
-                cfg.nodes
-                    .iter()
-                    .position(|other| func.entry().node().id() == other.node().id())
-                    .unwrap()
+                cfg.iter()
+                   .position(|other| func.entry().node().id() == other.node().id())
+                   .unwrap()
             }).collect::<Vec<_>>(),
             func_exit: node.functions().iter().map(|func| {
-                cfg.nodes
-                    .iter()
-                    .position(|other| func.exit().node().id() == other.node().id())
-                    .unwrap()
+                cfg.iter()
+                   .position(|other| func.exit().node().id() == other.node().id())
+                   .unwrap()
             }).collect::<Vec<_>>(),
             nexts: node
                 .nexts()
                 .iter()
                 .map(|x| {
-                    cfg.nodes
-                        .iter()
-                        .position(|y| x.node().id() == y.node().id())
-                        .unwrap()
+                    cfg.iter()
+                       .position(|y| x.node().id() == y.node().id())
+                       .unwrap()
                 })
                 .collect(),
             prevs: node
                 .prevs()
                 .iter()
                 .map(|x| {
-                    cfg.nodes
-                        .iter()
-                        .position(|y| x.node().id() == y.node().id())
-                        .unwrap()
+                    cfg.iter()
+                       .position(|y| x.node().id() == y.node().id())
+                       .unwrap()
                 })
                 .collect(),
             reg_values_in: node.reg_values_in(),
@@ -140,10 +136,9 @@ pub struct CfgWrapper(Vec<NodeWrapper>);
 impl From<&Cfg> for CfgWrapper {
     fn from(cfg: &Cfg) -> Self {
         CfgWrapper(
-            cfg.nodes
-                .iter()
-                .map(|x| NodeWrapper::from(x, cfg))
-                .collect(),
+            cfg.iter()
+               .map(|x| NodeWrapper::from(&x, cfg))
+               .collect(),
         )
     }
 }
