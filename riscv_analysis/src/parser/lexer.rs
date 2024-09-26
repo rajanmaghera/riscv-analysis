@@ -38,16 +38,26 @@ impl Lexer {
         lex
     }
 
+    /// Get the N'th next character, without updating the current character.
+    fn peek(&self, n: usize) -> char {
+        match self.source.get(self.pos + n) {
+            Some(c) => *c,
+            None => EOF_CONST,
+        }
+    }
+    
+    /// Get the current next character.
+    fn current(&self) -> char {
+        self.peek(0)
+    }
+
     /// Get the next character in the source.
     ///
     /// This function will update the current character and the position
     /// of the Lexer struct.
     fn next_char(&mut self) {
         // Get the next character
-        self.ch = match self.source.get(self.pos) {
-            Some(c) => *c,
-            None => EOF_CONST,
-        };
+        self.ch = self.current();
 
         // Update the position
         if self.ch == '\n' {
