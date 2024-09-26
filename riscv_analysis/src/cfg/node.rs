@@ -6,14 +6,15 @@ use crate::parser::Register;
 use crate::parser::With;
 use std::cell::Ref;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::rc::Rc;
 
 use super::environment_in_outs;
+use super::AvailableValueMap;
 use super::Cfg;
 use super::Function;
+use super::RegisterSet;
 use super::Segment;
 
 #[derive(Debug)]
@@ -38,28 +39,28 @@ pub struct CfgNode {
     /// The maps will contain all known registers and their known
     /// values. This means that many values might be duplicated above
     /// and below this CFG node.
-    reg_values_in: RefCell<HashMap<Register, AvailableValue>>,
+    reg_values_in: RefCell<AvailableValueMap<Register>>,
     /// Map each register to the available value that is set after
     /// the instruction represented by this CFG node is run.
     ///
     /// The maps will contain all known registers and their known
     /// values. This means that many values might be duplicated above
     /// and below this CFG node.
-    reg_values_out: RefCell<HashMap<Register, AvailableValue>>,
+    reg_values_out: RefCell<AvailableValueMap<Register>>,
     /// Map each memory location to the available value
     /// that is set before the instruction represented by this
     /// CFG node is run.
-    memory_values_in: RefCell<HashMap<MemoryLocation, AvailableValue>>,
+    memory_values_in: RefCell<AvailableValueMap<MemoryLocation>>,
     /// Map each memory location to the available value
     /// that is set after the instruction represented by this
     /// CFG node is run.
-    memory_values_out: RefCell<HashMap<MemoryLocation, AvailableValue>>,
+    memory_values_out: RefCell<AvailableValueMap<MemoryLocation>>,
     /// The set of registers that are live before the instruction
     /// represented by this CFG node is run.
-    live_in: RefCell<HashSet<Register>>,
+    live_in: RefCell<RegisterSet>,
     /// The set of registers that are live after the instruction
     /// represented by this CFG node is run.
-    live_out: RefCell<HashSet<Register>>,
+    live_out: RefCell<RegisterSet>,
     /// The set of registers that have unconditionally been set after
     /// the instruction represented by this CFG node is run.
     ///
@@ -76,7 +77,7 @@ pub struct CfgNode {
     /// Unconditionally set registers are used to determine the set of registers
     /// that might be return values. A return value register must be unconditionally
     /// set by the time a function returns.
-    u_def: RefCell<HashSet<Register>>,
+    u_def: RefCell<RegisterSet>,
 }
 
 impl CfgNode {
@@ -89,13 +90,13 @@ impl CfgNode {
             nexts: RefCell::new(HashSet::new()),
             prevs: RefCell::new(HashSet::new()),
             function: RefCell::new(HashSet::new()),
-            reg_values_in: RefCell::new(HashMap::new()),
-            reg_values_out: RefCell::new(HashMap::new()),
-            memory_values_in: RefCell::new(HashMap::new()),
-            memory_values_out: RefCell::new(HashMap::new()),
-            live_in: RefCell::new(HashSet::new()),
-            live_out: RefCell::new(HashSet::new()),
-            u_def: RefCell::new(HashSet::new()),
+            reg_values_in: RefCell::new(AvailableValueMap::new()),
+            reg_values_out: RefCell::new(AvailableValueMap::new()),
+            memory_values_in: RefCell::new(AvailableValueMap::new()),
+            memory_values_out: RefCell::new(AvailableValueMap::new()),
+            live_in: RefCell::new(RegisterSet::new()),
+            live_out: RefCell::new(RegisterSet::new()),
+            u_def: RefCell::new(RegisterSet::new()),
         }
     }
 
@@ -126,68 +127,65 @@ impl CfgNode {
         (*self.function.borrow_mut()).insert(function);
     }
 
-    pub fn reg_values_in(&self) -> HashMap<Register, AvailableValue> {
+    pub fn reg_values_in(&self) -> AvailableValueMap<Register> {
         self.reg_values_in.borrow().clone()
     }
 
-    pub fn set_reg_values_in(&self, available_in: HashMap<Register, AvailableValue>) {
+    pub fn set_reg_values_in(&self, available_in: AvailableValueMap<Register>) {
         *self.reg_values_in.borrow_mut() = available_in;
     }
 
-    pub fn reg_values_out(&self) -> HashMap<Register, AvailableValue> {
+    pub fn reg_values_out(&self) -> AvailableValueMap<Register> {
         self.reg_values_out.borrow().clone()
     }
 
-    pub fn set_reg_values_out(&self, available_out: HashMap<Register, AvailableValue>) {
+    pub fn set_reg_values_out(&self, available_out: AvailableValueMap<Register>) {
         *self.reg_values_out.borrow_mut() = available_out;
     }
 
-    pub fn memory_values_in(&self) -> HashMap<MemoryLocation, AvailableValue> {
+    pub fn memory_values_in(&self) -> AvailableValueMap<MemoryLocation> {
         self.memory_values_in.borrow().clone()
     }
 
-    pub fn set_memory_values_in(&self, memory_in: HashMap<MemoryLocation, AvailableValue>) {
+    pub fn set_memory_values_in(&self, memory_in: AvailableValueMap<MemoryLocation>) {
         *self.memory_values_in.borrow_mut() = memory_in;
     }
 
-    pub fn memory_values_out(&self) -> HashMap<MemoryLocation, AvailableValue> {
+    pub fn memory_values_out(&self) -> AvailableValueMap<MemoryLocation> {
         self.memory_values_out.borrow().clone()
     }
 
-    pub fn set_memory_values_out(&self, memory_out: HashMap<MemoryLocation, AvailableValue>) {
+    pub fn set_memory_values_out(&self, memory_out: AvailableValueMap<MemoryLocation>) {
         *self.memory_values_out.borrow_mut() = memory_out;
     }
 
-    pub fn live_in(&self) -> HashSet<Register> {
-        self.live_in.borrow().clone()
+    pub fn live_in(&self) -> RegisterSet {
+        *self.live_in.borrow()
     }
 
-    pub fn set_live_in(&self, live_in: HashSet<Register>) {
+    pub fn set_live_in(&self, live_in: RegisterSet) {
         *self.live_in.borrow_mut() = live_in;
     }
 
-    pub fn live_out(&self) -> HashSet<Register> {
-        self.live_out.borrow().clone()
+    pub fn live_out(&self) -> RegisterSet {
+        *self.live_out.borrow()
     }
 
-    pub fn set_live_out(&self, live_out: HashSet<Register>) {
+    pub fn set_live_out(&self, live_out: RegisterSet) {
         *self.live_out.borrow_mut() = live_out;
     }
 
-    pub fn u_def(&self) -> HashSet<Register> {
-        self.u_def.borrow().clone()
+    pub fn u_def(&self) -> RegisterSet {
+        *self.u_def.borrow()
     }
 
-    pub fn set_u_def(&self, u_def: HashSet<Register>) {
+    pub fn set_u_def(&self, u_def: RegisterSet) {
         *self.u_def.borrow_mut() = u_def;
     }
 
     pub fn calls_to(&self, cfg: &Cfg) -> Option<(Rc<Function>, With<LabelString>)> {
         if let Some(name) = self.node().calls_to() {
-            cfg.functions()
-               .get(&name)
-               .cloned()
-               .map(|x| (x, name))
+            cfg.functions().get(&name).cloned().map(|x| (x, name))
         } else {
             None
         }
@@ -204,7 +202,7 @@ impl CfgNode {
         None
     }
 
-    pub fn known_ecall_signature(&self) -> Option<(HashSet<Register>, HashSet<Register>)> {
+    pub fn known_ecall_signature(&self) -> Option<(RegisterSet, RegisterSet)> {
         if let Some(call_num) = self.known_ecall() {
             if let Some((ins, out)) = environment_in_outs(call_num) {
                 return Some((ins, out));
@@ -246,7 +244,7 @@ impl CfgNode {
         for func in self.functions().iter() {
             let func = Rc::clone(func);
             if &*func.entry() == self {
-                return Some(func)
+                return Some(func);
             }
         }
         None

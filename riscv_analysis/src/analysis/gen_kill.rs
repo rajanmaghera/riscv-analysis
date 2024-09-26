@@ -1,48 +1,46 @@
-use std::collections::HashSet;
-
-use crate::parser::{IArithType, ParserNode, RegSets, Register};
+use crate::{
+    cfg::RegisterSet,
+    parser::{IArithType, ParserNode, RegSets, Register},
+};
 
 use super::{AvailableValue, MemoryLocation};
 
 impl ParserNode {
     #[must_use]
-    pub fn kill_reg_value(&self) -> HashSet<Register> {
+    pub fn kill_reg_value(&self) -> RegisterSet {
         if self.calls_to().is_some() {
-            let mut set = RegSets::caller_saved();
-            set.insert(Register::X1);
-            return set;
+            RegSets::caller_saved() | Register::X1
+        } else {
+            self.kill_reg()
         }
-
-        self.kill_reg()
     }
 
     #[must_use]
-    pub fn kill_reg(&self) -> HashSet<Register> {
-        let regs = if self.calls_to().is_some() {
-            HashSet::new()
+    pub fn kill_reg(&self) -> RegisterSet {
+        if self.calls_to().is_some() {
+            RegisterSet::new()
         } else if self.is_function_entry() {
             RegSets::caller_saved()
+        } else if let Some(stored_reg) = self.stores_to().map(|x| x.data) {
+            if stored_reg == Register::X0 {
+                RegisterSet::new()
+            } else {
+                [stored_reg].into_iter().collect()
+            }
         } else {
-            self.stores_to()
-                .map(|x| vec![x.data].into_iter().collect())
-                .unwrap_or_default()
-        };
-
-        regs.into_iter()
-            .filter(|x| *x != Register::X0)
-            .collect::<HashSet<_>>()
+            RegisterSet::new()
+        }
     }
 
     #[must_use]
-    pub fn gen_reg(&self) -> HashSet<Register> {
+    pub fn gen_reg(&self) -> RegisterSet {
         let regs = if self.is_return() {
             RegSets::callee_saved()
         } else {
-            self.reads_from().into_iter().map(|x| x.data).collect()
+            self.reads_from().iter().map(|x| x.data).collect()
         };
-        regs.into_iter()
-            .filter(|x| *x != Register::X0)
-            .collect::<HashSet<_>>()
+
+        regs - Register::X0
     }
 
     #[must_use]

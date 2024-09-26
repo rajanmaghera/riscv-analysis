@@ -1,6 +1,4 @@
-use crate::analysis::AvailableRegisterValues;
 use crate::analysis::AvailableValue;
-use crate::analysis::CustomClonedSets;
 use crate::cfg::Cfg;
 use crate::cfg::CfgNode;
 use crate::parser::RegSets;
@@ -123,15 +121,13 @@ impl LintPass for DeadValueCheck {
             if let Some((function, call_site)) = node.calls_to(cfg) {
                 // check the expected return values of the function:
 
-                let out: HashSet<Register> = RegSets::caller_saved()
-                    .difference_c(&function.returns())
-                    .intersection_c(&node.live_out());
+                let out = (RegSets::caller_saved() - function.returns()) & node.live_out();
 
                 // if there is anything left, then there is an error
                 // for each item, keep going to the next node until a use of
                 // that item is found
                 let mut ranges = Vec::new();
-                for item in out {
+                for item in &out {
                     ranges.append(&mut Cfg::error_ranges_for_first_usage(&node, item));
                 }
                 for item in ranges {
@@ -176,11 +172,10 @@ impl LintPass for GarbageInputValueCheck {
         for node in cfg {
             if node.node().is_program_entry() {
                 // get registers
-                let mut garbage = node.live_in().clone();
-                garbage.retain(|x| !RegSets::program_args().contains(x));
+                let garbage = node.live_in() - RegSets::program_args();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
-                    for reg in garbage {
+                    for reg in &garbage {
                         let mut ranges_tmp = Cfg::error_ranges_for_first_usage(&node, reg);
                         ranges.append(&mut ranges_tmp);
                     }
@@ -190,12 +185,10 @@ impl LintPass for GarbageInputValueCheck {
                 }
             } else if let Some(func) = node.is_function_entry() {
                 let args = func.arguments();
-                let mut garbage = node.live_in().clone();
-                garbage.retain(|reg| !args.contains(reg));
-                garbage.retain(|reg| !RegSets::callee_saved().contains(reg));
+                let garbage = node.live_in() - args - RegSets::saved();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
-                    for reg in garbage {
+                    for reg in &garbage {
                         let mut ranges_tmp = Cfg::error_ranges_for_first_usage(&node, reg);
                         ranges.append(&mut ranges_tmp);
                     }
@@ -287,7 +280,7 @@ impl LintPass for CalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for func in cfg.functions().values() {
             let exit_vals = func.exit().reg_values_in();
-            for reg in RegSets::callee_saved() {
+            for reg in &RegSets::callee_saved() {
                 match exit_vals.get(&reg) {
                     Some(AvailableValue::OriginalRegisterWithScalar(reg2, offset))
                         if reg2 == &reg && offset == &0 =>
@@ -328,13 +321,13 @@ impl LintPass for LostCalleeSavedRegisterCheck {
                 if callee.contains(&reg.data)
                     && node.is_part_of_some_function()
                     && node.reg_values_in().get(&reg.data)
-                    == Some(&AvailableValue::OriginalRegisterWithScalar(reg.data, 0))
+                        == Some(&AvailableValue::OriginalRegisterWithScalar(reg.data, 0))
                 {
                     // Check that the value exists somewhere in the available values
                     // like the stack.
                     // if not, then we have a problem
                     let mut found = false;
-                        
+
                     // check stack values:
                     let stack = node.memory_values_out();
                     for (_, val) in stack {

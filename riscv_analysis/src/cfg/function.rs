@@ -1,12 +1,14 @@
-use std::{cell::{Ref, RefCell}, collections::HashSet, hash::Hash, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashSet,
+    hash::Hash,
+    rc::Rc,
+};
 use uuid::Uuid;
 
-use crate::{
-    analysis::CustomClonedSets,
-    parser::{LabelString, RegSets, Register, With},
-};
+use crate::parser::{LabelString, RegSets, Register, With};
 
-use super::CfgNode;
+use super::{CfgNode, RegisterSet};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
@@ -26,7 +28,7 @@ pub struct Function {
     exit: RefCell<Rc<CfgNode>>,
 
     /// The registers that are set ever in the function
-    defs: RefCell<HashSet<Register>>,
+    defs: RefCell<RegisterSet>,
 }
 
 impl Hash for Function {
@@ -60,7 +62,7 @@ impl Function {
             nodes: RefCell::new(nodes),
             entry,
             exit: RefCell::new(exit),
-            defs: RefCell::new(HashSet::new()),
+            defs: RefCell::new(RegisterSet::new()),
         }
     }
 
@@ -70,31 +72,29 @@ impl Function {
     }
 
     #[must_use]
-    pub fn arguments(&self) -> HashSet<Register> {
-        self.entry.live_out().intersection_c(&RegSets::argument())
+    pub fn arguments(&self) -> RegisterSet {
+        self.entry.live_out() & RegSets::argument()
     }
 
     #[must_use]
-    pub fn returns(&self) -> HashSet<Register> {
-        self.exit().live_in().intersection_c(&RegSets::ret())
+    pub fn returns(&self) -> RegisterSet {
+        self.exit().live_in() & RegSets::ret()
     }
 
     /// Set the registers used by this function.
-    pub fn set_defs(&self, defs: HashSet<Register>) {
+    pub fn set_defs(&self, defs: RegisterSet) {
         *self.defs.borrow_mut() = defs;
     }
 
     /// Return the set of written registers.
-    pub fn defs(&self) -> Ref<HashSet<Register>> {
+    pub fn defs(&self) -> Ref<RegisterSet> {
         self.defs.borrow()
     }
 
     #[must_use]
-    pub fn to_save(&self) -> HashSet<Register> {
-        self.defs()
-            .intersection_c(&RegSets::callee_saved())
-            // remove sp
-            .difference_c(&vec![Register::X2].into_iter().collect())
+    pub fn to_save(&self) -> RegisterSet {
+        // Remove the stack pointer()
+        (*self.defs() & RegSets::callee_saved()) - Register::X2
     }
 
     /// Set the instructions composing this function.

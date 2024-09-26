@@ -1,6 +1,9 @@
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::parser::token::{Info, Token};
+use crate::{
+    cfg::RegisterSet,
+    parser::token::{Info, Token},
+};
 use std::{
     collections::HashSet,
     fmt::Display,
@@ -238,7 +241,7 @@ impl Register {
     }
 
     #[must_use]
-    pub fn all() -> HashSet<Register> {
+    pub fn all() -> RegisterSet {
         [
             Register::X0,
             Register::X1,

@@ -28,7 +28,6 @@ impl LintPass for ControlFlowCheck {
                                     Rc::clone(function),
                                 ));
                             }
-
                             // Jumps (J not JAL) to the start of recognized
                             // functions are errors
                             else if prev_node.node().is_unconditional_jump() {
@@ -40,7 +39,6 @@ impl LintPass for ControlFlowCheck {
                                 // Create at most one error per node
                                 break;
                             }
-
                         }
                     }
                 }
@@ -60,7 +58,7 @@ impl LintPass for ControlFlowCheck {
 mod tests {
     use super::*;
     use crate::parser::RVStringParser;
-    use crate::passes::{LintError, LintPass, Manager};
+    use crate::passes::Manager;
 
     fn run_pass(input: &str) -> Vec<LintError> {
         let (nodes, error) = RVStringParser::parse_from_text(input);
@@ -90,32 +88,27 @@ mod tests {
 
         // The first error should warn about the first instruction of `fn_a`
         assert!(matches!(
-            &lints[0], LintError::FirstInstructionIsFunction(node, _)
-                if node.token().text == "addi a0 a0 1"
-            )
-        );
+        &lints[0], LintError::FirstInstructionIsFunction(node, _)
+            if node.token().text == "addi a0 a0 1"
+        ));
 
         // Next four errors should be about unreachable code
         assert!(matches!(
-            &lints[1], LintError::UnreachableCode(node, ..)
-                if node.token().text == "li a0 0"
-            )
-        );
+        &lints[1], LintError::UnreachableCode(node, ..)
+            if node.token().text == "li a0 0"
+        ));
         assert!(matches!(
-            &lints[2], LintError::UnreachableCode(node, ..)
-                if node.token().text == "jal fn_a"
-            )
-        );
+        &lints[2], LintError::UnreachableCode(node, ..)
+            if node.token().text == "jal fn_a"
+        ));
         assert!(matches!(
-            &lints[3], LintError::UnreachableCode(node, ..)
-                if node.token().text == "addi a7 zero 10"
-            )
-        );
+        &lints[3], LintError::UnreachableCode(node, ..)
+            if node.token().text == "addi a7 zero 10"
+        ));
         assert!(matches!(
-            &lints[4], LintError::UnreachableCode(node, ..)
-                if node.token().text == "ecall"
-            )
-        );
+        &lints[4], LintError::UnreachableCode(node, ..)
+            if node.token().text == "ecall"
+        ));
     }
 
     #[test]
@@ -139,20 +132,17 @@ mod tests {
         assert_eq!(lints.len(), 3);
 
         assert!(matches!(
-            &lints[0], LintError::UnreachableCode(node, ..)
-                if node.token().text == "addi a7 zero 10"
-            )
-        );
+        &lints[0], LintError::UnreachableCode(node, ..)
+            if node.token().text == "addi a7 zero 10"
+        ));
         assert!(matches!(
-            &lints[1], LintError::UnreachableCode(node, ..)
-                if node.token().text == "ecall"
-            )
-        );
+        &lints[1], LintError::UnreachableCode(node, ..)
+            if node.token().text == "ecall"
+        ));
         assert!(matches!(
-            &lints[2], LintError::InvalidJumpToFunction(node, ..)
-                if node.token().text == "addi a0 a0 1"
-            )
-        );
+        &lints[2], LintError::InvalidJumpToFunction(node, ..)
+            if node.token().text == "addi a0 a0 1"
+        ));
     }
 
     #[test]

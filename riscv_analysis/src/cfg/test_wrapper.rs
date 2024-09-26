@@ -1,14 +1,14 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::HashSet;
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{
-    analysis::{AvailableValue, MemoryLocation},
+    analysis::MemoryLocation,
     parser::{ParserNode, Register},
 };
 
-use super::{Cfg, CfgNode};
+use super::{AvailableValueMap, Cfg, CfgNode, RegisterSet};
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct NodeWrapper {
@@ -42,48 +42,20 @@ pub struct NodeWrapper {
         serialize_with = "sorted_set"
     )]
     pub prevs: HashSet<usize>,
-    #[serde(
-        default,
-        skip_serializing_if = "HashMap::is_empty",
-        serialize_with = "sorted_map"
-    )]
-    pub reg_values_in: HashMap<Register, AvailableValue>,
-    #[serde(
-        default,
-        skip_serializing_if = "HashMap::is_empty",
-        serialize_with = "sorted_map"
-    )]
-    pub reg_values_out: HashMap<Register, AvailableValue>,
-    #[serde(
-        default,
-        skip_serializing_if = "HashMap::is_empty",
-        serialize_with = "sorted_map"
-    )]
-    pub memory_values_in: HashMap<MemoryLocation, AvailableValue>,
-    #[serde(
-        default,
-        skip_serializing_if = "HashMap::is_empty",
-        serialize_with = "sorted_map"
-    )]
-    pub memory_values_out: HashMap<MemoryLocation, AvailableValue>,
-    #[serde(
-        default,
-        skip_serializing_if = "HashSet::is_empty",
-        serialize_with = "sorted_set"
-    )]
-    pub live_in: HashSet<Register>,
-    #[serde(
-        default,
-        skip_serializing_if = "HashSet::is_empty",
-        serialize_with = "sorted_set"
-    )]
-    pub live_out: HashSet<Register>,
-    #[serde(
-        default,
-        skip_serializing_if = "HashSet::is_empty",
-        serialize_with = "sorted_set"
-    )]
-    pub u_def: HashSet<Register>,
+    #[serde(default, skip_serializing_if = "AvailableValueMap::is_empty")]
+    pub reg_values_in: AvailableValueMap<Register>,
+    #[serde(default, skip_serializing_if = "AvailableValueMap::is_empty")]
+    pub reg_values_out: AvailableValueMap<Register>,
+    #[serde(default, skip_serializing_if = "AvailableValueMap::is_empty")]
+    pub memory_values_in: AvailableValueMap<MemoryLocation>,
+    #[serde(default, skip_serializing_if = "AvailableValueMap::is_empty")]
+    pub memory_values_out: AvailableValueMap<MemoryLocation>,
+    #[serde(default, skip_serializing_if = "RegisterSet::is_empty")]
+    pub live_in: RegisterSet,
+    #[serde(default, skip_serializing_if = "RegisterSet::is_empty")]
+    pub live_out: RegisterSet,
+    #[serde(default, skip_serializing_if = "RegisterSet::is_empty")]
+    pub u_def: RegisterSet,
 }
 
 impl NodeWrapper {
@@ -143,30 +115,8 @@ impl From<&Cfg> for CfgWrapper {
     }
 }
 
-pub fn sorted_map<S: Serializer, K: Serialize + Ord, V: Serialize, H: std::hash::BuildHasher>(
-    value: &HashMap<K, V, H>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    value
-        .iter()
-        .sorted_by_key(|v| v.0)
-        .collect::<BTreeMap<_, _>>()
-        .serialize(serializer)
-}
-
 pub fn sorted_set<S: Serializer, V: Serialize + Ord, H: std::hash::BuildHasher>(
     value: &HashSet<V, H>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    value
-        .iter()
-        .sorted()
-        .collect::<Vec<_>>()
-        .serialize(serializer)
-}
-
-pub fn sorted_vec<S: Serializer, V: Serialize + Ord>(
-    value: &[V],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     value
