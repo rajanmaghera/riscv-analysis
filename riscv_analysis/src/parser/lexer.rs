@@ -3,15 +3,17 @@ use uuid::Uuid;
 use crate::parser::token::Token;
 use crate::parser::token::{Info, Position, Range};
 
-const EOF_CONST: char = 3 as char;
+const EOF_CONST: char = '\x03';
 
 /// Lexer for RISC-V assembly
 ///
 /// The lexer implements the Iterator trait, so it can be used in a for loop for
 /// getting the next token.
 pub struct Lexer {
-    source: String,
     pub source_id: Uuid,
+    /// Raw source, don't read from this directly
+    source: Vec<char>,
+    /// Current character
     ch: char,
     /// The position that will be read next
     pos: usize,
@@ -25,7 +27,7 @@ impl Lexer {
     /// Create a new lexer from a string.
     pub fn new<S: Into<String>>(source: S, id: Uuid) -> Lexer {
         let mut lex = Lexer {
-            source: source.into(),
+            source: source.into().chars().collect(),
             source_id: id,
             ch: '\0',
             pos: 0,
@@ -41,17 +43,13 @@ impl Lexer {
     /// This function will update the current character and the position
     /// of the Lexer struct.
     fn next_char(&mut self) {
-        let b = self.source.as_bytes();
+        // Get the next character
+        self.ch = match self.source.get(self.pos) {
+            Some(c) => *c,
+            None => EOF_CONST,
+        };
 
-        if self.pos >= self.source.len() {
-            self.ch = EOF_CONST;
-        } else {
-            match b.get(self.pos) {
-                Some(c) => self.ch = *c as char,
-                None => self.ch = EOF_CONST,
-            }
-        }
-
+        // Update the position
         if self.ch == '\n' {
             self.row += 1;
             self.col = 0;
