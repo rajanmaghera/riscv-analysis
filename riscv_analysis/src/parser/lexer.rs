@@ -48,7 +48,7 @@ impl Lexer {
     
     /// Get the current next character.
     fn current(&self) -> char {
-        self.peek(0)
+        self.ch
     }
 
     /// Get the next character in the source.
@@ -57,7 +57,7 @@ impl Lexer {
     /// of the Lexer struct.
     fn next_char(&mut self) {
         // Get the next character
-        self.ch = self.current();
+        self.ch = self.peek(0);
 
         // Update the position
         if self.ch == '\n' {
@@ -70,36 +70,34 @@ impl Lexer {
         self.pos += 1;
     }
 
-    /// Check if the current character is whitespace, excluding newlines.
+    /// Check if the given character is whitespace, excluding newlines.
     ///
     /// This function will return true if the current character is a space,
     /// tab, or comma. Newlines are not considered whitespace as it is a
     /// token in the lexer.
-    fn is_ws(&self) -> bool {
-        self.ch == ' ' || self.ch == '\t' || self.ch == ','
+    fn is_ws(ch: char) -> bool {
+        ch == ' ' || ch == '\t' || ch == ','
     }
 
-    /// Check if the current character is a character usable in a symbol.
+    /// Check if the given character is a character usable in a symbol.
     ///
     /// This function will return true if the current character is a lowercase
     /// or uppercase letter, an underscore, or a dash.
-    fn is_symbol_char(&self) -> bool {
-        let c = self.ch;
-        c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_' || c == '-'
+    fn is_symbol_char(ch: char) -> bool {
+        ch.is_ascii_lowercase() || ch.is_ascii_uppercase() || ch == '_' || ch == '-'
     }
 
-    /// Check if the current character is a character usable in a symbol
+    /// Check if the given character is a character usable in a symbol
     /// or a digit.
-    fn is_symbol_item(&self) -> bool {
-        let c = self.ch;
-        self.is_symbol_char() || c.is_ascii_digit()
+    fn is_symbol_item(ch: char) -> bool {
+        Self::is_symbol_char(ch) || ch.is_ascii_digit()
     }
 
     /// Skip whitespace.
     ///
     /// This function will skip all whitespace characters, excluding newlines.
     fn skip_ws(&mut self) {
-        while self.is_ws() {
+        while Self::is_ws(self.current()) {
             self.next_char();
         }
     }
@@ -141,7 +139,7 @@ impl Iterator for Lexer {
         // TODO(rajan): ensure that we are consistent with whether the tokens are included or not in the Token representation
         // TODO(rajan): should we introduce a new token type for the comment hash (#) and directive hash (.)?
 
-        let token = match self.ch {
+        let token = match self.current() {
             '\n' => {
                 let pos = self.get_range();
 
@@ -179,11 +177,11 @@ impl Iterator for Lexer {
                 let start = self.get_pos();
 
                 let mut dir_str: String = String::new();
-                dir_str += &self.ch.to_string();
+                dir_str.push(self.current());
                 self.next_char();
 
-                while self.is_symbol_item() {
-                    dir_str += &self.ch.to_string();
+                while Self::is_symbol_item(self.current()) {
+                    dir_str.push(self.current());
                     self.next_char();
                 }
 
@@ -210,8 +208,8 @@ impl Iterator for Lexer {
 
                 let mut comment_str: String = String::new();
 
-                while self.ch != '\n' && self.ch != EOF_CONST {
-                    comment_str += &self.ch.to_string();
+                while self.current() != '\n' && self.current() != EOF_CONST {
+                    comment_str.push(self.current());
                     self.next_char();
                 }
 
@@ -238,8 +236,8 @@ impl Iterator for Lexer {
 
                 self.next_char();
 
-                while self.ch != '"' {
-                    string_str += &self.ch.to_string();
+                while self.current() != '"' {
+                    string_str.push(self.current());
                     self.next_char();
                 }
 
@@ -263,15 +261,15 @@ impl Iterator for Lexer {
 
                 let mut symbol_str: String = String::new();
 
-                while self.is_symbol_item() {
-                    symbol_str += &self.ch.to_string();
+                while Self::is_symbol_item(self.current()) {
+                    symbol_str.push(self.current());
                     self.next_char();
                 }
 
                 if symbol_str.is_empty() {
                     // this is an error or end of line?
                     return None;
-                } else if self.ch == ':' {
+                } else if self.current() == ':' {
                     // this is a label
                     self.next_char();
 
