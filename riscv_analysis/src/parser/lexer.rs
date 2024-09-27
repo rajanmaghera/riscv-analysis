@@ -556,4 +556,19 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn strings() {
+        let input = r#""" "abcde" "\\\'\"\n\t\r\b\f\0" "#;
+        let tokens = tokenize(input);
+
+        assert_eq!(
+            tokens,
+            vec![
+                Token::String("".into()),
+                Token::String("abcde".into()),
+                Token::String("\\'\"\n\t\r\u{8}\u{c}\0".into()),
+            ]
+        );
+    }
 }
