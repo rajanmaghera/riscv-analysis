@@ -34,7 +34,7 @@ impl Lexer {
             row: 0,
             col: 0,
         };
-        lex.next_char();
+        lex.ch = lex.peek(0);
         lex
     }
 
@@ -57,7 +57,7 @@ impl Lexer {
     /// of the Lexer struct.
     fn next_char(&mut self) {
         // Get the next character
-        self.ch = self.peek(0);
+        self.ch = self.peek(1);
 
         // Update the position
         if self.ch == '\n' {
@@ -173,22 +173,19 @@ impl Iterator for Lexer {
             }
             '.' => {
                 // directive
-
                 let start = self.get_pos();
-
                 let mut dir_str: String = String::new();
-                dir_str.push(self.current());
-                self.next_char();
 
-                while Self::is_symbol_item(self.current()) {
+                loop {
                     dir_str.push(self.current());
+                    if !Self::is_symbol_char(self.peek(1)) {
+                        break;
+                    }
                     self.next_char();
                 }
 
-                // TODO: fix get_pos() instead of doing this workaround
-                let mut end = start;
-                end.column += dir_str.len();
-                end.raw_index += dir_str.len();
+                let end = self.get_pos();
+                self.next_char();
 
                 if dir_str == "." {
                     return self.next();
@@ -202,28 +199,28 @@ impl Iterator for Lexer {
             }
             '#' => {
                 // Convert comments to token
-
                 let start = self.get_pos();
-                self.next_char();
-
                 let mut comment_str: String = String::new();
 
-                while self.current() != '\n' && self.current() != EOF_CONST {
+                loop {
                     comment_str.push(self.current());
+                    if self.peek(1) == '\n' || self.peek(1) == EOF_CONST {
+                        break;
+                    }
                     self.next_char();
                 }
 
-                // TODO: fix get_pos() instead of doing this workaround
-                let mut end = start;
-                end.column += comment_str.len();
-                end.raw_index += comment_str.len();
+                let end = self.get_pos();
+                self.next_char();
+
+                // Remove the '#' character
+                let (_, comment_str) = comment_str.split_at(1);
 
                 // Empty comment strings are allowed, in the case of a
                 // comment with a new line. We don't strip any whitespace
                 // for comments here.
-
                 Some(Info {
-                    token: Token::Comment(comment_str.clone()),
+                    token: Token::Comment(comment_str.to_string()),
                     pos: Range { start, end },
                     file: self.source_id,
                 })
@@ -234,20 +231,19 @@ impl Iterator for Lexer {
                 let start = self.get_pos();
                 let mut string_str: String = String::new();
 
-                self.next_char();
+                self.next_char();   // Skip the first quote
 
-                while self.current() != '"' {
+                // FIXME: Handle string escapes
+                loop {
                     string_str.push(self.current());
+                    if self.peek(1) == '"' {
+                        break;
+                    }
                     self.next_char();
                 }
 
-                self.next_char();
-
-                // TODO: fix get_pos() instead of doing this workaround
-                let mut end = start;
-                end.column += string_str.len() + 2;
-                end.raw_index += string_str.len() + 2;
-
+                self.next_char();   // Include final '"' for pos calculation
+                let end = self.get_pos();
                 self.next_char();
 
                 Some(Info {
@@ -257,26 +253,28 @@ impl Iterator for Lexer {
                 })
             }
             _ => {
+                // symbol
                 let start = self.get_pos();
-
                 let mut symbol_str: String = String::new();
 
-                while Self::is_symbol_item(self.current()) {
+                // If the first character is not a symbol char -> error
+                if !Self::is_symbol_item(self.current()) {
+                    return None;
+                }
+
+                loop {
                     symbol_str.push(self.current());
+                    if !Self::is_symbol_item(self.peek(1)) {
+                        break;
+                    }
                     self.next_char();
                 }
 
-                if symbol_str.is_empty() {
-                    // this is an error or end of line?
-                    return None;
-                } else if self.current() == ':' {
-                    // this is a label
+                // If the next char is ':', this is a label
+                if self.peek(1) == ':' {
+                    self.next_char();   // Move onto the ':'
+                    let end = self.get_pos();
                     self.next_char();
-
-                    // TODO: fix get_pos() instead of doing this workaround
-                    let mut end = start;
-                    end.column += symbol_str.len();
-                    end.raw_index += symbol_str.len();
 
                     return Some(Info {
                         token: Token::Label(symbol_str.clone()),
@@ -285,10 +283,8 @@ impl Iterator for Lexer {
                     });
                 }
 
-                // TODO: fix get_pos() instead of doing this workaround
-                let mut end = start;
-                end.column += symbol_str.len();
-                end.raw_index += symbol_str.len();
+                let end = self.get_pos();
+                self.next_char();
 
                 Some(Info {
                     token: Token::Symbol(symbol_str.clone()),
