@@ -127,6 +127,49 @@ impl Lexer {
             raw_index: self.pos,
         }
     }
+
+    /// Accumulate a string.
+    ///
+    /// This function handles the string escape codes available in RARS.
+    fn acc_string(&mut self) -> String {
+        let mut acc: String = String::new();
+
+        // If this char is a quote, we have the empty string
+        if self.current() == '"' {
+            return acc;
+        }
+
+        loop {
+            // Check if this is an escape sequence
+            if self.current() == '\\' {
+                let c = match self.peek(1) {
+                    '\\' =>'\\',
+                    '\'' =>'\'',
+                    '"'  =>'"',
+                    'n'  =>'\n',
+                    't'  =>'\t',
+                    'r'  =>'\r',
+                    'b'  =>'\x08',  // Backspace
+                    'f'  =>'\x0c',  // Form feed
+                    '0'  =>'\0',
+                    _ => self.current(),
+                };
+                acc.push(c);
+                self.next_char(); // Skip the code
+            }
+
+            // Otherwise, add the character
+            else {
+                acc.push(self.current());
+            }
+
+            if self.peek(1) == '"' {
+                break;
+            }
+            self.next_char();
+        }
+        acc
+    }
 }
 
 impl Iterator for Lexer {
@@ -140,6 +183,7 @@ impl Iterator for Lexer {
         // TODO(rajan): should we introduce a new token type for the comment hash (#) and directive hash (.)?
 
         let token = match self.current() {
+            EOF_CONST => None,
             '\n' => {
                 let pos = self.get_range();
 
@@ -229,21 +273,12 @@ impl Iterator for Lexer {
             '"' => {
                 // string
                 let start = self.get_pos();
-                let mut string_str: String = String::new();
-
                 self.next_char();   // Skip the first quote
 
-                // FIXME: Handle string escapes
-                loop {
-                    string_str.push(self.current());
-                    if self.peek(1) == '"' {
-                        break;
-                    }
-                    self.next_char();
-                }
+                let string_str = self.acc_string();
 
-                self.next_char();   // Include final '"' for pos calculation
                 let end = self.get_pos();
+                self.next_char();   // Skip final '"'
                 self.next_char();
 
                 Some(Info {
