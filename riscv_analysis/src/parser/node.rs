@@ -16,14 +16,17 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
-    Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry, IArith,
-    JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, RawToken, Store,
+    Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry, FuncExit,
+    IArith, JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, ProgramExit,
+    RawToken, Store,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParserNode {
     ProgramEntry(ProgramEntry),
+    ProgramExit(ProgramExit),
     FuncEntry(FuncEntry),
+    FuncExit(FuncExit),
     Arith(Arith),
     IArith(IArith),
     Label(Label),
@@ -58,6 +61,8 @@ impl ParserNode {
             ParserNode::LoadAddr(x) => x.token.clone(),
             ParserNode::ProgramEntry(x) => x.token.clone(),
             ParserNode::FuncEntry(x) => x.token.clone(),
+            ParserNode::ProgramExit(x) => x.token.clone(),
+            ParserNode::FuncExit(x) => x.token.clone(),
         }
     }
 
@@ -79,6 +84,8 @@ impl ParserNode {
             ParserNode::LoadAddr(a) => a.key,
             ParserNode::FuncEntry(a) => a.key,
             ParserNode::ProgramEntry(a) => a.key,
+            ParserNode::ProgramExit(a) => a.key,
+            ParserNode::FuncExit(a) => a.key,
         }
     }
 }
@@ -113,7 +120,9 @@ impl ParserNode {
             ParserNode::Label(_)
             | ParserNode::Directive(_)
             | ParserNode::FuncEntry(_)
-            | ParserNode::ProgramEntry(_) => Inst::Nop,
+            | ParserNode::FuncExit(_)
+            | ParserNode::ProgramEntry(_)
+            | ParserNode::ProgramExit(_) => Inst::Nop,
         }
     }
 
@@ -301,6 +310,24 @@ impl ParserNode {
     }
 
     #[must_use]
+    pub fn new_func_exit(file: Uuid, token: RawToken) -> ParserNode {
+        ParserNode::FuncExit(FuncExit {
+            key: Uuid::new_v4(),
+            file,
+            token,
+        })
+    }
+
+    #[must_use]
+    pub fn new_program_exit(file: Uuid, token: RawToken) -> ParserNode {
+        ParserNode::ProgramExit(ProgramExit {
+            key: Uuid::new_v4(),
+            file,
+            token,
+        })
+    }
+
+    #[must_use]
     pub fn new_csri(
         inst: With<CSRIType>,
         rd: With<Register>,
@@ -418,6 +445,11 @@ impl ParserNode {
     }
 
     #[must_use]
+    pub fn is_any_exit(&self) -> bool {
+        matches!(self, ParserNode::ProgramExit(_) | ParserNode::FuncExit(_))
+    }
+
+    #[must_use]
     pub fn is_function_entry(&self) -> bool {
         matches!(self, ParserNode::FuncEntry(_))
     }
@@ -425,6 +457,11 @@ impl ParserNode {
     #[must_use]
     pub fn is_program_entry(&self) -> bool {
         matches!(self, ParserNode::ProgramEntry(_))
+    }
+
+    #[must_use]
+    pub fn is_function_exit(&self) -> bool {
+        matches!(self, ParserNode::FuncExit(_))
     }
 
     /// Check if a node is an instruction.
@@ -490,7 +527,9 @@ impl ParserNode {
             ParserNode::Csr(csr) => Some(csr.rd.clone()),
             ParserNode::CsrI(csri) => Some(csri.rd.clone()),
             ParserNode::ProgramEntry(_)
+            | ParserNode::ProgramExit(_)
             | ParserNode::FuncEntry(_)
+            | ParserNode::FuncExit(_)
             | ParserNode::Label(_)
             | ParserNode::Basic(_)
             | ParserNode::Directive(_)
@@ -510,7 +549,9 @@ impl ParserNode {
             ParserNode::Load(x) => vec![x.rs1.clone()],
             ParserNode::Csr(x) => vec![x.rs1.clone()],
             ParserNode::ProgramEntry(_)
+            | ParserNode::ProgramExit(_)
             | ParserNode::FuncEntry(_)
+            | ParserNode::FuncExit(_)
             | ParserNode::Label(_)
             | ParserNode::JumpLink(_)
             | ParserNode::Basic(_)
@@ -536,7 +577,10 @@ impl ParserNode {
             ParserNode::Csr(x) => x.key = uuid,
             ParserNode::CsrI(x) => x.key = uuid,
             ParserNode::LoadAddr(x) => x.key = uuid,
-            ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_) => (),
+            ParserNode::ProgramEntry(_)
+            | ParserNode::FuncEntry(_)
+            | ParserNode::ProgramExit(_)
+            | ParserNode::FuncExit(_) => {}
         }
     }
 }

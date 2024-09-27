@@ -238,3 +238,23 @@ pub struct ProgramEntry {
     #[serde(skip)]
     pub token: RawToken,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FuncExit {
+    #[serde(skip)]
+    pub file: Uuid,
+    #[serde(skip)]
+    pub key: Uuid,
+    #[serde(skip)]
+    pub token: RawToken,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgramExit {
+    #[serde(skip)]
+    pub file: Uuid,
+    #[serde(skip)]
+    pub key: Uuid,
+    #[serde(skip)]
+    pub token: RawToken,
+}

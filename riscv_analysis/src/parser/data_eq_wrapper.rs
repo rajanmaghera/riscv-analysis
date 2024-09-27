@@ -14,8 +14,10 @@ pub struct ParserNodeDataWrapper(pub ParserNode);
 impl PartialEq for ParserNodeDataWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
-            (ParserNode::FuncEntry(_), ParserNode::FuncEntry(_)) => true,
-            (ParserNode::ProgramEntry(_a), ParserNode::ProgramEntry(_b)) => true,
+            (ParserNode::FuncEntry(_), ParserNode::FuncEntry(_))
+            | (ParserNode::FuncExit(_), ParserNode::FuncExit(_))
+            | (ParserNode::ProgramEntry(_), ParserNode::ProgramEntry(_))
+            | (ParserNode::ProgramExit(_), ParserNode::ProgramExit(_)) => true,
             (ParserNode::Arith(a), ParserNode::Arith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
             }
