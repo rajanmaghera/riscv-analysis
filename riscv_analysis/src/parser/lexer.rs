@@ -3,6 +3,13 @@ use uuid::Uuid;
 use crate::parser::token::Token;
 use crate::parser::token::{Info, Position, Range};
 
+#[derive(Clone, Debug)]
+pub enum StringLexerError {
+    InvalidEscapeSequence(Position),
+    Unclosed(Position),
+    Newline(Position),
+}
+
 /// Lexer for RISC-V assembly
 ///
 /// The lexer implements the Iterator trait, so it can be used in a for loop for
@@ -58,6 +65,16 @@ impl Lexer {
         }
 
         self.pos += 1;
+    }
+
+    /// Skip ahead N characters in the source.
+    ///
+    /// This function will update the current character and the position of the
+    /// lexer.
+    fn skip_char(&mut self, n: usize) {
+        for _ in 0..n {
+            self.next_char();
+        }
     }
 
     /// Check if the given character is whitespace, excluding newlines.
@@ -121,50 +138,99 @@ impl Lexer {
         }
     }
 
-    /// Accumulate a string.
+    /// Lex a unicode escape code.
     ///
-    /// This function handles the string escape codes available in RARS.
-    fn acc_string(&mut self) -> String {
-        let mut acc: String = String::new();
+    /// Returns None if the code doesn't define a valid unicode character.
+    fn unicode_code(&mut self) -> Option<char> {
+        let chars = vec![
+            self.peek(2)?,
+            self.peek(3)?,
+            self.peek(4)?,
+            self.peek(5)?,
+        ];
 
-        // If the current character is a quote, we have the empty string
-        if self.current() == Some('"') {
-            return acc;
+        // Convert to a codepoint number
+        let code_number: Option<u32> = {
+            let mut acc = 0;
+            for c in chars {
+                acc *= 16;
+                match c.to_digit(16) {
+                    Some(d) => acc += d,
+                    None => return None,
+                }
+            }
+            Some(acc)
+        };
+
+        let c = char::from_u32(code_number?)?;
+        self.skip_char(4);
+        Some(c)
+    }
+
+    /// Lex an escape code.
+    ///
+    /// All escape codes present in RARS are supported. This function will
+    /// consume all needed characters for the escape code.
+    fn escape_code(&mut self) -> Option<char> {
+        if let Some(c) = self.peek(1) {
+            let real = match c {
+                '\\' => '\\',
+                '\'' => '\'',
+                '"'  => '"',
+                'n'  => '\n',
+                't'  => '\t',
+                'r'  => '\r',
+                'b'  => '\x08',  // Backspace
+                'f'  => '\x0c',  // Form feed
+                '0'  => '\0',
+                'u'  => self.unicode_code()?,
+                // TODO: Unicode input
+                _ => return None,
+            };
+
+            self.next_char();
+            return Some(real)
         }
 
+        None
+    }
+
+    /// Accumulate a string.
+    ///
+    /// This function handles the string escape codes available in RARS. Due to
+    /// escape codes, the number of characters in the string may be less than
+    /// the source range.
+    fn acc_string(&mut self) -> Result<String, StringLexerError> {
+        let mut acc: String = String::new();
+
+
         while let Some(current) = self.current() {
+            if current == '"' {
+                return Ok(acc);
+            }
+
+            // All strings must be on a single line
+            if current == '\n' {
+                return Err(StringLexerError::Newline(self.get_pos()));
+            }
+
             // Check if this is an escape sequence
             if current == '\\' {
-                let c = match self.peek(1) {
-                    Some('\\') =>'\\',
-                    Some('\'') =>'\'',
-                    Some('"')  =>'"',
-                    Some('n')  =>'\n',
-                    Some('t')  =>'\t',
-                    Some('r')  =>'\r',
-                    Some('b')  =>'\x08',  // Backspace
-                    Some('f')  =>'\x0c',  // Form feed
-                    Some('0')  =>'\0',
-                    // TODO: Unicode input
-                    // FIXME: Real error
-                    _ => return "".to_string(),
-                };
-                acc.push(c);
-                self.next_char(); // Skip the code
+                match self.escape_code() {
+                    Some(ec) => acc.push(ec),
+                    None => return Err(StringLexerError::InvalidEscapeSequence(self.get_pos())),
+                }
             }
 
             // Otherwise, add the character
             else {
                 acc.push(current);
             }
-
-            if self.peek(1) == Some('"') {
-                break;
-            }
             self.next_char();
         }
 
-        return acc;
+        // If we run out of characters, we have an un-closed string
+        Err(StringLexerError::Unclosed(self.get_pos()))
     }
 }
 
@@ -246,7 +312,7 @@ impl Iterator for Lexer {
 
                 while let Some(current) = self.current() {
                     comment_str.push(current);
-                    if self.peek(1) == Some('\n') || self.peek(1) == None {
+                    if self.peek(1) == Some('\n') || self.peek(1).is_none() {
                         break;
                     }
                     self.next_char();
@@ -272,7 +338,9 @@ impl Iterator for Lexer {
                 let start = self.get_pos();
                 self.next_char();   // Skip the first quote
 
-                let string_str = self.acc_string();
+                let Ok(string_str) = self.acc_string() else {
+                    return None;
+                };
 
                 let end = self.get_pos();
                 self.next_char();   // Skip final '"'
@@ -560,7 +628,7 @@ mod tests {
 
     #[test]
     fn strings() {
-        let input = r#""" "abcde" "\\\'\"\n\t\r\b\f\0" "#;
+        let input = r#""" "abcde" "\\\'\"\n\t\r\b\f\0\u03bb" "#;
         let tokens = tokenize(input);
 
         assert_eq!(
@@ -568,8 +636,37 @@ mod tests {
             vec![
                 Token::String("".into()),
                 Token::String("abcde".into()),
-                Token::String("\\'\"\n\t\r\u{8}\u{c}\0".into()),
+                Token::String("\\'\"\n\t\r\u{8}\u{c}\0\u{03bb}".into()),
             ]
         );
+    }
+
+    #[test]
+    fn unbounded_string() {
+        let input = "\"Good string\" \"Bad string";
+        let tokens = tokenize(input);
+
+        assert_eq!(
+            tokens,
+            vec![
+                Token::String("Good string".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn newline_in_string() {
+        let input = "\"Before \n After\"";
+        let tokens = tokenize(input);
+
+        assert_eq!(tokens, vec![]);
+    }
+
+    #[test]
+    fn invalid_escape_code() {
+        let input = "\"\\a\"";
+        let tokens = tokenize(input);
+
+        assert_eq!(tokens, vec![]);
     }
 }
