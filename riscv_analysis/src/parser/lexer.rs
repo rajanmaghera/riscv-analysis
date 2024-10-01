@@ -52,7 +52,7 @@ impl Lexer {
     ///
     /// This function will update the current character and the position
     /// of the Lexer struct.
-    fn next_char(&mut self) {
+    fn consume_char(&mut self) {
         // Get the next character
         if let Some(ch) = self.peek(1) {
             // Update the position
@@ -73,7 +73,7 @@ impl Lexer {
     /// lexer.
     fn skip_char(&mut self, n: usize) {
         for _ in 0..n {
-            self.next_char();
+            self.consume_char();
         }
     }
 
@@ -108,7 +108,7 @@ impl Lexer {
             if !Self::is_ws(current) {
                 break;
             }
-            self.next_char();
+            self.consume_char();
         }
     }
 
@@ -188,7 +188,7 @@ impl Lexer {
                 _ => return None,
             };
 
-            self.next_char();
+            self.consume_char();
             return Some(real)
         }
 
@@ -226,7 +226,7 @@ impl Lexer {
             else {
                 acc.push(current);
             }
-            self.next_char();
+            self.consume_char();
         }
 
         // If we run out of characters, we have an un-closed string
@@ -249,7 +249,7 @@ impl Iterator for Lexer {
             Some('\n') => {
                 let pos = self.get_range();
 
-                self.next_char();
+                self.consume_char();
 
                 Some(Info {
                     token: Token::Newline,
@@ -259,7 +259,7 @@ impl Iterator for Lexer {
             }
             Some('(') => {
                 let pos = self.get_range();
-                self.next_char();
+                self.consume_char();
 
                 Some(Info {
                     token: Token::LParen,
@@ -269,7 +269,7 @@ impl Iterator for Lexer {
             }
             Some(')') => {
                 let pos = self.get_range();
-                self.next_char();
+                self.consume_char();
 
                 Some(Info {
                     token: Token::RParen,
@@ -289,11 +289,11 @@ impl Iterator for Lexer {
                             break;
                         }
                     }
-                    self.next_char();
+                    self.consume_char();
                 }
 
                 let end = self.get_pos();
-                self.next_char();
+                self.consume_char();
 
                 if dir_str == "." {
                     return self.next();
@@ -315,11 +315,11 @@ impl Iterator for Lexer {
                     if self.peek(1) == Some('\n') || self.peek(1).is_none() {
                         break;
                     }
-                    self.next_char();
+                    self.consume_char();
                 }
 
                 let end = self.get_pos();
-                self.next_char();
+                self.consume_char();
 
                 // Remove the '#' character
                 let (_, comment_str) = comment_str.split_at(1);
@@ -336,15 +336,15 @@ impl Iterator for Lexer {
             Some('"') => {
                 // string
                 let start = self.get_pos();
-                self.next_char();   // Skip the first quote
+                self.consume_char();   // Skip the first quote
 
                 let Ok(string_str) = self.acc_string() else {
                     return None;
                 };
 
                 let end = self.get_pos();
-                self.next_char();   // Skip final '"'
-                self.next_char();
+                self.consume_char();   // Skip final '"'
+                self.consume_char();
 
                 Some(Info {
                     token: Token::String(string_str.clone()),
@@ -371,14 +371,14 @@ impl Iterator for Lexer {
                             break;
                         }
                     }
-                    self.next_char();
+                    self.consume_char();
                 }
 
                 // If the next char is ':', this is a label
                 if self.peek(1) == Some(':') {
-                    self.next_char();   // Move onto the ':'
+                    self.consume_char();   // Move onto the ':'
                     let end = self.get_pos();
-                    self.next_char();
+                    self.consume_char();
 
                     return Some(Info {
                         token: Token::Label(symbol_str.clone()),
@@ -388,7 +388,7 @@ impl Iterator for Lexer {
                 }
 
                 let end = self.get_pos();
-                self.next_char();
+                self.consume_char();
 
                 Some(Info {
                     token: Token::Symbol(symbol_str.clone()),
