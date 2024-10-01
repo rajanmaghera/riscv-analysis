@@ -3,8 +3,6 @@ use uuid::Uuid;
 use crate::parser::token::Token;
 use crate::parser::token::{Info, Position, Range};
 
-const EOF_CONST: char = '\x03';
-
 /// Lexer for RISC-V assembly
 ///
 /// The lexer implements the Iterator trait, so it can be used in a for loop for
@@ -13,8 +11,6 @@ pub struct Lexer {
     pub source_id: Uuid,
     /// Raw source, don't read from this directly
     source: Vec<char>,
-    /// Current character
-    ch: char,
     /// The position that will be read next
     pos: usize,
     /// The row that will be read next
@@ -26,29 +22,23 @@ pub struct Lexer {
 impl Lexer {
     /// Create a new lexer from a string.
     pub fn new<S: Into<String>>(source: S, id: Uuid) -> Lexer {
-        let mut lex = Lexer {
+        Lexer {
             source: source.into().chars().collect(),
             source_id: id,
-            ch: '\0',
             pos: 0,
             row: 0,
             col: 0,
-        };
-        lex.ch = lex.peek(0);
-        lex
+        }
     }
 
     /// Get the N'th next character, without updating the current character.
-    fn peek(&self, n: usize) -> char {
-        match self.source.get(self.pos + n) {
-            Some(c) => *c,
-            None => EOF_CONST,
-        }
+    fn peek(&self, n: usize) -> Option<char> {
+        self.source.get(self.pos + n).copied()
     }
     
     /// Get the current next character.
-    fn current(&self) -> char {
-        self.ch
+    fn current(&self) -> Option<char> {
+        self.peek(0)
     }
 
     /// Get the next character in the source.
@@ -57,14 +47,14 @@ impl Lexer {
     /// of the Lexer struct.
     fn next_char(&mut self) {
         // Get the next character
-        self.ch = self.peek(1);
-
-        // Update the position
-        if self.ch == '\n' {
-            self.row += 1;
-            self.col = 0;
-        } else {
-            self.col += 1;
+        if let Some(ch) = self.peek(1) {
+            // Update the position
+            if ch == '\n' {
+                self.row += 1;
+                self.col = 0;
+            } else {
+                self.col += 1;
+            }
         }
 
         self.pos += 1;
@@ -97,7 +87,10 @@ impl Lexer {
     ///
     /// This function will skip all whitespace characters, excluding newlines.
     fn skip_ws(&mut self) {
-        while Self::is_ws(self.current()) {
+        while let Some(current) = self.current() {
+            if !Self::is_ws(current) {
+                break;
+            }
             self.next_char();
         }
     }
@@ -134,25 +127,27 @@ impl Lexer {
     fn acc_string(&mut self) -> String {
         let mut acc: String = String::new();
 
-        // If this char is a quote, we have the empty string
-        if self.current() == '"' {
+        // If the current character is a quote, we have the empty string
+        if self.current() == Some('"') {
             return acc;
         }
 
-        loop {
+        while let Some(current) = self.current() {
             // Check if this is an escape sequence
-            if self.current() == '\\' {
+            if current == '\\' {
                 let c = match self.peek(1) {
-                    '\\' =>'\\',
-                    '\'' =>'\'',
-                    '"'  =>'"',
-                    'n'  =>'\n',
-                    't'  =>'\t',
-                    'r'  =>'\r',
-                    'b'  =>'\x08',  // Backspace
-                    'f'  =>'\x0c',  // Form feed
-                    '0'  =>'\0',
-                    _ => self.current(),
+                    Some('\\') =>'\\',
+                    Some('\'') =>'\'',
+                    Some('"')  =>'"',
+                    Some('n')  =>'\n',
+                    Some('t')  =>'\t',
+                    Some('r')  =>'\r',
+                    Some('b')  =>'\x08',  // Backspace
+                    Some('f')  =>'\x0c',  // Form feed
+                    Some('0')  =>'\0',
+                    // TODO: Unicode input
+                    // FIXME: Real error
+                    _ => return "".to_string(),
                 };
                 acc.push(c);
                 self.next_char(); // Skip the code
@@ -160,15 +155,16 @@ impl Lexer {
 
             // Otherwise, add the character
             else {
-                acc.push(self.current());
+                acc.push(current);
             }
 
-            if self.peek(1) == '"' {
+            if self.peek(1) == Some('"') {
                 break;
             }
             self.next_char();
         }
-        acc
+
+        return acc;
     }
 }
 
@@ -183,8 +179,8 @@ impl Iterator for Lexer {
         // TODO(rajan): should we introduce a new token type for the comment hash (#) and directive hash (.)?
 
         let token = match self.current() {
-            EOF_CONST => None,
-            '\n' => {
+            None => None,
+            Some('\n') => {
                 let pos = self.get_range();
 
                 self.next_char();
@@ -195,7 +191,7 @@ impl Iterator for Lexer {
                     pos,
                 })
             }
-            '(' => {
+            Some('(') => {
                 let pos = self.get_range();
                 self.next_char();
 
@@ -205,7 +201,7 @@ impl Iterator for Lexer {
                     pos,
                 })
             }
-            ')' => {
+            Some(')') => {
                 let pos = self.get_range();
                 self.next_char();
 
@@ -215,15 +211,17 @@ impl Iterator for Lexer {
                     pos,
                 })
             }
-            '.' => {
+            Some('.') => {
                 // directive
                 let start = self.get_pos();
                 let mut dir_str: String = String::new();
 
-                loop {
-                    dir_str.push(self.current());
-                    if !Self::is_symbol_char(self.peek(1)) {
-                        break;
+                while let Some(current) = self.current() {
+                    dir_str.push(current);
+                    if let Some(next) = self.peek(1) {
+                        if !Self::is_symbol_char(next) {
+                            break;
+                        }
                     }
                     self.next_char();
                 }
@@ -241,14 +239,14 @@ impl Iterator for Lexer {
                     file: self.source_id,
                 })
             }
-            '#' => {
+            Some('#') => {
                 // Convert comments to token
                 let start = self.get_pos();
                 let mut comment_str: String = String::new();
 
-                loop {
-                    comment_str.push(self.current());
-                    if self.peek(1) == '\n' || self.peek(1) == EOF_CONST {
+                while let Some(current) = self.current() {
+                    comment_str.push(current);
+                    if self.peek(1) == Some('\n') || self.peek(1) == None {
                         break;
                     }
                     self.next_char();
@@ -269,8 +267,7 @@ impl Iterator for Lexer {
                     file: self.source_id,
                 })
             }
-
-            '"' => {
+            Some('"') => {
                 // string
                 let start = self.get_pos();
                 self.next_char();   // Skip the first quote
@@ -293,20 +290,24 @@ impl Iterator for Lexer {
                 let mut symbol_str: String = String::new();
 
                 // If the first character is not a symbol char -> error
-                if !Self::is_symbol_item(self.current()) {
-                    return None;
+                if let Some(current) = self.current() {
+                    if !Self::is_symbol_item(current) {
+                        return None;
+                    }
                 }
 
-                loop {
-                    symbol_str.push(self.current());
-                    if !Self::is_symbol_item(self.peek(1)) {
-                        break;
+                while let Some(current) = self.current() {
+                    symbol_str.push(current);
+                    if let Some(next) = self.peek(1) {
+                        if !Self::is_symbol_item(next) {
+                            break;
+                        }
                     }
                     self.next_char();
                 }
 
                 // If the next char is ':', this is a label
-                if self.peek(1) == ':' {
+                if self.peek(1) == Some(':') {
                     self.next_char();   // Move onto the ':'
                     let end = self.get_pos();
                     self.next_char();
