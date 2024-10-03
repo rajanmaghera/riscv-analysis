@@ -16,11 +16,20 @@ impl<'a> CfgIterator<'a> {
     #[must_use]
     pub fn new(cfg: &'a Cfg) -> Self {
         let nodes = &cfg.nodes();
+        let mut end_final = false;
+        let end = match nodes.len() {
+            0 => {
+                end_final = true;
+                0
+            },
+            l => l - 1,
+        };
+
         Self {
             nodes,
             start: 0,
-            end: nodes.len() - 1,
-            end_final: false,
+            end,
+            end_final,
         }
     }
 
