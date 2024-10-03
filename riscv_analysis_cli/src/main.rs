@@ -278,7 +278,6 @@ impl ErrorDisplay for Vec<DiagnosticItem> {
                 .reader
                 .get_filename(err.file)
                 .unwrap_or("unknown".to_owned());
-            let text = parser.reader.get_text(err.file).unwrap();
 
             let level = match err.level {
                 SeverityLevel::Error => "ERROR",
@@ -287,29 +286,31 @@ impl ErrorDisplay for Vec<DiagnosticItem> {
                 SeverityLevel::Hint => "HINT",
             };
 
-            PrettyPrinter::new()
-                .input(
-                    Input::from_reader(text.as_bytes())
-                        .kind(format!("{} in file", level))
-                        .name(filename.clone()),
-                )
-                .header(true)
-                .line_numbers(true)
-                .grid(true)
-                .paging_mode(bat::PagingMode::Never)
-                .line_ranges(LineRanges::from(vec![LineRange::new(
-                    err.range.start.line + 1,
-                    err.range.start.line + 1,
-                )]))
-                .print()
-                .unwrap();
+            if let Some(text) = parser.reader.get_text(err.file) {
+                PrettyPrinter::new()
+                    .input(
+                        Input::from_reader(text.as_bytes())
+                            .kind(format!("{} in file", level))
+                            .name(filename.clone()),
+                    )
+                    .header(true)
+                    .line_numbers(true)
+                    .grid(true)
+                    .paging_mode(bat::PagingMode::Never)
+                    .line_ranges(LineRanges::from(vec![LineRange::new(
+                        err.range.start.line + 1,
+                        err.range.start.line + 1,
+                    )]))
+                    .print()
+                    .unwrap();
 
-            // print range arrows
-            println!(
-                "       {}",
-                " ".repeat(err.range.start.column)
-                    + &"^".repeat(err.range.end.column - err.range.start.column)
-            );
+                // print range arrows
+                println!(
+                    "       {}",
+                    " ".repeat(err.range.start.column)
+                        + &"^".repeat(err.range.end.column - err.range.start.column)
+                );
+            }
 
             print!(
                 "       {}\n       {}\n",
