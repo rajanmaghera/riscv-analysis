@@ -121,12 +121,21 @@ impl MathOp {
 
 #[cfg(test)]
 mod test {
+    use super::MathOp;
+
     #[allow(overflowing_literals)]
     #[test]
     fn bitwise() {
-        use super::MathOp;
         assert_eq!(MathOp::And.operate(0xABCD_EF01, 0x1234_5678), 0x0204_4600);
         assert_eq!(MathOp::Or.operate(0xABCD_EF01, 0x1234_5678), 0xBBFD_FF79);
         assert_eq!(MathOp::Xor.operate(0xABCD_EF01, 0x1234_5678), 0xb9f9_b979);
+    }
+
+    #[test]
+    fn div_zero() {
+        assert_eq!(MathOp::Div.operate(12345678, 0), -1);
+        assert_eq!(MathOp::Divu.operate(12345678, 0), -1);
+        assert_eq!(MathOp::Rem.operate(12345678, 0), 12345678);
+        assert_eq!(MathOp::Remu.operate(12345678, 0), 12345678);
     }
 }
