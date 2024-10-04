@@ -84,10 +84,37 @@ impl MathOp {
                 let (x, y) = (x as u64, y as u64);
                 ((x * y) >> 32) as i32
             }
-            MathOp::Div => x / y,
-            MathOp::Divu => (x as u32 / y as u32) as i32,
-            MathOp::Rem => x % y,
-            MathOp::Remu => (x as u32 % y as u32) as i32,
+            // NOTE: The RISC-V spec doesn't trap for integer division by zero,
+            // instead, RISC-V returns the following results for x / 0 (or x % 0):
+            // - div   -1
+            // - divu: 2^32 - 1
+            // - rem:  x
+            // - remu: x
+            MathOp::Div => {
+                match y {
+                    0 => -1,    // 2^32 - 1 as i32
+                    _ => x / y,
+                }
+            },
+            MathOp::Divu => {
+                match y {
+                    0 => -1,
+                    _ => (x as u32 / y as u32) as i32,
+                }
+
+            }
+            MathOp::Rem => {
+                match y {
+                    0 => x,
+                    _ => x % y,
+                }
+            },
+            MathOp::Remu => {
+                match y {
+                    0 => x,
+                    _ => (x as u32 % y as u32) as i32,
+                }
+            }
         }
     }
 }
