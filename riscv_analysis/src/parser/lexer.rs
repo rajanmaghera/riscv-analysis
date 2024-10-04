@@ -2,12 +2,29 @@ use uuid::Uuid;
 
 use crate::parser::token::Token;
 use crate::parser::token::{Info, Position, Range};
+use crate::parser::ParseError;
+
+use super::LexError;
+
+/// Possible errors when lexing a string.
+#[derive(Clone, Debug)]
+pub enum StringLexErrorType {
+    InvalidEscapeSequence,
+    Unclosed,
+    Newline,
+}
 
 #[derive(Clone, Debug)]
-pub enum StringLexerError {
-    InvalidEscapeSequence(Position),
-    Unclosed(Position),
-    Newline(Position),
+pub struct StringLexError {
+    pub pos: Position,
+    pub kind: StringLexErrorType,
+}
+
+impl StringLexError {
+    #[must_use]
+    pub fn new(pos: Position, kind: StringLexErrorType) -> Self {
+        Self { pos, kind }
+    }
 }
 
 /// Lexer for RISC-V assembly
@@ -200,7 +217,7 @@ impl Lexer {
     /// This function handles the string escape codes available in RARS. Due to
     /// escape codes, the number of characters in the string may be less than
     /// the source range.
-    fn acc_string(&mut self) -> Result<String, StringLexerError> {
+    fn acc_string(&mut self) -> Result<String, StringLexError> {
         let mut acc: String = String::new();
 
 
@@ -211,14 +228,18 @@ impl Lexer {
 
             // All strings must be on a single line
             if current == '\n' {
-                return Err(StringLexerError::Newline(self.get_pos()));
+                return Err(
+                    StringLexError::new(self.get_pos(), StringLexErrorType::Newline)
+                );
             }
 
             // Check if this is an escape sequence
             if current == '\\' {
                 match self.escape_code() {
                     Some(ec) => acc.push(ec),
-                    None => return Err(StringLexerError::InvalidEscapeSequence(self.get_pos())),
+                    None => return Err(
+                        StringLexError::new(self.get_pos(), StringLexErrorType::InvalidEscapeSequence)
+                    ),
                 }
             }
 
@@ -230,12 +251,12 @@ impl Lexer {
         }
 
         // If we run out of characters, we have an un-closed string
-        Err(StringLexerError::Unclosed(self.get_pos()))
+        Err(StringLexError::new(self.get_pos(), StringLexErrorType::Unclosed))
     }
 }
 
 impl Iterator for Lexer {
-    type Item = Info;
+    type Item = Result<Info, LexError>;
 
     #[allow(clippy::too_many_lines)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -338,8 +359,18 @@ impl Iterator for Lexer {
                 let start = self.get_pos();
                 self.consume_char();   // Skip the first quote
 
-                let Ok(string_str) = self.acc_string() else {
-                    return None;
+                let string_str = match self.acc_string() {
+                    Ok(s) => s,
+                    Err(e) => {
+                        return Some(Err(LexError::InvalidString(
+                            Info {
+                                token: Token::String(String::new()),
+                                pos: Range { start, end: e.pos },
+                                file: self.source_id,
+                            },
+                            Box::new(e)
+                        )));
+                    },
                 };
 
                 let end = self.get_pos();
@@ -380,11 +411,11 @@ impl Iterator for Lexer {
                     let end = self.get_pos();
                     self.consume_char();
 
-                    return Some(Info {
+                    return Some(Ok(Info {
                         token: Token::Label(symbol_str.clone()),
                         pos: Range { start, end },
                         file: self.source_id,
-                    });
+                    }));
                 }
 
                 let end = self.get_pos();
@@ -403,7 +434,7 @@ impl Iterator for Lexer {
                 // TODO: remove these debug asserts once we fix the get_pos() function
                 debug_assert_eq!(t.pos.start.line, t.pos.end.line);
                 debug_assert!(t.pos.start.column <= t.pos.end.column);
-                Some(t)
+                Some(Ok(t))
             }
             None => None,
         }
@@ -419,7 +450,7 @@ mod tests {
     use crate::parser::{Lexer, Token};
     fn tokenize<S: Into<String>>(input: S) -> Vec<Token> {
         Lexer::new(input, uuid::Uuid::nil())
-            .map(|x| x.token)
+            .map(|x| x.unwrap().token) // All tokens should be valid
             .collect()
     }
 
