@@ -2,12 +2,11 @@ use uuid::Uuid;
 
 use crate::parser::token::Token;
 use crate::parser::token::{Info, Position, Range};
-use crate::parser::ParseError;
 
 use super::LexError;
 
 /// Possible errors when lexing a string.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum StringLexErrorType {
     InvalidEscapeSequence,
     Unclosed,
@@ -26,6 +25,8 @@ impl StringLexError {
         Self { pos, kind }
     }
 }
+
+
 
 /// Lexer for RISC-V assembly
 ///
@@ -447,10 +448,15 @@ mod tests {
     // TODO: These tests only test the token output, but not the ranges or the
     // IDs of the file. Those need to be tested and documented.
 
-    use crate::parser::{Lexer, Token};
+    use crate::parser::{Info, LexError, Lexer, StringLexErrorType, Token};
     fn tokenize<S: Into<String>>(input: S) -> Vec<Token> {
         Lexer::new(input, uuid::Uuid::nil())
             .map(|x| x.unwrap().token) // All tokens should be valid
+            .collect()
+    }
+
+    fn tokenize_err<S: Into<String>>(input: S) -> Vec<Result<Info, LexError>> {
+        Lexer::new(input, uuid::Uuid::nil())
             .collect()
     }
 
@@ -675,29 +681,80 @@ mod tests {
     #[test]
     fn unbounded_string() {
         let input = "\"Good string\" \"Bad string";
-        let tokens = tokenize(input);
+        let tokens = tokenize_err(input);
 
-        assert_eq!(
-            tokens,
-            vec![
-                Token::String("Good string".into()),
-            ]
-        );
+        assert_eq!(tokens.len(), 2);
+
+        // First token should be "Good string"
+        assert!(matches!(
+            &tokens[0],
+            Ok(info) if matches!(
+                &info.token,
+                Token::String(s) if s == "Good string"
+            )
+        ));
+
+        // Second token should have failed
+        assert!(matches!(
+            &tokens[1],
+            Err(err) if matches!(
+                err,
+                LexError::InvalidString(_info, sub)
+                    if sub.kind == StringLexErrorType::Unclosed
+            )
+        ));
     }
 
     #[test]
     fn newline_in_string() {
-        let input = "\"Before \n After\"";
-        let tokens = tokenize(input);
+        let input = "\"Before \n\"";
+        let tokens = tokenize_err(input);
 
-        assert_eq!(tokens, vec![]);
+        // After the newline, the lexer will attempt to lex the rest of the
+        // input. Thus we should see the following tokens:
+        // - An error for the partial string before the newline.
+        // - A newline token.
+        // - A unclosed string, since the input at this point is a double quote.
+        assert_eq!(tokens.len(), 3);
+
+        assert!(matches!(
+            &tokens[0],
+            Err(err) if matches!(
+                err,
+                LexError::InvalidString(_info, sub)
+                    if sub.kind == StringLexErrorType::Newline
+            )
+        ));
+
+        assert!(matches!(
+            &tokens[1],
+            Ok(info) if matches!(&info.token, Token::Newline)
+        ));
+
+        assert!(matches!(
+            &tokens[2],
+            Err(err) if matches!(
+                err,
+                LexError::InvalidString(_info, sub)
+                    if sub.kind == StringLexErrorType::Unclosed
+            )
+        ));
     }
 
     #[test]
     fn invalid_escape_code() {
         let input = "\"\\a\"";
-        let tokens = tokenize(input);
+        let tokens = tokenize_err(input);
 
-        assert_eq!(tokens, vec![]);
+        assert_eq!(tokens.len(), 1);
+
+        assert!(matches!(
+            &tokens[0],
+            Err(err) if matches!(
+                err,
+                LexError::InvalidString(_info, sub)
+                    if sub.kind == StringLexErrorType::InvalidEscapeSequence
+            )
+        ));
     }
 }
