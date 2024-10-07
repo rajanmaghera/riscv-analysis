@@ -225,3 +225,26 @@ impl Iterator for CfgPrevsIterator {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::cfg::Cfg;
+    use crate::parser::RVStringParser;
+
+    /// Generate the complete CFG from an input string.
+    fn gen_cfg(input: &str) -> Cfg {
+        let (nodes, error) = RVStringParser::parse_from_text(input);
+        assert_eq!(error.len(), 0);
+        Cfg::new(nodes).unwrap()
+    }
+
+    #[test]
+    fn empty() {
+        let input = "";
+        let cfg = gen_cfg(input);
+        let mut iterator = cfg.iter();
+
+        iterator.next(); // There is a program entry node by default
+        assert_eq!(iterator.next(), None);
+    }
+}
