@@ -13,6 +13,7 @@ impl TryFrom<Info> for Imm {
     fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
             Token::Symbol(s) => Imm::from_str(&s),
+            Token::Char(c) => Ok(Imm(c as i32)),
             _ => Err(()),
         }
     }
