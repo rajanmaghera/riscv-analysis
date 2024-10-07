@@ -91,7 +91,7 @@ impl<T: FileReader + Clone> RVParser<T> {
     fn recover_from_parse_error(&mut self) {
         let lexer = self.lexer();
         if let Some(x) = lexer {
-            for token in x.by_ref() {
+            for token in x.by_ref().flatten() {
                 if token == Token::Newline {
                     break;
                 }
@@ -182,6 +182,10 @@ impl<T: FileReader + Clone> RVParser<T> {
                         self.recover_from_parse_error();
                     }
                     LexError::IgnoredWithoutWarning => (),
+                    LexError::InvalidString(info, err) => {
+                        parse_errors.push(ParseError::InvalidString(info, err));
+                        self.recover_from_parse_error();
+                    }
                 },
             }
         }
@@ -265,24 +269,29 @@ impl<'a> AnnotatedLexer<'a> {
 
     fn get_any(&mut self) -> Result<Info, LexError> {
         let item = self.lexer.next().ok_or(LexError::UnexpectedEOF)?;
-        if self.raw_token == RawToken::default() {
-            self.raw_token = RawToken {
-                text: item.token.as_original_string(),
-                pos: item.pos.clone(),
-                file: item.file,
-            };
-        } else {
-            self.raw_token.text.push(' ');
-            self.raw_token
-                .text
-                .push_str(&item.token.as_original_string());
-            self.raw_token.pos.end = item.pos.end;
+        if let Ok(ref item) = item {
+            if self.raw_token == RawToken::default() {
+                self.raw_token = RawToken {
+                    text: item.token.as_original_string(),
+                    pos: item.pos.clone(),
+                    file: item.file,
+                };
+            } else {
+                self.raw_token.text.push(' ');
+                self.raw_token
+                    .text
+                    .push_str(&item.token.as_original_string());
+                self.raw_token.pos.end = item.pos.end;
+            }
         }
-        Ok(item)
+        item
     }
 
-    fn peek_any(&mut self) -> Result<&Info, LexError> {
-        self.lexer.peek().ok_or(LexError::UnexpectedEOF)
+    fn peek_any(&mut self) -> Result<Info, LexError> {
+        match self.lexer.peek() {
+            Some(item) => item.clone(),
+            None => Err(LexError::UnexpectedEOF)
+        }
     }
 }
 

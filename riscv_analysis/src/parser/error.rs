@@ -7,7 +7,7 @@ use crate::{
     reader::FileReaderError,
 };
 
-use super::{Info, ParserNode, With};
+use super::{Info, ParserNode, StringLexError, StringLexErrorType, With};
 
 #[derive(Debug, Clone)]
 /// Lexer error
@@ -26,6 +26,7 @@ pub enum LexError {
     UnexpectedError(Info),
     UnknownDirective(Info),
     UnsupportedDirective(Info),
+    InvalidString(Info, Box<StringLexError>),
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +44,7 @@ pub enum ParseError {
     CyclicDependency(Info),
     FileNotFound(With<String>),
     IOError(With<String>, String),
+    InvalidString(Info, Box<StringLexError>),
 }
 
 impl FileReaderError {
@@ -81,6 +83,9 @@ impl Display for ParseError {
             ParseError::CyclicDependency(_) => write!(f, "Cyclic dependency"),
             ParseError::FileNotFound(file) => write!(f, "File not found: {}", file.data),
             ParseError::IOError(file, err) => write!(f, "IO Error: {} ({})", file.data, err),
+            ParseError::InvalidString(_info, _kind) => {
+                write!(f, "Invalid string")
+            }
         }
     }
 }
@@ -129,6 +134,19 @@ impl DiagnosticMessage for ParseError {
             ".to_string(),
             ParseError::FileNotFound(file) => format!("File not found: {}", file.data),
             ParseError::IOError(file, err) => format!("IO Error: {} ({})", file.data, err),
+            ParseError::InvalidString(_, e) => {
+                match e.kind {
+                    StringLexErrorType::InvalidEscapeSequence => {
+                        "String contains an invalid escape sequence".to_string()
+                    }
+                    StringLexErrorType::Unclosed => {
+                        "String is missing closing quote".to_string()
+                    }
+                    StringLexErrorType::Newline => {
+                        "String spans multiple lines".to_string()
+                    }
+                }
+            }
         }
     }
 }
@@ -157,6 +175,7 @@ impl DiagnosticLocation for ParseError {
             | ParseError::UnexpectedToken(info)
             | ParseError::UnexpectedError(info)
             | ParseError::UnknownDirective(info)
+            | ParseError::InvalidString(info, _)
             | ParseError::CyclicDependency(info) => info.file,
             ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.file,
         }
@@ -169,6 +188,7 @@ impl DiagnosticLocation for ParseError {
             | ParseError::UnexpectedToken(info)
             | ParseError::UnexpectedError(info)
             | ParseError::UnknownDirective(info)
+            | ParseError::InvalidString(info, _)
             | ParseError::CyclicDependency(info) => info.pos.clone(),
             ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.pos.clone(),
         }
@@ -185,6 +205,7 @@ impl From<&ParseError> for SeverityLevel {
             | ParseError::UnknownDirective(_)
             | ParseError::CyclicDependency(_)
             | ParseError::FileNotFound(_)
+            | ParseError::InvalidString(..)
             | ParseError::IOError(_, _) => SeverityLevel::Error,
         }
     }
