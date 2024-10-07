@@ -158,7 +158,8 @@ impl Lexer {
 
     /// Lex a unicode escape code.
     ///
-    /// Returns None if the code doesn't define a valid unicode character.
+    /// Returns None if the code doesn't define a valid unicode character. The
+    /// escape code is lexed into a single unicode character.
     fn unicode_code(&mut self) -> Option<char> {
         let chars = vec![
             self.peek(2)?,
