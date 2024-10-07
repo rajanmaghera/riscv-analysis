@@ -16,11 +16,20 @@ impl<'a> CfgIterator<'a> {
     #[must_use]
     pub fn new(cfg: &'a Cfg) -> Self {
         let nodes = &cfg.nodes();
+        let mut end_final = false;
+        let end = match nodes.len() {
+            0 => {
+                end_final = true;
+                0
+            },
+            l => l - 1,
+        };
+
         Self {
             nodes,
             start: 0,
-            end: nodes.len() - 1,
-            end_final: false,
+            end,
+            end_final,
         }
     }
 
@@ -214,5 +223,28 @@ impl Iterator for CfgPrevsIterator {
         }
 
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::cfg::Cfg;
+    use crate::parser::RVStringParser;
+
+    /// Generate the complete CFG from an input string.
+    fn gen_cfg(input: &str) -> Cfg {
+        let (nodes, error) = RVStringParser::parse_from_text(input);
+        assert_eq!(error.len(), 0);
+        Cfg::new(nodes).unwrap()
+    }
+
+    #[test]
+    fn empty() {
+        let input = "";
+        let cfg = gen_cfg(input);
+        let mut iterator = cfg.iter();
+
+        iterator.next(); // There is a program entry node by default
+        assert_eq!(iterator.next(), None);
     }
 }
