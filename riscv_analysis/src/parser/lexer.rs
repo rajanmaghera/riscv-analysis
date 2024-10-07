@@ -256,6 +256,18 @@ impl Lexer {
         // If we run out of characters, we have an un-closed string
         Err(StringLexError::new(self.get_pos(), StringLexErrorType::Unclosed))
     }
+
+    /// Create the error for an invalid string.
+    fn invalid_string(&self, partial: String, kind: StringLexErrorType, start: Position, end: Position) -> Result<Info, LexError> {
+        Err(LexError::InvalidString(
+            Info {
+                token: Token::String(partial),
+                pos: Range { start, end },
+                file: self.source_id,
+            },
+            Box::new(StringLexError::new(end, kind))
+        ))
+    }
 }
 
 impl Iterator for Lexer {
@@ -385,6 +397,66 @@ impl Iterator for Lexer {
                     pos: Range { start, end },
                     file: self.source_id,
                 })
+            }
+            Some('\'') => {
+                let start = self.get_pos();
+                self.consume_char();
+
+                if let Some(c) = self.current() {
+                    // Get the character in the quote
+                    let c = match c {
+                        // Is an escape code
+                        '\\' => match self.escape_code() {
+                            Some(ec) => ec,
+                            None => return Some(self.invalid_string(
+                                c.to_string(),
+                                StringLexErrorType::InvalidEscapeSequence,
+                                start, self.get_pos())
+                            )
+                        },
+                        // Can't have a literal newline in a character
+                        '\n' => return Some(self.invalid_string(
+                            c.to_string(),
+                            StringLexErrorType::Newline,
+                            start,
+                            self.get_pos()
+                        )),
+                        // Otherwise, return the character as is
+                        c => c,
+                    };
+
+                    // Ensure that the next character is the closing quote
+                    self.consume_char();
+                    if let Some(eq) = self.current() {
+
+                        // Return the character
+                        if eq == '\'' {
+                            let end = self.get_pos();
+                            self.consume_char();
+
+                            return Some(Ok(Info {
+                                token: Token::Char(c),
+                                pos: Range { start, end },
+                                file: self.source_id,
+                            }));
+                        }
+
+                        // The character is unclosed
+                        let end = self.get_pos();
+                        return Some(self.invalid_string(
+                            c.to_string(),
+                            StringLexErrorType::Unclosed,
+                            start, end
+                        ));
+                    }
+                }
+
+                let end = self.get_pos();
+                return Some(self.invalid_string(
+                    String::new(), // Empty string, since we are at EOF
+                    StringLexErrorType::Unclosed,
+                    start, end
+                ));
             }
             _ => {
                 // symbol
