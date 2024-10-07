@@ -80,9 +80,10 @@ impl Lexer {
             } else {
                 self.col += 1;
             }
+            self.pos += 1;
+        } else {
+            self.pos = self.source.len();
         }
-
-        self.pos += 1;
     }
 
     /// Skip ahead N characters in the source.
