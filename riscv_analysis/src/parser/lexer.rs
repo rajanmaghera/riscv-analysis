@@ -831,4 +831,98 @@ mod tests {
             )
         ));
     }
+
+    #[test]
+    fn chars() {
+        let input = "'a' 'b' '\\'' '\\u03bb'";
+        let tokens = tokenize(input);
+
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Char('a'),
+                Token::Char('b'),
+                Token::Char('\''),
+                Token::Char('\u{03bb}'),
+            ]
+        );
+    }
+
+    #[test]
+    fn unclosed_char() {
+        let input = "'a \n 'b";
+        let tokens = tokenize_err(input);
+        assert_eq!(tokens.len(), 3);
+
+        assert!(matches!(
+            &tokens[0],
+            Err(err) if matches!(
+                err,
+                LexError::InvalidString(_info, sub)
+                    if sub.kind == StringLexErrorType::Unclosed
+            )
+        ));
+
+        assert!(matches!(
+            &tokens[1],
+            Ok(info) if matches!(&info.token, Token::Newline)
+        ));
+
+        assert!(matches!(
+            &tokens[2],
+            Err(err) if matches!(
+                err,
+                LexError::InvalidString(_info, sub)
+                    if sub.kind == StringLexErrorType::Unclosed
+            )
+        ));
+    }
+
+    #[test]
+    fn newline_in_char() {
+        let input = "'\n'";
+        let tokens = tokenize_err(input);
+        assert_eq!(tokens.len(), 3);
+
+        assert!(matches!(
+            &tokens[0],
+            Err(err) if matches!(
+                err,
+                LexError::InvalidString(_info, sub)
+                    if sub.kind == StringLexErrorType::Newline
+            )
+        ));
+
+        assert!(matches!(
+            &tokens[1],
+            Ok(info) if matches!(&info.token, Token::Newline)
+        ));
+
+        assert!(matches!(
+            &tokens[2],
+            Err(err) if matches!(
+                err,
+                LexError::InvalidString(_info, sub)
+                    if sub.kind == StringLexErrorType::Unclosed
+            )
+        ));
+    }
+
+    #[test]
+    fn invalid_escape_code_char() {
+        let input = "'\\a'";
+        let tokens = tokenize_err(input);
+
+        println!("{:?}", tokens);
+        assert_eq!(tokens.len(), 1);
+
+        assert!(matches!(
+            &tokens[0],
+            Err(err) if matches!(
+                err,
+                LexError::InvalidString(_info, sub)
+                    if sub.kind == StringLexErrorType::InvalidEscapeSequence
+            )
+        ));
+    }
 }
