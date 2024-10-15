@@ -925,4 +925,15 @@ mod tests {
             )
         ));
     }
+
+    #[test]
+    fn newline_chars() {
+        let input = "'\\n' 'n' \n ";
+        let tokens = tokenize(input);
+
+        assert_eq!(
+            tokens,
+            vec![Token::Char('\n'), Token::Char('n'), Token::Newline]
+        );
+    }
 }
