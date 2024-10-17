@@ -310,7 +310,8 @@ fn main() {
 
             if !lint.no_output {
                 diags.sort();
-                diags.display_errors(&parser);
+                let printer = PrettyPrint::new(diags);
+                printer.display_errors(&parser);
             }
         }
         Commands::Fix(fix) => {

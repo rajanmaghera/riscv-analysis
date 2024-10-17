@@ -9,9 +9,22 @@ pub trait ErrorDisplay {
     fn display_errors<T: FileReader + Clone>(&self, parser: &RVParser<T>);
 }
 
-impl ErrorDisplay for Vec<DiagnosticItem> {
+/// Pretty printer for errors.
+pub struct PrettyPrint {
+    diagnostics: Vec<DiagnosticItem>,
+}
+
+impl PrettyPrint {
+    pub fn new(errors: Vec<DiagnosticItem>) -> Self {
+        Self {
+            diagnostics: errors,
+        }
+    }
+}
+
+impl ErrorDisplay for PrettyPrint {
     fn display_errors<T: FileReader + Clone>(&self, parser: &RVParser<T>) {
-        for err in self {
+        for err in &self.diagnostics {
             let filename = parser
                 .reader
                 .get_filename(err.file)
