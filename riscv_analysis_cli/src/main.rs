@@ -316,13 +316,13 @@ fn main() {
 
                 // Output as JSON
                 if lint.json {
-                    let printer = JSONPrint::new(diags);
+                    let mut printer = JSONPrint::new(diags);
                     printer.display_errors(&parser);
                 }
 
                 // Pretty print output
                 else {
-                    let printer = PrettyPrint::new(diags);
+                    let mut printer = PrettyPrint::new(diags);
                     printer.display_errors(&parser);
                 }
             }
