@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 
+use colored::Colorize;
 use serde_json::{json, Value};
 
 use riscv_analysis::parser::{Position, RVParser};
@@ -50,13 +51,13 @@ impl PrettyPrint {
     }
 
     /// Return the name of a severity level.
-    fn level(&self, level: &SeverityLevel) -> &str {
+    fn level(&self, level: &SeverityLevel) -> String {
         match level {
-            SeverityLevel::Error => "Error",
-            SeverityLevel::Warning => "Warning",
-            SeverityLevel::Information => "Info",
-            SeverityLevel::Hint => "Hint",
-        }
+            SeverityLevel::Error => "Error".red(),
+            SeverityLevel::Warning => "Warning".yellow(),
+            SeverityLevel::Information => "Info".blue(),
+            SeverityLevel::Hint => "Hint".green(),
+        }.bold().to_string()
     }
 
     /// Compute A - B, and return OR if this overflows.
