@@ -1,7 +1,11 @@
+use std::fs;
+
 use bat::line_range::{LineRange, LineRanges};
 use bat::{Input, PrettyPrinter};
 use colored::Colorize;
-use riscv_analysis::parser::RVParser;
+use serde_json::{json, Value};
+
+use riscv_analysis::parser::{Position, RVParser};
 use riscv_analysis::passes::{DiagnosticItem, SeverityLevel};
 use riscv_analysis::reader::FileReader;
 
@@ -69,5 +73,72 @@ impl ErrorDisplay for PrettyPrint {
                 err.long_description
             );
         }
+    }
+}
+
+/// Print lints as JSON
+pub struct JSONPrint {
+    diagnostics: Vec<DiagnosticItem>,
+}
+
+impl JSONPrint {
+    /// Create a new JSON printer.
+    pub fn new(errors: Vec<DiagnosticItem>) -> Self {
+        Self {
+            diagnostics: errors,
+        }
+    }
+
+    /// Convert a single diagnostic item to JSON
+    fn to_json<T: FileReader + Clone> (&self, parser: &RVParser<T>, item: &DiagnosticItem) -> Value {
+        // Get the fields
+        let path = parser
+            .reader
+            .get_filename(item.file)
+            .unwrap_or("unknown".to_owned());
+        let path = fs::canonicalize(path)
+            .unwrap();
+        let level = match item.level {
+            SeverityLevel::Error => "Error",
+            SeverityLevel::Warning => "Warning",
+            SeverityLevel::Information => "Info",
+            SeverityLevel::Hint => "Hint",
+        };
+
+        // Convert to JSON
+        json!({
+            "file": path,
+            "title": item.title,
+            "description": item.description,
+            "level": level,
+            "range": {
+                "start" : self.position_to_json(item.range.start),
+                "end" : self.position_to_json(item.range.end),
+            }
+        })
+    }
+
+    fn position_to_json(&self, pos: Position) -> Value {
+        json!({
+            "line": pos.line,
+            "column": pos.column,
+            "raw": pos.raw_index,
+        })
+    }
+}
+
+impl ErrorDisplay for JSONPrint {
+    fn display_errors<T: FileReader + Clone>(&self, parser: &RVParser<T>) {
+        // Convert the diagnostic items to JSON
+        let sub: Vec<_> = self
+            .diagnostics
+            .iter()
+            .map(|d| self.to_json(parser, d))
+            .collect();
+
+        // Print the results
+        let out = json!({ "diagnostics": sub });
+        let text = serde_json::to_string_pretty(&out).unwrap();
+        println!("{}", text);
     }
 }

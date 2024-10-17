@@ -54,6 +54,9 @@ struct Lint {
     /// Output debug as yaml
     #[clap(long)]
     yaml: bool,
+    /// Output lints as JSON
+    #[clap(long)]
+    json: bool,
     /// Remove output
     #[clap(long)]
     no_output: bool,
@@ -310,8 +313,18 @@ fn main() {
 
             if !lint.no_output {
                 diags.sort();
-                let printer = PrettyPrint::new(diags);
-                printer.display_errors(&parser);
+
+                // Output as JSON
+                if lint.json {
+                    let printer = JSONPrint::new(diags);
+                    printer.display_errors(&parser);
+                }
+
+                // Pretty print output
+                else {
+                    let printer = PrettyPrint::new(diags);
+                    printer.display_errors(&parser);
+                }
             }
         }
         Commands::Fix(fix) => {
