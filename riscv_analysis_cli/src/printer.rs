@@ -84,13 +84,25 @@ impl PrettyPrint {
             }
         }
 
+        // HACK: Use the text line so we have the same tab spacing
+        let mut base: String = text.get(first_non_ws..)
+            .unwrap_or_default()
+            .chars()
+            .map(|c| {
+                if c.is_whitespace() { c }
+                else { ' ' }
+            })
+            .collect()
+            ;
+
         // Arrows pointing the the relevant position
         let end = end + 1;
-        let aligned = text.trim();
         let arrows = "^".repeat(Self::sub_or(end, start, 0));
-        let arrow_spc = " ".repeat(Self::sub_or(start, first_non_ws, 0));
+        let offset = Self::sub_or(start, first_non_ws, 0);
+        base.replace_range(offset.., &arrows);
 
-        format!("{spc} |\n {line} | {aligned}\n{spc} | {arrow_spc}{arrows}\n")
+        let aligned = text.trim();
+        format!("{spc} |\n {line} | {aligned}\n{spc} | {base}\n")
     }
 
     /// Fromat a diagnostic item.
@@ -106,7 +118,7 @@ impl PrettyPrint {
             "{level}: {title}\n in file: {path}\n"
         );
 
-        // Print the relevant region
+        // Print the relevant source region
         if let Some(text) = self.get_file(parser, &item.file) {
             let line = item.range.start.line;
             if let Some(region) = Self::get_line(text, line) {
