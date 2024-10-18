@@ -24,6 +24,7 @@ pub struct RelatedDiagnosticItem {
     pub description: String,
 }
 
+#[derive(Clone)]
 pub struct DiagnosticItem {
     pub file: Uuid,
     pub range: Range,
