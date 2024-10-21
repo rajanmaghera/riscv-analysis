@@ -153,9 +153,7 @@ impl JSONPrint {
         let path = parser
             .reader
             .get_filename(item.file)
-            .unwrap_or("unknown".to_owned());
-        let path = fs::canonicalize(path)
-            .unwrap();
+            .map(|f| fs::canonicalize(f).unwrap_or_default());
         let level = match item.level {
             SeverityLevel::Error => "Error",
             SeverityLevel::Warning => "Warning",
