@@ -60,14 +60,6 @@ impl PrettyPrint {
         }.bold().to_string()
     }
 
-    /// Compute A - B, and return OR if this overflows.
-    fn sub_or(a: usize, b: usize, or: usize) -> usize {
-        match a.checked_sub(b) {
-            Some(diff) => diff,
-            None => or,
-        }
-    }
-
     /// Format the source region portion of the message.
     fn format_region(text: &str, line: usize, start: usize, end: usize) -> String {
         // Compute the space needed for the line number
@@ -97,8 +89,8 @@ impl PrettyPrint {
 
         // Arrows pointing the the relevant position
         let end = end + 1;
-        let arrows = "^".repeat(Self::sub_or(end, start, 0));
-        let offset = Self::sub_or(start, first_non_ws, 0);
+        let arrows = "^".repeat(end.saturating_sub(start));
+        let offset = start.saturating_sub(first_non_ws);
         base.replace_range(offset.., &arrows);
 
         let aligned = text.trim();
