@@ -2,30 +2,29 @@ pub mod wrapper {
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Debug)]
-    pub struct ListWrapper {
-        pub diagnostics: Vec<DiagnosticWrapper>,
+    pub struct TestCase {
+        pub diagnostics: Vec<DiagnosticTestCase>,
     }
 
     #[derive(Serialize, Deserialize, Debug)]
-    pub struct DiagnosticWrapper {
+    pub struct DiagnosticTestCase {
         pub file: Option<String>,
         pub title: String,
         pub description: String,
         pub level: String,
-        pub range: RangeWrapper,
+        pub range: RangeTestCase,
     }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    pub struct RangeWrapper {
-        pub start: PositionWrapper,
-        pub end: PositionWrapper,
+    pub struct RangeTestCase {
+        pub start: PositionTestCase,
+        pub end: PositionTestCase,
     }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    pub struct PositionWrapper {
+    pub struct PositionTestCase {
         pub line: usize,
         pub column: usize,
         pub raw: usize,
     }
-
 }

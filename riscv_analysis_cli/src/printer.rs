@@ -8,7 +8,7 @@ use riscv_analysis::passes::{DiagnosticItem, SeverityLevel};
 use riscv_analysis::reader::FileReader;
 use uuid::Uuid;
 
-use riscv_analysis_cli::wrapper::{DiagnosticWrapper, ListWrapper, PositionWrapper, RangeWrapper};
+use riscv_analysis_cli::wrapper::{DiagnosticTestCase, TestCase, PositionTestCase, RangeTestCase};
 
 pub trait ErrorDisplay {
     fn display_errors<T: FileReader + Clone>(&mut self, parser: &RVParser<T>);
@@ -149,7 +149,7 @@ impl JSONPrint {
     }
 
     /// Convert a single diagnostic item to JSON
-    fn wrap_item<T: FileReader + Clone> (&self, parser: &RVParser<T>, item: &DiagnosticItem) -> DiagnosticWrapper {
+    fn wrap_item<T: FileReader + Clone> (&self, parser: &RVParser<T>, item: &DiagnosticItem) -> DiagnosticTestCase {
         // Get the fields
         let path = parser
             .reader
@@ -163,20 +163,20 @@ impl JSONPrint {
             SeverityLevel::Hint => "Hint",
         };
 
-        DiagnosticWrapper {
+        DiagnosticTestCase {
             file: path,
             title: item.title.clone(),
             description: item.description.clone(),
             level: level.to_string(),
-            range: RangeWrapper {
+            range: RangeTestCase {
                 start: self.wrap_position(item.range.start),
                 end: self.wrap_position(item.range.end),
             }
         }
     }
 
-    fn wrap_position(&self, pos: Position) -> PositionWrapper {
-        PositionWrapper {
+    fn wrap_position(&self, pos: Position) -> PositionTestCase {
+        PositionTestCase {
             line: pos.line,
             column: pos.column,
             raw: pos.raw_index,
@@ -194,7 +194,7 @@ impl ErrorDisplay for JSONPrint {
             .collect();
 
         // Print the results
-        let out = ListWrapper { diagnostics: sub };
+        let out = TestCase { diagnostics: sub };
         let text = serde_json::to_string_pretty(&out).unwrap();
         println!("{}", text);
     }
