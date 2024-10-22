@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::fs;
 
 use colored::Colorize;
-use serde_json::{json, Value};
 
-use riscv_analysis::parser::{Position, RVParser};
+use riscv_analysis::parser::RVParser;
 use riscv_analysis::passes::{DiagnosticItem, SeverityLevel};
 use riscv_analysis::reader::FileReader;
 use uuid::Uuid;
+
+use riscv_analysis_cli::wrapper::{DiagnosticTestCase, TestCase};
 
 pub trait ErrorDisplay {
     fn display_errors<T: FileReader + Clone>(&mut self, parser: &RVParser<T>);
@@ -148,12 +149,13 @@ impl JSONPrint {
     }
 
     /// Convert a single diagnostic item to JSON
-    fn to_json<T: FileReader + Clone> (&self, parser: &RVParser<T>, item: &DiagnosticItem) -> Value {
+    fn wrap_item<T: FileReader + Clone> (&self, parser: &RVParser<T>, item: &DiagnosticItem) -> DiagnosticTestCase {
         // Get the fields
         let path = parser
             .reader
             .get_filename(item.file)
-            .map(|f| fs::canonicalize(f).unwrap_or_default());
+            .map(|f| fs::canonicalize(f).unwrap_or_default())
+            .map(|p| p.to_str().unwrap_or_default().to_string());
         let level = match item.level {
             SeverityLevel::Error => "Error",
             SeverityLevel::Warning => "Warning",
@@ -161,25 +163,13 @@ impl JSONPrint {
             SeverityLevel::Hint => "Hint",
         };
 
-        // Convert to JSON
-        json!({
-            "file": path,
-            "title": item.title,
-            "description": item.description,
-            "level": level,
-            "range": {
-                "start" : self.position_to_json(item.range.start),
-                "end" : self.position_to_json(item.range.end),
-            }
-        })
-    }
-
-    fn position_to_json(&self, pos: Position) -> Value {
-        json!({
-            "line": pos.line,
-            "column": pos.column,
-            "raw": pos.raw_index,
-        })
+        DiagnosticTestCase {
+            file: path,
+            title: item.title.clone(),
+            description: item.description.clone(),
+            level: level.to_string(),
+            range: item.range.clone().into(),
+        }
     }
 }
 
@@ -189,11 +179,11 @@ impl ErrorDisplay for JSONPrint {
         let sub: Vec<_> = self
             .diagnostics
             .iter()
-            .map(|d| self.to_json(parser, d))
+            .map(|d| self.wrap_item(parser, d))
             .collect();
 
         // Print the results
-        let out = json!({ "diagnostics": sub });
+        let out = TestCase { diagnostics: sub };
         let text = serde_json::to_string_pretty(&out).unwrap();
         println!("{}", text);
     }
