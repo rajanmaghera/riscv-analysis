@@ -3,12 +3,12 @@ use std::fs;
 
 use colored::Colorize;
 
-use riscv_analysis::parser::{Position, RVParser};
+use riscv_analysis::parser::RVParser;
 use riscv_analysis::passes::{DiagnosticItem, SeverityLevel};
 use riscv_analysis::reader::FileReader;
 use uuid::Uuid;
 
-use riscv_analysis_cli::wrapper::{DiagnosticTestCase, TestCase, PositionTestCase, RangeTestCase};
+use riscv_analysis_cli::wrapper::{DiagnosticTestCase, TestCase};
 
 pub trait ErrorDisplay {
     fn display_errors<T: FileReader + Clone>(&mut self, parser: &RVParser<T>);
@@ -168,18 +168,7 @@ impl JSONPrint {
             title: item.title.clone(),
             description: item.description.clone(),
             level: level.to_string(),
-            range: RangeTestCase {
-                start: self.wrap_position(item.range.start),
-                end: self.wrap_position(item.range.end),
-            }
-        }
-    }
-
-    fn wrap_position(&self, pos: Position) -> PositionTestCase {
-        PositionTestCase {
-            line: pos.line,
-            column: pos.column,
-            raw: pos.raw_index,
+            range: item.range.clone().into(),
         }
     }
 }

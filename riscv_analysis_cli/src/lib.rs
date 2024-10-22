@@ -1,4 +1,5 @@
 pub mod wrapper {
+    use riscv_analysis::parser::{Position, Range};
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Debug)]
@@ -26,5 +27,24 @@ pub mod wrapper {
         pub line: usize,
         pub column: usize,
         pub raw: usize,
+    }
+
+    impl From<Position> for PositionTestCase {
+        fn from(value: Position) -> Self {
+            Self {
+                line: value.line,
+                column: value.column,
+                raw: value.raw_index,
+            }
+        }
+    }
+
+    impl From<Range> for RangeTestCase {
+        fn from(value: Range) -> Self {
+            Self {
+                start: value.start.into(),
+                end: value.end.into(),
+            }
+        }
     }
 }
