@@ -115,13 +115,26 @@ impl BaseCfgGen for Vec<ParserNode> {
 }
 impl Cfg {
     pub fn new(old_nodes: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
+        Cfg::new_with_predefined_call_names(old_nodes, None)
+    }
+
+    pub fn new_with_predefined_call_names(
+        old_nodes: Vec<ParserNode>,
+        predefined_call_names: Option<HashSet<With<LabelString>>>,
+    ) -> Result<Cfg, Box<CfgError>> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
         let mut current_labels = HashSet::new();
         let mut all_labels = HashSet::new();
 
         let label_names = old_nodes.label_names();
-        let call_names = old_nodes.call_names();
+        let call_names = {
+            let mut set = old_nodes.call_names();
+            if let Some(new_set) = predefined_call_names {
+                set.extend(new_set);
+            }
+            set
+        };
         let jump_names = old_nodes.jump_names();
         let load_names = old_nodes.load_names();
 
