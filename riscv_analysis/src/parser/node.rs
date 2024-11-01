@@ -352,6 +352,7 @@ impl ParserNode {
                     && x.rs1 == Register::X1
                     && x.imm == Imm(0)
             }
+            ParserNode::Basic(x) => x.inst == BasicType::Uret,
             _ => false,
         }
     }
