@@ -30,3 +30,5 @@ pub use register_set::*;
 
 mod available_value_map;
 pub use available_value_map::*;
+
+mod interrupt_handler;
