@@ -8,7 +8,7 @@ use std::rc::Rc;
 use serde::{Deserialize, Serialize};
 
 use crate::cfg::AvailableValueMap;
-use crate::parser::{LabelString, RegSets};
+use crate::parser::{LabelString, RegSets, With};
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
 
@@ -34,7 +34,7 @@ pub enum AvailableValue {
     /// This is used when loading the address from a label. For example, using
     /// the `la` instruction to load the address of a label into a register.
     #[serde(rename = "a")]
-    Address(LabelString),
+    Address(With<LabelString>),
     /// The value of a memory location at some offset.
     ///
     /// This is a copy of the actual bit of memory that lives at plus some offset.
@@ -263,7 +263,7 @@ fn rule_expand_address_for_load(
             } else if let Some(AvailableValue::Address(label)) = available_in.get(&load.rs1.data) {
                 available_out.insert(
                     store_reg.data,
-                    AvailableValue::Memory(label.clone(), load.imm.data.0),
+                    AvailableValue::Memory(label.clone().data, load.imm.data.0),
                 );
             }
         }
