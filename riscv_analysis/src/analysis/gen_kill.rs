@@ -65,10 +65,9 @@ impl ParserNode {
         // The function entry case and program entry case is handled separately
         // to account for all the "original" registers.
         match self {
-            ParserNode::LoadAddr(expr) => Some((
-                expr.rd.data,
-                AvailableValue::Address(expr.name.data.clone()),
-            )),
+            ParserNode::LoadAddr(expr) => {
+                Some((expr.rd.data, AvailableValue::Address(expr.name.clone())))
+            }
             ParserNode::Load(expr) => Some((
                 expr.rd.data,
                 AvailableValue::MemoryAtRegister(expr.rs1.data, expr.imm.data.0),
