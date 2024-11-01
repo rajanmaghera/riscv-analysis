@@ -23,9 +23,15 @@ pub struct DebugInfo {
 
 pub struct Manager;
 impl Manager {
-    pub fn gen_full_cfg(cfg: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
-        let mut cfg = Cfg::new(cfg)?;
+    pub fn gen_full_cfg(nodes: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
+        // Stage 1: Generate names of interrupt handler functions
+        let mut cfg = Cfg::new(nodes.clone())?;
+        NodeDirectionPass::run(&mut cfg)?;
+        AvailableValuePass::run(&mut cfg)?;
+        let interrupt_call_names = cfg.get_names_of_interrupt_handler_functions();
 
+        // Stage 2: Generate full CFG
+        let mut cfg = Cfg::new_with_predefined_call_names(nodes, Some(interrupt_call_names))?;
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
         AvailableValuePass::run(&mut cfg)?;
