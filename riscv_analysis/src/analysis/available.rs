@@ -221,8 +221,8 @@ fn rule_zero_to_const(
         match val.1 {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
-                if r == &Register::X0 {
-                    available_out.insert(*val.0, AvailableValue::Constant(*i));
+                if r == Register::X0 {
+                    available_out.insert(val.0, AvailableValue::Constant(i));
                 }
             }
             _ => {}
@@ -232,8 +232,8 @@ fn rule_zero_to_const(
         match val.1 {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
-                if r == &Register::X0 {
-                    memory_out.insert(val.0.clone(), AvailableValue::Constant(*i));
+                if r == Register::X0 {
+                    memory_out.insert(val.0.clone(), AvailableValue::Constant(i));
                 }
             }
             _ => {}
@@ -351,7 +351,7 @@ fn rule_known_values_to_stack(
     memory_out: &mut AvailableValueMap<MemoryLocation>,
     available_in: &AvailableValueMap<Register>,
 ) {
-    for (pos, val) in memory_out.clone() {
+    for (pos, val) in memory_out.iter() {
         if let AvailableValue::RegisterWithScalar(reg, off) = val {
             if let Some(item) = available_in.get(&reg) {
                 match item {
