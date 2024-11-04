@@ -1,9 +1,7 @@
 // AVAILABLE VALUE ANALYSIS
 // ========================
 
-use std::collections::HashSet;
 use std::hash::Hash;
-use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
@@ -101,6 +99,11 @@ impl GenerationPass for AvailableValuePass {
     fn run(cfg: &mut crate::cfg::Cfg) -> Result<(), Box<CfgError>> {
         let mut changed = true;
 
+        for node in cfg.iter() {
+            node.set_reg_values_out(AvailableValueMap::universe());
+            node.set_memory_values_out(AvailableValueMap::universe());
+        }
+
         // Because of this type of algorithm, there might be a back branch,
         // like a loop, that has not been visited before the first in[n] is
         // calculated. To fix this, we keep track of what nodes have been
@@ -108,16 +111,15 @@ impl GenerationPass for AvailableValuePass {
         // We still ensure that, by the end, all nodes have been visited and
         // the values with the correct previous nodes are calculated.
         #[allow(clippy::mutable_key_type)]
-        let mut visited = HashSet::new();
         while changed {
             changed = false;
             for node in cfg.iter() {
+
                 // in[n] = AND out[p] for all p in prev[n]
                 let in_reg_n = node
                     .prevs()
                     .clone()
                     .into_iter()
-                    .filter(|x| visited.contains(x))
                     .map(|x| x.reg_values_out())
                     .reduce(|mut acc, x| {
                         acc &= &x;
@@ -131,7 +133,6 @@ impl GenerationPass for AvailableValuePass {
                     .prevs()
                     .clone()
                     .into_iter()
-                    .filter(|x| visited.contains(x))
                     .map(|x| x.memory_values_out())
                     .reduce(|mut acc, x| {
                         acc &= &x;
@@ -196,9 +197,6 @@ impl GenerationPass for AvailableValuePass {
                     changed = true;
                     node.set_memory_values_out(out_memory_n);
                 }
-
-                // Add node to visited
-                visited.insert(Rc::clone(&node));
             }
         }
         Ok(())
@@ -221,8 +219,8 @@ fn rule_zero_to_const(
         match val.1 {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
-                if r == &Register::X0 {
-                    available_out.insert(*val.0, AvailableValue::Constant(*i));
+                if r == Register::X0 {
+                    available_out.insert(val.0, AvailableValue::Constant(i));
                 }
             }
             _ => {}
@@ -232,8 +230,8 @@ fn rule_zero_to_const(
         match val.1 {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
-                if r == &Register::X0 {
-                    memory_out.insert(val.0.clone(), AvailableValue::Constant(*i));
+                if r == Register::X0 {
+                    memory_out.insert(val.0.clone(), AvailableValue::Constant(i));
                 }
             }
             _ => {}
@@ -351,7 +349,7 @@ fn rule_known_values_to_stack(
     memory_out: &mut AvailableValueMap<MemoryLocation>,
     available_in: &AvailableValueMap<Register>,
 ) {
-    for (pos, val) in memory_out.clone() {
+    for (pos, val) in memory_out.iter() {
         if let AvailableValue::RegisterWithScalar(reg, off) = val {
             if let Some(item) = available_in.get(&reg) {
                 match item {

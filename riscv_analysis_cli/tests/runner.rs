@@ -50,7 +50,7 @@ fn output_eq(actual: TestCase, expected: TestCase) -> bool {
 fn run_test(asm: PathBuf, results: PathBuf) {
     // Change the CWD to the directory of this file
     let dir = PathBuf::from("tests/");
-    env::set_current_dir(dir).unwrap();
+    let _ = env::set_current_dir(dir);
 
     // Run RVA on the input assembly
     let mut bin = rva_bin();
@@ -79,5 +79,12 @@ fn no_args() {
 fn sample() {
     let asm = PathBuf::from("./sample/unused-value.s");
     let out = PathBuf::from("./sample/unused-value.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn av_control_flow_order() {
+    let asm = PathBuf::from("./available-value/control-flow-order.s");
+    let out = PathBuf::from("./available-value/control-flow-order.json");
     run_test(asm, out);
 }

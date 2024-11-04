@@ -1,79 +1,162 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::{BitAndAssign, SubAssign};
-
 use itertools::Itertools;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{analysis::AvailableValue, parser::Register};
 
 use super::RegisterSet;
 
+/// A set that is either a finite set, or the universe subtract a finite set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum MaybeUniverse<T: PartialEq + Eq + Hash> {
+    Finite(HashMap<T, AvailableValue>),
+    Universe(HashSet<T>),
+}
+
+impl<T: PartialEq + Eq + Hash> MaybeUniverse<T> {
+    /// Return a new set with value V - {}.
+    pub fn universe() -> Self {
+        Self::Universe(HashSet::new())
+    }
+
+    pub fn empty() -> Self {
+        Self::Finite(HashMap::new())
+    }
+}
+
 /// A map from a generic item to an available value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AvailableValueMap<T: PartialEq + Eq + Hash> {
     /// The map from the item to the available value.
-    map: HashMap<T, AvailableValue>,
+    map: MaybeUniverse<T>,
 }
 
-impl<T: PartialEq + Eq + Hash> AvailableValueMap<T> {
+impl<T: PartialEq + Eq + Hash + Clone> AvailableValueMap<T> {
     /// Create a new `AvailableValueMap` with no values.
     #[must_use]
     pub fn new() -> Self {
         Self {
-            map: HashMap::new(),
+            map: MaybeUniverse::empty(),
+        }
+    }
+
+    #[must_use]
+    pub fn universe() -> Self {
+        Self {
+            map: MaybeUniverse::universe(),
         }
     }
 
     /// Iterate over all values
-    pub fn iter(&self) -> impl Iterator<Item = (&T, &AvailableValue)> {
-        self.map.iter()
+    #[must_use]
+    pub fn iter(&self) -> AvailableValueIterator<T> {
+        AvailableValueIterator::new(self.clone())
     }
 
     /// Get the available value for the given key.
     pub fn get(&self, item: &T) -> Option<&AvailableValue> {
-        self.map.get(item)
+        match &self.map {
+            MaybeUniverse::Finite(map) => map.get(item),
+            MaybeUniverse::Universe(_) => None,
+        }
     }
 
     /// Insert or replace the given item and available value into the map.
     pub fn insert(&mut self, key: T, value: AvailableValue) {
-        self.map.insert(key, value);
+        // self.map.insert(key, value);
+        match &mut self.map {
+            MaybeUniverse::Finite(map) => { map.insert(key, value); },
+            MaybeUniverse::Universe(set) => { set.remove(&key); },
+        };
     }
 
     /// Check if the available value map is empty.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.map.is_empty()
+        match &self.map {
+            MaybeUniverse::Finite(map) => map.is_empty(),
+            MaybeUniverse::Universe(_) => false,
+        }
     }
 
     /// Get the number of items in the available value map.
     #[must_use]
     pub fn len(&self) -> usize {
-        self.map.len()
+        match &self.map {
+            MaybeUniverse::Finite(map) => map.len(),
+            // FIXME: Length should not be zero
+            MaybeUniverse::Universe(_) => 0,
+        }
     }
 
     /// Extend the available value map with another available value map.
     pub fn extend(&mut self, other: Self) {
-        self.map.extend(other.map);
+        match &mut self.map {
+            MaybeUniverse::Finite(map) => {
+                match other.map {
+                    // A | B
+                    MaybeUniverse::Finite(o_map) => {
+                        map.extend(o_map.clone());
+                    },
+                    // A | (V - B) = V - (B - A)
+                    MaybeUniverse::Universe(mut o_set) => {
+                        o_set.retain(|key| !map.contains_key(key));
+                        self.map = MaybeUniverse::Universe(o_set.clone());
+                    },
+                };
+            },
+            MaybeUniverse::Universe(set) => {
+                match &other.map {
+                    // (V - A) | B = V - (A - B)
+                    MaybeUniverse::Finite(o_map) => {
+                        set.retain(|key| !o_map.contains_key(key));
+                    },
+                    // (V - A) | (V - B) = V - (A & B)
+                    MaybeUniverse::Universe(o_set) => {
+                        set.retain(|key| o_set.contains(key));
+                    },
+                };
+            },
+        }
     }
 }
 
-impl<T: PartialEq + Eq + Hash> IntoIterator for AvailableValueMap<T> {
+pub struct AvailableValueIterator<T: PartialEq + Eq + Hash> {
+    values: Vec<(T, AvailableValue)>,
+}
+
+impl<T: PartialEq + Eq + Hash> AvailableValueIterator<T> {
+    #[must_use]
+    pub fn new(map: AvailableValueMap<T>) -> Self {
+        let values = match map.map {
+            MaybeUniverse::Finite(map) => map,
+            MaybeUniverse::Universe(_set) => HashMap::new(),
+        }.into_iter().collect::<Vec<_>>();
+
+        Self {
+            values,
+        }
+    }
+
+}
+
+impl<T: PartialEq + Eq + Hash> Iterator for AvailableValueIterator<T> {
     type Item = (T, AvailableValue);
-    type IntoIter = std::collections::hash_map::IntoIter<T, AvailableValue>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.map.into_iter()
+    fn next(&mut self) -> Option<Self::Item> {
+        self.values.pop()
     }
 }
 
-impl<'a, T: PartialEq + Eq + Hash> IntoIterator for &'a AvailableValueMap<T> {
-    type Item = (&'a T, &'a AvailableValue);
-    type IntoIter = std::collections::hash_map::Iter<'a, T, AvailableValue>;
-
+impl<T: PartialEq + Eq + Hash + Clone> IntoIterator for &AvailableValueMap<T> {
+    type IntoIter = AvailableValueIterator<T>;
+    type Item = (T, AvailableValue);
     fn into_iter(self) -> Self::IntoIter {
-        self.map.iter()
+        self.iter()
     }
 }
 
@@ -105,7 +188,7 @@ impl AvailableValueMap<Register> {
     }
 }
 
-impl<T: PartialEq + Eq + Hash> Default for AvailableValueMap<T> {
+impl<T: PartialEq + Eq + Hash + Clone> Default for AvailableValueMap<T> {
     fn default() -> Self {
         Self::new()
     }
@@ -116,22 +199,50 @@ impl<T: PartialEq + Eq + Hash> Default for AvailableValueMap<T> {
 impl<T: Iterator<Item = Register>> SubAssign<T> for AvailableValueMap<Register> {
     fn sub_assign(&mut self, other: T) {
         for register in other {
-            self.map.remove(&register);
+            match &mut self.map {
+                MaybeUniverse::Finite(map) => { map.remove(&register); },
+                MaybeUniverse::Universe(set) => { set.insert(register); },
+            }
         }
     }
 }
 
-impl<T: PartialEq + Eq + Hash> BitAndAssign<&AvailableValueMap<T>> for AvailableValueMap<T> {
+impl<T: PartialEq + Eq + Hash + Clone> BitAndAssign<&AvailableValueMap<T>> for AvailableValueMap<T> {
     fn bitand_assign(&mut self, other: &AvailableValueMap<T>) {
-        self.map
-            .retain(|key, value| other.map.get(key) == Some(value));
+        match &mut self.map {
+            MaybeUniverse::Finite(map) => {
+                match &other.map {
+                    // A & B
+                    MaybeUniverse::Finite(o_map) => {
+                        map.retain(|key, value| o_map.get(key) == Some(value));
+                    },
+                    // A & (V - B) = A - B
+                    MaybeUniverse::Universe(o_set) => {
+                        map.retain(|key, _value| !o_set.contains(key));
+                    },
+                };
+            },
+            MaybeUniverse::Universe(set) => {
+                match &other.map {
+                    // (V - B) & A = A - B
+                    MaybeUniverse::Finite(o_map) => {
+                        let mut map = o_map.clone();
+                        map.retain(|key, _value| !set.contains(key));
+                        self.map = MaybeUniverse::Finite(map);
+                    },
+                    // (V - A) & (V - B) = V - (A | B)
+                    MaybeUniverse::Universe(o_set) => {
+                        set.extend(o_set.iter().cloned());
+                    },
+                };
+            },
+        }
     }
 }
 
-impl<T: PartialEq + Eq + Hash + Display> std::fmt::Display for AvailableValueMap<T> {
+impl<T: PartialEq + Eq + Hash + Clone + Display> std::fmt::Display for AvailableValueMap<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let values = self
-            .map
             .iter()
             .map(|(reg, val)| format!("{reg}: {val}"))
             .sorted()
@@ -140,7 +251,7 @@ impl<T: PartialEq + Eq + Hash + Display> std::fmt::Display for AvailableValueMap
     }
 }
 
-impl<'a, T: PartialEq + Eq + Hash + Deserialize<'a>> Deserialize<'a> for AvailableValueMap<T> {
+impl<'a, T: PartialEq + Eq + Hash + Clone + Deserialize<'a>> Deserialize<'a> for AvailableValueMap<T> {
     fn deserialize<D>(deserializer: D) -> Result<AvailableValueMap<T>, D::Error>
     where
         D: serde::Deserializer<'a>,
@@ -154,20 +265,19 @@ impl<'a, T: PartialEq + Eq + Hash + Deserialize<'a>> Deserialize<'a> for Availab
     }
 }
 
-impl<T: PartialEq + Eq + Hash + Serialize + Ord> Serialize for AvailableValueMap<T> {
+impl<T: PartialEq + Eq + Hash + Serialize + Ord + Clone> Serialize for AvailableValueMap<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        self.map
-            .iter()
-            .sorted_by_key(|(key, _)| *key)
+        self.iter()
+            .sorted_by_key(|(key, _)| key.clone())
             .collect::<BTreeMap<_, _>>()
             .serialize(serializer)
     }
 }
 
-impl<T: PartialEq + Eq + Hash> FromIterator<(T, AvailableValue)> for AvailableValueMap<T> {
+impl<T: PartialEq + Eq + Hash + Clone> FromIterator<(T, AvailableValue)> for AvailableValueMap<T> {
     fn from_iter<I: IntoIterator<Item = (T, AvailableValue)>>(iter: I) -> Self {
         let mut map = AvailableValueMap::new();
         for (key, value) in iter {
@@ -201,7 +311,7 @@ impl AvailableValueMap<Register> {
         if condition {
             let mut new = self.clone();
             for (reg, value) in other {
-                new.insert(*reg, value.clone());
+                new.insert(reg, value.clone());
             }
             new
         } else {
@@ -238,13 +348,13 @@ mod test {
         assert_eq!(
             map_iter.next(),
             Some((
-                &Register::X1,
-                &AvailableValue::OriginalRegisterWithScalar(Register::X1, 0)
+                Register::X1,
+                AvailableValue::OriginalRegisterWithScalar(Register::X1, 0)
             ))
         );
         assert_eq!(
             map_iter.next(),
-            Some((&Register::X2, &AvailableValue::Constant(18)))
+            Some((Register::X2, AvailableValue::Constant(18)))
         );
         assert!(map_iter.next().is_none(), "Map should be empty");
     }
