@@ -1,0 +1,22 @@
+{
+  "diagnostics": [
+    {
+      "file": "checks/no-invalid-assign-for-ret.s",
+      "title": "Unused value",
+      "description": "Unused value",
+      "level": "Warning",
+      "range": {
+        "start": {
+          "line": 5,
+          "column": 12,
+          "raw": 62
+        },
+        "end": {
+          "line": 5,
+          "column": 13,
+          "raw": 63
+        }
+      }
+    }
+  ]
+}
