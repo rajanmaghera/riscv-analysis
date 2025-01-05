@@ -48,7 +48,7 @@ impl Serialize for MemoryLocation {
 
 struct MemoryLocationVisitor;
 
-impl<'de> Visitor<'de> for MemoryLocationVisitor {
+impl Visitor<'_> for MemoryLocationVisitor {
     type Value = MemoryLocation;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

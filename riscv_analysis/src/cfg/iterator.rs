@@ -38,7 +38,7 @@ impl<'a> CfgIterator<'a> {
     }
 }
 
-impl<'a> Iterator for CfgIterator<'a> {
+impl Iterator for CfgIterator<'_> {
     type Item = Rc<CfgNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -56,7 +56,7 @@ impl<'a> Iterator for CfgIterator<'a> {
     }
 }
 
-impl<'a> DoubleEndedIterator for CfgIterator<'a> {
+impl DoubleEndedIterator for CfgIterator<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if !self.in_bounds() {
             return None;

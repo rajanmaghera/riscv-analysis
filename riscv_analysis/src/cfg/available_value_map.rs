@@ -177,7 +177,7 @@ impl<T: PartialEq + Eq + Hash> FromIterator<(T, AvailableValue)> for AvailableVa
     }
 }
 
-/// LEGACY METHODS:
+// LEGACY METHODS:
 
 impl AvailableValueMap<Register> {
     #[must_use]
