@@ -9,38 +9,45 @@ Rust. It is designed to detect coding convention violations against RISC-V
 register conventions and calling conventions. RVA is built on top of the
 [RISC-V Instruction Set Manual](https://riscv.org/specifications/).
 
-
-RVA is available as a VSCode extension or a command line tool.
+RVA is available as a command line tool.
 
 ## Installation
 
-### VSCode Extension
-
-1. Install [VSCode](https://code.visualstudio.com/).
-2. Download the RVA `.vsix` file from the [latest release](github.com/rajanmaghera/riscv-analysis/releases/latest).
-3. Navigate to the extensions tab in VSCode.
-4. Click the three dots in the top right corner and select "Install from VSIX..."
-5. Select the RVA `.vsix` file you downloaded.
-6. Reload VSCode.
-
-The RVA extension should now be installed and will be activated when you open
-a `.s` file. 
-
-If you cannot see any errors, try opening the command palette `Ctrl/Cmd-Shift-P` 
-and running `Developer: Reload Window`.
-
-### CLI
+### Windows / MacOS / Linux
 
 1. Download the RVA binary for your platform from the [latest release](github.com/rajanmaghera/riscv-analysis/releases/latest).
 2. Add the RVA binary to your path.
 3. Run `rva` from the command line.
 
+### Build From Source
+
+Install [Rust](https://www.rust-lang.org/tools/install).
+Clone this repository, or download the source from the [latest release](github.com/rajanmaghera/riscv-analysis/releases/latest).
+Finally, build RVA with the following command:
+
+``` sh
+cargo build --release
+```
+
+The RVA binary is located at `target/release/rva`.
+
 ## Usage
+
+To detect all errors present in an assembly file, run the following command:
+
+``` sh
+rva lint path/to/asm.s
+```
+
+## Reporting an Issue
 
 If you have any issues, please open an issue on the GitHub issues page. Please
 include the assembly code that is causing the issue. If you are unable to share
 the code, please send an email to rmaghera@ualberta.ca with the code segment. If
 you are a student in CMPUT 229, this does not count as a sharing violation.
+
+**RVA is in active development and has many limitations. Before opening an issue,
+check the list of [known limitations](./KNOWN_ISSUES.md)**
 
 ## About the Analysis
 
