@@ -24,6 +24,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         RUSTTARGET: ${{ matrix.target }}
+        STATIC_LINKING: false
         ARCHIVE_TYPES: ${{ matrix.archive }}
         TOOLCHAIN_VERSION: stable
         EXTRA_FILES: "README.md LICENSE"
