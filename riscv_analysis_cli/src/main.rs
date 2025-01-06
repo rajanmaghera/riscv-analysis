@@ -6,8 +6,8 @@ use std::io::Write;
 use std::vec;
 use std::{collections::HashMap, str::FromStr};
 
-use bat::line_range::{LineRange, LineRanges};
-use bat::{Input, PrettyPrinter};
+// use bat::line_range::{LineRange, LineRanges};
+// use bat::{Input, PrettyPrinter};
 use colored::Colorize;
 use riscv_analysis::fix::{fix_stack, Manipulation};
 use riscv_analysis::parser::{Info, LabelString, RVParser, With};
@@ -163,23 +163,23 @@ impl IOFileReader {
         }
 
         // display changed ranges
-        for changed_range in changed_ranges {
-            let input =
-                Input::from_reader(changed_files.get(&changed_range.file).unwrap().1.as_bytes())
-                    .name(changed_range.filename.clone());
-            PrettyPrinter::new()
-                .input(input)
-                .line_numbers(true)
-                .header(true)
-                .grid(true)
-                .line_ranges(LineRanges::from(vec![LineRange::new(
-                    changed_range.begin_window + 1,
-                    changed_range.end_window + 1,
-                )]))
-                .highlight_range(changed_range.begin_change + 1, changed_range.end_change + 1)
-                .print()
-                .unwrap();
-        }
+        // for changed_range in changed_ranges {
+        //     let input =
+        //         Input::from_reader(changed_files.get(&changed_range.file).unwrap().1.as_bytes())
+        //             .name(changed_range.filename.clone());
+        //     PrettyPrinter::new()
+        //         .input(input)
+        //         .line_numbers(true)
+        //         .header(true)
+        //         .grid(true)
+        //         .line_ranges(LineRanges::from(vec![LineRange::new(
+        //             changed_range.begin_window + 1,
+        //             changed_range.end_window + 1,
+        //         )]))
+        //         .highlight_range(changed_range.begin_change + 1, changed_range.end_change + 1)
+        //         .print()
+        //         .unwrap();
+        // }
 
         // ask user to apply changes
         let mut apply_changes = false;
