@@ -185,7 +185,7 @@ impl LintPass for GarbageInputValueCheck {
                 }
             } else if let Some(func) = node.is_function_entry() {
                 let args = func.arguments();
-                let garbage = node.live_in() - args - RegSets::saved();
+                let garbage = node.live_in() - args - RegSets::callee_saved();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
