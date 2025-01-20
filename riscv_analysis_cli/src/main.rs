@@ -9,8 +9,8 @@ use std::{collections::HashMap, str::FromStr};
 // use bat::line_range::{LineRange, LineRanges};
 // use bat::{Input, PrettyPrinter};
 use colored::Colorize;
-use riscv_analysis::fix::{fix_stack, Manipulation};
-use riscv_analysis::parser::{Info, LabelString, RVParser, With};
+use riscv_analysis::fix::Manipulation;
+use riscv_analysis::parser::RVParser;
 use riscv_analysis::passes::DiagnosticItem;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -32,13 +32,6 @@ enum Commands {
     /// Lint a file
     #[clap(name = "lint")]
     Lint(Lint),
-    /// Fix known errors in a file
-    ///
-    /// This will attempt to fix known errors in a file.
-    /// Known issues include incorrect stack saving, multiple returns, and mismatched register names.
-    /// (not implemented)
-    #[clap(name = "fix")]
-    Fix(Fix),
     /// Debug options for testing
     #[clap(name = "debug_parse")]
     DebugParse(DebugParse),
@@ -88,6 +81,7 @@ struct IOFileReader {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum ManipulationError {
     InternalError,
 }
@@ -106,6 +100,7 @@ impl IOFileReader {
             files: HashMap::new(),
         }
     }
+    #[allow(dead_code)]
     fn apply_fixes(&self, fixes: Vec<Manipulation>) -> Result<(), ManipulationError> {
         struct ChangedRanges {
             filename: String,
@@ -319,34 +314,12 @@ fn main() {
                     let mut printer = JSONPrint::new(diags);
                     printer.display_errors(&parser);
                 }
-
                 // Pretty print output
                 else {
                     let mut printer = PrettyPrint::new(diags);
                     printer.display_errors(&parser);
                 }
             }
-        }
-        Commands::Fix(fix) => {
-            let reader = IOFileReader::new();
-            let mut parser = RVParser::new(reader);
-            let parsed = parser.parse_from_file(
-                fix.input
-                    .to_str()
-                    .expect("unable to convert path to string"),
-                false,
-            );
-            let cfg = Manager::gen_full_cfg(parsed.0).expect("unable to generate full cfg");
-
-            let funcs = cfg.functions();
-            let func = funcs
-                .get(&With::new(
-                    LabelString(fix.func_name.clone()),
-                    Info::default(),
-                ))
-                .expect("unable to find function");
-            let fixes = fix_stack(func);
-            parser.reader.apply_fixes(fixes).unwrap();
         }
         Commands::DebugParse(debu) => {
             // Debug mode that prints out parsing errors only
