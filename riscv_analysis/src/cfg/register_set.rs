@@ -94,7 +94,7 @@ impl Default for RegisterSet {
     }
 }
 
-impl<'a> Iterator for RegisterSetIter<'a> {
+impl Iterator for RegisterSetIter<'_> {
     type Item = Register;
 
     fn next(&mut self) -> Option<Self::Item> {

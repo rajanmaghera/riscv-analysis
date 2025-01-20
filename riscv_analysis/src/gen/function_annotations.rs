@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc, vec};
+use std::{rc::Rc, vec};
 
 use crate::{
     cfg::{Cfg, CfgNode, Function, RegisterSet},

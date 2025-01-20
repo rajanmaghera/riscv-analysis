@@ -235,7 +235,7 @@ impl Display for Token {
 }
 
 pub struct VecTokenDisplayWrapper<'a>(&'a Vec<Info>);
-impl<'a> Display for VecTokenDisplayWrapper<'a> {
+impl Display for VecTokenDisplayWrapper<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for t in self.0 {
             write!(f, "{t}")?;
