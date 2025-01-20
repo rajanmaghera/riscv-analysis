@@ -3,7 +3,6 @@ use printer::*;
 
 use std::fmt::Display;
 use std::io::Write;
-use std::vec;
 use std::{collections::HashMap, str::FromStr};
 
 // use bat::line_range::{LineRange, LineRanges};
