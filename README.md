@@ -15,14 +15,14 @@ RVA is available as a command line tool.
 
 ### Windows / MacOS / Linux
 
-1. Download the RVA binary for your platform from the [latest release](github.com/rajanmaghera/riscv-analysis/releases/latest).
+1. Download the RVA binary for your platform from the [latest release](https://github.com/rajanmaghera/riscv-analysis/releases/latest).
 2. Add the RVA binary to your path.
 3. Run `rva` from the command line.
 
 ### Build From Source
 
 Install [Rust](https://www.rust-lang.org/tools/install).
-Clone this repository, or download the source from the [latest release](github.com/rajanmaghera/riscv-analysis/releases/latest).
+Clone this repository, or download the source from the [latest release](https://github.com/rajanmaghera/riscv-analysis/releases/latest).
 Finally, build RVA with the following command:
 
 ``` sh
