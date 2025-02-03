@@ -2,6 +2,7 @@
 set(
   arm_parser_src_files
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/streamer.cc"
 )
 
 # Build the executable

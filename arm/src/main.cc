@@ -1,3 +1,5 @@
+#include "streamer.hh"
+
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/MC/TargetRegistry.h"
@@ -101,8 +103,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<llvm::MCAsmBackend> MAB(
         target->createMCAsmBackend(*STI, *MRI, MCOptions));
     auto FOut = std::make_unique<llvm::formatted_raw_ostream>(*output);
-    Str.reset(target->createAsmStreamer(Ctx, std::move(FOut), IP,
-                                           std::move(CE), std::move(MAB)));
+    Str.reset(new DumpStreamer(Ctx));
 
     // Assemble the input
     std::unique_ptr<llvm::MCAsmParser> parser(llvm::createMCAsmParser(src_mgr, Ctx, *Str, *MAI));
@@ -117,6 +118,5 @@ int main(int argc, char **argv) {
     parser->setTargetParser(*TAP);
     bool result = parser->Run(true);
 
-    std::cout << "What could go wrong\n";
     return 0;
 }
