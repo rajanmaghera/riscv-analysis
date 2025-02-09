@@ -3,12 +3,11 @@
 #include <llvm/MC/MCContext.h>
 #include <llvm/MC/MCInst.h>
 
-DumpStreamer::DumpStreamer(llvm::MCContext &context)
-    : MCStreamer(context) {
+DumpStreamer::DumpStreamer(llvm::MCContext &context) : MCStreamer(context) {
 };
 
 bool DumpStreamer::emitSymbolAttribute(llvm::MCSymbol *Symbol, llvm::MCSymbolAttr Attribute) {
-    // Do nothing
+    // Pretend that everything succeeds
     return true;
 }
 
