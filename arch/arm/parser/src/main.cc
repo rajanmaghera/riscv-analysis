@@ -49,8 +49,6 @@ static llvm::cl::opt<std::string> InputFilename(llvm::cl::Positional,
                                                 llvm::cl::cat(MCCategory));
 
 int main(int argc, char **argv) {
-    std::cout << "This is a test\n";
-
     llvm::InitLLVM X(argc, argv);
 
     // Initialize targets and assembly printers/parsers.
@@ -103,7 +101,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<llvm::MCAsmBackend> MAB(
         target->createMCAsmBackend(*STI, *MRI, MCOptions));
     auto FOut = std::make_unique<llvm::formatted_raw_ostream>(*output);
-    Str.reset(new DumpStreamer(Ctx));
+    Str.reset(new DumpStreamer(Ctx, *IP, *MRI, *MAI));
 
     // Assemble the input
     std::unique_ptr<llvm::MCAsmParser> parser(llvm::createMCAsmParser(src_mgr, Ctx, *Str, *MAI));

@@ -1,0 +1,10 @@
+.text
+
+main:
+    sub     w0, w0, #1234
+    b       skip
+dead:
+    add     w0, w0, #1
+skip:
+    add     w0, w0, #2
+    ret
