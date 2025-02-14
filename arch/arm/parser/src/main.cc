@@ -101,7 +101,8 @@ int main(int argc, char **argv) {
     std::unique_ptr<llvm::MCAsmBackend> MAB(
         target->createMCAsmBackend(*STI, *MRI, MCOptions));
     auto FOut = std::make_unique<llvm::formatted_raw_ostream>(*output);
-    Str.reset(new DumpStreamer(Ctx, *IP, *MRI, *MAI));
+    DumpStreamer *ds = new DumpStreamer(Ctx, *IP, *MRI, *MAI);
+    Str.reset(ds);
 
     // Assemble the input
     std::unique_ptr<llvm::MCAsmParser> parser(llvm::createMCAsmParser(src_mgr, Ctx, *Str, *MAI));
@@ -116,5 +117,6 @@ int main(int argc, char **argv) {
     parser->setTargetParser(*TAP);
     bool result = parser->Run(true);
 
+    std::cout << ds->dump_instructions();
     return 0;
 }

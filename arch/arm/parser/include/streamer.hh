@@ -1,9 +1,11 @@
 #pragma once
 
+#include "instruction.hh"
 #include <llvm/MC/MCAsmInfo.h>
 #include <llvm/MC/MCInstPrinter.h>
 #include <llvm/MC/MCRegisterInfo.h>
 #include <llvm/MC/TargetRegistry.h>
+#include <vector>
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCStreamer.h"
@@ -22,8 +24,13 @@ public:
 	void emitInstruction(const llvm::MCInst &Inst, const llvm::MCSubtargetInfo &STI) override;
 	void emitLabel(llvm::MCSymbol *Symbol, llvm::SMLoc Loc = llvm::SMLoc()) override;
 
+	std::string dump_instructions();
+
 private:
 	llvm::MCInstPrinter &printer;
 	llvm::MCRegisterInfo &reg;
 	llvm::MCAsmInfo &mai;
+
+	InstructionStream instructions;
+	std::vector<Label> current_labels;
 };
