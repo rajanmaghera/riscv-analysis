@@ -19,7 +19,7 @@ fn main() {
     println!("cargo:rustc-link-search=native={}", dst.display());
 
     // Return the path of the parser binary
-    let bin_dir = dst.as_path().join("build/lib");
+    let bin_dir = dst.as_path().join("build/src");
     let bin = bin_dir.join("arm-parser");
     let bin = bin.to_str().unwrap();
     export_env("RVA_AARCH64_PARSER", bin);
