@@ -21,19 +21,22 @@ llvm::json::Value InstructionStream::to_json() {
 
 llvm::json::Value Register::to_json() {
     llvm::json::Object obj = llvm::json::Object();
-    obj["register"] = value;
+    obj["type"] = "register";
+    obj["value"] = value;
     return obj;
 }
 
 llvm::json::Value Integer::to_json() {
     llvm::json::Object obj = llvm::json::Object();
-    obj["integer"] = value;
+    obj["type"] = "integer";
+    obj["value"] = value;
     return obj;
 }
 
 llvm::json::Value Label::to_json() {
     llvm::json::Object obj = llvm::json::Object();
-    obj["label"] = value;
+    obj["type"] = "label";
+    obj["value"] = value;
     return obj;
 }
 
@@ -51,11 +54,11 @@ llvm::json::Value Instruction::to_json() {
 
     // Collect the operands
     llvm::json::Value operands = llvm::json::Array();
-    llvm::json::Array *o_acc = labels.getAsArray();
+    llvm::json::Array *o_acc = operands.getAsArray();
     for (auto i : this->operands) {
         o_acc->push_back(i->to_json());
     }
-    value["operands"] = labels;
+    value["operands"] = operands;
 
     return value;
 }

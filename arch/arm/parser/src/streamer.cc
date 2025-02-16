@@ -83,7 +83,7 @@ void DumpStreamer::emitLabel(llvm::MCSymbol *Symbol, llvm::SMLoc Loc) {
 std::string DumpStreamer::dump_instructions() {
     std::string out;
     llvm::raw_string_ostream os(out);
-    os << llvm::formatv("{0}", instructions.to_json());
-    // os << llvm::formatv("{0:2}", instructions.to_json());
+    // os << llvm::formatv("{0}", instructions.to_json());
+    os << llvm::formatv("{0:2}", instructions.to_json());
     return out;
 }
