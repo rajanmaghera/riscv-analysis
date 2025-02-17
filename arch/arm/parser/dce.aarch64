@@ -5,6 +5,7 @@ main:
     b       skip
 dead:
     add     w0, w0, #1
+    add     w0, w0, #10
 skip:
     add     w0, w0, #2
     ret

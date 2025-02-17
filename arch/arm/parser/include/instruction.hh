@@ -42,8 +42,11 @@ public:
     std::string opcode;
     std::vector<Label> labels;
     std::vector<Operand*> operands;
+    uint line = 0;
+    uint column = 0;
 
     llvm::json::Value to_json();
+    void set_location(uint line, uint column);
 };
 
 class InstructionStream {

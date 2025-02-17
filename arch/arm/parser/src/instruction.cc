@@ -60,5 +60,12 @@ llvm::json::Value Instruction::to_json() {
     }
     value["operands"] = operands;
 
+    value["line"] = line - 1;
+    value["column"] = column;
     return value;
+}
+
+void Instruction::set_location(uint line, uint column) {
+    this->line = line;
+    this->column = column;
 }

@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<llvm::MCAsmBackend> MAB(
         target->createMCAsmBackend(*STI, *MRI, MCOptions));
     auto FOut = std::make_unique<llvm::formatted_raw_ostream>(*output);
-    DumpStreamer *ds = new DumpStreamer(Ctx, *IP, *MRI, *MAI);
+    DumpStreamer *ds = new DumpStreamer(Ctx, *IP, *MRI, *MAI, src_mgr);
     Str.reset(ds);
 
     // Assemble the input

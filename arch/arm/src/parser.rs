@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::{absolute, PathBuf};
 use std::process::{Command, Stdio};
 use std::str::FromStr;
-use riscv_analysis::parser::{ArithType, IArithType, Imm, JumpLinkRType, JumpLinkType, Label, LabelString, ParserNode, Range, RawToken, Register, Token, With};
+use riscv_analysis::parser::{ArithType, IArithType, Imm, JumpLinkRType, JumpLinkType, Label, LabelString, ParserNode, Position, Range, RawToken, Register, Token, With};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -19,6 +19,8 @@ struct Instruction {
     pub opcode: String,
     pub labels: Vec<String>,
     pub operands: Vec<Operand>,
+    pub line: usize,
+    pub column: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,6 +64,29 @@ fn dummy_with<T>(data: T) -> With<T> {
         pos: Range::default(),
         file: Uuid::nil(),
         data,
+    }
+}
+
+fn _make_with<T>(data: T, line: usize, column: usize) -> With<T> {
+    With {
+        token: Token::default(),
+        pos: Range {
+            start: Position { line, column, raw_index: 0 },
+            end: Position { line, column: column + 1, raw_index: 0 },
+        },
+        file: Uuid::nil(),
+        data,
+    }
+}
+
+fn make_token(line: usize, column: usize, file_id: Uuid) -> RawToken {
+    RawToken {
+        text: "".to_string(),
+        pos: Range {
+            start: Position { line, column, raw_index: 0 },
+            end: Position { line, column: column + 1, raw_index: 0 },
+        },
+        file: file_id,
     }
 }
 
@@ -109,7 +134,7 @@ fn label_from_str(label: &str) -> ParserNode {
     return ParserNode::Label(l);
 }
 
-fn each_instruction(inst: &Instruction) -> Vec<ParserNode> {
+fn each_instruction(inst: &Instruction, file_id: Uuid) -> Vec<ParserNode> {
     let mut acc = vec![];
     for l in inst.labels.iter() {
         acc.push(label_from_str(&l));
@@ -122,7 +147,7 @@ fn each_instruction(inst: &Instruction) -> Vec<ParserNode> {
                 map_register(&inst.operands[0]),
                 map_register(&inst.operands[1]),
                 map_immediate(&inst.operands[2]),
-                RawToken::blank(),
+                make_token(inst.line, inst.column, file_id),
             )
         },
         "SUBWri" => {
@@ -131,7 +156,7 @@ fn each_instruction(inst: &Instruction) -> Vec<ParserNode> {
                 map_register(&inst.operands[0]),
                 map_register(&inst.operands[1]),
                 map_immediate(&inst.operands[2]),
-                RawToken::blank(),
+                make_token(inst.line, inst.column, file_id),
             )
         },
         "B" => {
@@ -139,7 +164,7 @@ fn each_instruction(inst: &Instruction) -> Vec<ParserNode> {
                 dummy_with(JumpLinkType::Jal),
                 dummy_with(Register::X0),
                 map_label(&inst.operands[0]),
-                RawToken::blank(),
+                make_token(inst.line, inst.column, file_id),
             )
         },
         "RET" => {
@@ -148,7 +173,7 @@ fn each_instruction(inst: &Instruction) -> Vec<ParserNode> {
                 dummy_with(Register::X0),
                 map_register(&inst.operands[0]),
                 dummy_with(Imm(0)),
-                RawToken::blank(),
+                make_token(inst.line, inst.column, file_id),
             )
         },
         e => panic!("Unknown opcode: {}", e),
@@ -158,12 +183,12 @@ fn each_instruction(inst: &Instruction) -> Vec<ParserNode> {
     return acc;
 }
 
-fn to_parser_nodes(is: InstructionStream) -> Vec<ParserNode> {
+fn to_parser_nodes(is: InstructionStream, id: Uuid) -> Vec<ParserNode> {
     let mut acc = vec![];
-    acc.push(ParserNode::new_program_entry(Uuid::new_v4(), RawToken::blank()));
+    acc.push(ParserNode::new_program_entry(id, RawToken::blank()));
 
     for i in is.instructions {
-        for ii in each_instruction(&i) {
+        for ii in each_instruction(&i, id) {
             acc.push(ii);
         }
     }
@@ -171,8 +196,8 @@ fn to_parser_nodes(is: InstructionStream) -> Vec<ParserNode> {
     return acc;
 }
 
-pub fn parse(path: PathBuf) -> Vec<ParserNode> {
+pub fn parse(path: PathBuf, id: Uuid) -> Vec<ParserNode> {
     let out = run_parser(path);
     let is: InstructionStream = serde_json::from_str(&out).unwrap();
-    return to_parser_nodes(is);
+    return to_parser_nodes(is, id);
 }

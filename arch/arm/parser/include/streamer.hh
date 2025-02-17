@@ -16,7 +16,8 @@ public:
 	DumpStreamer(llvm::MCContext &context,
 				 llvm::MCInstPrinter &printer,
 				 llvm::MCRegisterInfo &reg,
-				 llvm::MCAsmInfo &mai);
+				 llvm::MCAsmInfo &mai,
+				 llvm::SourceMgr &src_mgr);
 
 	bool emitSymbolAttribute(llvm::MCSymbol *Symbol, llvm::MCSymbolAttr Attribute) override;
 	void emitCommonSymbol(llvm::MCSymbol *Symbol, uint64_t Size, llvm::Align ByteAlignment) override;
@@ -30,6 +31,7 @@ private:
 	llvm::MCInstPrinter &printer;
 	llvm::MCRegisterInfo &reg;
 	llvm::MCAsmInfo &mai;
+    llvm::SourceMgr &src_mgr;
 
 	InstructionStream instructions;
 	std::vector<Label> current_labels;

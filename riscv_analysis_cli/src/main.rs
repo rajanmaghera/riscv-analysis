@@ -282,10 +282,13 @@ fn parse(arch: &str, path: &str) -> (Vec<ParserNode>, Vec<ParseError>, RVParser<
             // HACK: This is not good code
             let reader = IOFileReader::new();
             let mut parser = RVParser::new(reader);
-            let _results = parser.parse_from_file(path, false);
+            let results = parser.parse_from_file(path, false);
+
+            // HACK: Get the file ID
+            let file = results.0.get(0).unwrap().file();
 
             let path = PathBuf::from_str(path).unwrap();
-            let nodes = riscv_analysis_arm::parse(path);
+            let nodes = riscv_analysis_arm::parse(path, file);
             (nodes, vec![], parser)
         }
         _ => {

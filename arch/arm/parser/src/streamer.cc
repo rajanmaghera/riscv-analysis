@@ -11,14 +11,18 @@
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/SourceMgr.h>
+#include <ostream>
 #include <sstream>
 #include <vector>
 
 DumpStreamer::DumpStreamer(llvm::MCContext &context,
                            llvm::MCInstPrinter &printer,
                            llvm::MCRegisterInfo &reg,
-                           llvm::MCAsmInfo &mai)
-    : MCStreamer(context), printer(printer), reg(reg), mai(mai) {
+                           llvm::MCAsmInfo &mai,
+                           llvm::SourceMgr &src_mgr)
+    : MCStreamer(context), printer(printer), reg(reg), mai(mai),
+      src_mgr(src_mgr) {
 };
 
 bool DumpStreamer::emitSymbolAttribute(llvm::MCSymbol *Symbol, llvm::MCSymbolAttr Attribute) {
@@ -38,8 +42,8 @@ void DumpStreamer::emitInstruction(const llvm::MCInst &Inst, const llvm::MCSubta
     std::string opcode = printer.getOpcodeName(Inst.getOpcode()).str();
     std::cerr << opcode;
 
+    // Collect operands
     std::vector<Operand*> operands;
-
     for (int i = 0; i < Inst.getNumOperands(); i++) {
         llvm::MCOperand operand = Inst.getOperand(i);
         if (operand.isImm()) {
@@ -65,10 +69,18 @@ void DumpStreamer::emitInstruction(const llvm::MCInst &Inst, const llvm::MCSubta
             operands.push_back(new Label(out));
         }
     }
-
-    instructions.push(Instruction(opcode, current_labels, operands));
-    current_labels.clear();
     std::cerr << std::endl;
+
+    // Get the source location
+    auto lc = src_mgr.getLineAndColumn(Inst.getLoc());
+    uint line = lc.first;
+    uint column = lc.second;
+
+    // Add all labels
+    Instruction inst = Instruction(opcode, current_labels, operands);
+    inst.set_location(line, column);
+    instructions.push(inst);
+    current_labels.clear();
 }
 
 void DumpStreamer::emitLabel(llvm::MCSymbol *Symbol, llvm::SMLoc Loc) {
