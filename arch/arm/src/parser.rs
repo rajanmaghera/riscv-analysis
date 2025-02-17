@@ -100,8 +100,22 @@ fn map_label(label: &Operand) -> With<LabelString> {
     return dummy_with(LabelString(value.to_string()));
 }
 
-fn each_instruction(inst: &Instruction) -> ParserNode {
-    match inst.opcode.as_str() {
+fn label_from_str(label: &str) -> ParserNode {
+    let l = Label {
+        name: dummy_with(LabelString(label.to_string())),
+        key: Uuid::new_v4(),
+        token: RawToken::blank(),
+    };
+    return ParserNode::Label(l);
+}
+
+fn each_instruction(inst: &Instruction) -> Vec<ParserNode> {
+    let mut acc = vec![];
+    for l in inst.labels.iter() {
+        acc.push(label_from_str(&l));
+    }
+
+    let inst = match inst.opcode.as_str() {
         "ADDWri" => {
             ParserNode::new_iarith(
                 dummy_with(IArithType::Addi),
@@ -138,11 +152,14 @@ fn each_instruction(inst: &Instruction) -> ParserNode {
             )
         },
         e => panic!("Unknown opcode: {}", e),
-    }
+    };
+
+    acc.push(inst);
+    return acc;
 }
 
 fn to_parser_nodes(is: InstructionStream) -> Vec<ParserNode> {
-    is.instructions.iter().map(each_instruction).collect()
+    is.instructions.iter().map(each_instruction).flatten().collect()
 }
 
 pub fn parse(path: PathBuf) -> Vec<ParserNode> {
