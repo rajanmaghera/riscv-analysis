@@ -17,6 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-alpha" }
+riscv_analysis_arm = { path = "../arch/arm", version = "0.1.0-alpha" }
 clap = { version = "4.3.8", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"

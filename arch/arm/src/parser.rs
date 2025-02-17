@@ -2,17 +2,20 @@ use std::fs;
 use std::io::Write;
 use std::path::{absolute, PathBuf};
 use std::process::{Command, Stdio};
+use std::str::FromStr;
+use riscv_analysis::parser::{ArithType, IArithType, Imm, JumpLinkRType, JumpLinkType, Label, LabelString, ParserNode, Range, RawToken, Register, Token, With};
 use serde::Deserialize;
+use uuid::Uuid;
 
 const PARSER: &str = env!("RVA_AARCH64_PARSER");
 
 #[derive(Debug, Deserialize)]
-pub struct InstructionStream {
+struct InstructionStream {
     pub instructions: Vec<Instruction>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Instruction {
+struct Instruction {
     pub opcode: String,
     pub labels: Vec<String>,
     pub operands: Vec<Operand>,
@@ -20,14 +23,14 @@ pub struct Instruction {
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", content = "value", rename_all="snake_case")]
-pub enum Operand {
+enum Operand {
     Integer(i64),
     Register(String),
     Label(String),
 }
 
 /// Run the parser on a file & return the output.
-pub fn run_parser(path: PathBuf) -> String {
+fn run_parser(path: PathBuf) -> String {
     // Run the parser
     println!("{}", PARSER);
     let mut cmd = Command::new(PARSER)
@@ -53,10 +56,97 @@ pub fn run_parser(path: PathBuf) -> String {
     return out;
 }
 
-pub fn parse(path: PathBuf) -> InstructionStream {
+fn dummy_with<T>(data: T) -> With<T> {
+    With {
+        token: Token::default(),
+        pos: Range::default(),
+        file: Uuid::nil(),
+        data,
+    }
+}
+
+fn map_register(register: &Operand) -> With<Register> {
+    let Operand::Register(value) = register else {
+        panic!("Instruction error");
+    };
+
+    let register = match value.as_str() {
+        "W0" => Register::from_str("s0"),
+        "W1" => Register::from_str("s1"),
+        "W2" => Register::from_str("s2"),
+        "W3" => Register::from_str("s3"),
+        "W4" => Register::from_str("s4"),
+        "W5" => Register::from_str("s5"),
+        "SP" => Register::from_str("sp"),
+        "LR" => Register::from_str("ra"),
+        "WZR" => Register::from_str("zero"),
+        e => panic!("Failed to map register: {e}"),
+    }.expect("Failed to map register");
+
+    return dummy_with(register);
+}
+
+fn map_immediate(imm: &Operand) -> With<Imm> {
+    let Operand::Integer(value) = imm else {
+        panic!("Instruction error");
+    };
+    return dummy_with(Imm((*value).try_into().unwrap()));
+}
+
+fn map_label(label: &Operand) -> With<LabelString> {
+    let Operand::Label(value) = label else {
+        panic!("Instruction error");
+    };
+    return dummy_with(LabelString(value.to_string()));
+}
+
+fn each_instruction(inst: &Instruction) -> ParserNode {
+    match inst.opcode.as_str() {
+        "ADDWri" => {
+            ParserNode::new_iarith(
+                dummy_with(IArithType::Addi),
+                map_register(&inst.operands[0]),
+                map_register(&inst.operands[1]),
+                map_immediate(&inst.operands[2]),
+                RawToken::blank(),
+            )
+        },
+        "SUBWri" => {
+            ParserNode::new_iarith(
+                dummy_with(IArithType::Addi),
+                map_register(&inst.operands[0]),
+                map_register(&inst.operands[1]),
+                map_immediate(&inst.operands[2]),
+                RawToken::blank(),
+            )
+        },
+        "B" => {
+            ParserNode::new_jump_link(
+                dummy_with(JumpLinkType::Jal),
+                dummy_with(Register::X0),
+                map_label(&inst.operands[0]),
+                RawToken::blank(),
+            )
+        },
+        "RET" => {
+            ParserNode::new_jump_link_r(
+                dummy_with(JumpLinkRType::Jalr),
+                dummy_with(Register::X0),
+                map_register(&inst.operands[0]),
+                dummy_with(Imm(0)),
+                RawToken::blank(),
+            )
+        },
+        e => panic!("Unknown opcode: {}", e),
+    }
+}
+
+fn to_parser_nodes(is: InstructionStream) -> Vec<ParserNode> {
+    is.instructions.iter().map(each_instruction).collect()
+}
+
+pub fn parse(path: PathBuf) -> Vec<ParserNode> {
     let out = run_parser(path);
     let is: InstructionStream = serde_json::from_str(&out).unwrap();
-    println!("{:?}", is);
-
-    return InstructionStream { instructions: vec![] };
+    return to_parser_nodes(is);
 }

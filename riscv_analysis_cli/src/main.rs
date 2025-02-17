@@ -9,14 +9,14 @@ use std::{collections::HashMap, str::FromStr};
 // use bat::{Input, PrettyPrinter};
 use colored::Colorize;
 use riscv_analysis::fix::Manipulation;
-use riscv_analysis::parser::RVParser;
+use riscv_analysis::parser::{ParserNode, ParseError, RVParser};
 use riscv_analysis::passes::DiagnosticItem;
 use std::path::PathBuf;
 use uuid::Uuid;
 
 use riscv_analysis::passes::{DiagnosticLocation, Manager};
 
-use clap::{Args, Parser, Subcommand};
+use clap::{parser, Args, Parser, Subcommand};
 use riscv_analysis::reader::{FileReader, FileReaderError};
 
 #[derive(Parser)]
@@ -52,6 +52,9 @@ struct Lint {
     /// Remove output
     #[clap(long)]
     no_output: bool,
+    /// Assembly architecture
+    #[clap(long, default_value = "riscv")]
+    arch: String,
 }
 
 #[derive(Args)]
@@ -267,24 +270,44 @@ impl FileReader for IOFileReader {
     }
 }
 
+fn parse(arch: &str, path: &str) -> (Vec<ParserNode>, Vec<ParseError>, RVParser<IOFileReader>) {
+    match arch {
+        "riscv" => {
+            let reader = IOFileReader::new();
+            let mut parser = RVParser::new(reader);
+            let results = parser.parse_from_file(path, false);
+            (results.0, results.1, parser)
+        }
+        "aarch64" => {
+            // HACK: This is not good code
+            let reader = IOFileReader::new();
+            let parser = RVParser::new(reader);
+            let path = PathBuf::from_str(path).unwrap();
+            let nodes = riscv_analysis_arm::parse(path);
+            (nodes, vec![], parser)
+        }
+        _ => {
+            panic!("Unknown architecture: {}", arch);
+        }
+    }
+}
+
 fn main() {
     let args = Cli::parse();
     match args.command {
         Commands::Lint(lint) => {
-            let reader = IOFileReader::new();
-            let mut parser = RVParser::new(reader);
-
             let mut diags = Vec::new();
-            let parsed = parser.parse_from_file(
+            let parsed = parse(
+                &lint.arch,
                 lint.input
                     .to_str()
                     .expect("unable to convert path to string"),
-                false,
             );
             parsed
                 .1
                 .iter()
                 .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
+            let parser = parsed.2;
 
             match Manager::gen_full_cfg(parsed.0) {
                 Ok(full_cfg) => {
