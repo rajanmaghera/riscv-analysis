@@ -34,7 +34,6 @@ enum Operand {
 /// Run the parser on a file & return the output.
 fn run_parser(path: PathBuf) -> String {
     // Run the parser
-    println!("{}", PARSER);
     let mut cmd = Command::new(PARSER)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
