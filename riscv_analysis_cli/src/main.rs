@@ -281,7 +281,9 @@ fn parse(arch: &str, path: &str) -> (Vec<ParserNode>, Vec<ParseError>, RVParser<
         "aarch64" => {
             // HACK: This is not good code
             let reader = IOFileReader::new();
-            let parser = RVParser::new(reader);
+            let mut parser = RVParser::new(reader);
+            let _results = parser.parse_from_file(path, false);
+
             let path = PathBuf::from_str(path).unwrap();
             let nodes = riscv_analysis_arm::parse(path);
             (nodes, vec![], parser)

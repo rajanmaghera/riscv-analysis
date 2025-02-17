@@ -39,17 +39,17 @@ impl Manager {
         Ok(cfg)
     }
     pub fn run_diagnostics(cfg: &Cfg, errors: &mut Vec<LintError>) {
-        SaveToZeroCheck::run(cfg, errors);
-        DeadValueCheck::run(cfg, errors);
-        InstructionInTextCheck::run(cfg, errors);
-        EcallCheck::run(cfg, errors);
+        // SaveToZeroCheck::run(cfg, errors);
+        // DeadValueCheck::run(cfg, errors);
+        // InstructionInTextCheck::run(cfg, errors);
+        // EcallCheck::run(cfg, errors);
         ControlFlowCheck::run(cfg, errors);
-        GarbageInputValueCheck::run(cfg, errors);
-        StackCheckPass::run(cfg, errors);
-        CalleeSavedRegisterCheck::run(cfg, errors);
-        CalleeSavedGarbageReadCheck::run(cfg, errors);
-        LostCalleeSavedRegisterCheck::run(cfg, errors);
-        OverlappingFunctionCheck::run(cfg, errors);
+        // GarbageInputValueCheck::run(cfg, errors);
+        // StackCheckPass::run(cfg, errors);
+        // CalleeSavedRegisterCheck::run(cfg, errors);
+        // CalleeSavedGarbageReadCheck::run(cfg, errors);
+        // LostCalleeSavedRegisterCheck::run(cfg, errors);
+        // OverlappingFunctionCheck::run(cfg, errors);
     }
     pub fn run(cfg: Vec<ParserNode>) -> Result<Vec<LintError>, Box<CfgError>> {
         let mut errors = Vec::new();
