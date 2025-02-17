@@ -159,7 +159,16 @@ fn each_instruction(inst: &Instruction) -> Vec<ParserNode> {
 }
 
 fn to_parser_nodes(is: InstructionStream) -> Vec<ParserNode> {
-    is.instructions.iter().map(each_instruction).flatten().collect()
+    let mut acc = vec![];
+    acc.push(ParserNode::new_program_entry(Uuid::new_v4(), RawToken::blank()));
+
+    for i in is.instructions {
+        for ii in each_instruction(&i) {
+            acc.push(ii);
+        }
+    }
+
+    return acc;
 }
 
 pub fn parse(path: PathBuf) -> Vec<ParserNode> {
