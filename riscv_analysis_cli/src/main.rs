@@ -52,6 +52,9 @@ struct Lint {
     /// Remove output
     #[clap(long)]
     no_output: bool,
+    /// Run custom lints only
+    #[clap(long)]
+    custom_lints: bool,
 }
 
 #[derive(Args)]
@@ -296,7 +299,11 @@ fn main() {
                         println!("{}", full_cfg);
                     }
                     let mut errs = Vec::new();
-                    Manager::run_diagnostics(&full_cfg, &mut errs);
+                    if lint.custom_lints {
+                        Manager::run_custom_diagnostics(&full_cfg, &mut errs);
+                    } else {
+                        Manager::run_diagnostics(&full_cfg, &mut errs);
+                    }
                     errs.iter()
                         .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
                 }

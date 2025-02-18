@@ -6,9 +6,7 @@ use crate::{
         NodeDirectionPass,
     },
     lints::{
-        CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
-        EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck, SaveToZeroCheck,
-        StackCheckPass, OverlappingFunctionCheck,
+        CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck, DoubleStoreInstCheck, EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck, OverlappingFunctionCheck, SaveToZeroCheck, StackCheckPass
     },
     parser::ParserNode,
 };
@@ -50,6 +48,9 @@ impl Manager {
         CalleeSavedGarbageReadCheck::run(cfg, errors);
         LostCalleeSavedRegisterCheck::run(cfg, errors);
         OverlappingFunctionCheck::run(cfg, errors);
+    }
+    pub fn run_custom_diagnostics(cfg: &Cfg, errors: &mut Vec<LintError>) {
+        DoubleStoreInstCheck::run(cfg, errors);
     }
     pub fn run(cfg: Vec<ParserNode>) -> Result<Vec<LintError>, Box<CfgError>> {
         let mut errors = Vec::new();

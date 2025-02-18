@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::cfg::AvailableValueMap;
+use crate::cfg::{AvailableValueMap, CfgNode};
 use crate::parser::{LabelString, RegSets};
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
@@ -68,6 +68,18 @@ pub enum AvailableValue {
     MemoryAtRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we do not know the label
     #[serde(rename = "omr")]
     MemoryAtOriginalRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we are sure it is the same as the original
+}
+
+impl CfgNode {
+    /// Determine the memory value at a given memory location.
+    pub fn gen_memory_value(&self) -> Option<(MemoryLocation, AvailableValue)> {
+        if let Some((MemoryLocation::StackOffset(offset), value)) = self.node().gen_memory_value() {
+            if let Some(curr_stack) = self.reg_values_in().stack_offset() {
+                return Some((MemoryLocation::StackOffset(curr_stack + offset), value));
+            }
+        }
+        None
+    }
 }
 
 /// Performs the available value analysis on the graph.
@@ -159,12 +171,8 @@ impl GenerationPass for AvailableValuePass {
                     AvailableValueMap::new()
                 } else {
                     let mut map = node.memory_values_in();
-                    if let Some((MemoryLocation::StackOffset(offset), value)) =
-                        node.node().gen_memory_value()
-                    {
-                        if let Some(curr_stack) = node.reg_values_in().stack_offset() {
-                            map.insert(MemoryLocation::StackOffset(curr_stack + offset), value);
-                        }
+                    if let Some((location, value)) = node.gen_memory_value() {
+                        map.insert(location, value);
                     }
                     map
                 };
