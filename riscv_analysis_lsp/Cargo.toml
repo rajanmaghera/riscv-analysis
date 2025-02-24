@@ -1,6 +1,6 @@
 [package]
 name = "riscv_analysis_lsp"
-version = "0.1.0-alpha"
+version = "0.1.0-c229alpha-20250224"
 edition = "2021"
 description = "RISC-V static analysis tool -- LSP helpers"
 authors = ["Rajan Maghera"]
@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-alpha" }
+riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-c229alpha-20250224"}
 wasm-bindgen = "0.2.84"
 serde-wasm-bindgen = "0.6"
 lsp-types = "0.94.0"
@@ -29,4 +29,3 @@ features = [
     "fast-rng",          # Use a faster (but still sufficiently random) RNG
     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
 ]
-
