@@ -2,19 +2,22 @@ mod printer;
 use printer::*;
 
 use std::fmt::Display;
+#[cfg(feature = "fixes")]
 use std::io::Write;
 use std::{collections::HashMap, str::FromStr};
 
-// use bat::line_range::{LineRange, LineRanges};
-// use bat::{Input, PrettyPrinter};
+#[cfg(feature = "fixes")]
 use colored::Colorize;
+#[cfg(feature = "fixes")]
 use riscv_analysis::fix::Manipulation;
 use riscv_analysis::parser::RVParser;
 use riscv_analysis::passes::DiagnosticItem;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use riscv_analysis::passes::{DiagnosticLocation, Manager};
+#[cfg(feature = "analysis_debugger")]
+use riscv_analysis::passes::DiagnosticLocation;
+use riscv_analysis::passes::Manager;
 
 use clap::{Args, Parser, Subcommand};
 use riscv_analysis::reader::{FileReader, FileReaderError};
@@ -32,6 +35,7 @@ enum Commands {
     #[clap(name = "lint")]
     Lint(Lint),
     /// Debug options for testing
+    #[cfg(feature = "analysis_debugger")]
     #[clap(name = "debug_parse")]
     DebugParse(DebugParse),
 }
@@ -39,7 +43,7 @@ enum Commands {
 #[derive(Args)]
 struct Lint {
     /// Input file
-    input: PathBuf,
+    path: PathBuf,
     /// Debug mode
     #[clap(short, long)]
     debug: bool,
@@ -54,6 +58,7 @@ struct Lint {
     no_output: bool,
 }
 
+#[cfg(feature = "fixes")]
 #[derive(Args)]
 struct Fix {
     /// Input file
@@ -67,6 +72,7 @@ struct Fix {
     func_name: String,
 }
 
+#[cfg(feature = "analysis_debugger")]
 #[derive(Args)]
 struct DebugParse {
     /// Input file
@@ -99,7 +105,7 @@ impl IOFileReader {
             files: HashMap::new(),
         }
     }
-    #[allow(dead_code)]
+    #[cfg(feature = "fixes")]
     fn apply_fixes(&self, fixes: Vec<Manipulation>) -> Result<(), ManipulationError> {
         struct ChangedRanges {
             filename: String,
@@ -276,7 +282,7 @@ fn main() {
 
             let mut diags = Vec::new();
             let parsed = parser.parse_from_file(
-                lint.input
+                lint.path
                     .to_str()
                     .expect("unable to convert path to string"),
                 false,
@@ -320,6 +326,7 @@ fn main() {
                 }
             }
         }
+        #[cfg(feature = "analysis_debugger")]
         Commands::DebugParse(debu) => {
             // Debug mode that prints out parsing errors only
             let reader = IOFileReader::new();
