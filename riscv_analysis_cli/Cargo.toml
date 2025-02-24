@@ -2,7 +2,7 @@
 name = "riscv_analysis_cli"
 version = "0.1.0-c229alpha-20250224"
 edition = "2021"
-description = "RISC-V static analysis tool -- CLI"
+description = "RISC-V Analyzer -- static analysis tool for RISC-V assembly"
 authors = ["Rajan Maghera"]
 repository = "https://github.com/rajanmaghera/riscv-analysis"
 license = "GPL-3.0"
@@ -14,6 +14,10 @@ name = "rva"
 path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+fixes = []
+analysis_debugger = []
 
 [dependencies]
 riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-c229alpha-20250224"}
