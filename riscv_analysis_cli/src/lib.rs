@@ -29,12 +29,12 @@ pub mod wrapper {
         pub raw: usize,
     }
 
-    impl From<Position> for PositionTestCase {
-        fn from(value: Position) -> Self {
+    impl From<&Position> for PositionTestCase {
+        fn from(value: &Position) -> Self {
             Self {
-                line: value.line,
-                column: value.column,
-                raw: value.raw_index,
+                line: value.zero_idx_line(),
+                column: value.zero_idx_column(),
+                raw: value.raw_index(),
             }
         }
     }
@@ -42,8 +42,8 @@ pub mod wrapper {
     impl From<Range> for RangeTestCase {
         fn from(value: Range) -> Self {
             Self {
-                start: value.start.into(),
-                end: value.end.into(),
+                start: value.start().into(),
+                end: value.end().into(),
             }
         }
     }

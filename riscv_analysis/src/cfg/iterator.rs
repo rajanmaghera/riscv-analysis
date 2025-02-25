@@ -91,9 +91,9 @@ impl CfgSourceIterator {
 
         // Sort by location
         nodes.sort_by(|a, b| {
-            let a_pos = a.node().token().pos.end.raw_index;
-            let b_pos = b.node().token().pos.end.raw_index;
-            a_pos.cmp(&b_pos)
+            let a_token = a.node().token();
+            let b_token = b.node().token();
+            a_token.pos.end().cmp(&b_token.pos.end())
         });
 
         // Sort by file. We know that `sort_by` is stable, so this has the

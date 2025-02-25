@@ -27,21 +27,21 @@ impl Manipulation {
     #[must_use]
     pub fn line(&self) -> usize {
         match self {
-            Manipulation::Insert(_, pos, _, _) => pos.line,
+            Manipulation::Insert(_, pos, _, _) => pos.zero_idx_line(),
         }
     }
 
     #[must_use]
     pub fn column(&self) -> usize {
         match self {
-            Manipulation::Insert(_, pos, _, _) => pos.column,
+            Manipulation::Insert(_, pos, _, _) => pos.zero_idx_column(),
         }
     }
 
     #[must_use]
     pub fn raw_pos(&self) -> usize {
         match self {
-            Manipulation::Insert(_, pos, _, _) => pos.raw_index,
+            Manipulation::Insert(_, pos, _, _) => pos.raw_index(),
         }
     }
 
@@ -96,13 +96,11 @@ pub fn fix_stack(func: &Rc<Function>) -> Vec<Manipulation> {
     let offset = count + 4;
 
     // Move range to beginning of line
-    let mut entry_range = entry.node().range().start;
-    entry_range.raw_index -= entry_range.column;
-    entry_range.column = 0;
+    let mut entry_range = entry.node().range().start().clone();
+    entry_range.decrement_to_beginning_of_line();
 
-    let mut exit_range = exit.node().range().start;
-    exit_range.raw_index -= exit_range.column;
-    exit_range.column = 0;
+    let mut exit_range = exit.node().range().start().clone();
+    exit_range.decrement_to_beginning_of_line();
 
     vec![
         Manipulation::Insert(entry.node().file(), entry_range, entry_text, offset),

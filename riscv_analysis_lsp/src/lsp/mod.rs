@@ -23,12 +23,12 @@ impl RangeInto for MyRange {
     fn to_range(&self) -> Range {
         lsp_types::Range {
             start: Position {
-                line: self.start.line.try_into().unwrap_or(0),
-                character: self.start.column.try_into().unwrap_or(0),
+                line: self.start().zero_idx_line().try_into().unwrap_or(0),
+                character: self.start().zero_idx_column().try_into().unwrap_or(0),
             },
             end: Position {
-                line: self.end.line.try_into().unwrap_or(0),
-                character: self.end.column.try_into().unwrap_or(0),
+                line: self.end().zero_idx_line().try_into().unwrap_or(0),
+                character: self.end().zero_idx_column().try_into().unwrap_or(0),
             },
         }
     }

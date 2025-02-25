@@ -281,7 +281,7 @@ impl AnnotatedLexer<'_> {
                 self.raw_token
                     .text
                     .push_str(&item.token.as_original_string());
-                self.raw_token.pos.end = item.pos.end;
+                self.raw_token.pos = Range::new(*self.raw_token.pos.start(), *item.pos.end());
             }
         }
         item

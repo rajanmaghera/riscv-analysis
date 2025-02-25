@@ -123,9 +123,9 @@ impl PrettyPrint {
             .reader
             .get_filename(item.file)
             .unwrap_or("<unknown file>".to_string());
-        let start = item.range.start.line + 1;
-        let start_col = item.range.start.column + 1;
-        let end_col = item.range.end.column + 1;
+        let start = item.range.start().one_idx_line();
+        let start_col = item.range.start().one_idx_column();
+        let end_col = item.range.end().one_idx_column();
 
         format!("{level}: {title} in {path} at {start} {start_col}:{end_col}\n",)
     }
@@ -148,10 +148,10 @@ impl PrettyPrint {
 
         // Print the relevant source region
         if let Some(text) = self.get_file(parser, &item.file) {
-            let line = item.range.start.line;
+            let line = item.range.start().zero_idx_line();
             if let Some(region) = Self::get_line(text, line) {
-                let start = item.range.start.column;
-                let end = item.range.end.column;
+                let start = item.range.start().zero_idx_column();
+                let end = item.range.end().zero_idx_column();
                 acc.push_str(&Self::format_region(region, line, start, end));
             }
         }

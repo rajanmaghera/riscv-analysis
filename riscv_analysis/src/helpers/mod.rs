@@ -1,22 +1,11 @@
-use crate::parser::{Position, Range, RawToken, Token, With};
+use crate::parser::{Range, RawToken, Token, With};
 
 impl RawToken {
     #[must_use]
     pub fn blank() -> Self {
         RawToken {
             text: String::new(),
-            pos: Range {
-                start: Position {
-                    raw_index: 0,
-                    line: 0,
-                    column: 0,
-                },
-                end: Position {
-                    raw_index: 0,
-                    line: 0,
-                    column: 0,
-                },
-            },
+            pos: Range::default(),
             file: uuid::Uuid::nil(),
         }
     }
@@ -29,18 +18,7 @@ where
     pub fn blank(data: T) -> Self {
         With {
             token: Token::Symbol(String::new()),
-            pos: Range {
-                start: Position {
-                    raw_index: 0,
-                    line: 0,
-                    column: 0,
-                },
-                end: Position {
-                    raw_index: 0,
-                    line: 0,
-                    column: 0,
-                },
-            },
+            pos: Range::default(),
             file: uuid::Uuid::nil(),
             data,
         }
@@ -113,34 +91,11 @@ macro_rules! store {
 }
 
 #[macro_export]
-macro_rules! act {
-    ($x:expr) => {
-        Mem::try_from(token!($x)).unwrap()
-    };
-}
-
-#[macro_export]
 macro_rules! exp {
     ($a:expr, $b:ident) => {
         Mem {
             offset: With::blank(Imm($a)),
             reg: With::blank(Register::$b),
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! token {
-    ($x:expr) => {
-        Info {
-            token: Token::Symbol($x.to_owned()),
-            pos: Range {
-                start: Position { line: 0, column: 0 },
-                end: Position {
-                    line: 0,
-                    column: $x.len(),
-                },
-            },
         }
     };
 }

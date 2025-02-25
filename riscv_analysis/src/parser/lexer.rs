@@ -135,11 +135,8 @@ impl Lexer {
     /// being the current position of the lexer.
     fn get_range(&self) -> Range {
         let mut end = self.get_pos();
-        end.column += 1;
-        Range {
-            start: self.get_pos(),
-            end,
-        }
+        end.increment_column();
+        Range::new(self.get_pos(), end)
     }
 
     /// Get the current position of the lexer.
@@ -147,12 +144,7 @@ impl Lexer {
     /// This function will return the current position of the lexer.
     fn get_pos(&self) -> Position {
         let column = if self.col == 0 { 0 } else { self.col - 1 };
-
-        Position {
-            line: self.row,
-            column,
-            raw_index: self.pos,
-        }
+        Position::new(self.row, column, self.pos)
     }
 
     /// Lex a unicode escape code.
@@ -266,7 +258,7 @@ impl Lexer {
         Err(LexError::InvalidString(
             Info {
                 token: Token::String(partial),
-                pos: Range { start, end },
+                pos: Range::new(start, end),
                 file: self.source_id,
             },
             Box::new(StringLexError::new(end, kind)),
@@ -341,7 +333,7 @@ impl Iterator for Lexer {
 
                 Some(Info {
                     token: Token::Directive(dir_str.clone()),
-                    pos: Range { start, end },
+                    pos: Range::new(start, end),
                     file: self.source_id,
                 })
             }
@@ -369,7 +361,7 @@ impl Iterator for Lexer {
                 // for comments here.
                 Some(Info {
                     token: Token::Comment(comment_str.to_string()),
-                    pos: Range { start, end },
+                    pos: Range::new(start, end),
                     file: self.source_id,
                 })
             }
@@ -384,7 +376,7 @@ impl Iterator for Lexer {
                         return Some(Err(LexError::InvalidString(
                             Info {
                                 token: Token::String(String::new()),
-                                pos: Range { start, end: e.pos },
+                                pos: Range::new(start, e.pos),
                                 file: self.source_id,
                             },
                             Box::new(e),
@@ -398,7 +390,7 @@ impl Iterator for Lexer {
 
                 Some(Info {
                     token: Token::String(string_str.clone()),
-                    pos: Range { start, end },
+                    pos: Range::new(start, end),
                     file: self.source_id,
                 })
             }
@@ -444,7 +436,7 @@ impl Iterator for Lexer {
 
                             return Some(Ok(Info {
                                 token: Token::Char(c),
-                                pos: Range { start, end },
+                                pos: Range::new(start, end),
                                 file: self.source_id,
                             }));
                         }
@@ -498,7 +490,7 @@ impl Iterator for Lexer {
 
                     return Some(Ok(Info {
                         token: Token::Label(symbol_str.clone()),
-                        pos: Range { start, end },
+                        pos: Range::new(start, end),
                         file: self.source_id,
                     }));
                 }
@@ -508,7 +500,7 @@ impl Iterator for Lexer {
 
                 Some(Info {
                     token: Token::Symbol(symbol_str.clone()),
-                    pos: Range { start, end },
+                    pos: Range::new(start, end),
                     file: self.source_id,
                 })
             }
@@ -517,8 +509,8 @@ impl Iterator for Lexer {
         match token {
             Some(t) => {
                 // TODO: remove these debug asserts once we fix the get_pos() function
-                debug_assert_eq!(t.pos.start.line, t.pos.end.line);
-                debug_assert!(t.pos.start.column <= t.pos.end.column);
+                debug_assert_eq!(t.pos.start().zero_idx_line(), t.pos.end().zero_idx_line());
+                debug_assert!(t.pos.start().zero_idx_column() <= t.pos.end().zero_idx_column());
                 Some(Ok(t))
             }
             None => None,
