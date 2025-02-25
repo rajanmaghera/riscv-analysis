@@ -18,6 +18,7 @@ path = "src/main.rs"
 [features]
 fixes = []
 analysis_debugger = []
+c229 = []
 
 [dependencies]
 riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-c229alpha-20250224"}

@@ -323,6 +323,8 @@ fn main() {
                 else {
                     let mut printer = PrettyPrint::new(diags);
                     printer.display_errors(&parser);
+                    #[cfg(feature = "c229")]
+                    println!("You are using an alpha version of this software. Please report any bugs to the developers.");
                 }
             }
         }
