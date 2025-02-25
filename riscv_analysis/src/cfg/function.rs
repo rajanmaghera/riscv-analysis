@@ -1,3 +1,4 @@
+use super::RefCellReplacement;
 use std::{
     cell::{Ref, RefCell},
     collections::HashSet,
@@ -36,7 +37,6 @@ impl Hash for Function {
         self.uuid.hash(state);
     }
 }
-
 impl Function {
     #[must_use]
     pub fn name(&self) -> LabelString {
@@ -82,8 +82,9 @@ impl Function {
     }
 
     /// Set the registers used by this function.
-    pub fn set_defs(&self, defs: RegisterSet) {
-        *self.defs.borrow_mut() = defs;
+    #[must_use]
+    pub fn set_defs(&self, defs: RegisterSet) -> bool {
+        self.defs.replace_if_changed(defs)
     }
 
     /// Return the set of written registers.
@@ -98,8 +99,9 @@ impl Function {
     }
 
     /// Set the instructions composing this function.
-    pub fn set_nodes(&self, instructions: Vec<Rc<CfgNode>>) {
-        *self.nodes.borrow_mut() = instructions;
+    #[must_use]
+    pub fn set_nodes(&self, instructions: Vec<Rc<CfgNode>>) -> bool {
+        self.nodes.replace_if_changed(instructions)
     }
 
     /// Return the instructions in the function.
@@ -119,7 +121,8 @@ impl Function {
     }
 
     /// Set the exit node of this function.
-    pub fn set_exit(&self, node: Rc<CfgNode>) {
-        *self.exit.borrow_mut() = node;
+    #[must_use]
+    pub fn set_exit(&self, node: Rc<CfgNode>) -> bool {
+        self.exit.replace_if_changed(node)
     }
 }

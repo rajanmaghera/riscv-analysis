@@ -14,6 +14,7 @@ use super::environment_in_outs;
 use super::AvailableValueMap;
 use super::Cfg;
 use super::Function;
+use super::RefCellReplacement;
 use super::RegisterSet;
 use super::Segment;
 
@@ -100,8 +101,9 @@ impl CfgNode {
         }
     }
 
-    pub fn set_node(&self, node: ParserNode) {
-        *self.node.borrow_mut() = node;
+    #[must_use]
+    pub fn set_node(&self, node: ParserNode) -> bool {
+        self.node.replace_if_changed(node)
     }
 
     pub fn node(&self) -> ParserNode {
@@ -131,56 +133,63 @@ impl CfgNode {
         self.reg_values_in.borrow().clone()
     }
 
-    pub fn set_reg_values_in(&self, available_in: AvailableValueMap<Register>) {
-        *self.reg_values_in.borrow_mut() = available_in;
+    #[must_use]
+    pub fn set_reg_values_in(&self, available_in: AvailableValueMap<Register>) -> bool {
+        self.reg_values_in.replace_if_changed(available_in)
     }
 
     pub fn reg_values_out(&self) -> AvailableValueMap<Register> {
         self.reg_values_out.borrow().clone()
     }
 
-    pub fn set_reg_values_out(&self, available_out: AvailableValueMap<Register>) {
-        *self.reg_values_out.borrow_mut() = available_out;
+    #[must_use]
+    pub fn set_reg_values_out(&self, available_out: AvailableValueMap<Register>) -> bool {
+        self.reg_values_out.replace_if_changed(available_out)
     }
 
     pub fn memory_values_in(&self) -> AvailableValueMap<MemoryLocation> {
         self.memory_values_in.borrow().clone()
     }
 
-    pub fn set_memory_values_in(&self, memory_in: AvailableValueMap<MemoryLocation>) {
-        *self.memory_values_in.borrow_mut() = memory_in;
+    #[must_use]
+    pub fn set_memory_values_in(&self, memory_in: AvailableValueMap<MemoryLocation>) -> bool {
+        self.memory_values_in.replace_if_changed(memory_in)
     }
 
     pub fn memory_values_out(&self) -> AvailableValueMap<MemoryLocation> {
         self.memory_values_out.borrow().clone()
     }
 
-    pub fn set_memory_values_out(&self, memory_out: AvailableValueMap<MemoryLocation>) {
-        *self.memory_values_out.borrow_mut() = memory_out;
+    #[must_use]
+    pub fn set_memory_values_out(&self, memory_out: AvailableValueMap<MemoryLocation>) -> bool {
+        self.memory_values_out.replace_if_changed(memory_out)
     }
 
     pub fn live_in(&self) -> RegisterSet {
         *self.live_in.borrow()
     }
 
-    pub fn set_live_in(&self, live_in: RegisterSet) {
-        *self.live_in.borrow_mut() = live_in;
+    #[must_use]
+    pub fn set_live_in(&self, live_in: RegisterSet) -> bool {
+        self.live_in.replace_if_changed(live_in)
     }
 
     pub fn live_out(&self) -> RegisterSet {
         *self.live_out.borrow()
     }
 
-    pub fn set_live_out(&self, live_out: RegisterSet) {
-        *self.live_out.borrow_mut() = live_out;
+    #[must_use]
+    pub fn set_live_out(&self, live_out: RegisterSet) -> bool {
+        self.live_out.replace_if_changed(live_out)
     }
 
     pub fn u_def(&self) -> RegisterSet {
         *self.u_def.borrow()
     }
 
-    pub fn set_u_def(&self, u_def: RegisterSet) {
-        *self.u_def.borrow_mut() = u_def;
+    #[must_use]
+    pub fn set_u_def(&self, u_def: RegisterSet) -> bool {
+        self.u_def.replace_if_changed(u_def)
     }
 
     pub fn calls_to(&self, cfg: &Cfg) -> Option<(Rc<Function>, With<LabelString>)> {

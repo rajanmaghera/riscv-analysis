@@ -130,7 +130,7 @@ impl GenerationPass for AvailableValuePass {
                         acc
                     })
                     .unwrap_or_default();
-                node.set_reg_values_in(in_reg_n);
+                changed |= node.set_reg_values_in(in_reg_n);
 
                 // in_memory[n] = AND out_memory[p] for all p in prev[n]
                 let in_memory_n = node
@@ -144,7 +144,7 @@ impl GenerationPass for AvailableValuePass {
                         acc
                     })
                     .unwrap_or_default();
-                node.set_memory_values_in(in_memory_n);
+                changed |= node.set_memory_values_in(in_memory_n);
 
                 // out[n] = gen[n] U (in[n] - kill[n]) U (callee_saved if n is entry)
                 let mut out_reg_n = node.reg_values_in();
@@ -211,14 +211,8 @@ impl GenerationPass for AvailableValuePass {
 
                 // If either of the outs changed, replace the old outs with the new outs
                 // and mark that we changed something.
-                if out_reg_n != node.reg_values_out() {
-                    changed = true;
-                    node.set_reg_values_out(out_reg_n);
-                }
-                if out_memory_n != node.memory_values_out() {
-                    changed = true;
-                    node.set_memory_values_out(out_memory_n);
-                }
+                changed |= node.set_reg_values_out(out_reg_n);
+                changed |= node.set_memory_values_out(out_memory_n);
 
                 // Add node to visited
                 visited.insert(Rc::clone(&node));

@@ -32,3 +32,6 @@ mod available_value_map;
 pub use available_value_map::*;
 
 mod interrupt_handler;
+
+mod ref_cell_replacement;
+pub use ref_cell_replacement::*;

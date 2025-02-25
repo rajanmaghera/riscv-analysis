@@ -22,17 +22,13 @@ impl GenerationPass for LivenessPass {
                     .map(|x| x.live_in())
                     .reduce(|acc, x| acc | x)
                     .unwrap_or_default();
-                node.set_live_out(live_out);
+                changed |= node.set_live_out(live_out);
 
                 if let Some((func, _)) = node.calls_to(cfg) {
                     // live_in[F_exit] = live_in[F_exit] U gen[F_exit] U live_out[n]
                     // We take the union of the existing live_in to match multiple call sites
                     let func_exit_live_in = (node.live_out()) | func.exit().live_in();
-
-                    if func_exit_live_in != func.exit().live_in() {
-                        changed = true;
-                        func.exit().set_live_in(func_exit_live_in);
-                    }
+                    changed |= func.exit().set_live_in(func_exit_live_in);
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - kill[n] | (u_def[F_exit] AND return-registers)
                     // kill[n] = caller-saved
@@ -61,14 +57,8 @@ impl GenerationPass for LivenessPass {
                         | live_in_temp
                         | node.node().gen_reg();
 
-                    if live_in != node.live_in() {
-                        changed = true;
-                        node.set_live_in(live_in);
-                    }
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
+                    changed |= node.set_live_in(live_in);
+                    changed |= node.set_u_def(u_def);
                 } else if node.node().is_ecall() {
                     let (args, rets) = node.known_ecall_signature().unwrap_or_default();
 
@@ -89,22 +79,12 @@ impl GenerationPass for LivenessPass {
                     let live_in = (node.live_out() - RegSets::caller_saved())
                         | RegSets::ecall_always_argument()
                         | args;
-
-                    if live_in != node.live_in() {
-                        changed = true;
-                        node.set_live_in(live_in);
-                    }
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
+                    changed |= node.set_live_in(live_in);
+                    changed |= node.set_u_def(u_def);
                 } else if node.node().is_return() {
                     // live_in[n] = live_in[n] U gen[n]
                     let live_in = node.live_in() | node.node().gen_reg();
-                    if live_in != node.live_in() {
-                        changed = true;
-                        node.set_live_in(live_in);
-                    }
+                    changed |= node.set_live_in(live_in);
 
                     // u_def[n] = AND u_def[s] for all s in prev[n]
                     let u_def = node
@@ -115,11 +95,7 @@ impl GenerationPass for LivenessPass {
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default();
-
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
+                    changed |= node.set_u_def(u_def);
                 } else if node.node().is_function_entry() {
                     // live_in[n] = gen[n] U (live_out[n] - kill[n])
                     let live_in =
@@ -128,14 +104,8 @@ impl GenerationPass for LivenessPass {
                     // u_def[n] = live_in[n] AND argument-registers
                     let u_def = live_in & RegSets::argument();
 
-                    if live_in != node.live_in() {
-                        changed = true;
-                        node.set_live_in(live_in);
-                    }
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
+                    changed |= node.set_live_in(live_in);
+                    changed |= node.set_u_def(u_def);
                 } else {
                     // u_def[n] = AND u_def[s] for all s in prev[n] | kill[n]
                     let u_def = (node
@@ -152,14 +122,8 @@ impl GenerationPass for LivenessPass {
                     let live_in =
                         (node.live_out() - node.node().kill_reg()) | node.node().gen_reg();
 
-                    if live_in != node.live_in() {
-                        changed = true;
-                        node.set_live_in(live_in);
-                    }
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
+                    changed |= node.set_live_in(live_in);
+                    changed |= node.set_u_def(u_def);
                 }
                 visited.insert(node);
             }

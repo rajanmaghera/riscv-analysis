@@ -59,7 +59,7 @@ impl FunctionMarkupPass {
                     let name = With::new(LabelString("__return__".to_string()), info.clone());
                     let new_node =
                         ParserNode::new_jump_link(inst, rd, name, prev_ret.node().token());
-                    found_ret.set_node(new_node);
+                    let _ = found_ret.set_node(new_node);
                 }
                 // If this is the first return node, save it
                 else {
@@ -109,9 +109,9 @@ impl GenerationPass for FunctionMarkupPass {
             // FIXME: What to do if there is more than one return
             match Self::mark_reachable(cfg, &entry, &Rc::clone(&func)) {
                 Ok(data) => {
-                    func.set_defs(data.found);
-                    func.set_nodes(data.instructions);
-                    func.set_exit(data.returns);
+                    let _ = func.set_defs(data.found);
+                    let _ = func.set_nodes(data.instructions);
+                    let _ = func.set_exit(data.returns);
                 }
                 Err(e) => {
                     return Err(e);
