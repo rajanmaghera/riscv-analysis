@@ -187,7 +187,7 @@ impl GenerationPass for AvailableValuePass {
                     &node.memory_values_in(),
                 );
                 rule_perform_math_ops(&node.node(), &mut out_reg_n, &node.reg_values_in());
-                rule_known_values_to_stack(&node.node(), &mut out_memory_n, &node.reg_values_in());
+                rule_known_values_to_stack(&mut out_memory_n, &node.reg_values_in());
                 // TODO stack reset?
 
                 // If either of the outs changed, replace the old outs with the new outs
@@ -351,7 +351,6 @@ fn rule_value_from_stack(
 /// but that register value is either a constant or the guaranteed register
 /// value at the entry of the function (B), then replace A with B.
 fn rule_known_values_to_stack(
-    _node: &ParserNode,
     memory_out: &mut AvailableValueMap<MemoryLocation>,
     available_in: &AvailableValueMap<Register>,
 ) {
