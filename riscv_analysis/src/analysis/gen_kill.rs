@@ -25,7 +25,9 @@ impl ParserNode {
 
     #[must_use]
     pub fn gen_reg(&self) -> RegisterSet {
-        let regs = if self.is_return() {
+        let regs = if self.is_ureturn() {
+            RegSets::all()
+        } else if self.is_return() {
             RegSets::callee_saved()
         } else {
             self.reads_from().iter().map(|x| x.data).collect()

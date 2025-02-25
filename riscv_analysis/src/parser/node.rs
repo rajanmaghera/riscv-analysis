@@ -357,6 +357,17 @@ impl ParserNode {
         }
     }
 
+    /// Checks if a instruction is a return from an interrupt handler.
+    ///
+    /// This function returns to the value in uepc.
+    #[must_use]
+    pub fn is_ureturn(&self) -> bool {
+        match self {
+            ParserNode::Basic(x) => x.inst == BasicType::Uret,
+            _ => false,
+        }
+    }
+
     /// Checks if a instruction is meant to be saved to zero
     ///
     /// Some instructions save to zero as part of their design. For example,
