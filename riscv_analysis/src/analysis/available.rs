@@ -13,6 +13,7 @@ use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
 
 use super::memory_location::MemoryLocation;
+use super::{HasGenKillInfo, HasGenValueInfo};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 
 /// A value that is available at some point in the program.

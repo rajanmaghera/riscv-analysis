@@ -1,4 +1,5 @@
 use crate::analysis::AvailableValue;
+use crate::analysis::HasGenKillInfo;
 use crate::cfg::Cfg;
 use crate::cfg::CfgNode;
 use crate::parser::InstructionProperties;

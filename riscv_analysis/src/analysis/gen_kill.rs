@@ -3,11 +3,10 @@ use crate::{
     parser::{CSRIType, CSRType, IArithType, InstructionProperties, ParserNode, RegSets, Register},
 };
 
-use super::{AvailableValue, MemoryLocation};
+use super::{AvailableValue, HasGenKillInfo, HasGenValueInfo, MemoryLocation};
 
-impl ParserNode {
-    #[must_use]
-    pub fn kill_reg(&self) -> RegisterSet {
+impl HasGenKillInfo for ParserNode {
+    fn kill_reg(&self) -> RegisterSet {
         if self.calls_to().is_some() {
             RegSets::caller_saved()
         } else if self.is_function_entry() {
@@ -23,8 +22,7 @@ impl ParserNode {
         }
     }
 
-    #[must_use]
-    pub fn gen_reg(&self) -> RegisterSet {
+    fn gen_reg(&self) -> RegisterSet {
         let regs = if self.is_ureturn() {
             RegSets::all()
         } else if self.is_return() {
@@ -35,9 +33,10 @@ impl ParserNode {
 
         regs - Register::X0
     }
+}
 
-    #[must_use]
-    pub fn gen_memory_value(&self) -> Option<(MemoryLocation, AvailableValue)> {
+impl HasGenValueInfo for ParserNode {
+    fn gen_memory_value(&self) -> Option<(MemoryLocation, AvailableValue)> {
         match self {
             ParserNode::Csr(expr) => match expr.inst.data {
                 CSRType::Csrrw => Some((
@@ -69,8 +68,7 @@ impl ParserNode {
         }
     }
 
-    #[must_use]
-    pub fn gen_reg_value(&self) -> Option<(Register, AvailableValue)> {
+    fn gen_reg_value(&self) -> Option<(Register, AvailableValue)> {
         // The function entry case and program entry case is handled separately
         // to account for all the "original" registers.
         let item = match self {

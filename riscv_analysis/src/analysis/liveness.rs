@@ -4,6 +4,8 @@ use crate::{
 };
 use std::collections::HashSet;
 
+use super::HasGenKillInfo;
+
 pub struct LivenessPass;
 impl GenerationPass for LivenessPass {
     #[allow(clippy::too_many_lines)]
