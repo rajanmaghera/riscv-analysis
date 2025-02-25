@@ -19,7 +19,7 @@ impl TryFrom<Info> for Imm {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Clone, Deserialize, Serialize)]
 pub struct CSRImm(pub u32);
 
 impl TryFrom<Info> for CSRImm {
