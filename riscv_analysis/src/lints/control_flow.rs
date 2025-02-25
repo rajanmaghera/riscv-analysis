@@ -1,6 +1,6 @@
 use crate::{
     cfg::Cfg,
-    parser::ParserNode,
+    parser::{InstructionProperties, ParserNode},
     passes::{LintError, LintPass},
 };
 use std::rc::Rc;

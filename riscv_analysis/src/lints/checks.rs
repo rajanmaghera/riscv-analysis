@@ -1,6 +1,7 @@
 use crate::analysis::AvailableValue;
 use crate::cfg::Cfg;
 use crate::cfg::CfgNode;
+use crate::parser::InstructionProperties;
 use crate::parser::RegSets;
 use crate::parser::Register;
 use crate::parser::With;

@@ -1,5 +1,6 @@
 use crate::{
     cfg::Cfg,
+    parser::InstructionProperties,
     passes::{CfgError, GenerationPass},
 };
 

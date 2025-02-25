@@ -1,6 +1,6 @@
 use crate::{
     cfg::RegisterSet,
-    parser::{CSRIType, CSRType, IArithType, ParserNode, RegSets, Register},
+    parser::{CSRIType, CSRType, IArithType, InstructionProperties, ParserNode, RegSets, Register},
 };
 
 use super::{AvailableValue, MemoryLocation};

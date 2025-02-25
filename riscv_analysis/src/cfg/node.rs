@@ -1,5 +1,6 @@
 use crate::analysis::AvailableValue;
 use crate::analysis::MemoryLocation;
+use crate::parser::InstructionProperties;
 use crate::parser::LabelString;
 use crate::parser::ParserNode;
 use crate::parser::Register;

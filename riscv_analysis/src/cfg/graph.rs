@@ -1,5 +1,6 @@
 use crate::parser;
 use crate::parser::DirectiveType;
+use crate::parser::InstructionProperties;
 use crate::parser::LabelString;
 use crate::parser::ParserNode;
 use crate::parser::With;

@@ -46,3 +46,8 @@ mod rv_string_parser;
 pub use rv_string_parser::*;
 
 mod comments;
+
+mod node_instruction_properties;
+
+mod trait_instruction_properties;
+pub use trait_instruction_properties::*;

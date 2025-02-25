@@ -8,7 +8,7 @@ use std::rc::Rc;
 use serde::{Deserialize, Serialize};
 
 use crate::cfg::AvailableValueMap;
-use crate::parser::{CSRImm, LabelString, RegSets, With};
+use crate::parser::{CSRImm, InstructionProperties, LabelString, RegSets, With};
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
 

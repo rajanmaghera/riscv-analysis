@@ -2,7 +2,7 @@ use std::{rc::Rc, vec};
 
 use crate::{
     cfg::{Cfg, CfgNode, Function, RegisterSet},
-    parser::{Info, JumpLinkType, LabelString, ParserNode, Register, With},
+    parser::{Info, InstructionProperties, JumpLinkType, LabelString, ParserNode, Register, With},
     passes::{CfgError, DiagnosticLocation, GenerationPass},
 };
 

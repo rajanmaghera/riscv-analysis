@@ -1,5 +1,5 @@
 use crate::{
-    parser::RegSets,
+    parser::{InstructionProperties, RegSets},
     passes::{CfgError, GenerationPass},
 };
 use std::collections::HashSet;

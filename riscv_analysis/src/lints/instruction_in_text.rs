@@ -1,5 +1,6 @@
 use crate::{
     cfg::{Cfg, Segment},
+    parser::InstructionProperties,
     passes::{LintError, LintPass},
 };
 
