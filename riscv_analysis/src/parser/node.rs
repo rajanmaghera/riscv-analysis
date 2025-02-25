@@ -368,6 +368,24 @@ impl ParserNode {
         }
     }
 
+    #[must_use]
+    pub fn stores_to_memory(&self) -> Option<(Register, (Register, Imm))> {
+        match self {
+            ParserNode::Store(x) if x.rs2.data != Register::X0 => {
+                Some((x.rs2.data, (x.rs1.data, x.imm.data.clone())))
+            }
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn reads_from_memory(&self) -> Option<((Register, Imm), Register)> {
+        match self {
+            ParserNode::Load(x) => Some(((x.rs1.data, x.imm.data.clone()), x.rd.data)),
+            _ => None,
+        }
+    }
+
     /// Checks if a instruction is meant to be saved to zero
     ///
     /// Some instructions save to zero as part of their design. For example,
@@ -435,6 +453,11 @@ impl ParserNode {
     }
 
     #[must_use]
+    pub fn is_handler_function_entry(&self) -> bool {
+        matches!(self, ParserNode::FuncEntry(x) if x.is_interrupt_handler)
+    }
+
+    #[must_use]
     pub fn is_program_entry(&self) -> bool {
         matches!(self, ParserNode::ProgramEntry(_))
     }
@@ -486,6 +509,16 @@ impl ParserNode {
                         || x.inst == BranchType::Bgeu)
             }
             _ => false,
+        }
+    }
+
+    #[must_use]
+    /// Checks whether this is some jump to a known label with no side effects.
+    pub fn is_some_jump_to_label(&self) -> Option<With<LabelString>> {
+        match self {
+            ParserNode::JumpLink(x) if x.rd == Register::X0 => Some(x.name.clone()),
+            ParserNode::Branch(x) => Some(x.name.clone()),
+            _ => None,
         }
     }
 
