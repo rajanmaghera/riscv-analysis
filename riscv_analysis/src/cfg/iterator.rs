@@ -4,9 +4,9 @@ use std::{collections::HashSet, rc::Rc};
 /// Iterate over all nodes in a CFG.
 pub struct CfgIterator<'a> {
     nodes: &'a Vec<Rc<CfgNode>>,
-    start: usize,       // Location in the iteration
+    start: usize, // Location in the iteration
     end: usize,
-    end_final: bool,    // True if `end` has reached the start
+    end_final: bool, // True if `end` has reached the start
 }
 
 impl<'a> CfgIterator<'a> {
@@ -21,7 +21,7 @@ impl<'a> CfgIterator<'a> {
             0 => {
                 end_final = true;
                 0
-            },
+            }
             l => l - 1,
         };
 
@@ -62,9 +62,7 @@ impl DoubleEndedIterator for CfgIterator<'_> {
             return None;
         }
 
-        let result = self.nodes
-                         .get(self.end)
-                         .map(Rc::clone);
+        let result = self.nodes.get(self.end).map(Rc::clone);
 
         if self.end == 0 {
             self.end_final = true;
@@ -75,7 +73,6 @@ impl DoubleEndedIterator for CfgIterator<'_> {
         result
     }
 }
-
 
 /// Iterate over all nodes in the order that they appear in the source file.
 ///
@@ -107,10 +104,7 @@ impl CfgSourceIterator {
             a_file.cmp(&b_file)
         });
 
-        Self {
-            nodes,
-            start: 0,
-        }
+        Self { nodes, start: 0 }
     }
 }
 
@@ -136,8 +130,8 @@ impl Iterator for CfgSourceIterator {
 ///
 /// You must not modify the key of any CFG node during the traversal.
 pub struct CfgNextsIterator {
-    queue: Vec<Rc<CfgNode>>,        // Nodes we have seen but not visited yet
-    visted: HashSet<Rc<CfgNode>>,   // Nodes we have visited
+    queue: Vec<Rc<CfgNode>>,      // Nodes we have seen but not visited yet
+    visted: HashSet<Rc<CfgNode>>, // Nodes we have visited
 }
 
 impl CfgNextsIterator {
@@ -185,8 +179,8 @@ impl Iterator for CfgNextsIterator {
 ///
 /// You must not modify the key of any CFG node during the traversal.
 pub struct CfgPrevsIterator {
-    queue: Vec<Rc<CfgNode>>,        // Nodes we have seen but not visited yet
-    visted: HashSet<Rc<CfgNode>>,   // Nodes we have visited
+    queue: Vec<Rc<CfgNode>>,      // Nodes we have seen but not visited yet
+    visted: HashSet<Rc<CfgNode>>, // Nodes we have visited
 }
 
 impl CfgPrevsIterator {

@@ -7,8 +7,8 @@ use crate::{
     },
     lints::{
         CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
-        EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck, SaveToZeroCheck,
-        StackCheckPass, OverlappingFunctionCheck,
+        EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck,
+        OverlappingFunctionCheck, SaveToZeroCheck, StackCheckPass,
     },
     parser::ParserNode,
 };

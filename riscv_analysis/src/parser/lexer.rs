@@ -26,8 +26,6 @@ impl StringLexError {
     }
 }
 
-
-
 /// Lexer for RISC-V assembly
 ///
 /// The lexer implements the Iterator trait, so it can be used in a for loop for
@@ -60,7 +58,7 @@ impl Lexer {
     fn peek(&self, n: usize) -> Option<char> {
         self.source.get(self.pos + n).copied()
     }
-    
+
     /// Get the current next character.
     fn current(&self) -> Option<char> {
         self.peek(0)
@@ -162,12 +160,7 @@ impl Lexer {
     /// Returns None if the code doesn't define a valid unicode character. The
     /// escape code is lexed into a single unicode character.
     fn unicode_code(&mut self) -> Option<char> {
-        let chars = vec![
-            self.peek(2)?,
-            self.peek(3)?,
-            self.peek(4)?,
-            self.peek(5)?,
-        ];
+        let chars = vec![self.peek(2)?, self.peek(3)?, self.peek(4)?, self.peek(5)?];
 
         // Convert to a codepoint number
         let code_number: Option<u32> = {
@@ -196,20 +189,20 @@ impl Lexer {
             let real = match c {
                 '\\' => '\\',
                 '\'' => '\'',
-                '"'  => '"',
-                'n'  => '\n',
-                't'  => '\t',
-                'r'  => '\r',
-                'b'  => '\x08',  // Backspace
-                'f'  => '\x0c',  // Form feed
-                '0'  => '\0',
-                'u'  => self.unicode_code()?,
+                '"' => '"',
+                'n' => '\n',
+                't' => '\t',
+                'r' => '\r',
+                'b' => '\x08', // Backspace
+                'f' => '\x0c', // Form feed
+                '0' => '\0',
+                'u' => self.unicode_code()?,
                 // TODO: Unicode input
                 _ => return None,
             };
 
             self.consume_char();
-            return Some(real)
+            return Some(real);
         }
 
         None
@@ -223,7 +216,6 @@ impl Lexer {
     fn acc_string(&mut self) -> Result<String, StringLexError> {
         let mut acc: String = String::new();
 
-
         while let Some(current) = self.current() {
             if current == '"' {
                 return Ok(acc);
@@ -231,21 +223,24 @@ impl Lexer {
 
             // All strings must be on a single line
             if current == '\n' {
-                return Err(
-                    StringLexError::new(self.get_pos(), StringLexErrorType::Newline)
-                );
+                return Err(StringLexError::new(
+                    self.get_pos(),
+                    StringLexErrorType::Newline,
+                ));
             }
 
             // Check if this is an escape sequence
             if current == '\\' {
                 match self.escape_code() {
                     Some(ec) => acc.push(ec),
-                    None => return Err(
-                        StringLexError::new(self.get_pos(), StringLexErrorType::InvalidEscapeSequence)
-                    ),
+                    None => {
+                        return Err(StringLexError::new(
+                            self.get_pos(),
+                            StringLexErrorType::InvalidEscapeSequence,
+                        ))
+                    }
                 }
             }
-
             // Otherwise, add the character
             else {
                 acc.push(current);
@@ -254,18 +249,27 @@ impl Lexer {
         }
 
         // If we run out of characters, we have an un-closed string
-        Err(StringLexError::new(self.get_pos(), StringLexErrorType::Unclosed))
+        Err(StringLexError::new(
+            self.get_pos(),
+            StringLexErrorType::Unclosed,
+        ))
     }
 
     /// Create the error for an invalid string.
-    fn invalid_string(&self, partial: String, kind: StringLexErrorType, start: Position, end: Position) -> Result<Info, LexError> {
+    fn invalid_string(
+        &self,
+        partial: String,
+        kind: StringLexErrorType,
+        start: Position,
+        end: Position,
+    ) -> Result<Info, LexError> {
         Err(LexError::InvalidString(
             Info {
                 token: Token::String(partial),
                 pos: Range { start, end },
                 file: self.source_id,
             },
-            Box::new(StringLexError::new(end, kind))
+            Box::new(StringLexError::new(end, kind)),
         ))
     }
 }
@@ -372,7 +376,7 @@ impl Iterator for Lexer {
             Some('"') => {
                 // string
                 let start = self.get_pos();
-                self.consume_char();   // Skip the first quote
+                self.consume_char(); // Skip the first quote
 
                 let string_str = match self.acc_string() {
                     Ok(s) => s,
@@ -383,13 +387,13 @@ impl Iterator for Lexer {
                                 pos: Range { start, end: e.pos },
                                 file: self.source_id,
                             },
-                            Box::new(e)
+                            Box::new(e),
                         )));
-                    },
+                    }
                 };
 
                 let end = self.get_pos();
-                self.consume_char();   // Skip final '"'
+                self.consume_char(); // Skip final '"'
                 self.consume_char();
 
                 Some(Info {
@@ -408,19 +412,24 @@ impl Iterator for Lexer {
                         // Is an escape code
                         '\\' => match self.escape_code() {
                             Some(ec) => ec,
-                            None => return Some(self.invalid_string(
-                                c.to_string(),
-                                StringLexErrorType::InvalidEscapeSequence,
-                                start, self.get_pos())
-                            )
+                            None => {
+                                return Some(self.invalid_string(
+                                    c.to_string(),
+                                    StringLexErrorType::InvalidEscapeSequence,
+                                    start,
+                                    self.get_pos(),
+                                ))
+                            }
                         },
                         // Can't have a literal newline in a character
-                        '\n' => return Some(self.invalid_string(
-                            c.to_string(),
-                            StringLexErrorType::Newline,
-                            start,
-                            self.get_pos()
-                        )),
+                        '\n' => {
+                            return Some(self.invalid_string(
+                                c.to_string(),
+                                StringLexErrorType::Newline,
+                                start,
+                                self.get_pos(),
+                            ))
+                        }
                         // Otherwise, return the character as is
                         c => c,
                     };
@@ -428,7 +437,6 @@ impl Iterator for Lexer {
                     // Ensure that the next character is the closing quote
                     self.consume_char();
                     if let Some(eq) = self.current() {
-
                         // Return the character
                         if eq == '\'' {
                             let end = self.get_pos();
@@ -446,7 +454,8 @@ impl Iterator for Lexer {
                         return Some(self.invalid_string(
                             c.to_string(),
                             StringLexErrorType::Unclosed,
-                            start, end
+                            start,
+                            end,
                         ));
                     }
                 }
@@ -455,7 +464,8 @@ impl Iterator for Lexer {
                 return Some(self.invalid_string(
                     String::new(), // Empty string, since we are at EOF
                     StringLexErrorType::Unclosed,
-                    start, end
+                    start,
+                    end,
                 ));
             }
             _ => {
@@ -482,7 +492,7 @@ impl Iterator for Lexer {
 
                 // If the next char is ':', this is a label
                 if self.peek(1) == Some(':') {
-                    self.consume_char();   // Move onto the ':'
+                    self.consume_char(); // Move onto the ':'
                     let end = self.get_pos();
                     self.consume_char();
 
@@ -530,8 +540,7 @@ mod tests {
     }
 
     fn tokenize_err<S: Into<String>>(input: S) -> Vec<Result<Info, LexError>> {
-        Lexer::new(input, uuid::Uuid::nil())
-            .collect()
+        Lexer::new(input, uuid::Uuid::nil()).collect()
     }
 
     #[test]

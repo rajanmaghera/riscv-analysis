@@ -84,8 +84,7 @@ impl From<&CfgError> for SeverityLevel {
 impl DiagnosticLocation for CfgError {
     fn file(&self) -> uuid::Uuid {
         match self {
-            CfgError::MultipleLabelsForReturn(node, _)
-                | CfgError::NoLabelForReturn(node) => {
+            CfgError::MultipleLabelsForReturn(node, _) | CfgError::NoLabelForReturn(node) => {
                 node.file()
             }
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().file(),
@@ -96,8 +95,7 @@ impl DiagnosticLocation for CfgError {
 
     fn range(&self) -> crate::parser::Range {
         match self {
-            CfgError::MultipleLabelsForReturn(node, _)
-                | CfgError::NoLabelForReturn(node) => {
+            CfgError::MultipleLabelsForReturn(node, _) | CfgError::NoLabelForReturn(node) => {
                 node.range()
             }
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().range(),

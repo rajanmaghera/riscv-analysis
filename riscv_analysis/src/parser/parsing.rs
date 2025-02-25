@@ -290,7 +290,7 @@ impl AnnotatedLexer<'_> {
     fn peek_any(&mut self) -> Result<Info, LexError> {
         match self.lexer.peek() {
             Some(item) => item.clone(),
-            None => Err(LexError::UnexpectedEOF)
+            None => Err(LexError::UnexpectedEOF),
         }
     }
 }

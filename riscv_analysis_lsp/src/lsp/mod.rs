@@ -56,10 +56,7 @@ pub trait LSPDiag {
 impl LSPDiag for DiagnosticItem {
     fn to_lsp_diag(&self, parser: &RVParser<LSPFileReader>) -> LSPRVSingleDiagnostic {
         LSPRVSingleDiagnostic {
-            uri: parser
-                .reader
-                .get_filename(self.file)
-                .unwrap_or_default(), // Empty string by default
+            uri: parser.reader.get_filename(self.file).unwrap_or_default(), // Empty string by default
             diagnostic: Diagnostic {
                 range: self.range.to_range(),
                 severity: Some(self.level.clone().to_severity()),
@@ -72,8 +69,7 @@ impl LSPDiag for DiagnosticItem {
                         .map(|f1| DiagnosticRelatedInformation {
                             location: Location {
                                 uri: Url::parse(
-                                    &parser.reader.get_filename(f1.file)
-                                                  .unwrap_or_default(), // Empty string by default
+                                    &parser.reader.get_filename(f1.file).unwrap_or_default(), // Empty string by default
                                 )
                                 .unwrap(),
                                 range: f1.range.to_range(),

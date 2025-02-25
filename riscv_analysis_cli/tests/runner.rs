@@ -1,14 +1,14 @@
 use riscv_analysis_cli::wrapper::{DiagnosticTestCase, TestCase};
 
+use std::env;
 use std::fs;
 use std::iter::zip;
 use std::path::{absolute, PathBuf};
-use std::env;
 
 use assert_cmd::Command;
 
 fn rva_bin() -> Command {
-   Command::cargo_bin("rva").unwrap()
+    Command::cargo_bin("rva").unwrap()
 }
 
 fn file_to_path(path: Option<String>) -> PathBuf {
@@ -54,10 +54,7 @@ fn run_test(asm: PathBuf, results: PathBuf) {
 
     // Run RVA on the input assembly
     let mut bin = rva_bin();
-    let cmd = bin
-        .arg("lint")
-        .arg("--json")
-        .arg(asm);
+    let cmd = bin.arg("lint").arg("--json").arg(asm);
 
     // Compare outputs
     let out = String::from_utf8(cmd.output().unwrap().stdout).unwrap();

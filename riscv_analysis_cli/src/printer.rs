@@ -17,7 +17,7 @@ pub trait ErrorDisplay {
 /// Pretty printer for errors.
 pub struct PrettyPrint {
     diagnostics: Vec<DiagnosticItem>,
-    files: HashMap<Uuid, Vec<String>>,   // Cache loaded files
+    files: HashMap<Uuid, Vec<String>>, // Cache loaded files
 }
 
 impl PrettyPrint {
@@ -29,15 +29,16 @@ impl PrettyPrint {
     }
 
     /// Return the contents of a file, caching the results.
-    fn get_file<T: FileReader + Clone>(&mut self, parser: &RVParser<T>, file: &Uuid) -> Option<&Vec<String>> {
+    fn get_file<T: FileReader + Clone>(
+        &mut self,
+        parser: &RVParser<T>,
+        file: &Uuid,
+    ) -> Option<&Vec<String>> {
         // Load the file if we haven't already
         if !self.files.contains_key(file) {
             let path = parser.reader.get_filename(*file)?;
             let contents = fs::read_to_string(path).ok()?;
-            let lines: Vec<String> = contents
-                .split('\n')
-                .map(|s| s.to_string())
-                .collect();
+            let lines: Vec<String> = contents.split('\n').map(|s| s.to_string()).collect();
             self.files.insert(*file, lines);
         }
 
@@ -58,7 +59,9 @@ impl PrettyPrint {
             SeverityLevel::Warning => "Warning".yellow(),
             SeverityLevel::Information => "Info".blue(),
             SeverityLevel::Hint => "Hint".green(),
-        }.bold().to_string()
+        }
+        .bold()
+        .to_string()
     }
 
     /// Format the source region portion of the message.
@@ -78,15 +81,12 @@ impl PrettyPrint {
         }
 
         // HACK: Use the text line so we have the same tab spacing
-        let mut base: String = text.get(first_non_ws..)
+        let mut base: String = text
+            .get(first_non_ws..)
             .unwrap_or_default()
             .chars()
-            .map(|c| {
-                if c.is_whitespace() { c }
-                else { ' ' }
-            })
-            .collect()
-            ;
+            .map(|c| if c.is_whitespace() { c } else { ' ' })
+            .collect();
 
         // Arrows pointing the the relevant position
         let end = end + 1;
@@ -99,17 +99,20 @@ impl PrettyPrint {
     }
 
     /// Fromat a diagnostic item.
-    fn format_item<T: FileReader + Clone>(&mut self, parser: &RVParser<T>, item: &DiagnosticItem) -> String {
+    fn format_item<T: FileReader + Clone>(
+        &mut self,
+        parser: &RVParser<T>,
+        item: &DiagnosticItem,
+    ) -> String {
         let level = self.level(&item.level);
         let title = &item.title;
-        let path = parser.reader
-                         .get_filename(item.file)
-                         .unwrap_or("<unknown file>".to_string());
+        let path = parser
+            .reader
+            .get_filename(item.file)
+            .unwrap_or("<unknown file>".to_string());
 
         // Print the name of the error & file
-        let mut acc = format!(
-            "{level}: {title}\n in file: {path}\n"
-        );
+        let mut acc = format!("{level}: {title}\n in file: {path}\n");
 
         // Print the relevant source region
         if let Some(text) = self.get_file(parser, &item.file) {
@@ -149,7 +152,11 @@ impl JSONPrint {
     }
 
     /// Convert a single diagnostic item to JSON
-    fn wrap_item<T: FileReader + Clone> (&self, parser: &RVParser<T>, item: &DiagnosticItem) -> DiagnosticTestCase {
+    fn wrap_item<T: FileReader + Clone>(
+        &self,
+        parser: &RVParser<T>,
+        item: &DiagnosticItem,
+    ) -> DiagnosticTestCase {
         // Get the fields
         let path = parser
             .reader

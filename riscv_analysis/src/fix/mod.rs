@@ -59,9 +59,9 @@ impl Manipulation {
 /// function actions.
 pub fn get_function_label_ranges(cfg: &Cfg) -> Vec<Range> {
     cfg.functions()
-       .keys()
-       .map(crate::passes::DiagnosticLocation::range)
-       .collect()
+        .keys()
+        .map(crate::passes::DiagnosticLocation::range)
+        .collect()
 }
 
 #[must_use]

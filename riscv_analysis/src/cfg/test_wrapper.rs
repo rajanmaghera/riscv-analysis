@@ -20,15 +20,9 @@ pub struct NodeWrapper {
         serialize_with = "sorted_set"
     )]
     pub labels: HashSet<String>,
-    #[serde(
-        default,
-        skip_serializing_if = "Vec::is_empty",
-    )]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub func_entry: Vec<usize>,
-    #[serde(
-        default,
-        skip_serializing_if = "Vec::is_empty",
-    )]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub func_exit: Vec<usize>,
     #[serde(
         default,
@@ -63,23 +57,31 @@ impl NodeWrapper {
         NodeWrapper {
             node: node.node(),
             labels: node.labels.iter().map(|x| x.data.0.clone()).collect(),
-            func_entry: node.functions().iter().map(|func| {
-                cfg.iter()
-                   .position(|other| func.entry().node().id() == other.node().id())
-                   .unwrap()
-            }).collect::<Vec<_>>(),
-            func_exit: node.functions().iter().map(|func| {
-                cfg.iter()
-                   .position(|other| func.exit().node().id() == other.node().id())
-                   .unwrap()
-            }).collect::<Vec<_>>(),
+            func_entry: node
+                .functions()
+                .iter()
+                .map(|func| {
+                    cfg.iter()
+                        .position(|other| func.entry().node().id() == other.node().id())
+                        .unwrap()
+                })
+                .collect::<Vec<_>>(),
+            func_exit: node
+                .functions()
+                .iter()
+                .map(|func| {
+                    cfg.iter()
+                        .position(|other| func.exit().node().id() == other.node().id())
+                        .unwrap()
+                })
+                .collect::<Vec<_>>(),
             nexts: node
                 .nexts()
                 .iter()
                 .map(|x| {
                     cfg.iter()
-                       .position(|y| x.node().id() == y.node().id())
-                       .unwrap()
+                        .position(|y| x.node().id() == y.node().id())
+                        .unwrap()
                 })
                 .collect(),
             prevs: node
@@ -87,8 +89,8 @@ impl NodeWrapper {
                 .iter()
                 .map(|x| {
                     cfg.iter()
-                       .position(|y| x.node().id() == y.node().id())
-                       .unwrap()
+                        .position(|y| x.node().id() == y.node().id())
+                        .unwrap()
                 })
                 .collect(),
             reg_values_in: node.reg_values_in(),
@@ -107,11 +109,7 @@ pub struct CfgWrapper(Vec<NodeWrapper>);
 
 impl From<&Cfg> for CfgWrapper {
     fn from(cfg: &Cfg) -> Self {
-        CfgWrapper(
-            cfg.iter()
-               .map(|x| NodeWrapper::from(&x, cfg))
-               .collect(),
-        )
+        CfgWrapper(cfg.iter().map(|x| NodeWrapper::from(&x, cfg)).collect())
     }
 }
 

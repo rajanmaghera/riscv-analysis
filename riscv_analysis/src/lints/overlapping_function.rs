@@ -1,5 +1,7 @@
 use crate::{
-    cfg::Cfg, parser::{Label, ParserNode, RawToken}, passes::{LintError, LintPass}
+    cfg::Cfg,
+    parser::{Label, ParserNode, RawToken},
+    passes::{LintError, LintPass},
 };
 use uuid::Uuid;
 
@@ -23,16 +25,14 @@ impl LintPass for OverlappingFunctionCheck {
                 let labels = node.labels();
                 let labels = labels
                     .iter()
-                    .map(|l| {
-                        Label {
-                            name: l.clone(),
-                            key: Uuid::new_v4(),
-                            token: RawToken {
-                                text: l.data.0.clone(),
-                                pos: l.pos.clone(),
-                                file: l.file,
-                            },
-                        }
+                    .map(|l| Label {
+                        name: l.clone(),
+                        key: Uuid::new_v4(),
+                        token: RawToken {
+                            text: l.data.0.clone(),
+                            pos: l.pos.clone(),
+                            file: l.file,
+                        },
                     })
                     .collect::<Vec<_>>();
                 let label = labels.first();
@@ -40,10 +40,7 @@ impl LintPass for OverlappingFunctionCheck {
                 if let Some(l) = label {
                     errors.push(LintError::NodeInManyFunctions(
                         ParserNode::Label(l.clone()),
-                        node.functions()
-                            .clone()
-                            .into_iter()
-                            .collect::<Vec<_>>(),
+                        node.functions().clone().into_iter().collect::<Vec<_>>(),
                     ));
                 }
             }
@@ -86,13 +83,12 @@ mod tests {
 
         assert_eq!(lints.len(), 1);
         assert!(matches!(
-            &lints[0], LintError::NodeInManyFunctions(node, _)
-                if matches!(
-                    node, ParserNode::Label(label)
-                        if label.token.text == "fn_b"
-                )
+        &lints[0], LintError::NodeInManyFunctions(node, _)
+            if matches!(
+                node, ParserNode::Label(label)
+                    if label.token.text == "fn_b"
             )
-        );
+        ));
     }
 
     #[test]
@@ -118,21 +114,19 @@ mod tests {
 
         assert_eq!(lints.len(), 2);
         assert!(matches!(
-            &lints[0], LintError::NodeInManyFunctions(node, _)
-                if matches!(
-                    node, ParserNode::Label(label)
-                        if label.token.text == "fn_b"
-                )
+        &lints[0], LintError::NodeInManyFunctions(node, _)
+            if matches!(
+                node, ParserNode::Label(label)
+                    if label.token.text == "fn_b"
             )
-        );
+        ));
         assert!(matches!(
-            &lints[1], LintError::NodeInManyFunctions(node, _)
-                if matches!(
-                    node, ParserNode::Label(label)
-                        if label.token.text == "fn_c"
-                )
+        &lints[1], LintError::NodeInManyFunctions(node, _)
+            if matches!(
+                node, ParserNode::Label(label)
+                    if label.token.text == "fn_c"
             )
-        );
+        ));
     }
 
     #[test]

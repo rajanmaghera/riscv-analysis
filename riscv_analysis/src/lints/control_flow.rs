@@ -166,7 +166,6 @@ mod tests {
         assert_eq!(lints.len(), 0);
     }
 
-
     #[test]
     fn unreachable_directive() {
         let input = "\

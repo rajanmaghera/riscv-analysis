@@ -44,16 +44,15 @@ pub enum LintError {
     InvalidStackPosition(ParserNode, i32), // stack value is wrong way (positive)
     InvalidStackOffsetUsage(ParserNode, i32), // read/write using invalid stack offser
     UnreachableCode(ParserNode),     // -- code that is unreachable
-                                     // SetBadRegister(Range, Register), -- used when setting registers that should not be set
-                                     // FallOffEnd(Range), program may fall off the end of code
-                                     // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
-                                     // ProgramExit in the middle of a function
-                                     // NonMatchingOffset -- if the multiple of the offset does not match the instruction (ex. 4 for lw), then it is a warning
-                                     // LoadAddressFromTextLabel -- if the address is a label in the text area, then it is a warning
-                                     // AnyJumpToData -- if any jump is to a data label, then it is a warning (label strings should have data/text prefix)
-
+    // SetBadRegister(Range, Register), -- used when setting registers that should not be set
+    // FallOffEnd(Range), program may fall off the end of code
+    // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
+    // ProgramExit in the middle of a function
+    // NonMatchingOffset -- if the multiple of the offset does not match the instruction (ex. 4 for lw), then it is a warning
+    // LoadAddressFromTextLabel -- if the address is a label in the text area, then it is a warning
+    // AnyJumpToData -- if any jump is to a data label, then it is a warning (label strings should have data/text prefix)
     /// An instruction is a member of more than one function.
-    NodeInManyFunctions(ParserNode, Vec<Rc<Function>>)
+    NodeInManyFunctions(ParserNode, Vec<Rc<Function>>),
 }
 
 #[derive(Clone)]
@@ -139,10 +138,10 @@ impl std::fmt::Display for LintError {
                 )
             }
             LintError::NodeInManyFunctions(_node, funcs) => {
-                write!(f, "Part of multiple functions: {}",
-                       funcs.iter()
-                       .map(|fun| fun.name().0)
-                       .join(" | ")
+                write!(
+                    f,
+                    "Part of multiple functions: {}",
+                    funcs.iter().map(|fun| fun.name().0).join(" | ")
                 )
             }
         }

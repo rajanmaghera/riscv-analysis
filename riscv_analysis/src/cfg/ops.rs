@@ -92,29 +92,22 @@ impl MathOp {
             // - remu: x
             MathOp::Div => {
                 match y {
-                    0 => -1,    // 2^32 - 1 as i32
+                    0 => -1, // 2^32 - 1 as i32
                     _ => x / y,
                 }
-            },
-            MathOp::Divu => {
-                match y {
-                    0 => -1,
-                    _ => (x as u32 / y as u32) as i32,
-                }
-
             }
-            MathOp::Rem => {
-                match y {
-                    0 => x,
-                    _ => x % y,
-                }
+            MathOp::Divu => match y {
+                0 => -1,
+                _ => (x as u32 / y as u32) as i32,
             },
-            MathOp::Remu => {
-                match y {
-                    0 => x,
-                    _ => (x as u32 % y as u32) as i32,
-                }
-            }
+            MathOp::Rem => match y {
+                0 => x,
+                _ => x % y,
+            },
+            MathOp::Remu => match y {
+                0 => x,
+                _ => (x as u32 % y as u32) as i32,
+            },
         }
     }
 }

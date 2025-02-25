@@ -15,10 +15,13 @@ struct MarkData {
 pub struct FunctionMarkupPass;
 
 impl FunctionMarkupPass {
-    fn mark_reachable(cfg: &Cfg, entry: &Rc<CfgNode>, func: &Rc<Function>)
-                      -> Result<MarkData, Box<CfgError>> {
-        let mut defs = RegisterSet::new();      // Registers this function writes to
-        let mut returns = None;             // Return instructions in this function
+    fn mark_reachable(
+        cfg: &Cfg,
+        entry: &Rc<CfgNode>,
+        func: &Rc<Function>,
+    ) -> Result<MarkData, Box<CfgError>> {
+        let mut defs = RegisterSet::new(); // Registers this function writes to
+        let mut returns = None; // Return instructions in this function
         let mut instructions = vec![];
 
         // Traverse the CFG for all nodes reachable from the entry point
