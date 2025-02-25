@@ -10,6 +10,8 @@ use uuid::Uuid;
 
 use riscv_analysis_cli::wrapper::{DiagnosticTestCase, TestCase};
 
+use crate::pretty_print_options::PrettyPrintOptions;
+
 pub trait ErrorDisplay {
     fn display_errors<T: FileReader + Clone>(&mut self, parser: &RVParser<T>);
 }
@@ -18,13 +20,15 @@ pub trait ErrorDisplay {
 pub struct PrettyPrint {
     diagnostics: Vec<DiagnosticItem>,
     files: HashMap<Uuid, Vec<String>>, // Cache loaded files
+    options: PrettyPrintOptions,
 }
 
 impl PrettyPrint {
-    pub fn new(errors: Vec<DiagnosticItem>) -> Self {
+    pub fn new(errors: Vec<DiagnosticItem>, options: PrettyPrintOptions) -> Self {
         Self {
             diagnostics: errors,
             files: HashMap::new(),
+            options,
         }
     }
 
@@ -51,17 +55,26 @@ impl PrettyPrint {
     fn get_line(contents: &[String], line: usize) -> Option<&String> {
         contents.get(line)
     }
-
-    /// Return the name of a severity level.
-    fn level(&self, level: &SeverityLevel) -> String {
-        match level {
-            SeverityLevel::Error => "Error".red(),
-            SeverityLevel::Warning => "Warning".yellow(),
-            SeverityLevel::Information => "Info".blue(),
-            SeverityLevel::Hint => "Hint".green(),
+    /// Return the name of a severity level
+    fn level_string(&self, level: &SeverityLevel) -> String {
+        if self.options.color {
+            match level {
+                SeverityLevel::Error => "Error".red(),
+                SeverityLevel::Warning => "Warning".yellow(),
+                SeverityLevel::Information => "Info".blue(),
+                SeverityLevel::Hint => "Hint".green(),
+            }
+            .bold()
+            .to_string()
+        } else {
+            match level {
+                SeverityLevel::Error => "Error",
+                SeverityLevel::Warning => "Warning",
+                SeverityLevel::Information => "Info",
+                SeverityLevel::Hint => "Hint",
+            }
+            .to_string()
         }
-        .bold()
-        .to_string()
     }
 
     /// Format the source region portion of the message.
@@ -98,13 +111,32 @@ impl PrettyPrint {
         format!("{spc} |\n {line} | {aligned}\n{spc} | {base}\n")
     }
 
-    /// Fromat a diagnostic item.
+    /// Format a diagnostic item in a compact (one-line) form.
+    fn format_item_compact<T: FileReader + Clone>(
+        &mut self,
+        parser: &RVParser<T>,
+        item: &DiagnosticItem,
+    ) -> String {
+        let level = self.level_string(&item.level);
+        let title = &item.title;
+        let path = parser
+            .reader
+            .get_filename(item.file)
+            .unwrap_or("<unknown file>".to_string());
+        let start = item.range.start.line + 1;
+        let start_col = item.range.start.column + 1;
+        let end_col = item.range.end.column + 1;
+
+        format!("{level}: {title} in {path} at {start} {start_col}:{end_col}\n",)
+    }
+
+    /// Format a diagnostic item.
     fn format_item<T: FileReader + Clone>(
         &mut self,
         parser: &RVParser<T>,
         item: &DiagnosticItem,
     ) -> String {
-        let level = self.level(&item.level);
+        let level = self.level_string(&item.level);
         let title = &item.title;
         let path = parser
             .reader
@@ -132,8 +164,13 @@ impl PrettyPrint {
 impl ErrorDisplay for PrettyPrint {
     fn display_errors<T: FileReader + Clone>(&mut self, parser: &RVParser<T>) {
         for err in self.diagnostics.clone() {
-            let out = self.format_item(parser, &err);
-            print!("{}", out);
+            if self.options.compact {
+                let out = self.format_item_compact(parser, &err);
+                print!("{}", out);
+            } else {
+                let out = self.format_item(parser, &err);
+                print!("{}", out);
+            }
         }
     }
 }

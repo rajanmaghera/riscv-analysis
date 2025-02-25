@@ -1,5 +1,7 @@
 mod printer;
+use pretty_print_options::PrettyPrintOptions;
 use printer::*;
+mod pretty_print_options;
 
 use std::fmt::Display;
 #[cfg(feature = "fixes")]
@@ -56,6 +58,12 @@ struct Lint {
     /// Remove output
     #[clap(long)]
     no_output: bool,
+    /// No color output
+    #[clap(long)]
+    no_color: bool,
+    /// Compact output
+    #[clap(long)]
+    compact: bool,
 }
 
 #[cfg(feature = "fixes")]
@@ -321,7 +329,12 @@ fn main() {
                 }
                 // Pretty print output
                 else {
-                    let mut printer = PrettyPrint::new(diags);
+                    let mut printer = PrettyPrint::new(
+                        diags,
+                        PrettyPrintOptions::new()
+                            .color(!lint.no_color)
+                            .compact(lint.compact),
+                    );
                     printer.display_errors(&parser);
                     #[cfg(feature = "c229")]
                     println!("You are using an alpha version of this software. Please report any bugs to the developers.");
