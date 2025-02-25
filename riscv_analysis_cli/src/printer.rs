@@ -163,13 +163,25 @@ impl PrettyPrint {
 
 impl ErrorDisplay for PrettyPrint {
     fn display_errors<T: FileReader>(&mut self, parser: &RVParser<T>) {
+        let mut errors_in_other_files = 0;
+        for err in &self.diagnostics.clone() {
+            if let Some(base_file) = parser.reader.get_base_file() {
+                if err.file != base_file && !self.options.all_files {
+                    errors_in_other_files += 1;
+                    continue;
+                }
+            }
             if self.options.compact {
-                let out = self.format_item_compact(parser, &err);
+                let out = self.format_item_compact(parser, err);
                 print!("{}", out);
             } else {
-                let out = self.format_item(parser, &err);
+                let out = self.format_item(parser, err);
                 print!("{}", out);
             }
+        }
+        if errors_in_other_files > 0 {
+            let end_str = if errors_in_other_files > 1 { "s" } else { "" };
+            println!("{} diagnostic{} found in other files. To see all errors, run with the `--all_files` option.", errors_in_other_files, end_str);
         }
     }
 }

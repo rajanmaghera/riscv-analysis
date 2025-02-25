@@ -8,6 +8,8 @@ pub struct PrettyPrintOptions {
     pub compact: bool,
     /// Enable color output.
     pub color: bool,
+    /// Output errors from all files.
+    pub all_files: bool,
 }
 
 impl Default for PrettyPrintOptions {
@@ -22,6 +24,7 @@ impl PrettyPrintOptions {
         Self {
             compact: false,
             color: true,
+            all_files: false,
         }
     }
 
@@ -34,6 +37,12 @@ impl PrettyPrintOptions {
     /// Set the color option.
     pub fn color(mut self, value: bool) -> Self {
         self.color = value;
+        self
+    }
+
+    /// Set the all_files option.
+    pub fn all_files(mut self, value: bool) -> Self {
+        self.all_files = value;
         self
     }
 }

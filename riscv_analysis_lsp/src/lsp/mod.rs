@@ -88,6 +88,7 @@ impl LSPDiag for DiagnosticItem {
 #[derive(Clone)]
 pub struct LSPFileReader {
     pub file_uris: HashMap<Uuid, RVDocument>,
+    pub base_file: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -148,17 +149,25 @@ impl FileReader for LSPFileReader {
         let doc = doc.unwrap();
         Ok((doc.0, doc.1.text))
     }
+
+    fn get_base_file(&self) -> Option<uuid::Uuid> {
+        self.base_file
+    }
 }
 
 impl LSPFileReader {
     pub fn new(docs: Vec<RVDocument>) -> Self {
         let mut map = HashMap::new();
-
+        let mut base_file: Option<Uuid> = None;
         for doc in docs {
             let uuid = Uuid::new_v4();
+            base_file.get_or_insert(uuid);
             map.insert(uuid, doc);
         }
 
-        LSPFileReader { file_uris: map }
+        LSPFileReader {
+            file_uris: map,
+            base_file,
+        }
     }
 }

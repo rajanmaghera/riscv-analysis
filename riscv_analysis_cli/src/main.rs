@@ -64,6 +64,9 @@ struct Lint {
     /// Compact output
     #[clap(long)]
     compact: bool,
+    /// Display errors from all files
+    #[clap(long)]
+    all_files: bool,
 }
 
 #[cfg(feature = "fixes")]
@@ -91,6 +94,7 @@ struct DebugParse {
 struct IOFileReader {
     // path, uuid
     files: HashMap<uuid::Uuid, (String, String)>,
+    base_file: Option<uuid::Uuid>,
 }
 
 #[derive(Debug)]
@@ -111,6 +115,7 @@ impl IOFileReader {
     fn new() -> Self {
         IOFileReader {
             files: HashMap::new(),
+            base_file: None,
         }
     }
     #[cfg(feature = "fixes")]
@@ -269,6 +274,7 @@ impl FileReader for IOFileReader {
 
         // store full path to file
         let uuid = uuid::Uuid::new_v4();
+        self.base_file.get_or_insert(uuid);
         if self
             .files
             .insert(uuid, (path.clone(), file.clone()))
@@ -278,6 +284,10 @@ impl FileReader for IOFileReader {
         }
 
         Ok((uuid, file))
+    }
+
+    fn get_base_file(&self) -> Option<uuid::Uuid> {
+        self.base_file
     }
 }
 
@@ -333,7 +343,8 @@ fn main() {
                         diags,
                         PrettyPrintOptions::new()
                             .color(!lint.no_color)
-                            .compact(lint.compact),
+                            .compact(lint.compact)
+                            .all_files(lint.all_files),
                     );
                     printer.display_errors(&parser);
                     #[cfg(feature = "c229")]

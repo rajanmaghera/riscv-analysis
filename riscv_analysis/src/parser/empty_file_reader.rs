@@ -82,6 +82,10 @@ impl FileReader for EmptyFileReader {
             None
         }
     }
+
+    fn get_base_file(&self) -> Option<uuid::Uuid> {
+        self.base_file_uuid
+    }
 }
 
 #[cfg(test)]

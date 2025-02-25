@@ -22,4 +22,6 @@ pub trait FileReader: Sized + Clone {
     fn get_text(&self, uuid: uuid::Uuid) -> Option<String>;
 
     fn get_filename(&self, uuid: uuid::Uuid) -> Option<String>;
+
+    fn get_base_file(&self) -> Option<uuid::Uuid>;
 }
