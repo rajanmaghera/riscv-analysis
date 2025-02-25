@@ -7,15 +7,6 @@ use super::{AvailableValue, MemoryLocation};
 
 impl ParserNode {
     #[must_use]
-    pub fn kill_reg_value(&self) -> RegisterSet {
-        if self.calls_to().is_some() {
-            RegSets::caller_saved() | Register::X1
-        } else {
-            self.kill_reg()
-        }
-    }
-
-    #[must_use]
     pub fn kill_reg(&self) -> RegisterSet {
         if self.calls_to().is_some() {
             RegisterSet::new()
