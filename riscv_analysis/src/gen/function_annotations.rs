@@ -31,12 +31,12 @@ impl FunctionMarkupPass {
             node.insert_function(Rc::clone(func));
 
             // Collect any registers written to by the node
-            if let Some(dest) = node.node().writes_to() {
+            if let Some(dest) = node.writes_to() {
                 defs |= dest.data;
             }
 
             // Collect return instructions
-            if node.node().is_return() {
+            if node.is_return() {
                 // Set the newly found return to be an jump to the previously
                 // found return.
                 if let Some(ref prev_ret) = returns {
@@ -86,7 +86,7 @@ impl GenerationPass for FunctionMarkupPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
         for entry in &cfg.clone() {
             // Skip all nodes that are not entry points
-            if !entry.node().is_function_entry() {
+            if !entry.is_function_entry() {
                 continue;
             }
 

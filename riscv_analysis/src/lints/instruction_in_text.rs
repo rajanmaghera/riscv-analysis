@@ -14,7 +14,7 @@ pub struct InstructionInTextCheck;
 impl LintPass for InstructionInTextCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in cfg {
-            if node.node().is_instruction() && node.segment() != Segment::Text {
+            if node.is_instruction() && node.segment() != Segment::Text {
                 errors.push(LintError::InvalidSegment(node.node().clone()));
             }
         }

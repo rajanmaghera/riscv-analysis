@@ -41,7 +41,7 @@ impl Cfg {
                 continue;
             }
             visited.insert(Rc::clone(&prev));
-            if let Some(reg) = prev.node().writes_to() {
+            if let Some(reg) = prev.writes_to() {
                 if reg.data == item {
                     ranges.push(reg);
                     continue;
@@ -74,9 +74,9 @@ impl Cfg {
                 continue;
             }
             visited.insert(Rc::clone(&next));
-            if next.node().gen_reg().contains(&item) {
+            if next.gen_reg().contains(&item) {
                 // find the use
-                let regs = next.node().reads_from();
+                let regs = next.reads_from();
                 let mut it = None;
                 for reg in regs {
                     if reg == item {
@@ -104,8 +104,8 @@ pub struct SaveToZeroCheck;
 impl LintPass for SaveToZeroCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in cfg {
-            if let Some(register) = node.node().writes_to() {
-                if register == Register::X0 && !node.node().can_skip_save_checks() {
+            if let Some(register) = node.writes_to() {
+                if register == Register::X0 && !node.can_skip_save_checks() {
                     errors.push(LintError::SaveToZero(register.clone()));
                 }
             }
@@ -120,7 +120,7 @@ impl LintPass for DeadValueCheck {
             // check the out of the node for any uses that
             // should not be there (temporaries)
             // TODO merge with Callee saved register check
-            if let Some((function, call_site)) = node.calls_to(cfg) {
+            if let Some((function, call_site)) = node.calls_to_from_cfg(cfg) {
                 // check the expected return values of the function:
 
                 let out = (RegSets::caller_saved() - function.returns()) & node.live_out();
@@ -143,8 +143,8 @@ impl LintPass for DeadValueCheck {
             // Check for any assignments that don't make it
             // to the end of the node. These assignments are not
             // used.
-            else if let Some(def) = node.node().writes_to() {
-                if !node.live_out().contains(&def.data) && !node.node().can_skip_save_checks() {
+            else if let Some(def) = node.writes_to() {
+                if !node.live_out().contains(&def.data) && !node.can_skip_save_checks() {
                     errors.push(LintError::DeadAssignment(def));
                 }
             }
@@ -158,7 +158,7 @@ pub struct EcallCheck;
 impl LintPass for EcallCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in cfg {
-            if node.node().is_ecall() && node.known_ecall().is_none() {
+            if node.is_ecall() && node.known_ecall().is_none() {
                 errors.push(LintError::UnknownEcall(node.node().clone()));
             }
         }
@@ -172,7 +172,7 @@ pub struct GarbageInputValueCheck;
 impl LintPass for GarbageInputValueCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in cfg {
-            if node.node().is_program_entry() {
+            if node.is_program_entry() {
                 // get registers
                 let garbage = node.live_in() - RegSets::program_args();
                 if !garbage.is_empty() {
@@ -185,7 +185,7 @@ impl LintPass for GarbageInputValueCheck {
                         errors.push(LintError::InvalidUseBeforeAssignment(range.clone()));
                     }
                 }
-            } else if let Some(func) = node.is_function_entry() {
+            } else if let Some(func) = node.is_function_entry_with_func() {
                 let args = func.arguments();
                 let garbage = node.live_in() - args - RegSets::callee_saved();
                 if !garbage.is_empty() {
@@ -230,7 +230,7 @@ impl LintPass for StackCheckPass {
                             break 'outer;
                         }
 
-                        if let Some((reg2, off2)) = node.node().uses_memory_location() {
+                        if let Some((reg2, off2)) = node.uses_memory_location() {
                             if reg2 == Register::X2 && off2.0 + off >= 0 {
                                 errors.push(LintError::InvalidStackOffsetUsage(
                                     node.node().clone(),
@@ -244,7 +244,7 @@ impl LintPass for StackCheckPass {
                     }
                 }
             }
-            if let Some((reg, _)) = node.node().uses_memory_location() {
+            if let Some((reg, _)) = node.uses_memory_location() {
                 if reg == Register::X2 {}
             }
         }
@@ -258,12 +258,12 @@ pub struct CalleeSavedGarbageReadCheck;
 impl LintPass for CalleeSavedGarbageReadCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in cfg {
-            for read in node.node().reads_from() {
+            for read in node.reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
 
                 if RegSets::saved().contains(&read.data)
-                    && node.node().uses_memory_location().is_none()
+                    && node.uses_memory_location().is_none()
                     && node.reg_values_in().is_original_value(read.data)
                 {
                     errors.push(LintError::InvalidUseBeforeAssignment(read.clone()));
@@ -319,7 +319,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
             // and the value going in was the original value
             // We intentionally do not check for callee-saved registers
             // as the value is mean to be modified
-            if let Some(reg) = node.node().writes_to() {
+            if let Some(reg) = node.writes_to() {
                 if callee.contains(&reg.data)
                     && node.is_part_of_some_function()
                     && node.reg_values_in().get(&reg.data)

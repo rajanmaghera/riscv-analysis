@@ -26,7 +26,7 @@ impl GenerationPass for LivenessPass {
                     .unwrap_or_default();
                 changed |= node.set_live_out(live_out);
 
-                if let Some((func, _)) = node.calls_to(cfg) {
+                if let Some((func, _)) = node.calls_to_from_cfg(cfg) {
                     // live_in[F_exit] = live_in[F_exit] U gen[F_exit] U live_out[n]
                     // We take the union of the existing live_in to match multiple call sites
                     let func_exit_live_in = (node.live_out()) | func.exit().live_in();
@@ -54,14 +54,14 @@ impl GenerationPass for LivenessPass {
 
                     // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - kill[n])
                     // kill[n] = caller-saved
-                    let live_in_temp = node.live_out() - node.node().kill_reg();
+                    let live_in_temp = node.live_out() - node.kill_reg();
                     let live_in = (func.entry().live_out() & RegSets::argument())
                         | live_in_temp
-                        | node.node().gen_reg();
+                        | node.gen_reg();
 
                     changed |= node.set_live_in(live_in);
                     changed |= node.set_u_def(u_def);
-                } else if node.node().is_ecall() {
+                } else if node.is_ecall() {
                     let (args, rets) = node.known_ecall_signature().unwrap_or_default();
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - caller-saved | ecall_returns
@@ -83,9 +83,9 @@ impl GenerationPass for LivenessPass {
                         | args;
                     changed |= node.set_live_in(live_in);
                     changed |= node.set_u_def(u_def);
-                } else if node.node().is_return() {
+                } else if node.is_return() {
                     // live_in[n] = live_in[n] U gen[n]
-                    let live_in = node.live_in() | node.node().gen_reg();
+                    let live_in = node.live_in() | node.gen_reg();
                     changed |= node.set_live_in(live_in);
 
                     // u_def[n] = AND u_def[s] for all s in prev[n]
@@ -98,10 +98,9 @@ impl GenerationPass for LivenessPass {
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default();
                     changed |= node.set_u_def(u_def);
-                } else if node.node().is_function_entry() {
+                } else if node.is_function_entry() {
                     // live_in[n] = gen[n] U (live_out[n] - kill[n])
-                    let live_in =
-                        (node.live_out() - node.node().kill_reg()) | node.node().gen_reg();
+                    let live_in = (node.live_out() - node.kill_reg()) | node.gen_reg();
 
                     // u_def[n] = live_in[n] AND argument-registers
                     let u_def = live_in & RegSets::argument();
@@ -118,11 +117,10 @@ impl GenerationPass for LivenessPass {
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default())
-                        | node.node().kill_reg();
+                        | node.kill_reg();
 
                     // live_in[n] = gen[n] U (live_out[n] - kill[n])
-                    let live_in =
-                        (node.live_out() - node.node().kill_reg()) | node.node().gen_reg();
+                    let live_in = (node.live_out() - node.kill_reg()) | node.gen_reg();
 
                     changed |= node.set_live_in(live_in);
                     changed |= node.set_u_def(u_def);

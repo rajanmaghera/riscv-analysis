@@ -20,7 +20,7 @@ impl LintPass for OverlappingFunctionCheck {
             // NOTE: We only give an error for the first line of a function,
             //       even though there may be many overlapping instructions.
             //       This is done to not overwhelm the user with errors.
-            if node.functions().len() > 1 && node.is_function_entry().is_some() {
+            if node.functions().len() > 1 && node.is_function_entry_with_func().is_some() {
                 // HACK: Create a dummy label with the same name
                 let labels = node.labels();
                 let labels = labels

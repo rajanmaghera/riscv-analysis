@@ -149,38 +149,38 @@ impl GenerationPass for AvailableValuePass {
 
                 // out[n] = gen[n] U (in[n] - kill[n]) U (callee_saved if n is entry)
                 let mut out_reg_n = node.reg_values_in();
-                if node.node().calls_to().is_some() {
+                if node.calls_to().is_some() {
                     out_reg_n -= (RegSets::caller_saved() | Register::X1).iter();
                 } else {
-                    out_reg_n -= node.node().kill_reg().iter();
+                    out_reg_n -= node.kill_reg().iter();
                 }
-                if let Some((reg, reg_value)) = node.node().gen_reg_value() {
+                if let Some((reg, reg_value)) = node.gen_reg_value() {
                     out_reg_n.insert(reg, reg_value);
                 }
-                if node.node().is_handler_function_entry() {
+                if node.is_handler_function_entry() {
                     out_reg_n.extend(RegSets::all().into_available_values());
                 }
-                if node.node().is_function_entry() {
+                if node.is_function_entry() {
                     out_reg_n.extend(RegSets::callee_saved().into_available_values());
                 }
-                if node.node().is_program_entry() {
+                if node.is_program_entry() {
                     out_reg_n.extend(RegSets::sp_ra().into_available_values());
                 }
 
                 // out_memory[n] = (gen_memory[n] if we know the location of the stack pointer) U in_memory[n]
                 // (There is no kill_stacks[n])
-                let mut out_memory_n = if node.node().is_any_entry() {
+                let mut out_memory_n = if node.is_any_entry() {
                     AvailableValueMap::new()
                 } else {
                     let mut map = node.memory_values_in();
                     if let Some((MemoryLocation::StackOffset(offset), value)) =
-                        node.node().gen_memory_value()
+                        node.gen_memory_value()
                     {
                         if let Some(curr_stack) = node.reg_values_in().stack_offset() {
                             map.insert(MemoryLocation::StackOffset(curr_stack + offset), value);
                         }
                     } else {
-                        if let Some((memory, value)) = node.node().gen_memory_value() {
+                        if let Some((memory, value)) = node.gen_memory_value() {
                             map.insert(memory, value);
                         }
                     }
@@ -342,7 +342,7 @@ fn rule_perform_math_ops(
 /// the stack contains a value at the offset, then store the value from the
 /// stack into the register.
 fn rule_value_from_stack(
-    node: &ParserNode,
+    node: &impl InstructionProperties,
     available_out: &mut AvailableValueMap<Register>,
     memory_in: &AvailableValueMap<MemoryLocation>,
 ) {
@@ -395,7 +395,7 @@ fn rule_known_values_to_stack(
 }
 
 fn rule_push_value_to_csr_memory(
-    node: &ParserNode,
+    node: &impl InstructionProperties,
     memory_out: &mut AvailableValueMap<MemoryLocation>,
     available_in: &AvailableValueMap<Register>,
 ) {
@@ -413,7 +413,7 @@ fn rule_push_value_to_csr_memory(
 }
 
 fn rule_pull_value_from_csr_memory(
-    node: &ParserNode,
+    node: &impl InstructionProperties,
     available_out: &mut AvailableValueMap<Register>,
     memory_out: &AvailableValueMap<MemoryLocation>,
 ) {

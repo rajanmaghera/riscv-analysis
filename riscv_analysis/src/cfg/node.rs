@@ -193,10 +193,10 @@ impl CfgNode {
         self.u_def.replace_if_changed(u_def)
     }
 
-    pub fn calls_to(&self, cfg: &Cfg) -> Option<(Rc<Function>, With<LabelString>)> {
-        if let Some(name) = self.node().calls_to() {
+    pub fn calls_to_from_cfg(&self, cfg: &Cfg) -> Option<(Rc<Function>, With<LabelString>)> {
+        if let Some(name) = self.calls_to() {
             cfg.functions().get(&name).cloned().map(|x| (x, name))
-        } else if let Some(name) = self.node().is_some_jump_to_label() {
+        } else if let Some(name) = self.is_some_jump_to_label() {
             // In some cases, functions may be called by jumping to them indirectly
             cfg.functions().get(&name).cloned().map(|x| (x, name))
         } else {
@@ -205,7 +205,7 @@ impl CfgNode {
     }
 
     pub fn known_ecall(&self) -> Option<i32> {
-        if self.node().is_ecall() {
+        if self.is_ecall() {
             if let Some(AvailableValue::Constant(call_num)) =
                 self.reg_values_in().get(&Register::ecall_type())
             {
@@ -253,7 +253,7 @@ impl CfgNode {
     }
 
     /// If this node is an entry point, return the corresponding function.
-    pub fn is_function_entry(&self) -> Option<Rc<Function>> {
+    pub fn is_function_entry_with_func(&self) -> Option<Rc<Function>> {
         for func in self.functions().iter() {
             let func = Rc::clone(func);
             if &*func.entry() == self {
