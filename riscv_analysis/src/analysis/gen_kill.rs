@@ -57,7 +57,7 @@ impl ParserNode {
     pub fn gen_reg_value(&self) -> Option<(Register, AvailableValue)> {
         // The function entry case and program entry case is handled separately
         // to account for all the "original" registers.
-        match self {
+        let item = match self {
             ParserNode::LoadAddr(expr) => {
                 Some((expr.rd.data, AvailableValue::Address(expr.name.clone())))
             }
@@ -96,6 +96,14 @@ impl ParserNode {
                 }
             }
             _ => None,
+        };
+
+        if let Some((reg, _)) = &item {
+            if *reg == Register::X0 {
+                return None;
+            }
         }
+
+        item
     }
 }
