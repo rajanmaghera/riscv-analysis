@@ -13,7 +13,7 @@ use riscv_analysis_cli::wrapper::{DiagnosticTestCase, TestCase};
 use crate::pretty_print_options::PrettyPrintOptions;
 
 pub trait ErrorDisplay {
-    fn display_errors<T: FileReader + Clone>(&mut self, parser: &RVParser<T>);
+    fn display_errors<T: FileReader>(&mut self, parser: &RVParser<T>);
 }
 
 /// Pretty printer for errors.
@@ -33,7 +33,7 @@ impl PrettyPrint {
     }
 
     /// Return the contents of a file, caching the results.
-    fn get_file<T: FileReader + Clone>(
+    fn get_file<T: FileReader>(
         &mut self,
         parser: &RVParser<T>,
         file: &Uuid,
@@ -112,7 +112,7 @@ impl PrettyPrint {
     }
 
     /// Format a diagnostic item in a compact (one-line) form.
-    fn format_item_compact<T: FileReader + Clone>(
+    fn format_item_compact<T: FileReader>(
         &mut self,
         parser: &RVParser<T>,
         item: &DiagnosticItem,
@@ -131,7 +131,7 @@ impl PrettyPrint {
     }
 
     /// Format a diagnostic item.
-    fn format_item<T: FileReader + Clone>(
+    fn format_item<T: FileReader>(
         &mut self,
         parser: &RVParser<T>,
         item: &DiagnosticItem,
@@ -162,8 +162,7 @@ impl PrettyPrint {
 }
 
 impl ErrorDisplay for PrettyPrint {
-    fn display_errors<T: FileReader + Clone>(&mut self, parser: &RVParser<T>) {
-        for err in self.diagnostics.clone() {
+    fn display_errors<T: FileReader>(&mut self, parser: &RVParser<T>) {
             if self.options.compact {
                 let out = self.format_item_compact(parser, &err);
                 print!("{}", out);
@@ -189,7 +188,7 @@ impl JSONPrint {
     }
 
     /// Convert a single diagnostic item to JSON
-    fn wrap_item<T: FileReader + Clone>(
+    fn wrap_item<T: FileReader>(
         &self,
         parser: &RVParser<T>,
         item: &DiagnosticItem,
@@ -218,7 +217,7 @@ impl JSONPrint {
 }
 
 impl ErrorDisplay for JSONPrint {
-    fn display_errors<T: FileReader + Clone>(&mut self, parser: &RVParser<T>) {
+    fn display_errors<T: FileReader>(&mut self, parser: &RVParser<T>) {
         // Convert the diagnostic items to JSON
         let sub: Vec<_> = self
             .diagnostics

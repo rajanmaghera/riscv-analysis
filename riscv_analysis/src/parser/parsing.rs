@@ -49,13 +49,13 @@ pub trait CanGetURIString: FileReader {
 /// Parser for RISC-V assembly
 pub struct RVParser<T>
 where
-    T: FileReader + Clone,
+    T: FileReader,
 {
     lexer_stack: Vec<Peekable<Lexer>>,
     pub reader: T,
 }
 
-impl<T: FileReader + Clone> RVParser<T> {
+impl<T: FileReader> RVParser<T> {
     pub fn run(&mut self, base: &str) -> Vec<DiagnosticItem> {
         let mut diags = Vec::new();
         let parsed = self.parse_from_file(base, false);

@@ -9,7 +9,7 @@ pub enum FileReaderError {
     InvalidPath,
 }
 
-pub trait FileReader: Sized {
+pub trait FileReader: Sized + Clone {
     /// Import and read a file into the reader.
     ///
     /// Returns the UUID of the file and a string containing the file's contents.
