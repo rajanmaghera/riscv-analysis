@@ -25,11 +25,9 @@ impl GenerationPass for LivenessPass {
                 node.set_live_out(live_out);
 
                 if let Some((func, _)) = node.calls_to(cfg) {
-                    // live_in[F_exit] = live_in[F_exit] U gen[F_exit] (live_out[n] AND u_def[F_exit])
+                    // live_in[F_exit] = live_in[F_exit] U gen[F_exit] U live_out[n]
                     // We take the union of the existing live_in to match multiple call sites
-                    let func_exit_live_in = (node.live_out() & func.exit().u_def())
-                        | func.exit().live_in()
-                        | func.exit().node().gen_reg();
+                    let func_exit_live_in = (node.live_out()) | func.exit().live_in();
 
                     if func_exit_live_in != func.exit().live_in() {
                         changed = true;
@@ -56,10 +54,12 @@ impl GenerationPass for LivenessPass {
                         - RegSets::caller_saved())
                         | (func.exit().u_def() & RegSets::ret());
 
-                    // live_in[n] = (live_in[F] & argument-registers) U (live_out[n] - kill[n])
+                    // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - kill[n])
                     // kill[n] = caller-saved
-                    let live_in_temp = node.live_out() - RegSets::caller_saved();
-                    let live_in = (func.entry().live_out() & RegSets::argument()) | live_in_temp;
+                    let live_in_temp = node.live_out() - node.node().kill_reg();
+                    let live_in = (func.entry().live_out() & RegSets::argument())
+                        | live_in_temp
+                        | node.node().gen_reg();
 
                     if live_in != node.live_in() {
                         changed = true;
@@ -99,6 +99,13 @@ impl GenerationPass for LivenessPass {
                         node.set_u_def(u_def);
                     }
                 } else if node.node().is_return() {
+                    // live_in[n] = live_in[n] U gen[n]
+                    let live_in = node.live_in() | node.node().gen_reg();
+                    if live_in != node.live_in() {
+                        changed = true;
+                        node.set_live_in(live_in);
+                    }
+
                     // u_def[n] = AND u_def[s] for all s in prev[n]
                     let u_def = node
                         .prevs()

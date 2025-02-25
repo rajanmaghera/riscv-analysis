@@ -2,6 +2,8 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt;
 
+use crate::parser::CSRImm;
+
 /// A memory location.
 ///
 /// This is used to represent a memory location.
@@ -29,6 +31,13 @@ pub enum MemoryLocation {
     /// kept track of on the stack. This is because the register
     /// is 32-bit.
     StackOffset(i32),
+    /// A CSR register
+    ///
+    /// We do not track the liveness of CSR registers. Thus, we treat the
+    /// CSR registers as a special case of memory.
+    CsrRegister(CSRImm),
+    /// A memory location indexed by the value inside a CSR register.
+    CsrRegisterValueOffset(CSRImm, i32),
 }
 
 impl Serialize for MemoryLocation {
@@ -37,6 +46,10 @@ impl Serialize for MemoryLocation {
         S: Serializer,
     {
         match self {
+            MemoryLocation::CsrRegister(csr) => serializer.serialize_str(&format!("csr+{}", csr.0)),
+            MemoryLocation::CsrRegisterValueOffset(csr, offset) => {
+                serializer.serialize_str(&format!("csro+{}+{}", csr.0, offset))
+            }
             MemoryLocation::StackOffset(i) => serializer.serialize_str(&format!(
                 "so{}{}",
                 if i < &0 { "-" } else { "+" },
@@ -67,6 +80,22 @@ impl Visitor<'_> for MemoryLocationVisitor {
             } else {
                 num
             }))
+        } else if let Some(csr) = v.strip_prefix("csr+") {
+            let csr = csr.parse::<u32>().map_err(de::Error::custom)?;
+            Ok(MemoryLocation::CsrRegister(CSRImm(csr)))
+        } else if let Some(csro) = v.strip_prefix("csro+") {
+            let mut split = csro.split('+');
+            let csr = split
+                .next()
+                .unwrap()
+                .parse::<u32>()
+                .map_err(de::Error::custom)?;
+            let offset = split
+                .next()
+                .unwrap()
+                .parse::<i32>()
+                .map_err(de::Error::custom)?;
+            Ok(MemoryLocation::CsrRegisterValueOffset(CSRImm(csr), offset))
         } else {
             Err(de::Error::custom("invalid memory location"))
         }
@@ -89,6 +118,10 @@ impl std::fmt::Display for MemoryLocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // sp_i == "stack pointer at the beginning of the function, or initial"
         match self {
+            MemoryLocation::CsrRegister(csr) => write!(f, "csr[{}]", csr.0),
+            MemoryLocation::CsrRegisterValueOffset(csr, offset) => {
+                write!(f, "*(csr[{}]) + {}", csr.0, offset)
+            }
             MemoryLocation::StackOffset(offset) => {
                 if offset < &0 {
                     write!(f, "sp_i - {}", offset.abs())

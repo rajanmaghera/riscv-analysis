@@ -283,11 +283,12 @@ impl ParserNode {
     }
 
     #[must_use]
-    pub fn new_func_entry(file: Uuid, token: RawToken) -> ParserNode {
+    pub fn new_func_entry(file: Uuid, token: RawToken, is_interrupt_handler: bool) -> ParserNode {
         ParserNode::FuncEntry(FuncEntry {
             key: Uuid::new_v4(),
             file,
             token,
+            is_interrupt_handler,
         })
     }
 

@@ -1,6 +1,6 @@
 use crate::{
     cfg::RegisterSet,
-    parser::{IArithType, ParserNode, RegSets, Register},
+    parser::{CSRIType, CSRType, IArithType, ParserNode, RegSets, Register},
 };
 
 use super::{AvailableValue, MemoryLocation};
@@ -39,6 +39,22 @@ impl ParserNode {
     #[must_use]
     pub fn gen_memory_value(&self) -> Option<(MemoryLocation, AvailableValue)> {
         match self {
+            ParserNode::Csr(expr) => match expr.inst.data {
+                CSRType::Csrrw => Some((
+                    MemoryLocation::CsrRegister(expr.csr.data),
+                    AvailableValue::RegisterWithScalar(expr.rs1.data, 0),
+                )),
+                // TODO handle other CSR instructions
+                _ => None,
+            },
+            ParserNode::CsrI(expr) => match expr.inst.data {
+                CSRIType::Csrrwi => Some((
+                    MemoryLocation::CsrRegister(expr.csr.data),
+                    AvailableValue::Constant(expr.imm.data.0),
+                )),
+                // TODO handle other CSR instructions
+                _ => None,
+            },
             ParserNode::Store(expr) => {
                 if expr.rs1 == Register::X2 {
                     Some((
@@ -58,6 +74,13 @@ impl ParserNode {
         // The function entry case and program entry case is handled separately
         // to account for all the "original" registers.
         let item = match self {
+            ParserNode::Csr(expr) => {
+                Some((expr.rd.data, AvailableValue::ValueInCsr(expr.csr.data)))
+            }
+            ParserNode::CsrI(expr) => {
+                Some((expr.rd.data, AvailableValue::ValueInCsr(expr.csr.data)))
+            }
+
             ParserNode::LoadAddr(expr) => {
                 Some((expr.rd.data, AvailableValue::Address(expr.name.clone())))
             }

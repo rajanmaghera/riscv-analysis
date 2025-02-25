@@ -227,6 +227,8 @@ pub struct FuncEntry {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    #[serde(skip)]
+    pub is_interrupt_handler: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

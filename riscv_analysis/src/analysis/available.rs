@@ -8,7 +8,7 @@ use std::rc::Rc;
 use serde::{Deserialize, Serialize};
 
 use crate::cfg::AvailableValueMap;
-use crate::parser::{LabelString, RegSets, With};
+use crate::parser::{CSRImm, LabelString, RegSets, With};
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
 
@@ -68,6 +68,12 @@ pub enum AvailableValue {
     MemoryAtRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we do not know the label
     #[serde(rename = "omr")]
     MemoryAtOriginalRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we are sure it is the same as the original
+    /// The value inside of a CSR register.
+    #[serde(rename = "c")]
+    ValueInCsr(CSRImm),
+    /// Value at memory location of value in CSR register.
+    #[serde(rename = "mc")]
+    MemoryAtCsr(CSRImm, i32),
 }
 
 /// Performs the available value analysis on the graph.
@@ -150,6 +156,9 @@ impl GenerationPass for AvailableValuePass {
                 if let Some((reg, reg_value)) = node.node().gen_reg_value() {
                     out_reg_n.insert(reg, reg_value);
                 }
+                if node.node().is_handler_function_entry() {
+                    out_reg_n.extend(RegSets::all().into_available_values());
+                }
                 if node.node().is_function_entry() {
                     out_reg_n.extend(RegSets::callee_saved().into_available_values());
                 }
@@ -169,6 +178,10 @@ impl GenerationPass for AvailableValuePass {
                         if let Some(curr_stack) = node.reg_values_in().stack_offset() {
                             map.insert(MemoryLocation::StackOffset(curr_stack + offset), value);
                         }
+                    } else {
+                        if let Some((memory, value)) = node.node().gen_memory_value() {
+                            map.insert(memory, value);
+                        }
                     }
                     map
                 };
@@ -180,6 +193,11 @@ impl GenerationPass for AvailableValuePass {
 
                 rule_expand_address_for_load(&node.node(), &mut out_reg_n, &node.reg_values_in());
                 rule_value_from_stack(&node.node(), &mut out_reg_n, &node.memory_values_in());
+                rule_pull_value_from_csr_memory(
+                    &node.node(),
+                    &mut out_reg_n,
+                    &node.memory_values_out(),
+                );
                 rule_zero_to_const(
                     &mut out_reg_n,
                     &node.reg_values_in(),
@@ -187,6 +205,7 @@ impl GenerationPass for AvailableValuePass {
                     &node.memory_values_in(),
                 );
                 rule_perform_math_ops(&node.node(), &mut out_reg_n, &node.reg_values_in());
+                rule_push_value_to_csr_memory(&node.node(), &mut out_memory_n, &out_reg_n);
                 rule_known_values_to_stack(&mut out_memory_n, &node.reg_values_in());
                 // TODO stack reset?
 
@@ -333,6 +352,12 @@ fn rule_value_from_stack(
     memory_in: &AvailableValueMap<MemoryLocation>,
 ) {
     if let Some(reg) = node.stores_to() {
+        if let Some(AvailableValue::ValueInCsr(csr)) = available_out.get(&reg.data) {
+            if let Some(csr_value) = memory_in.get(&MemoryLocation::CsrRegister(*csr)) {
+                available_out.insert(reg.data, csr_value.clone());
+            }
+        }
+
         if let Some(AvailableValue::MemoryAtOriginalRegister(psp, off)) =
             available_out.get(&reg.data)
         {
@@ -373,3 +398,43 @@ fn rule_known_values_to_stack(
         }
     }
 }
+
+fn rule_push_value_to_csr_memory(
+    node: &ParserNode,
+    memory_out: &mut AvailableValueMap<MemoryLocation>,
+    available_in: &AvailableValueMap<Register>,
+) {
+    // If the node writes to memory
+    if let Some((source, (reg, off))) = node.stores_to_memory() {
+        // If the register contains a csr value
+        if let Some(AvailableValue::ValueInCsr(csr)) = available_in.get(&reg) {
+            // Push the value to the memory
+            memory_out.insert(
+                MemoryLocation::CsrRegisterValueOffset(*csr, off.0),
+                AvailableValue::RegisterWithScalar(source, 0),
+            );
+        }
+    }
+}
+
+fn rule_pull_value_from_csr_memory(
+    node: &ParserNode,
+    available_out: &mut AvailableValueMap<Register>,
+    memory_out: &AvailableValueMap<MemoryLocation>,
+) {
+    // If the node reads from memory
+    if let Some(((reg, off), dest)) = node.reads_from_memory() {
+        // If the source address is a csr memory location
+        if let Some(AvailableValue::ValueInCsr(csr)) = available_out.get(&reg) {
+            // If the memory at csr contains a value
+            if let Some(value) =
+                memory_out.get(&MemoryLocation::CsrRegisterValueOffset(*csr, off.0))
+            {
+                // Pull the value from the memory
+                available_out.insert(dest, value.clone());
+            }
+        }
+    }
+}
+
+// TODO: generic function that converts available value to memory location and vice versa

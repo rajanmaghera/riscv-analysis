@@ -156,10 +156,18 @@ impl DiagnosticMessage for LintError {
         self.to_string()
     }
     fn description(&self) -> String {
-        self.long_description()
+        self.to_string()
     }
     fn long_description(&self) -> String {
-        self.to_string()
+        match self {
+            LintError::InvalidUseBeforeAssignment(_) => {
+                "This register is being used before it is assigned to. \
+                If you see this, check the following suggestions: \
+                - Did you call this code as a function (jal ra <label>) rather than a jump (jal zero <label>)? \
+                ".to_string()
+            }
+            _ => self.description(),
+            }
     }
     fn related(&self) -> Option<Vec<super::RelatedDiagnosticItem>> {
         match self {

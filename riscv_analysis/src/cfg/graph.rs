@@ -130,8 +130,8 @@ impl Cfg {
         let label_names = old_nodes.label_names();
         let call_names = {
             let mut set = old_nodes.call_names();
-            if let Some(new_set) = predefined_call_names {
-                set.extend(new_set);
+            if let Some(new_set) = &predefined_call_names {
+                set.extend(new_set.clone());
             }
             set
         };
@@ -184,8 +184,20 @@ impl Cfg {
                         .next()
                         .is_some()
                     {
+                        let is_interrupt = if let Some(p_call_names) = &predefined_call_names {
+                            // If any of the current_labels are in the predefined call names, then we need to add
+                            // a boolean switch
+                            current_labels
+                                .clone()
+                                .intersection(p_call_names)
+                                .next()
+                                .is_some()
+                        } else {
+                            false
+                        };
+
                         let rc_node = Rc::new(CfgNode::new(
-                            ParserNode::new_func_entry(node.file(), node.token()),
+                            ParserNode::new_func_entry(node.file(), node.token(), is_interrupt),
                             current_labels.clone(),
                             segment,
                         ));
