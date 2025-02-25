@@ -9,7 +9,7 @@ impl ParserNode {
     #[must_use]
     pub fn kill_reg(&self) -> RegisterSet {
         if self.calls_to().is_some() {
-            RegisterSet::new()
+            RegSets::caller_saved()
         } else if self.is_function_entry() {
             RegSets::caller_saved()
         } else if let Some(stored_reg) = self.stores_to().map(|x| x.data) {
