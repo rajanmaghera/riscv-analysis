@@ -39,7 +39,7 @@ impl Cfg {
                 continue;
             }
             visited.insert(Rc::clone(&prev));
-            if let Some(reg) = prev.node().stores_to() {
+            if let Some(reg) = prev.node().writes_to() {
                 if reg.data == item {
                     ranges.push(reg);
                     continue;
@@ -102,7 +102,7 @@ pub struct SaveToZeroCheck;
 impl LintPass for SaveToZeroCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in cfg {
-            if let Some(register) = node.node().stores_to() {
+            if let Some(register) = node.node().writes_to() {
                 if register == Register::X0 && !node.node().can_skip_save_checks() {
                     errors.push(LintError::SaveToZero(register.clone()));
                 }
@@ -141,7 +141,7 @@ impl LintPass for DeadValueCheck {
             // Check for any assignments that don't make it
             // to the end of the node. These assignments are not
             // used.
-            else if let Some(def) = node.node().stores_to() {
+            else if let Some(def) = node.node().writes_to() {
                 if !node.live_out().contains(&def.data) && !node.node().can_skip_save_checks() {
                     errors.push(LintError::DeadAssignment(def));
                 }
@@ -317,7 +317,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
             // and the value going in was the original value
             // We intentionally do not check for callee-saved registers
             // as the value is mean to be modified
-            if let Some(reg) = node.node().stores_to() {
+            if let Some(reg) = node.node().writes_to() {
                 if callee.contains(&reg.data)
                     && node.is_part_of_some_function()
                     && node.reg_values_in().get(&reg.data)

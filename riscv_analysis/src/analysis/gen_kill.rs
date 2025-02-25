@@ -12,7 +12,7 @@ impl ParserNode {
             RegSets::caller_saved()
         } else if self.is_function_entry() {
             RegSets::caller_saved()
-        } else if let Some(stored_reg) = self.stores_to().map(|x| x.data) {
+        } else if let Some(stored_reg) = self.writes_to().map(|x| x.data) {
             if stored_reg == Register::X0 {
                 RegisterSet::new()
             } else {

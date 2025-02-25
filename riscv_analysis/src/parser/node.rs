@@ -525,7 +525,7 @@ impl ParserNode {
 
     // NOTE: This is in context to a register store, not a memory store
     #[must_use]
-    pub fn stores_to(&self) -> Option<With<Register>> {
+    pub fn writes_to(&self) -> Option<With<Register>> {
         match self {
             ParserNode::Load(load) => Some(load.rd.clone()),
             ParserNode::LoadAddr(load) => Some(load.rd.clone()),
