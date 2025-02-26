@@ -47,7 +47,12 @@ pub use rv_string_parser::*;
 
 mod comments;
 
-mod node_instruction_properties;
-
 mod trait_instruction_properties;
 pub use trait_instruction_properties::*;
+
+mod trait_has_identity;
+pub use trait_has_identity::*;
+
+mod node_diagnostic_location;
+mod node_has_identity;
+mod node_instruction_properties;

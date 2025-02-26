@@ -14,8 +14,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
-    Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry, IArith,
-    JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry, RawToken, Store,
+    Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry,
+    HasIdentity, IArith, JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry,
+    RawToken, Store,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,32 +59,11 @@ impl ParserNode {
             ParserNode::FuncEntry(x) => x.token.clone(),
         }
     }
-
-    #[must_use]
-    pub fn id(&self) -> Uuid {
-        match self {
-            ParserNode::Arith(a) => a.key,
-            ParserNode::IArith(a) => a.key,
-            ParserNode::Label(a) => a.key,
-            ParserNode::JumpLink(a) => a.key,
-            ParserNode::JumpLinkR(a) => a.key,
-            ParserNode::Basic(a) => a.key,
-            ParserNode::Directive(a) => a.key,
-            ParserNode::Branch(a) => a.key,
-            ParserNode::Store(a) => a.key,
-            ParserNode::Load(a) => a.key,
-            ParserNode::Csr(a) => a.key,
-            ParserNode::CsrI(a) => a.key,
-            ParserNode::LoadAddr(a) => a.key,
-            ParserNode::FuncEntry(a) => a.key,
-            ParserNode::ProgramEntry(a) => a.key,
-        }
-    }
 }
 
 impl PartialEq for ParserNode {
     fn eq(&self, other: &Self) -> bool {
-        self.id() == other.id()
+        self.id().eq(&other.id())
     }
 }
 impl Eq for ParserNode {}

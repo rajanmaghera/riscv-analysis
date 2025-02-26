@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{
     analysis::MemoryLocation,
-    parser::{ParserNode, Register},
+    parser::{HasIdentity, ParserNode, Register},
 };
 
 use super::{AvailableValueMap, Cfg, CfgNode, RegisterSet};
@@ -62,7 +62,7 @@ impl NodeWrapper {
                 .iter()
                 .map(|func| {
                     cfg.iter()
-                        .position(|other| func.entry().node().id() == other.node().id())
+                        .position(|other| func.entry().id() == other.id())
                         .unwrap()
                 })
                 .collect::<Vec<_>>(),
@@ -71,27 +71,19 @@ impl NodeWrapper {
                 .iter()
                 .map(|func| {
                     cfg.iter()
-                        .position(|other| func.exit().node().id() == other.node().id())
+                        .position(|other| func.exit().id() == other.id())
                         .unwrap()
                 })
                 .collect::<Vec<_>>(),
             nexts: node
                 .nexts()
                 .iter()
-                .map(|x| {
-                    cfg.iter()
-                        .position(|y| x.node().id() == y.node().id())
-                        .unwrap()
-                })
+                .map(|x| cfg.iter().position(|y| x.id() == y.id()).unwrap())
                 .collect(),
             prevs: node
                 .prevs()
                 .iter()
-                .map(|x| {
-                    cfg.iter()
-                        .position(|y| x.node().id() == y.node().id())
-                        .unwrap()
-                })
+                .map(|x| cfg.iter().position(|y| x.id() == y.id()).unwrap())
                 .collect(),
             reg_values_in: node.reg_values_in(),
             reg_values_out: node.reg_values_out(),

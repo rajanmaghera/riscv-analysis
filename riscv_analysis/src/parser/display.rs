@@ -1,8 +1,6 @@
 use std::fmt::Display;
 
-use uuid::Uuid;
-
-use crate::{parser::Inst, passes::DiagnosticLocation};
+use crate::parser::Inst;
 
 use super::ParserNode;
 
@@ -88,14 +86,5 @@ impl Display for ParserNode {
             }
         };
         write!(f, "{res}")
-    }
-}
-
-impl DiagnosticLocation for ParserNode {
-    fn file(&self) -> Uuid {
-        self.token().file
-    }
-    fn range(&self) -> super::Range {
-        self.token().pos
     }
 }
