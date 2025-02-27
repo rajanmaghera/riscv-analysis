@@ -127,7 +127,7 @@ where
     T: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self.data)
+        std::fmt::Debug::fmt(&self.data, f)
     }
 }
 
@@ -136,7 +136,7 @@ where
     T: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", &self.data)
+        std::fmt::Display::fmt(&self.data, f)
     }
 }
 
@@ -154,27 +154,6 @@ impl Display for Token {
         write!(f, "{}", self.token)
     }
 }
-
-pub struct VecTokenDisplayWrapper<'a>(&'a Vec<Token>);
-impl Display for VecTokenDisplayWrapper<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        for t in self.0 {
-            write!(f, "{t}")?;
-        }
-        Ok(())
-    }
-}
-
-pub trait ToDisplayForTokenVec {
-    fn to_display(&self) -> VecTokenDisplayWrapper;
-}
-
-impl ToDisplayForTokenVec for Vec<Token> {
-    fn to_display(&self) -> VecTokenDisplayWrapper {
-        VecTokenDisplayWrapper(self)
-    }
-}
-
 // implement display for Range
 
 impl<T> DiagnosticLocation for With<T> {
@@ -197,10 +176,7 @@ where
 
 impl<T> Eq for With<T> where T: Eq {}
 
-impl<T> With<T>
-where
-    T: PartialEq<T>,
-{
+impl<T> With<T> {
     pub fn new(data: T, info: Token) -> Self {
         With {
             token: info.token,
@@ -208,34 +184,6 @@ where
             pos: info.pos,
             file: info.file,
             data,
-        }
-    }
-}
-
-impl<T> TryFrom<Token> for With<T>
-where
-    T: TryFrom<Token>,
-{
-    type Error = T::Error;
-
-    fn try_from(value: Token) -> Result<Self, Self::Error> {
-        Ok(With {
-            pos: value.pos.clone(),
-            token: value.token.clone(),
-            file: value.file,
-            text: value.text.clone(),
-            data: T::try_from(value)?,
-        })
-    }
-}
-
-impl TryFrom<Token> for String {
-    type Error = String;
-
-    fn try_from(value: Token) -> Result<Self, Self::Error> {
-        match value.token {
-            TokenType::Symbol(s) | TokenType::String(s) => Ok(s),
-            _ => Err(format!("Expected symbol or string, got {:?}", value.token)),
         }
     }
 }

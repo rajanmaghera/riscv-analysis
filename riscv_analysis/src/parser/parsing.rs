@@ -198,6 +198,15 @@ impl<T: FileReader> RVParser<T> {
 }
 
 impl Token {
+    fn as_type<T: TryFrom<Token>, const N: usize>(
+        &self,
+        errors: [ExpectedType; N],
+    ) -> Result<With<T>, LexError> {
+        T::try_from(self.clone())
+            .map(|x| With::new(x, self.clone()))
+            .map_err(|_| LexError::Expected(errors.to_vec(), self.clone()))
+    }
+
     fn as_lparen(&self) -> Result<(), LexError> {
         match self.token {
             TokenType::LParen => Ok(()),
@@ -213,28 +222,26 @@ impl Token {
     }
 
     fn as_reg(&self) -> Result<RegisterToken, LexError> {
-        With::<Register>::try_from(self.clone())
-            .map_err(|()| LexError::Expected(vec![ExpectedType::Register], self.clone()))
+        self.as_type([ExpectedType::Register])
     }
 
     fn as_imm(&self) -> Result<With<Imm>, LexError> {
-        With::<Imm>::try_from(self.clone())
-            .map_err(|()| LexError::Expected(vec![ExpectedType::Imm], self.clone()))
+        self.as_type([ExpectedType::Imm])
     }
 
     fn as_label(&self) -> Result<LabelStringToken, LexError> {
-        With::<LabelString>::try_from(self.clone())
-            .map_err(|()| LexError::Expected(vec![ExpectedType::Label], self.clone()))
+        self.as_type([ExpectedType::Label])
     }
 
     fn as_csrimm(&self) -> Result<With<CSRImm>, LexError> {
-        With::<CSRImm>::try_from(self.clone())
-            .map_err(|()| LexError::Expected(vec![ExpectedType::CSRImm], self.clone()))
+        self.as_type([ExpectedType::CSRImm])
     }
 
     fn as_string(&self) -> Result<With<String>, LexError> {
-        With::<String>::try_from(self.clone())
-            .map_err(|_| LexError::Expected(vec![ExpectedType::String], self.clone()))
+        match &self.token {
+            TokenType::Symbol(s) | TokenType::String(s) => Ok(With::new(s.clone(), self.clone())),
+            _ => Err(LexError::Expected(vec![ExpectedType::String], self.clone())),
+        }
     }
 }
 
