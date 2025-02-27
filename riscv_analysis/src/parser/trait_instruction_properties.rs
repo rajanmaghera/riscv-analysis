@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{Imm, LabelStringToken, Register, With};
+use super::{Imm, LabelStringToken, Register, RegisterToken};
 
 pub trait InstructionProperties {
     fn is_return(&self) -> bool;
@@ -67,11 +67,11 @@ pub trait InstructionProperties {
 
     /// Checks whether this instruction writes to a register, and which register it writes to.
     #[must_use]
-    fn writes_to(&self) -> Option<With<Register>>;
+    fn writes_to(&self) -> Option<RegisterToken>;
 
     /// Checks whether this instruction reads from a register, and which registers it reads from.
     #[must_use]
-    fn reads_from(&self) -> HashSet<With<Register>>;
+    fn reads_from(&self) -> HashSet<RegisterToken>;
 
     fn reads_address_of(&self) -> Option<LabelStringToken>;
 }

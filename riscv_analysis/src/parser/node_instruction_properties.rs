@@ -4,7 +4,7 @@ use crate::parser::node::ParserNode;
 
 use super::{
     BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, LabelStringToken, Register,
-    With,
+    RegisterToken,
 };
 impl InstructionProperties for ParserNode {
     fn is_return(&self) -> bool {
@@ -148,7 +148,7 @@ impl InstructionProperties for ParserNode {
         }
     }
 
-    fn writes_to(&self) -> Option<With<Register>> {
+    fn writes_to(&self) -> Option<RegisterToken> {
         match self {
             ParserNode::Load(load) => Some(load.rd.clone()),
             ParserNode::LoadAddr(load) => Some(load.rd.clone()),
@@ -168,7 +168,7 @@ impl InstructionProperties for ParserNode {
         }
     }
 
-    fn reads_from(&self) -> HashSet<With<Register>> {
+    fn reads_from(&self) -> HashSet<RegisterToken> {
         let vector = match self {
             ParserNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()],
             ParserNode::IArith(x) => vec![x.rs1.clone()],

@@ -11,6 +11,8 @@ use std::{
     str::FromStr,
 };
 
+use super::With;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum Register {
@@ -325,3 +327,5 @@ impl Display for Register {
         f.write_str(res)
     }
 }
+
+pub type RegisterToken = With<Register>;

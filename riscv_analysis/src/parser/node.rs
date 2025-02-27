@@ -5,7 +5,6 @@ use crate::parser::inst::{
     LoadType, PseudoType, StoreType,
 };
 
-use crate::parser::register::Register;
 use crate::parser::token::With;
 
 use std::hash::{Hash, Hasher};
@@ -16,7 +15,7 @@ use uuid::Uuid;
 use super::{
     Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry,
     HasIdentity, IArith, JumpLink, JumpLinkR, Label, LabelStringToken, Load, LoadAddr,
-    ProgramEntry, RawToken, Store,
+    ProgramEntry, RawToken, RegisterToken, Store,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,9 +97,9 @@ impl ParserNode {
     #[must_use]
     pub fn new_arith(
         inst: With<ArithType>,
-        rd: With<Register>,
-        rs1: With<Register>,
-        rs2: With<Register>,
+        rd: RegisterToken,
+        rs1: RegisterToken,
+        rs2: RegisterToken,
         token: RawToken,
     ) -> ParserNode {
         ParserNode::Arith(Arith {
@@ -116,8 +115,8 @@ impl ParserNode {
     #[must_use]
     pub fn new_iarith(
         inst: With<IArithType>,
-        rd: With<Register>,
-        rs1: With<Register>,
+        rd: RegisterToken,
+        rs1: RegisterToken,
         imm: With<Imm>,
         token: RawToken,
     ) -> ParserNode {
@@ -134,7 +133,7 @@ impl ParserNode {
     #[must_use]
     pub fn new_jump_link(
         inst: With<JumpLinkType>,
-        rd: With<Register>,
+        rd: RegisterToken,
         name: LabelStringToken,
         token: RawToken,
     ) -> ParserNode {
@@ -150,8 +149,8 @@ impl ParserNode {
     #[must_use]
     pub fn new_jump_link_r(
         inst: With<JumpLinkRType>,
-        rd: With<Register>,
-        rs1: With<Register>,
+        rd: RegisterToken,
+        rs1: RegisterToken,
         imm: With<Imm>,
         token: RawToken,
     ) -> ParserNode {
@@ -191,8 +190,8 @@ impl ParserNode {
     #[must_use]
     pub fn new_branch(
         inst: With<BranchType>,
-        rs1: With<Register>,
-        rs2: With<Register>,
+        rs1: RegisterToken,
+        rs2: RegisterToken,
         name: LabelStringToken,
         token: RawToken,
     ) -> ParserNode {
@@ -209,8 +208,8 @@ impl ParserNode {
     #[must_use]
     pub fn new_store(
         inst: With<StoreType>,
-        rs1: With<Register>,
-        rs2: With<Register>,
+        rs1: RegisterToken,
+        rs2: RegisterToken,
         imm: With<Imm>,
         token: RawToken,
     ) -> ParserNode {
@@ -227,8 +226,8 @@ impl ParserNode {
     #[must_use]
     pub fn new_load(
         inst: With<LoadType>,
-        rd: With<Register>,
-        rs1: With<Register>,
+        rd: RegisterToken,
+        rs1: RegisterToken,
         imm: With<Imm>,
         token: RawToken,
     ) -> ParserNode {
@@ -245,9 +244,9 @@ impl ParserNode {
     #[must_use]
     pub fn new_csr(
         inst: With<CSRType>,
-        rd: With<Register>,
+        rd: RegisterToken,
         csr: With<CSRImm>,
-        rs1: With<Register>,
+        rs1: RegisterToken,
         token: RawToken,
     ) -> ParserNode {
         ParserNode::Csr(Csr {
@@ -282,7 +281,7 @@ impl ParserNode {
     #[must_use]
     pub fn new_csri(
         inst: With<CSRIType>,
-        rd: With<Register>,
+        rd: RegisterToken,
         csr: With<CSRImm>,
         imm: With<Imm>,
         token: RawToken,
@@ -309,7 +308,7 @@ impl ParserNode {
     #[must_use]
     pub fn new_load_addr(
         inst: With<PseudoType>,
-        rd: With<Register>,
+        rd: RegisterToken,
         name: LabelStringToken,
         token: RawToken,
     ) -> ParserNode {

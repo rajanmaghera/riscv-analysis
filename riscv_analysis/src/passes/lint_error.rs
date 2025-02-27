@@ -7,8 +7,7 @@ use crate::cfg::Function;
 use crate::parser::LabelStringToken;
 use crate::parser::ParserNode;
 use crate::parser::Range;
-use crate::parser::Register;
-use crate::parser::With;
+use crate::parser::RegisterToken;
 
 use itertools::Itertools;
 
@@ -20,12 +19,12 @@ use super::DiagnosticMessage;
 pub enum LintError {
     // if a loop variable does not change, then it will infinitely run
     // if a branch is always going to execute (i.e. if true) using constants and zero register
-    LostRegisterValue(With<Register>),
+    LostRegisterValue(RegisterToken),
 
     /// A register 0 is used after a call to function 1 at call site 2
-    InvalidUseAfterCall(With<Register>, Rc<Function>, LabelStringToken),
-    InvalidUseBeforeAssignment(With<Register>),
-    OverwriteCalleeSavedRegister(With<Register>),
+    InvalidUseAfterCall(RegisterToken, Rc<Function>, LabelStringToken),
+    InvalidUseBeforeAssignment(RegisterToken),
+    OverwriteCalleeSavedRegister(RegisterToken),
     FirstInstructionIsFunction(ParserNode, Rc<Function>), // if the first instruction has a function, it is incorrect
     /// A function is entered through a non-conventional way
     ///
@@ -35,8 +34,8 @@ pub enum LintError {
     ///
     /// (First line in function, line where function is entered through, function)
     InvalidJumpToFunction(ParserNode, ParserNode, Rc<Function>),
-    DeadAssignment(With<Register>),
-    SaveToZero(With<Register>),
+    DeadAssignment(RegisterToken),
+    SaveToZero(RegisterToken),
     InvalidSegment(ParserNode),
     UnknownEcall(ParserNode),
     UnknownStack(ParserNode),        // stack value is not definitely known
