@@ -321,23 +321,4 @@ impl ParserNode {
             token,
         })
     }
-
-    pub fn set_uuid(&mut self, uuid: Uuid) {
-        match self {
-            ParserNode::Arith(x) => x.key = uuid,
-            ParserNode::IArith(x) => x.key = uuid,
-            ParserNode::Label(x) => x.key = uuid,
-            ParserNode::JumpLink(x) => x.key = uuid,
-            ParserNode::JumpLinkR(x) => x.key = uuid,
-            ParserNode::Basic(x) => x.key = uuid,
-            ParserNode::Directive(x) => x.key = uuid,
-            ParserNode::Branch(x) => x.key = uuid,
-            ParserNode::Store(x) => x.key = uuid,
-            ParserNode::Load(x) => x.key = uuid,
-            ParserNode::Csr(x) => x.key = uuid,
-            ParserNode::CsrI(x) => x.key = uuid,
-            ParserNode::LoadAddr(x) => x.key = uuid,
-            ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_) => (),
-        }
-    }
 }
