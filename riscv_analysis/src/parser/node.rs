@@ -5,8 +5,6 @@ use crate::parser::inst::{
     LoadType, PseudoType, StoreType,
 };
 
-use crate::parser::token::With;
-
 use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
@@ -15,7 +13,7 @@ use uuid::Uuid;
 use super::{
     Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry,
     HasIdentity, IArith, JumpLink, JumpLinkR, Label, LabelStringToken, Load, LoadAddr,
-    ProgramEntry, RawToken, RegisterToken, Store,
+    ProgramEntry, RawToken, RegisterToken, Store, With,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

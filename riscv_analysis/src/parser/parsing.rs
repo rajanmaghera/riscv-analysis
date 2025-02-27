@@ -4,7 +4,6 @@ use crate::parser::inst::{
     ArithType, BranchType, CSRIType, CSRType, IArithType, Inst, JumpLinkRType, JumpLinkType,
     PseudoType, Type,
 };
-use crate::parser::token::With;
 use crate::parser::{DataType, RawToken, Register};
 use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{DirectiveType, ParserNode};
@@ -17,7 +16,7 @@ use std::str::FromStr;
 
 use super::imm::{CSRImm, Imm};
 use super::token::Token;
-use super::{ExpectedType, LabelString, LabelStringToken, ParseError, Range, RegisterToken};
+use super::{ExpectedType, LabelString, LabelStringToken, ParseError, Range, RegisterToken, With};
 
 #[derive(Deserialize, Clone)]
 pub struct RVDocument {

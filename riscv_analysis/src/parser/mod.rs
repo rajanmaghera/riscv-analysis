@@ -81,3 +81,9 @@ pub use range::*;
 
 mod token_type;
 pub use token_type::*;
+
+mod with;
+pub use with::*;
+
+mod with_diagnostic_location;
+mod with_has_raw_text;
