@@ -2,7 +2,7 @@ use std::{rc::Rc, vec};
 
 use crate::{
     cfg::{Cfg, CfgNode, Function, RegisterSet},
-    parser::{Info, InstructionProperties, JumpLinkType, LabelString, ParserNode, Register, With},
+    parser::{Token, InstructionProperties, JumpLinkType, LabelString, ParserNode, Register, With},
     passes::{CfgError, DiagnosticLocation, GenerationPass},
 };
 
@@ -48,7 +48,7 @@ impl FunctionMarkupPass {
                     prev_ret.insert_prev(Rc::clone(&found_ret));
 
                     // Convert the found return into a jump
-                    let info = Info {
+                    let info = Token {
                         token: crate::parser::TokenType::Symbol("return".to_string()),
                         pos: found_ret.range().clone(),
                         file: found_ret.file(),

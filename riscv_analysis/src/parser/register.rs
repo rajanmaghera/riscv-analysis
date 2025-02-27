@@ -2,7 +2,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::{
     cfg::RegisterSet,
-    parser::token::{Info, TokenType},
+    parser::token::{Token, TokenType},
 };
 use std::{
     collections::HashSet,
@@ -50,10 +50,10 @@ pub enum Register {
     X31,
 }
 
-impl TryFrom<Info> for Register {
+impl TryFrom<Token> for Register {
     type Error = ();
 
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token {
             TokenType::Symbol(s) => Register::from_str(&s),
             _ => Err(()),

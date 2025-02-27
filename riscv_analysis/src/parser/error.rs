@@ -7,7 +7,7 @@ use crate::{
     reader::FileReaderError,
 };
 
-use super::{Info, ParserNode, StringLexError, StringLexErrorType, With};
+use super::{Token, ParserNode, StringLexError, StringLexErrorType, With};
 
 #[derive(Debug, Clone)]
 /// Lexer error
@@ -16,17 +16,17 @@ use super::{Info, ParserNode, StringLexError, StringLexErrorType, With};
 /// inherently mean that the code is wrong, but rather that the parser must go
 /// down an alternate path to parse the code.
 pub enum LexError {
-    Expected(Vec<ExpectedType>, Info),
-    IsNewline(Info),
-    IgnoredWithWarning(Info),
+    Expected(Vec<ExpectedType>, Token),
+    IsNewline(Token),
+    IgnoredWithWarning(Token),
     IgnoredWithoutWarning,
-    UnexpectedToken(Info),
+    UnexpectedToken(Token),
     UnexpectedEOF,
     NeedTwoNodes(Box<ParserNode>, Box<ParserNode>),
-    UnexpectedError(Info),
-    UnknownDirective(Info),
-    UnsupportedDirective(Info),
-    InvalidString(Info, Box<StringLexError>),
+    UnexpectedError(Token),
+    UnknownDirective(Token),
+    UnsupportedDirective(Token),
+    InvalidString(Token, Box<StringLexError>),
 }
 
 #[derive(Debug, Clone)]
@@ -36,15 +36,15 @@ pub enum LexError {
 /// that the parser recovers from by skipping the line, and continuing to parse
 /// the rest of the file. The user should see these errors within their editor
 pub enum ParseError {
-    Expected(Vec<ExpectedType>, Info),
-    Unsupported(Info),
-    UnexpectedToken(Info),
-    UnexpectedError(Info),
-    UnknownDirective(Info),
-    CyclicDependency(Info),
+    Expected(Vec<ExpectedType>, Token),
+    Unsupported(Token),
+    UnexpectedToken(Token),
+    UnexpectedError(Token),
+    UnknownDirective(Token),
+    CyclicDependency(Token),
     FileNotFound(With<String>),
     IOError(With<String>, String),
-    InvalidString(Info, Box<StringLexError>),
+    InvalidString(Token, Box<StringLexError>),
 }
 
 impl FileReaderError {

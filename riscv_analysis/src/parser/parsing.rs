@@ -16,7 +16,7 @@ use std::iter::Peekable;
 use std::str::FromStr;
 
 use super::imm::{CSRImm, Imm};
-use super::token::Info;
+use super::token::Token;
 use super::{ExpectedType, LabelString, LabelStringToken, ParseError, Range, RegisterToken};
 
 #[derive(Deserialize, Clone)]
@@ -114,7 +114,7 @@ impl<T: FileReader> RVParser<T> {
         let lexer = match self.reader.import_file(base, None) {
             Ok(x) => Lexer::new(x.1, x.0),
             Err(e) => {
-                parse_errors.push(e.to_parse_error(With::new(base.to_owned(), Info::default())));
+                parse_errors.push(e.to_parse_error(With::new(base.to_owned(), Token::default())));
                 return (nodes, parse_errors);
             }
         };
@@ -197,7 +197,7 @@ impl<T: FileReader> RVParser<T> {
     }
 }
 
-impl Info {
+impl Token {
     fn as_lparen(&self) -> Result<(), LexError> {
         match self.token {
             TokenType::LParen => Ok(()),
@@ -267,7 +267,7 @@ impl AnnotatedLexer<'_> {
         self.get_any()?.as_string()
     }
 
-    fn get_any(&mut self) -> Result<Info, LexError> {
+    fn get_any(&mut self) -> Result<Token, LexError> {
         let item = self.lexer.next().ok_or(LexError::UnexpectedEOF)?;
         if let Ok(ref item) = item {
             if self.raw_token == RawToken::default() {
@@ -287,7 +287,7 @@ impl AnnotatedLexer<'_> {
         item
     }
 
-    fn peek_any(&mut self) -> Result<Info, LexError> {
+    fn peek_any(&mut self) -> Result<Token, LexError> {
         match self.lexer.peek() {
             Some(item) => item.clone(),
             None => Err(LexError::UnexpectedEOF),

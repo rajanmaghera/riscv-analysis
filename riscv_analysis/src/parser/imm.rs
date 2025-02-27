@@ -2,15 +2,15 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::parser::token::{Info, TokenType};
+use crate::parser::token::{Token, TokenType};
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Imm(pub i32);
 
-impl TryFrom<Info> for Imm {
+impl TryFrom<Token> for Imm {
     type Error = ();
 
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token {
             TokenType::Symbol(s) => Imm::from_str(&s),
             TokenType::Char(c) => Ok(Imm(c as i32)),
@@ -22,10 +22,10 @@ impl TryFrom<Info> for Imm {
 #[derive(Debug, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Clone, Deserialize, Serialize)]
 pub struct CSRImm(pub u32);
 
-impl TryFrom<Info> for CSRImm {
+impl TryFrom<Token> for CSRImm {
     type Error = ();
 
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token {
             TokenType::Symbol(s) => CSRImm::from_str(&s),
             _ => Err(()),

@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::parser::token::TokenType;
-use crate::parser::token::{Info, Position, Range};
+use crate::parser::token::{Token, Position, Range};
 
 use super::LexError;
 
@@ -254,9 +254,9 @@ impl Lexer {
         kind: StringLexErrorType,
         start: Position,
         end: Position,
-    ) -> Result<Info, LexError> {
+    ) -> Result<Token, LexError> {
         Err(LexError::InvalidString(
-            Info {
+            Token {
                 token: TokenType::String(partial),
                 pos: Range::new(start, end),
                 file: self.source_id,
@@ -267,7 +267,7 @@ impl Lexer {
 }
 
 impl Iterator for Lexer {
-    type Item = Result<Info, LexError>;
+    type Item = Result<Token, LexError>;
 
     #[allow(clippy::too_many_lines)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -283,7 +283,7 @@ impl Iterator for Lexer {
 
                 self.consume_char();
 
-                Some(Info {
+                Some(Token {
                     token: TokenType::Newline,
                     file: self.source_id,
                     pos,
@@ -293,7 +293,7 @@ impl Iterator for Lexer {
                 let pos = self.get_range();
                 self.consume_char();
 
-                Some(Info {
+                Some(Token {
                     token: TokenType::LParen,
                     file: self.source_id,
                     pos,
@@ -303,7 +303,7 @@ impl Iterator for Lexer {
                 let pos = self.get_range();
                 self.consume_char();
 
-                Some(Info {
+                Some(Token {
                     token: TokenType::RParen,
                     file: self.source_id,
                     pos,
@@ -331,7 +331,7 @@ impl Iterator for Lexer {
                     return self.next();
                 }
 
-                Some(Info {
+                Some(Token {
                     token: TokenType::Directive(dir_str.clone()),
                     pos: Range::new(start, end),
                     file: self.source_id,
@@ -359,7 +359,7 @@ impl Iterator for Lexer {
                 // Empty comment strings are allowed, in the case of a
                 // comment with a new line. We don't strip any whitespace
                 // for comments here.
-                Some(Info {
+                Some(Token {
                     token: TokenType::Comment(comment_str.to_string()),
                     pos: Range::new(start, end),
                     file: self.source_id,
@@ -374,7 +374,7 @@ impl Iterator for Lexer {
                     Ok(s) => s,
                     Err(e) => {
                         return Some(Err(LexError::InvalidString(
-                            Info {
+                            Token {
                                 token: TokenType::String(String::new()),
                                 pos: Range::new(start, e.pos),
                                 file: self.source_id,
@@ -388,7 +388,7 @@ impl Iterator for Lexer {
                 self.consume_char(); // Skip final '"'
                 self.consume_char();
 
-                Some(Info {
+                Some(Token {
                     token: TokenType::String(string_str.clone()),
                     pos: Range::new(start, end),
                     file: self.source_id,
@@ -434,7 +434,7 @@ impl Iterator for Lexer {
                             let end = self.get_pos();
                             self.consume_char();
 
-                            return Some(Ok(Info {
+                            return Some(Ok(Token {
                                 token: TokenType::Char(c),
                                 pos: Range::new(start, end),
                                 file: self.source_id,
@@ -488,7 +488,7 @@ impl Iterator for Lexer {
                     let end = self.get_pos();
                     self.consume_char();
 
-                    return Some(Ok(Info {
+                    return Some(Ok(Token {
                         token: TokenType::Label(symbol_str.clone()),
                         pos: Range::new(start, end),
                         file: self.source_id,
@@ -498,7 +498,7 @@ impl Iterator for Lexer {
                 let end = self.get_pos();
                 self.consume_char();
 
-                Some(Info {
+                Some(Token {
                     token: TokenType::Symbol(symbol_str.clone()),
                     pos: Range::new(start, end),
                     file: self.source_id,
@@ -524,14 +524,14 @@ mod tests {
     // TODO: These tests only test the token output, but not the ranges or the
     // IDs of the file. Those need to be tested and documented.
 
-    use crate::parser::{Info, LexError, Lexer, StringLexErrorType, TokenType};
+    use crate::parser::{Token, LexError, Lexer, StringLexErrorType, TokenType};
     fn tokenize<S: Into<String>>(input: S) -> Vec<TokenType> {
         Lexer::new(input, uuid::Uuid::nil())
             .map(|x| x.unwrap().token) // All tokens should be valid
             .collect()
     }
 
-    fn tokenize_err<S: Into<String>>(input: S) -> Vec<Result<Info, LexError>> {
+    fn tokenize_err<S: Into<String>>(input: S) -> Vec<Result<Token, LexError>> {
         Lexer::new(input, uuid::Uuid::nil()).collect()
     }
 
