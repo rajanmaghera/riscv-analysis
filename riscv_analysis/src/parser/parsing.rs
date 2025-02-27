@@ -17,7 +17,7 @@ use std::str::FromStr;
 
 use super::imm::{CSRImm, Imm};
 use super::token::Info;
-use super::{ExpectedType, LabelString, ParseError, Range};
+use super::{ExpectedType, LabelString, LabelStringToken, ParseError, Range};
 
 #[derive(Deserialize, Clone)]
 pub struct RVDocument {
@@ -222,7 +222,7 @@ impl Info {
             .map_err(|()| LexError::Expected(vec![ExpectedType::Imm], self.clone()))
     }
 
-    fn as_label(&self) -> Result<With<LabelString>, LexError> {
+    fn as_label(&self) -> Result<LabelStringToken, LexError> {
         With::<LabelString>::try_from(self.clone())
             .map_err(|()| LexError::Expected(vec![ExpectedType::Label], self.clone()))
     }
@@ -255,7 +255,7 @@ impl AnnotatedLexer<'_> {
         self.get_any()?.as_imm()
     }
 
-    fn get_label(&mut self) -> Result<With<LabelString>, LexError> {
+    fn get_label(&mut self) -> Result<LabelStringToken, LexError> {
         self.get_any()?.as_label()
     }
 

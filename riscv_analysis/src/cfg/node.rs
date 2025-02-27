@@ -1,10 +1,9 @@
 use crate::analysis::AvailableValue;
 use crate::analysis::MemoryLocation;
 use crate::parser::InstructionProperties;
-use crate::parser::LabelString;
+use crate::parser::LabelStringToken;
 use crate::parser::ParserNode;
 use crate::parser::Register;
-use crate::parser::With;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -24,7 +23,7 @@ pub struct CfgNode {
     /// Parser node that this CFG node is wrapping.
     node: RefCell<ParserNode>,
     /// Any labels that refer to this instruction.
-    pub labels: HashSet<With<LabelString>>,
+    pub labels: HashSet<LabelStringToken>,
     /// Which segment is this node in?
     segment: Segment,
     /// CFG nodes that come after this one (forward edges).
@@ -84,7 +83,7 @@ pub struct CfgNode {
 
 impl CfgNode {
     #[must_use]
-    pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>, segment: Segment) -> Self {
+    pub fn new(node: ParserNode, labels: HashSet<LabelStringToken>, segment: Segment) -> Self {
         CfgNode {
             node: RefCell::new(node),
             labels,
@@ -193,7 +192,7 @@ impl CfgNode {
         self.u_def.replace_if_changed(u_def)
     }
 
-    pub fn calls_to_from_cfg(&self, cfg: &Cfg) -> Option<(Rc<Function>, With<LabelString>)> {
+    pub fn calls_to_from_cfg(&self, cfg: &Cfg) -> Option<(Rc<Function>, LabelStringToken)> {
         if let Some(name) = self.calls_to() {
             cfg.functions().get(&name).cloned().map(|x| (x, name))
         } else if let Some(name) = self.is_some_jump_to_label() {
@@ -268,7 +267,7 @@ impl CfgNode {
         return self.functions().len() > 0;
     }
 
-    pub fn labels(&self) -> HashSet<With<LabelString>> {
+    pub fn labels(&self) -> HashSet<LabelStringToken> {
         self.labels.clone()
     }
 

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{Imm, LabelString, Register, With};
+use super::{Imm, LabelStringToken, Register, With};
 
 pub trait InstructionProperties {
     fn is_return(&self) -> bool;
@@ -23,7 +23,7 @@ pub trait InstructionProperties {
 
     /// Checks if a instruction is a function call
     #[must_use]
-    fn calls_to(&self) -> Option<With<LabelString>>;
+    fn calls_to(&self) -> Option<LabelStringToken>;
 
     /// Checks if a instruction is an environment call
     #[must_use]
@@ -31,7 +31,7 @@ pub trait InstructionProperties {
 
     /// Checks if a instruction is a potential jump
     #[must_use]
-    fn jumps_to(&self) -> Option<With<LabelString>>;
+    fn jumps_to(&self) -> Option<LabelStringToken>;
 
     #[must_use]
     fn is_any_entry(&self) -> bool;
@@ -63,7 +63,7 @@ pub trait InstructionProperties {
 
     /// Checks whether this is some jump to a known label with no side effects.
     #[must_use]
-    fn is_some_jump_to_label(&self) -> Option<With<LabelString>>;
+    fn is_some_jump_to_label(&self) -> Option<LabelStringToken>;
 
     /// Checks whether this instruction writes to a register, and which register it writes to.
     #[must_use]
@@ -73,5 +73,5 @@ pub trait InstructionProperties {
     #[must_use]
     fn reads_from(&self) -> HashSet<With<Register>>;
 
-    fn reads_address_of(&self) -> Option<With<LabelString>>;
+    fn reads_address_of(&self) -> Option<LabelStringToken>;
 }

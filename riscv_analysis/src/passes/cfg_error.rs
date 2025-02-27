@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display};
 
-use crate::parser::{LabelString, ParserNode, With};
+use crate::parser::{LabelStringToken, ParserNode};
 
 use super::{DiagnosticLocation, DiagnosticMessage, SeverityLevel};
 
@@ -14,12 +14,12 @@ use super::{DiagnosticLocation, DiagnosticMessage, SeverityLevel};
 /// and to use `LintErrors`, as those are recoverable.
 pub enum CfgError {
     /// This error occurs when a label is used but not defined.
-    LabelsNotDefined(HashSet<With<LabelString>>),
+    LabelsNotDefined(HashSet<LabelStringToken>),
     /// This error occurs when a label is defined more than once.
-    DuplicateLabel(With<LabelString>),
+    DuplicateLabel(LabelStringToken),
     /// This error occurs when a return statement is used but can be reached by
     /// multiple labels.
-    MultipleLabelsForReturn(ParserNode, HashSet<With<LabelString>>),
+    MultipleLabelsForReturn(ParserNode, HashSet<LabelStringToken>),
     /// This error occurs when a return statement is used but can be reached by
     /// no labels.
     NoLabelForReturn(ParserNode),

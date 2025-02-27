@@ -1,9 +1,8 @@
 use crate::parser;
 use crate::parser::DirectiveType;
 use crate::parser::InstructionProperties;
-use crate::parser::LabelString;
+use crate::parser::LabelStringToken;
 use crate::parser::ParserNode;
-use crate::parser::With;
 use crate::passes::CfgError;
 use crate::passes::DiagnosticLocation;
 use std::collections::HashMap;
@@ -22,7 +21,7 @@ use super::Segment;
 pub struct Cfg {
     nodes: Vec<Rc<CfgNode>>,
     pub label_node_map: HashMap<String, Rc<CfgNode>>,
-    label_function_map: HashMap<With<LabelString>, Rc<Function>>,
+    label_function_map: HashMap<LabelStringToken, Rc<Function>>,
 }
 
 impl Cfg {
@@ -54,12 +53,12 @@ impl Cfg {
 
     /// Get the functions of the CFG.
     #[must_use]
-    pub fn functions(&self) -> HashMap<With<LabelString>, Rc<Function>> {
+    pub fn functions(&self) -> HashMap<LabelStringToken, Rc<Function>> {
         self.label_function_map.clone()
     }
 
     /// Insert a new function
-    pub fn insert_function(&mut self, label: With<LabelString>, func: Rc<Function>) {
+    pub fn insert_function(&mut self, label: LabelStringToken, func: Rc<Function>) {
         self.label_function_map.insert(label, func);
     }
 
@@ -80,32 +79,32 @@ impl<'a> IntoIterator for &'a Cfg {
 }
 
 trait BaseCfgGen {
-    fn call_names(&self) -> HashSet<With<LabelString>>;
-    fn jump_names(&self) -> HashSet<With<LabelString>>;
-    fn label_names(&self) -> HashSet<With<LabelString>>;
-    fn load_names(&self) -> HashSet<With<LabelString>>;
+    fn call_names(&self) -> HashSet<LabelStringToken>;
+    fn jump_names(&self) -> HashSet<LabelStringToken>;
+    fn label_names(&self) -> HashSet<LabelStringToken>;
+    fn load_names(&self) -> HashSet<LabelStringToken>;
 }
 
 impl BaseCfgGen for Vec<ParserNode> {
-    fn call_names(&self) -> HashSet<With<LabelString>> {
+    fn call_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
             .filter_map(parser::ParserNode::calls_to)
             .collect()
     }
 
-    fn jump_names(&self) -> HashSet<With<LabelString>> {
+    fn jump_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
             .filter_map(parser::ParserNode::jumps_to)
             .collect()
     }
 
-    fn load_names(&self) -> HashSet<With<LabelString>> {
+    fn load_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
             .filter_map(parser::ParserNode::reads_address_of)
             .collect()
     }
 
-    fn label_names(&self) -> HashSet<With<LabelString>> {
+    fn label_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
             .filter_map(|x| match x {
                 ParserNode::Label(s) => Some(s.name.clone()),
@@ -121,7 +120,7 @@ impl Cfg {
 
     pub fn new_with_predefined_call_names(
         old_nodes: Vec<ParserNode>,
-        predefined_call_names: Option<HashSet<With<LabelString>>>,
+        predefined_call_names: Option<HashSet<LabelStringToken>>,
     ) -> Result<Cfg, Box<CfgError>> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
@@ -147,7 +146,7 @@ impl Cfg {
             .union(&load_names)
             .filter(|x| !label_names.contains(x))
             .cloned()
-            .collect::<HashSet<With<LabelString>>>();
+            .collect::<HashSet<LabelStringToken>>();
 
         if !undefined_labels.is_empty() {
             return Err(Box::new(CfgError::LabelsNotDefined(undefined_labels)));

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::analysis::AvailableValue;
 use crate::cfg::{Cfg, CfgNode};
-use crate::parser::{CSRIType, CSRImm, CSRType, Imm, LabelString, ParserNode, Register, With};
+use crate::parser::{CSRIType, CSRImm, CSRType, Imm, LabelStringToken, ParserNode, Register};
 
 impl CSRImm {
     /// Returns if this CSR register is the interrupt vector (utvec).
@@ -81,7 +81,7 @@ impl Cfg {
     ///
     /// The intended use of this function is to find the names, then regenerate the CFG with the interrupt
     /// handler names as predefined call names.
-    pub fn get_names_of_interrupt_handler_functions(&self) -> HashSet<With<LabelString>> {
+    pub fn get_names_of_interrupt_handler_functions(&self) -> HashSet<LabelStringToken> {
         let mut interrupt_handler_names = HashSet::new();
 
         // Look for names of labels that are set to the interrupt vector CSR.

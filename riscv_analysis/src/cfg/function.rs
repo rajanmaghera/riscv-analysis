@@ -7,7 +7,7 @@ use std::{
 };
 use uuid::Uuid;
 
-use crate::parser::{HasRegisterSets, LabelString, Register, With};
+use crate::parser::{HasRegisterSets, LabelString, LabelStringToken, Register};
 
 use super::{CfgNode, RegisterSet};
 
@@ -16,7 +16,7 @@ pub struct Function {
     uuid: Uuid,
 
     /// Labels for the entry point of this function
-    labels: HashSet<With<LabelString>>,
+    labels: HashSet<LabelStringToken>,
 
     /// List of all nodes in the function. May not be in any particular order.
     nodes: RefCell<Vec<Rc<CfgNode>>>,
@@ -51,7 +51,7 @@ impl Function {
     }
 
     pub fn new(
-        labels: Vec<With<LabelString>>,
+        labels: Vec<LabelStringToken>,
         nodes: Vec<Rc<CfgNode>>,
         entry: Rc<CfgNode>,
         exit: Rc<CfgNode>,
@@ -67,7 +67,7 @@ impl Function {
     }
 
     #[must_use]
-    pub fn labels(&self) -> HashSet<With<LabelString>> {
+    pub fn labels(&self) -> HashSet<LabelStringToken> {
         self.entry.labels()
     }
 

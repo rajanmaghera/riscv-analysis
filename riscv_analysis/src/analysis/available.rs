@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::cfg::AvailableValueMap;
 use crate::parser::{
-    CSRImm, HasRegisterSets, InstructionProperties, LabelString, RegisterProperties, With,
+    CSRImm, HasRegisterSets, InstructionProperties, LabelString, LabelStringToken,
+    RegisterProperties,
 };
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
@@ -37,7 +38,7 @@ pub enum AvailableValue {
     /// This is used when loading the address from a label. For example, using
     /// the `la` instruction to load the address of a label into a register.
     #[serde(rename = "a")]
-    Address(With<LabelString>),
+    Address(LabelStringToken),
     /// The value of a memory location at some offset.
     ///
     /// This is a copy of the actual bit of memory that lives at plus some offset.

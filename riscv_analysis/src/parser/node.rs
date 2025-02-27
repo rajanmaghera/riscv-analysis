@@ -15,8 +15,8 @@ use uuid::Uuid;
 
 use super::{
     Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry,
-    HasIdentity, IArith, JumpLink, JumpLinkR, Label, LabelString, Load, LoadAddr, ProgramEntry,
-    RawToken, Store,
+    HasIdentity, IArith, JumpLink, JumpLinkR, Label, LabelStringToken, Load, LoadAddr,
+    ProgramEntry, RawToken, Store,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,7 +135,7 @@ impl ParserNode {
     pub fn new_jump_link(
         inst: With<JumpLinkType>,
         rd: With<Register>,
-        name: With<LabelString>,
+        name: LabelStringToken,
         token: RawToken,
     ) -> ParserNode {
         ParserNode::JumpLink(JumpLink {
@@ -193,7 +193,7 @@ impl ParserNode {
         inst: With<BranchType>,
         rs1: With<Register>,
         rs2: With<Register>,
-        name: With<LabelString>,
+        name: LabelStringToken,
         token: RawToken,
     ) -> ParserNode {
         ParserNode::Branch(Branch {
@@ -298,7 +298,7 @@ impl ParserNode {
     }
 
     #[must_use]
-    pub fn new_label(name: With<LabelString>, token: RawToken) -> ParserNode {
+    pub fn new_label(name: LabelStringToken, token: RawToken) -> ParserNode {
         ParserNode::Label(Label {
             name,
             key: Uuid::new_v4(),
@@ -310,7 +310,7 @@ impl ParserNode {
     pub fn new_load_addr(
         inst: With<PseudoType>,
         rd: With<Register>,
-        name: With<LabelString>,
+        name: LabelStringToken,
         token: RawToken,
     ) -> ParserNode {
         ParserNode::LoadAddr(LoadAddr {

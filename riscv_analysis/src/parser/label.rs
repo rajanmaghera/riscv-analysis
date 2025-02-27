@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use super::{Info, Register, Token};
+use super::{Info, Register, Token, With};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct LabelString(pub String);
@@ -69,3 +69,5 @@ impl TryFrom<String> for LabelString {
         LabelString::from_str(&value)
     }
 }
+
+pub type LabelStringToken = With<LabelString>;

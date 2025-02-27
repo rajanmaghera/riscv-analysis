@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use crate::parser::node::ParserNode;
 
 use super::{
-    BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, LabelString, Register, With,
+    BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, LabelStringToken, Register,
+    With,
 };
 impl InstructionProperties for ParserNode {
     fn is_return(&self) -> bool {
@@ -54,7 +55,7 @@ impl InstructionProperties for ParserNode {
         )
     }
 
-    fn calls_to(&self) -> Option<With<LabelString>> {
+    fn calls_to(&self) -> Option<LabelStringToken> {
         match self {
             ParserNode::JumpLink(x) if x.rd == Register::X1 => Some(x.name.clone()),
             _ => None,
@@ -68,7 +69,7 @@ impl InstructionProperties for ParserNode {
         }
     }
 
-    fn jumps_to(&self) -> Option<With<LabelString>> {
+    fn jumps_to(&self) -> Option<LabelStringToken> {
         match self {
             ParserNode::JumpLink(x) if x.rd != Register::X1 => Some(x.name.clone()),
             ParserNode::Branch(x) => Some(x.name.clone()),
@@ -76,7 +77,7 @@ impl InstructionProperties for ParserNode {
         }
     }
 
-    fn reads_address_of(&self) -> Option<With<LabelString>> {
+    fn reads_address_of(&self) -> Option<LabelStringToken> {
         match self {
             ParserNode::LoadAddr(x) => Some(x.name.clone()),
             _ => None,
@@ -139,7 +140,7 @@ impl InstructionProperties for ParserNode {
         }
     }
 
-    fn is_some_jump_to_label(&self) -> Option<With<LabelString>> {
+    fn is_some_jump_to_label(&self) -> Option<LabelStringToken> {
         match self {
             ParserNode::JumpLink(x) if x.rd == Register::X0 => Some(x.name.clone()),
             ParserNode::Branch(x) => Some(x.name.clone()),

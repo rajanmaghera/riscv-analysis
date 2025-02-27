@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::cfg::Function;
 
-use crate::parser::LabelString;
+use crate::parser::LabelStringToken;
 use crate::parser::ParserNode;
 use crate::parser::Range;
 use crate::parser::Register;
@@ -23,7 +23,7 @@ pub enum LintError {
     LostRegisterValue(With<Register>),
 
     /// A register 0 is used after a call to function 1 at call site 2
-    InvalidUseAfterCall(With<Register>, Rc<Function>, With<LabelString>),
+    InvalidUseAfterCall(With<Register>, Rc<Function>, LabelStringToken),
     InvalidUseBeforeAssignment(With<Register>),
     OverwriteCalleeSavedRegister(With<Register>),
     FirstInstructionIsFunction(ParserNode, Rc<Function>), // if the first instruction has a function, it is incorrect

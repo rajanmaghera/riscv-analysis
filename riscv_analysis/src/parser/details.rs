@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use super::{
     ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, DirectiveToken, IArithType,
-    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, RawToken,
+    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelStringToken, LoadType, PseudoType, RawToken,
     Register, StoreType, With,
 };
 
@@ -35,7 +35,7 @@ pub struct IArith {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Label {
-    pub name: With<LabelString>,
+    pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
@@ -45,7 +45,7 @@ pub struct Label {
 pub struct JumpLink {
     pub inst: With<JumpLinkType>,
     pub rd: With<Register>,
-    pub name: With<LabelString>,
+    pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
@@ -78,7 +78,7 @@ pub struct Branch {
     pub inst: With<BranchType>,
     pub rs1: With<Register>,
     pub rs2: With<Register>,
-    pub name: With<LabelString>,
+    pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
@@ -212,7 +212,7 @@ pub struct Ignore {
 pub struct LoadAddr {
     pub inst: With<PseudoType>,
     pub rd: With<Register>,
-    pub name: With<LabelString>,
+    pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]

@@ -1,4 +1,4 @@
-use crate::parser::{Imm, InstructionProperties, LabelString, Register, With};
+use crate::parser::{Imm, InstructionProperties, LabelStringToken, Register, With};
 
 use super::CfgNode;
 
@@ -23,7 +23,7 @@ impl InstructionProperties for CfgNode {
         self.node().can_skip_save_checks()
     }
 
-    fn calls_to(&self) -> Option<With<LabelString>> {
+    fn calls_to(&self) -> Option<LabelStringToken> {
         self.node().calls_to()
     }
 
@@ -31,7 +31,7 @@ impl InstructionProperties for CfgNode {
         self.node().is_ecall()
     }
 
-    fn jumps_to(&self) -> Option<With<LabelString>> {
+    fn jumps_to(&self) -> Option<LabelStringToken> {
         self.node().jumps_to()
     }
 
@@ -63,7 +63,7 @@ impl InstructionProperties for CfgNode {
         self.node().is_unconditional_jump()
     }
 
-    fn is_some_jump_to_label(&self) -> Option<With<LabelString>> {
+    fn is_some_jump_to_label(&self) -> Option<LabelStringToken> {
         self.node().is_some_jump_to_label()
     }
 
@@ -75,7 +75,7 @@ impl InstructionProperties for CfgNode {
         self.node().reads_from()
     }
 
-    fn reads_address_of(&self) -> Option<With<LabelString>> {
+    fn reads_address_of(&self) -> Option<LabelStringToken> {
         self.node().reads_address_of()
     }
 }
