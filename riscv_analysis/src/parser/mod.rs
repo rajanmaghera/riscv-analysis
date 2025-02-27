@@ -70,9 +70,6 @@ mod register_register_properties;
 mod rawtoken_diagnostic_location;
 mod rawtoken_has_raw_text;
 
-mod token_diagnostic_location;
-mod token_has_raw_text;
-
 mod position;
 pub use position::*;
 
@@ -84,9 +81,6 @@ pub use token_type::*;
 
 mod with;
 pub use with::*;
-
-mod with_diagnostic_location;
-mod with_has_raw_text;
 
 mod rawtoken;
 pub use rawtoken::*;

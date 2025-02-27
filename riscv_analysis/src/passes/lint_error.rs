@@ -120,7 +120,7 @@ impl std::fmt::Display for LintError {
                 write!(f, "Overwriting callee-saved register")
             }
             LintError::LostRegisterValue(r) => {
-                write!(f, "Lost register value: {}", r.data)
+                write!(f, "Lost register value: {}", r.get())
             }
             LintError::InvalidStackOffsetUsage(_, i) => {
                 write!(
@@ -221,7 +221,7 @@ impl DiagnosticLocation for LintError {
             | LintError::InvalidUseBeforeAssignment(r)
             | LintError::LostRegisterValue(r)
             | LintError::OverwriteCalleeSavedRegister(r)
-            | LintError::DeadAssignment(r) => r.pos.clone(),
+            | LintError::DeadAssignment(r) => r.range(),
             LintError::InvalidJumpToFunction(r, _, _)
             | LintError::FirstInstructionIsFunction(r, _)
             | LintError::UnknownEcall(r)
@@ -242,7 +242,7 @@ impl DiagnosticLocation for LintError {
             | LintError::InvalidUseBeforeAssignment(r)
             | LintError::LostRegisterValue(r)
             | LintError::OverwriteCalleeSavedRegister(r)
-            | LintError::DeadAssignment(r) => r.file,
+            | LintError::DeadAssignment(r) => r.file(),
             LintError::FirstInstructionIsFunction(r, _)
             | LintError::InvalidJumpToFunction(r, _, _)
             | LintError::UnknownEcall(r)

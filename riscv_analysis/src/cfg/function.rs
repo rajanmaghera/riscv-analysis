@@ -44,7 +44,7 @@ impl Function {
             self.entry
                 .labels()
                 .into_iter()
-                .map(|x| x.data.0)
+                .map(|x| x.get().0.clone())
                 .collect::<Vec<String>>()
                 .join(", "),
         )

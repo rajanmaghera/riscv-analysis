@@ -3,32 +3,57 @@ use std::hash::{Hash, Hasher};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{Range, Token, TokenType};
+use crate::passes::DiagnosticLocation;
+
+use super::{HasRawText, Range, Token, TokenType};
 
 #[derive(Clone)]
 pub struct With<T> {
-    pub token: TokenType,
-    pub text: String,
-    pub pos: Range,
-    pub file: Uuid,
-    pub data: T,
+    token: TokenType,
+    text: String,
+    pos: Range,
+    file: Uuid,
+    underlying_data: T,
 }
 
 impl<T> With<T> {
     pub fn new(data: T, info: Token) -> Self {
         With {
-            token: info.token,
-            text: info.text,
-            pos: info.pos,
-            file: info.file,
-            data,
+            token: info.token_type().clone(),
+            text: info.raw_text().to_owned(),
+            pos: info.range(),
+            file: info.file(),
+            underlying_data: data,
         }
+    }
+
+    pub fn get(&self) -> &T {
+        &self.underlying_data
+    }
+
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.underlying_data
     }
 }
 
 impl<T> From<With<T>> for Token {
     fn from(with: With<T>) -> Token {
         Token::new(with.token, with.text, with.pos, with.file)
+    }
+}
+
+impl<T> DiagnosticLocation for With<T> {
+    fn range(&self) -> Range {
+        self.pos.clone()
+    }
+    fn file(&self) -> Uuid {
+        self.file
+    }
+}
+
+impl<T> HasRawText for With<T> {
+    fn raw_text(&self) -> &str {
+        self.text.as_str()
     }
 }
 
@@ -39,7 +64,7 @@ where
     T: Serialize,
 {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.data.serialize(serializer)
+        self.underlying_data.serialize(serializer)
     }
 }
 
@@ -53,7 +78,7 @@ where
             pos: Range::default(),
             file: Uuid::nil(),
             text: "".to_owned(),
-            data: T::deserialize(deserializer)?,
+            underlying_data: T::deserialize(deserializer)?,
         })
     }
 }
@@ -63,7 +88,7 @@ where
     T: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.data, f)
+        std::fmt::Debug::fmt(&self.underlying_data, f)
     }
 }
 
@@ -72,7 +97,7 @@ where
     T: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.data, f)
+        std::fmt::Display::fmt(&self.underlying_data, f)
     }
 }
 
@@ -81,7 +106,7 @@ where
     T: Hash,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.data.hash(state);
+        self.underlying_data.hash(state);
     }
 }
 
@@ -90,7 +115,7 @@ where
     T: PartialOrd,
 {
     fn partial_cmp(&self, other: &With<T>) -> Option<std::cmp::Ordering> {
-        self.data.partial_cmp(&other.data)
+        self.underlying_data.partial_cmp(&other.underlying_data)
     }
 }
 
@@ -99,7 +124,7 @@ where
     T: Ord,
 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.data.cmp(&other.data)
+        self.underlying_data.cmp(&other.underlying_data)
     }
 }
 
@@ -108,7 +133,7 @@ where
     T: PartialEq<T>,
 {
     fn eq(&self, other: &With<T>) -> bool {
-        self.data == other.data
+        self.underlying_data.eq(&other.underlying_data)
     }
 }
 
@@ -117,7 +142,7 @@ where
     T: PartialEq<T>,
 {
     fn eq(&self, other: &T) -> bool {
-        self.data == *other
+        self.underlying_data.eq(other)
     }
 }
 

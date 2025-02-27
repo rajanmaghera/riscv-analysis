@@ -56,7 +56,11 @@ impl NodeWrapper {
     fn from(node: &CfgNode, cfg: &Cfg) -> Self {
         NodeWrapper {
             node: node.node(),
-            labels: node.labels.iter().map(|x| x.data.0.clone()).collect(),
+            labels: node
+                .labels
+                .iter()
+                .map(|x| x.get().0.clone())
+                .collect(),
             func_entry: node
                 .functions()
                 .iter()

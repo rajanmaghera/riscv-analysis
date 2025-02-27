@@ -74,16 +74,16 @@ impl ParserNode {
     #[must_use]
     pub fn inst(&self) -> Inst {
         match self {
-            ParserNode::Arith(x) => (&x.inst.data).into(),
-            ParserNode::IArith(x) => (&x.inst.data).into(),
-            ParserNode::JumpLink(x) => (&x.inst.data).into(),
-            ParserNode::JumpLinkR(x) => (&x.inst.data).into(),
-            ParserNode::Basic(x) => (&x.inst.data).into(),
-            ParserNode::Branch(x) => (&x.inst.data).into(),
-            ParserNode::Store(x) => (&x.inst.data).into(),
-            ParserNode::Load(x) => (&x.inst.data).into(),
-            ParserNode::Csr(x) => (&x.inst.data).into(),
-            ParserNode::CsrI(x) => (&x.inst.data).into(),
+            ParserNode::Arith(x) => (x.inst.get()).into(),
+            ParserNode::IArith(x) => (x.inst.get()).into(),
+            ParserNode::JumpLink(x) => (x.inst.get()).into(),
+            ParserNode::JumpLinkR(x) => (x.inst.get()).into(),
+            ParserNode::Basic(x) => (x.inst.get()).into(),
+            ParserNode::Branch(x) => (x.inst.get()).into(),
+            ParserNode::Store(x) => (x.inst.get()).into(),
+            ParserNode::Load(x) => (x.inst.get()).into(),
+            ParserNode::Csr(x) => (x.inst.get()).into(),
+            ParserNode::CsrI(x) => (x.inst.get()).into(),
             ParserNode::LoadAddr(_) => Inst::La,
             ParserNode::Label(_)
             | ParserNode::Directive(_)

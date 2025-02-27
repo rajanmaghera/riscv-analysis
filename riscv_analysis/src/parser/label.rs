@@ -55,8 +55,8 @@ impl TryFrom<Token> for LabelString {
     type Error = ();
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
-        match value.token {
-            TokenType::Symbol(s) => LabelString::try_from(s),
+        match value.token_type() {
+            TokenType::Symbol(s) => LabelString::try_from(s.clone()),
             _ => Err(()),
         }
     }

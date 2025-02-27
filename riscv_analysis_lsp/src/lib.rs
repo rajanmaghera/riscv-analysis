@@ -2,6 +2,7 @@ mod lsp;
 use lsp::{LSPDiag, LSPFileReader, LSPRVDiagnostic, LSPRVSingleDiagnostic, RVCompletionItem};
 use lsp_types::Diagnostic;
 use riscv_analysis::parser::{CanGetURIString, DirectiveType, ParserNode, RVDocument, RVParser};
+use riscv_analysis::passes::DiagnosticLocation;
 use riscv_analysis::reader::FileReader;
 use serde_wasm_bindgen::to_value;
 use std::collections::{HashMap, HashSet};
@@ -49,7 +50,7 @@ where
             if let ParserNode::Directive(x) = item {
                 if let DirectiveType::Include(name) = x.dir {
                     // get full file path
-                    let this_uri = self.get_full_url(&name.data, x.dir_token.file);
+                    let this_uri = self.get_full_url(&name.get(), x.dir_token.file());
                     // add to set
                     imported.insert(this_uri);
                     // imports.insert(this_uri);

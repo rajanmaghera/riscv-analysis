@@ -42,7 +42,7 @@ impl Cfg {
             }
             visited.insert(Rc::clone(&prev));
             if let Some(reg) = prev.writes_to() {
-                if reg.data == item {
+                if *reg.get() == item {
                     ranges.push(reg);
                     continue;
                 }
@@ -144,7 +144,7 @@ impl LintPass for DeadValueCheck {
             // to the end of the node. These assignments are not
             // used.
             else if let Some(def) = node.writes_to() {
-                if !node.live_out().contains(&def.data) && !node.can_skip_save_checks() {
+                if !node.live_out().contains(&def.get()) && !node.can_skip_save_checks() {
                     errors.push(LintError::DeadAssignment(def));
                 }
             }
@@ -262,9 +262,9 @@ impl LintPass for CalleeSavedGarbageReadCheck {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
 
-                if Register::saved_set().contains(&read.data)
+                if Register::saved_set().contains(&read.get())
                     && node.uses_memory_location().is_none()
-                    && node.reg_values_in().is_original_value(read.data)
+                    && node.reg_values_in().is_original_value(*read.get())
                 {
                     errors.push(LintError::InvalidUseBeforeAssignment(read.clone()));
                     // then we are reading a garbage value
@@ -320,10 +320,10 @@ impl LintPass for LostCalleeSavedRegisterCheck {
             // We intentionally do not check for callee-saved registers
             // as the value is mean to be modified
             if let Some(reg) = node.writes_to() {
-                if callee.contains(&reg.data)
+                if callee.contains(&reg.get())
                     && node.is_part_of_some_function()
-                    && node.reg_values_in().get(&reg.data)
-                        == Some(&AvailableValue::OriginalRegisterWithScalar(reg.data, 0))
+                    && node.reg_values_in().get(&reg.get())
+                        == Some(&AvailableValue::OriginalRegisterWithScalar(*reg.get(), 0))
                 {
                     // Check that the value exists somewhere in the available values
                     // like the stack.
@@ -334,7 +334,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
                     let stack = node.memory_values_out();
                     for (_, val) in stack {
                         if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) = val {
-                            if reg2 == reg.data && offset == 0 {
+                            if reg2 == *reg.get() && offset == 0 {
                                 found = true;
                                 break;
                             }
@@ -345,7 +345,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
                     let regs = node.reg_values_out();
                     for (_, val) in regs {
                         if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) = val {
-                            if reg2 == reg.data && offset == 0 {
+                            if reg2 == *reg.get() && offset == 0 {
                                 found = true;
                                 break;
                             }

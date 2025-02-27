@@ -35,7 +35,7 @@ impl FunctionMarkupPass {
 
             // Collect any registers written to by the node
             if let Some(dest) = node.writes_to() {
-                defs |= dest.data;
+                defs |= *dest.get();
             }
 
             // Collect return instructions
@@ -148,7 +148,7 @@ mod tests {
         let funcs = cfg.functions();
         funcs
             .iter()
-            .map(|both| (both.0.data.0.clone(), both.1.clone()))
+            .map(|both| (both.0.get().0.clone(), both.1.clone()))
             .collect()
     }
 

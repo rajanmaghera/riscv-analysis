@@ -73,7 +73,7 @@ impl Display for ParseError {
                         .map(std::string::ToString::to_string)
                         .collect::<Vec<_>>()
                         .join(" or "),
-                    found.token
+                    found.token_type()
                 )
             }
             ParseError::Unsupported(_) => write!(f, "Unsupported operation"),
@@ -81,8 +81,8 @@ impl Display for ParseError {
             ParseError::UnexpectedError(_) => write!(f, "Unexpected error"),
             ParseError::UnknownDirective(_) => write!(f, "Unknown directive"),
             ParseError::CyclicDependency(_) => write!(f, "Cyclic dependency"),
-            ParseError::FileNotFound(file) => write!(f, "File not found: {}", file.data),
-            ParseError::IOError(file, err) => write!(f, "IO Error: {} ({})", file.data, err),
+            ParseError::FileNotFound(file) => write!(f, "File not found: {}", file.get()),
+            ParseError::IOError(file, err) => write!(f, "IO Error: {} ({})", file.get(), err),
             ParseError::InvalidString(_info, _kind) => {
                 write!(f, "Invalid string")
             }
@@ -127,13 +127,13 @@ impl DiagnosticMessage for ParseError {
             }
             ParseError::UnknownDirective(token) => format!("Unknown directive {0}\n\n\
                 This directive is not recognized by the program. Please file a bug report or ignore this error.
-            ", token.token),
+            ", token.token_type()),
             ParseError::CyclicDependency(_) => "There is a cyclic dependency between files.\n\n\
                 This is likely due to a file importing itself or a file importing a file that imports it.\
                 Please remove the cyclic dependency to fix this error.
             ".to_string(),
-            ParseError::FileNotFound(file) => format!("File not found: {}", file.data),
-            ParseError::IOError(file, err) => format!("IO Error: {} ({})", file.data, err),
+            ParseError::FileNotFound(file) => format!("File not found: {}", file.get()),
+            ParseError::IOError(file, err) => format!("IO Error: {} ({})", file.get(), err),
             ParseError::InvalidString(_, e) => {
                 match e.kind {
                     StringLexErrorType::InvalidEscapeSequence => {
@@ -176,8 +176,8 @@ impl DiagnosticLocation for ParseError {
             | ParseError::UnexpectedError(info)
             | ParseError::UnknownDirective(info)
             | ParseError::InvalidString(info, _)
-            | ParseError::CyclicDependency(info) => info.file,
-            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.file,
+            | ParseError::CyclicDependency(info) => info.file(),
+            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.file(),
         }
     }
 
@@ -189,8 +189,8 @@ impl DiagnosticLocation for ParseError {
             | ParseError::UnexpectedError(info)
             | ParseError::UnknownDirective(info)
             | ParseError::InvalidString(info, _)
-            | ParseError::CyclicDependency(info) => info.pos.clone(),
-            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.pos.clone(),
+            | ParseError::CyclicDependency(info) => info.range(),
+            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.range(),
         }
     }
 }

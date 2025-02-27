@@ -8,7 +8,7 @@ use crate::parser::{DataType, RawToken, Register};
 use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{DirectiveType, ParserNode};
 use crate::parser::{Lexer, TokenType};
-use crate::passes::{DiagnosticItem, Manager};
+use crate::passes::{DiagnosticItem, DiagnosticLocation, Manager};
 use crate::reader::FileReader;
 use serde::Deserialize;
 use std::iter::Peekable;
@@ -16,7 +16,9 @@ use std::str::FromStr;
 
 use super::imm::{CSRImm, Imm};
 use super::token::Token;
-use super::{ExpectedType, LabelString, LabelStringToken, ParseError, Range, RegisterToken, With};
+use super::{
+    ExpectedType, HasRawText, LabelString, LabelStringToken, ParseError, Range, RegisterToken, With,
+};
 
 #[derive(Deserialize, Clone)]
 pub struct RVDocument {
@@ -137,7 +139,7 @@ impl<T: FileReader> RVParser<T> {
                 Ok(x) => {
                     if !ignore_imports {
                         if let Some(path) = x.get_include_path() {
-                            match self.reader.import_file(&path.data, Some(path.file)) {
+                            match self.reader.import_file(&path.get(), Some(path.file())) {
                                 Ok((new_uuid, new_text)) => {
                                     self.lexer_stack
                                         .push(Lexer::new(new_text, new_uuid).peekable());
@@ -207,14 +209,14 @@ impl Token {
     }
 
     fn as_lparen(&self) -> Result<(), LexError> {
-        match self.token {
+        match self.token_type() {
             TokenType::LParen => Ok(()),
             _ => Err(LexError::Expected(vec![ExpectedType::LParen], self.clone())),
         }
     }
 
     fn as_rparen(&self) -> Result<(), LexError> {
-        match self.token {
+        match self.token_type() {
             TokenType::RParen => Ok(()),
             _ => Err(LexError::Expected(vec![ExpectedType::RParen], self.clone())),
         }
@@ -237,7 +239,7 @@ impl Token {
     }
 
     fn as_string(&self) -> Result<With<String>, LexError> {
-        match &self.token {
+        match self.token_type() {
             TokenType::Symbol(s) | TokenType::String(s) => Ok(With::new(s.clone(), self.clone())),
             _ => Err(LexError::Expected(vec![ExpectedType::String], self.clone())),
         }
@@ -278,16 +280,14 @@ impl AnnotatedLexer<'_> {
         if let Ok(ref item) = item {
             if self.raw_token == RawToken::default() {
                 self.raw_token = RawToken {
-                    text: item.token.as_original_string(),
-                    pos: item.pos.clone(),
-                    file: item.file,
+                    text: item.raw_text().to_owned(),
+                    pos: item.range(),
+                    file: item.file(),
                 };
             } else {
                 self.raw_token.text.push(' ');
-                self.raw_token
-                    .text
-                    .push_str(&item.token.as_original_string());
-                self.raw_token.pos = Range::new(*self.raw_token.pos.start(), *item.pos.end());
+                self.raw_token.text.push_str(item.raw_text());
+                self.raw_token.pos = Range::new(*self.raw_token.pos.start(), *item.range().end());
             }
         }
         item
@@ -321,7 +321,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
         };
 
         let next_node = lex.get_any()?;
-        match &next_node.token {
+        match next_node.token_type() {
             TokenType::Symbol(s) => {
                 if let Ok(inst) = Inst::from_str(s) {
                     let node = match Type::from(&inst) {
@@ -353,7 +353,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             let rd = lex.get_reg()?;
                             let mut imm = lex.get_imm()?;
                             // shift left by 12
-                            imm.data.0 <<= 12;
+                            imm.get_mut().0 <<= 12;
                             Ok(ParserNode::new_iarith(
                                 With::new(inst, next_node.clone()),
                                 rd,
@@ -989,7 +989,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             let mut values = Vec::new();
                             loop {
                                 let next = lex.peek_any()?;
-                                if let TokenType::Newline = next.token {
+                                if let TokenType::Newline = next.token_type() {
                                     // consume newline
                                     lex.get_any()?;
                                     continue;
@@ -1018,8 +1018,8 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             // we will just ignore them until the we reach endmacro
                             loop {
                                 let next = lex.get_any()?;
-                                if let TokenType::Directive(dir2) = next.token {
-                                    if let Ok(new_dir) = DirectiveToken::from_str(&dir2) {
+                                if let TokenType::Directive(dir2) = next.token_type() {
+                                    if let Ok(new_dir) = DirectiveToken::from_str(dir2) {
                                         if new_dir == DirectiveToken::EndMacro {
                                             break;
                                         }

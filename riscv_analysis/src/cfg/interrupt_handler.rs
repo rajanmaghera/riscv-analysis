@@ -40,13 +40,13 @@ impl ParserNode {
     /// clear bits functionality is not covered.
     fn sets_csr(&self) -> Option<(CSRImm, CsrInstSource)> {
         match self {
-            ParserNode::Csr(node) if matches!(node.inst.data, CSRType::Csrrw) => Some((
-                node.csr.data.clone(),
-                CsrInstSource::from_register(node.rs1.data),
+            ParserNode::Csr(node) if matches!(node.inst.get(), CSRType::Csrrw) => Some((
+                node.csr.get().clone(),
+                CsrInstSource::from_register(*node.rs1.get()),
             )),
-            ParserNode::CsrI(node) if matches!(node.inst.data, CSRIType::Csrrwi) => Some((
-                node.csr.data.clone(),
-                CsrInstSource::from_immediate(node.imm.data.clone()),
+            ParserNode::CsrI(node) if matches!(node.inst.get(), CSRIType::Csrrwi) => Some((
+                node.csr.get().clone(),
+                CsrInstSource::from_immediate(node.imm.get().clone()),
             )),
             _ => None,
         }

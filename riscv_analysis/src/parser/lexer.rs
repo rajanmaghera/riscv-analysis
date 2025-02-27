@@ -1,6 +1,7 @@
 use uuid::Uuid;
 
 use crate::parser::token::Token;
+use crate::passes::DiagnosticLocation;
 
 use super::{LexError, Position};
 use super::{Range, TokenType};
@@ -522,8 +523,13 @@ impl Iterator for Lexer {
         match token {
             Some(t) => {
                 // TODO: remove these debug asserts once we fix the get_pos() function
-                debug_assert_eq!(t.pos.start().zero_idx_line(), t.pos.end().zero_idx_line());
-                debug_assert!(t.pos.start().zero_idx_column() <= t.pos.end().zero_idx_column());
+                debug_assert_eq!(
+                    t.range().start().zero_idx_line(),
+                    t.range().end().zero_idx_line()
+                );
+                debug_assert!(
+                    t.range().start().zero_idx_column() <= t.range().end().zero_idx_column()
+                );
                 Some(Ok(t))
             }
             None => None,
@@ -540,7 +546,7 @@ mod tests {
     use crate::parser::{LexError, Lexer, StringLexErrorType, Token, TokenType};
     fn tokenize<S: Into<String>>(input: S) -> Vec<TokenType> {
         Lexer::new(input, uuid::Uuid::nil())
-            .map(|x| x.unwrap().token) // All tokens should be valid
+            .map(|x| x.unwrap().token_type().clone()) // All tokens should be valid
             .collect()
     }
 
@@ -777,7 +783,7 @@ mod tests {
         assert!(matches!(
             &tokens[0],
             Ok(info) if matches!(
-                &info.token,
+                info.token_type(),
                 TokenType::String(s) if s == "Good string"
             )
         ));
@@ -816,7 +822,7 @@ mod tests {
 
         assert!(matches!(
             &tokens[1],
-            Ok(info) if matches!(&info.token, TokenType::Newline)
+            Ok(info) if matches!(info.token_type(), TokenType::Newline)
         ));
 
         assert!(matches!(
@@ -879,7 +885,7 @@ mod tests {
 
         assert!(matches!(
             &tokens[1],
-            Ok(info) if matches!(&info.token, TokenType::Newline)
+            Ok(info) if matches!(info.token_type(), TokenType::Newline)
         ));
 
         assert!(matches!(
@@ -909,7 +915,7 @@ mod tests {
 
         assert!(matches!(
             &tokens[1],
-            Ok(info) if matches!(&info.token, TokenType::Newline)
+            Ok(info) if matches!(info.token_type(), TokenType::Newline)
         ));
 
         assert!(matches!(

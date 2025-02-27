@@ -1,7 +1,7 @@
 use crate::{
     cfg::Cfg,
     parser::{Label, ParserNode, RawToken},
-    passes::{LintError, LintPass},
+    passes::{DiagnosticLocation, LintError, LintPass},
 };
 use uuid::Uuid;
 
@@ -29,9 +29,9 @@ impl LintPass for OverlappingFunctionCheck {
                         name: l.clone(),
                         key: Uuid::new_v4(),
                         token: RawToken {
-                            text: l.data.0.clone(),
-                            pos: l.pos.clone(),
-                            file: l.file,
+                            text: l.get().0.clone(),
+                            pos: l.range(),
+                            file: l.file(),
                         },
                     })
                     .collect::<Vec<_>>();

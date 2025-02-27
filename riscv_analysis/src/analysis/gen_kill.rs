@@ -13,7 +13,7 @@ impl HasGenKillInfo for ParserNode {
             Register::caller_saved_set()
         } else if self.is_function_entry() {
             Register::caller_saved_set()
-        } else if let Some(stored_reg) = self.writes_to().map(|x| x.data) {
+        } else if let Some(stored_reg) = self.writes_to().map(|x| *x.get()) {
             if stored_reg == Register::X0 {
                 RegisterSet::new()
             } else {
@@ -30,7 +30,7 @@ impl HasGenKillInfo for ParserNode {
         } else if self.is_return() {
             Register::callee_saved_set()
         } else {
-            self.reads_from().iter().map(|x| x.data).collect()
+            self.reads_from().iter().map(|x| *x.get()).collect()
         };
 
         regs - Register::X0
@@ -40,18 +40,18 @@ impl HasGenKillInfo for ParserNode {
 impl HasGenValueInfo for ParserNode {
     fn gen_memory_value(&self) -> Option<(MemoryLocation, AvailableValue)> {
         match self {
-            ParserNode::Csr(expr) => match expr.inst.data {
+            ParserNode::Csr(expr) => match expr.inst.get() {
                 CSRType::Csrrw => Some((
-                    MemoryLocation::CsrRegister(expr.csr.data),
-                    AvailableValue::RegisterWithScalar(expr.rs1.data, 0),
+                    MemoryLocation::CsrRegister(*expr.csr.get()),
+                    AvailableValue::RegisterWithScalar(*expr.rs1.get(), 0),
                 )),
                 // TODO handle other CSR instructions
                 _ => None,
             },
-            ParserNode::CsrI(expr) => match expr.inst.data {
+            ParserNode::CsrI(expr) => match expr.inst.get() {
                 CSRIType::Csrrwi => Some((
-                    MemoryLocation::CsrRegister(expr.csr.data),
-                    AvailableValue::Constant(expr.imm.data.0),
+                    MemoryLocation::CsrRegister(*expr.csr.get()),
+                    AvailableValue::Constant(expr.imm.get().0),
                 )),
                 // TODO handle other CSR instructions
                 _ => None,
@@ -59,8 +59,8 @@ impl HasGenValueInfo for ParserNode {
             ParserNode::Store(expr) => {
                 if expr.rs1 == Register::X2 {
                     Some((
-                        MemoryLocation::StackOffset(expr.imm.data.0),
-                        AvailableValue::RegisterWithScalar(expr.rs2.data, 0),
+                        MemoryLocation::StackOffset(expr.imm.get().0),
+                        AvailableValue::RegisterWithScalar(*expr.rs2.get(), 0),
                     ))
                 } else {
                     None
@@ -75,28 +75,28 @@ impl HasGenValueInfo for ParserNode {
         // to account for all the "original" registers.
         let item = match self {
             ParserNode::Csr(expr) => {
-                Some((expr.rd.data, AvailableValue::ValueInCsr(expr.csr.data)))
+                Some((expr.rd.get(), AvailableValue::ValueInCsr(*expr.csr.get())))
             }
             ParserNode::CsrI(expr) => {
-                Some((expr.rd.data, AvailableValue::ValueInCsr(expr.csr.data)))
+                Some((expr.rd.get(), AvailableValue::ValueInCsr(*expr.csr.get())))
             }
 
             ParserNode::LoadAddr(expr) => {
-                Some((expr.rd.data, AvailableValue::Address(expr.name.clone())))
+                Some((expr.rd.get(), AvailableValue::Address(expr.name.clone())))
             }
             ParserNode::Load(expr) => Some((
-                expr.rd.data,
-                AvailableValue::MemoryAtRegister(expr.rs1.data, expr.imm.data.0),
+                expr.rd.get(),
+                AvailableValue::MemoryAtRegister(*expr.rs1.get(), expr.imm.get().0),
             )),
             ParserNode::IArith(expr) => {
                 if expr.rs1 == Register::X0 {
-                    match expr.inst.data {
+                    match expr.inst.get() {
                         IArithType::Addi
                         | IArithType::Lui
                         | IArithType::Addiw
                         | IArithType::Xori
                         | IArithType::Ori => {
-                            Some((expr.rd.data, AvailableValue::Constant(expr.imm.data.0)))
+                            Some((expr.rd.get(), AvailableValue::Constant(expr.imm.get().0)))
                         }
                         IArithType::Andi
                         | IArithType::Slli
@@ -104,7 +104,7 @@ impl HasGenValueInfo for ParserNode {
                         | IArithType::Srai
                         | IArithType::Sraiw
                         | IArithType::Srli
-                        | IArithType::Srliw => Some((expr.rd.data, AvailableValue::Constant(0))),
+                        | IArithType::Srliw => Some((expr.rd.get(), AvailableValue::Constant(0))),
                         _ => None,
                     }
                 } else {
@@ -113,16 +113,17 @@ impl HasGenValueInfo for ParserNode {
             }
             ParserNode::Arith(expr) => {
                 if expr.rs1 == Register::X0 && expr.rs2 == Register::X0 {
-                    Some((expr.rd.data, AvailableValue::Constant(0)))
+                    Some((expr.rd.get(), AvailableValue::Constant(0)))
                 } else {
                     None
                 }
             }
             _ => None,
-        };
+        }
+        .map(|(x, y)| (*x, y));
 
-        if let Some((reg, _)) = &item {
-            if *reg == Register::X0 {
+        if let Some((reg, _)) = item {
+            if reg == Register::X0 {
                 return None;
             }
         }

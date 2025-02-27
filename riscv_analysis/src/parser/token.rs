@@ -1,14 +1,16 @@
 use std::fmt::Display;
 use uuid::Uuid;
 
-use super::{Range, TokenType};
+use crate::passes::DiagnosticLocation;
+
+use super::{HasRawText, Range, TokenType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
-    pub token: TokenType,
-    pub text: String,
-    pub pos: Range,
-    pub file: Uuid,
+    token: TokenType,
+    text: String,
+    pos: Range,
+    file: Uuid,
 }
 
 impl Token {
@@ -29,6 +31,10 @@ impl Token {
             pos,
             file,
         }
+    }
+
+    pub fn token_type(&self) -> &TokenType {
+        &self.token
     }
 }
 
@@ -51,5 +57,20 @@ impl Default for Token {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         Display::fmt(&self.token, f)
+    }
+}
+
+impl DiagnosticLocation for Token {
+    fn file(&self) -> Uuid {
+        self.file
+    }
+    fn range(&self) -> super::Range {
+        self.pos.clone()
+    }
+}
+
+impl HasRawText for Token {
+    fn raw_text(&self) -> &str {
+        &self.text
     }
 }

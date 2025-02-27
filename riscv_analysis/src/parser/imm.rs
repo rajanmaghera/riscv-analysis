@@ -13,9 +13,9 @@ impl TryFrom<Token> for Imm {
     type Error = ();
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
-        match value.token {
+        match value.token_type() {
             TokenType::Symbol(s) => Imm::from_str(&s),
-            TokenType::Char(c) => Ok(Imm(c as i32)),
+            TokenType::Char(c) => Ok(Imm(*c as i32)),
             _ => Err(()),
         }
     }
@@ -28,7 +28,7 @@ impl TryFrom<Token> for CSRImm {
     type Error = ();
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
-        match value.token {
+        match value.token_type() {
             TokenType::Symbol(s) => CSRImm::from_str(&s),
             _ => Err(()),
         }
