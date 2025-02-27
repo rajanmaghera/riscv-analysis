@@ -1,6 +1,8 @@
 use crate::{
     cfg::RegisterSet,
-    parser::{CSRIType, CSRType, IArithType, InstructionProperties, ParserNode, RegSets, Register},
+    parser::{
+        CSRIType, CSRType, HasRegisterSets, IArithType, InstructionProperties, ParserNode, Register,
+    },
 };
 
 use super::{AvailableValue, HasGenKillInfo, HasGenValueInfo, MemoryLocation};
@@ -8,9 +10,9 @@ use super::{AvailableValue, HasGenKillInfo, HasGenValueInfo, MemoryLocation};
 impl HasGenKillInfo for ParserNode {
     fn kill_reg(&self) -> RegisterSet {
         if self.calls_to().is_some() {
-            RegSets::caller_saved()
+            Register::caller_saved_set()
         } else if self.is_function_entry() {
-            RegSets::caller_saved()
+            Register::caller_saved_set()
         } else if let Some(stored_reg) = self.writes_to().map(|x| x.data) {
             if stored_reg == Register::X0 {
                 RegisterSet::new()
@@ -24,9 +26,9 @@ impl HasGenKillInfo for ParserNode {
 
     fn gen_reg(&self) -> RegisterSet {
         let regs = if self.is_ureturn() {
-            RegSets::all()
+            Register::all_writable_set()
         } else if self.is_return() {
-            RegSets::callee_saved()
+            Register::callee_saved_set()
         } else {
             self.reads_from().iter().map(|x| x.data).collect()
         };

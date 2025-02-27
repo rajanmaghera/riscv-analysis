@@ -7,7 +7,7 @@ use std::{
 };
 use uuid::Uuid;
 
-use crate::parser::{LabelString, RegSets, Register, With};
+use crate::parser::{HasRegisterSets, LabelString, Register, With};
 
 use super::{CfgNode, RegisterSet};
 
@@ -73,12 +73,12 @@ impl Function {
 
     #[must_use]
     pub fn arguments(&self) -> RegisterSet {
-        self.entry.live_out() & RegSets::argument()
+        self.entry.live_out() & Register::argument_set()
     }
 
     #[must_use]
     pub fn returns(&self) -> RegisterSet {
-        self.exit().live_in() & RegSets::ret()
+        self.exit().live_in() & Register::return_set()
     }
 
     /// Set the registers used by this function.
@@ -95,7 +95,7 @@ impl Function {
     #[must_use]
     pub fn to_save(&self) -> RegisterSet {
         // Remove the stack pointer()
-        (*self.defs() & RegSets::callee_saved()) - Register::X2
+        (*self.defs() & Register::callee_saved_set()) - Register::X2
     }
 
     /// Set the instructions composing this function.

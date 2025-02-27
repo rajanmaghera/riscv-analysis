@@ -1,5 +1,5 @@
 use crate::{
-    parser::{InstructionProperties, RegSets},
+    parser::{HasRegisterSets, InstructionProperties, Register},
     passes::{CfgError, GenerationPass},
 };
 use std::collections::HashSet;
@@ -49,13 +49,13 @@ impl GenerationPass for LivenessPass {
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default()
-                        - RegSets::caller_saved())
-                        | (func.exit().u_def() & RegSets::ret());
+                        - Register::caller_saved_set())
+                        | (func.exit().u_def() & Register::return_set());
 
                     // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - kill[n])
                     // kill[n] = caller-saved
                     let live_in_temp = node.live_out() - node.kill_reg();
-                    let live_in = (func.entry().live_out() & RegSets::argument())
+                    let live_in = (func.entry().live_out() & Register::argument_set())
                         | live_in_temp
                         | node.gen_reg();
 
@@ -73,13 +73,13 @@ impl GenerationPass for LivenessPass {
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default()
-                        - RegSets::caller_saved())
+                        - Register::caller_saved_set())
                         | rets;
 
                     // live_in[n] = (live_out[n] - caller-saved) U ecall_args U ecall_ins
                     // ecall_args = X17 (a7) in every case U inputs to the ecall if known by available value analysis, otherwise empty
-                    let live_in = (node.live_out() - RegSets::caller_saved())
-                        | RegSets::ecall_always_argument()
+                    let live_in = (node.live_out() - Register::caller_saved_set())
+                        | Register::ecall_always_argument_set()
                         | args;
                     changed |= node.set_live_in(live_in);
                     changed |= node.set_u_def(u_def);
@@ -103,7 +103,7 @@ impl GenerationPass for LivenessPass {
                     let live_in = (node.live_out() - node.kill_reg()) | node.gen_reg();
 
                     // u_def[n] = live_in[n] AND argument-registers
-                    let u_def = live_in & RegSets::argument();
+                    let u_def = live_in & Register::argument_set();
 
                     changed |= node.set_live_in(live_in);
                     changed |= node.set_u_def(u_def);

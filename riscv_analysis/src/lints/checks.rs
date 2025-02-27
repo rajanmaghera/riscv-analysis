@@ -2,8 +2,8 @@ use crate::analysis::AvailableValue;
 use crate::analysis::HasGenKillInfo;
 use crate::cfg::Cfg;
 use crate::cfg::CfgNode;
+use crate::parser::HasRegisterSets;
 use crate::parser::InstructionProperties;
-use crate::parser::RegSets;
 use crate::parser::Register;
 use crate::parser::With;
 use crate::passes::LintError;
@@ -123,7 +123,7 @@ impl LintPass for DeadValueCheck {
             if let Some((function, call_site)) = node.calls_to_from_cfg(cfg) {
                 // check the expected return values of the function:
 
-                let out = (RegSets::caller_saved() - function.returns()) & node.live_out();
+                let out = (Register::caller_saved_set() - function.returns()) & node.live_out();
 
                 // if there is anything left, then there is an error
                 // for each item, keep going to the next node until a use of
@@ -174,7 +174,7 @@ impl LintPass for GarbageInputValueCheck {
         for node in cfg {
             if node.is_program_entry() {
                 // get registers
-                let garbage = node.live_in() - RegSets::program_args();
+                let garbage = node.live_in() - Register::program_args_set();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
@@ -187,7 +187,7 @@ impl LintPass for GarbageInputValueCheck {
                 }
             } else if let Some(func) = node.is_function_entry_with_func() {
                 let args = func.arguments();
-                let garbage = node.live_in() - args - RegSets::callee_saved();
+                let garbage = node.live_in() - args - Register::callee_saved_set();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
@@ -262,7 +262,7 @@ impl LintPass for CalleeSavedGarbageReadCheck {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
 
-                if RegSets::saved().contains(&read.data)
+                if Register::saved_set().contains(&read.data)
                     && node.uses_memory_location().is_none()
                     && node.reg_values_in().is_original_value(read.data)
                 {
@@ -282,7 +282,7 @@ impl LintPass for CalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for func in cfg.functions().values() {
             let exit_vals = func.exit().reg_values_in();
-            for reg in &RegSets::callee_saved() {
+            for reg in &Register::callee_saved_set() {
                 match exit_vals.get(&reg) {
                     Some(AvailableValue::OriginalRegisterWithScalar(reg2, offset))
                         if reg2 == &reg && offset == &0 =>
@@ -313,7 +313,7 @@ pub struct LostCalleeSavedRegisterCheck;
 impl LintPass for LostCalleeSavedRegisterCheck {
     fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
         for node in cfg {
-            let callee = RegSets::saved();
+            let callee = Register::saved_set();
 
             // If: within a function, node stores to a saved register,
             // and the value going in was the original value

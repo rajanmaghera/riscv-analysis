@@ -19,9 +19,6 @@ pub use register::*;
 mod token;
 pub use token::*;
 
-mod regset;
-pub use regset::*;
-
 mod label;
 pub use label::*;
 
@@ -56,8 +53,12 @@ pub use trait_has_identity::*;
 mod trait_register_properties;
 pub use trait_register_properties::*;
 
+mod trait_has_register_sets;
+pub use trait_has_register_sets::*;
+
 mod node_diagnostic_location;
 mod node_has_identity;
 mod node_instruction_properties;
 
+mod register_has_register_set;
 mod register_register_properties;

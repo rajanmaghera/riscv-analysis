@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cfg::AvailableValueMap;
 use crate::parser::{
-    CSRImm, InstructionProperties, LabelString, RegSets, RegisterProperties, With,
+    CSRImm, HasRegisterSets, InstructionProperties, LabelString, RegisterProperties, With,
 };
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
@@ -153,19 +153,19 @@ impl GenerationPass for AvailableValuePass {
                 let mut out_reg_n = node.reg_values_in();
                 out_reg_n -= node.kill_reg().iter();
                 if node.calls_to().is_some() {
-                    out_reg_n -= RegSets::return_addr().iter();
+                    out_reg_n -= Register::return_addr_set().iter();
                 }
                 if let Some((reg, reg_value)) = node.gen_reg_value() {
                     out_reg_n.insert(reg, reg_value);
                 }
                 if node.is_handler_function_entry() {
-                    out_reg_n.extend(RegSets::all().into_available_values());
+                    out_reg_n.extend(Register::all_writable_set().into_available_values());
                 }
                 if node.is_function_entry() {
-                    out_reg_n.extend(RegSets::callee_saved().into_available_values());
+                    out_reg_n.extend(Register::callee_saved_set().into_available_values());
                 }
                 if node.is_program_entry() {
-                    out_reg_n.extend(RegSets::sp_ra().into_available_values());
+                    out_reg_n.extend(Register::sp_ra_set().into_available_values());
                 }
 
                 // out_memory[n] = (gen_memory[n] if we know the location of the stack pointer) U in_memory[n]
