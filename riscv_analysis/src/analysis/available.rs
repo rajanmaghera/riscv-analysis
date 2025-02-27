@@ -149,10 +149,9 @@ impl GenerationPass for AvailableValuePass {
 
                 // out[n] = gen[n] U (in[n] - kill[n]) U (callee_saved if n is entry)
                 let mut out_reg_n = node.reg_values_in();
+                out_reg_n -= node.kill_reg().iter();
                 if node.calls_to().is_some() {
-                    out_reg_n -= (RegSets::caller_saved() | Register::X1).iter();
-                } else {
-                    out_reg_n -= node.kill_reg().iter();
+                    out_reg_n -= RegSets::return_addr().iter();
                 }
                 if let Some((reg, reg_value)) = node.gen_reg_value() {
                     out_reg_n.insert(reg, reg_value);

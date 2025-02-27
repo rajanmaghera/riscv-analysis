@@ -56,6 +56,12 @@ impl RegSets {
     }
 
     #[must_use]
+    pub fn return_addr() -> RegisterSet {
+        use Register::X1;
+        [X1].into_iter().collect()
+    }
+
+    #[must_use]
     pub fn caller_saved() -> RegisterSet {
         RegSets::temporary() | RegSets::argument()
     }
