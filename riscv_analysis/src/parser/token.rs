@@ -32,13 +32,6 @@ impl Token {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
-pub struct RawToken {
-    pub text: String,
-    pub pos: Range,
-    pub file: Uuid,
-}
-
 impl PartialEq<TokenType> for Token {
     fn eq(&self, other: &TokenType) -> bool {
         self.token == *other
