@@ -651,7 +651,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 return Ok(ParserNode::new_iarith(
                                     With::new(IArithType::Addi, next_node.clone()),
                                     rd,
-                                    With::new(Register::X0, imm.info()),
+                                    With::new(Register::X0, imm.clone().into()),
                                     imm,
                                     lex.raw_token,
                                 ));

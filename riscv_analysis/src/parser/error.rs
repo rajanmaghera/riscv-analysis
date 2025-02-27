@@ -7,7 +7,7 @@ use crate::{
     reader::FileReaderError,
 };
 
-use super::{Token, ParserNode, StringLexError, StringLexErrorType, With};
+use super::{ParserNode, StringLexError, StringLexErrorType, Token, With};
 
 #[derive(Debug, Clone)]
 /// Lexer error
@@ -52,9 +52,9 @@ impl FileReaderError {
     pub fn to_parse_error(&self, path: With<String>) -> ParseError {
         match self {
             FileReaderError::InternalFileNotFound | FileReaderError::Unexpected => {
-                ParseError::UnexpectedError(path.info())
+                ParseError::UnexpectedError(path.into())
             }
-            FileReaderError::FileAlreadyRead(_) => ParseError::CyclicDependency(path.info()),
+            FileReaderError::FileAlreadyRead(_) => ParseError::CyclicDependency(path.into()),
             FileReaderError::InvalidPath => ParseError::FileNotFound(path),
             FileReaderError::IOErr(e) => ParseError::IOError(path, e.clone()),
         }

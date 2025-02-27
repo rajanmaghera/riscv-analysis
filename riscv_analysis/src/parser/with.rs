@@ -15,15 +15,6 @@ pub struct With<T> {
 }
 
 impl<T> With<T> {
-    pub fn info(&self) -> Token {
-        Token::new(
-            self.token.clone(),
-            self.text.to_string(),
-            self.pos.clone(),
-            self.file,
-        )
-    }
-
     pub fn new(data: T, info: Token) -> Self {
         With {
             token: info.token,
@@ -32,6 +23,12 @@ impl<T> With<T> {
             file: info.file,
             data,
         }
+    }
+}
+
+impl<T> From<With<T>> for Token {
+    fn from(with: With<T>) -> Token {
+        Token::new(with.token, with.text, with.pos, with.file)
     }
 }
 
