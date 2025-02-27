@@ -72,3 +72,6 @@ mod rawtoken_has_raw_text;
 
 mod token_diagnostic_location;
 mod token_has_raw_text;
+
+mod position;
+pub use position::*;
