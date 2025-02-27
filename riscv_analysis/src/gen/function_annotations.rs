@@ -49,7 +49,7 @@ impl FunctionMarkupPass {
 
                     // Convert the found return into a jump
                     let info = Info {
-                        token: crate::parser::Token::Symbol("return".to_string()),
+                        token: crate::parser::TokenType::Symbol("return".to_string()),
                         pos: found_ret.range().clone(),
                         file: found_ret.file(),
                     };

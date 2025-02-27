@@ -108,7 +108,7 @@ impl Range {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Info {
-    pub token: Token,
+    pub token: TokenType,
     pub pos: Range,
     pub file: Uuid,
 }
@@ -125,7 +125,7 @@ pub struct RawToken {
 /// This is the token type for the parser. It is used to
 /// determine what the token is, and what to do with it.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
-pub enum Token {
+pub enum TokenType {
     /// Left Parenthesis '('
     LParen,
     /// Right Parenthesis ')'
@@ -170,25 +170,25 @@ pub enum Token {
     Comment(String),
 }
 
-impl Token {
+impl TokenType {
     #[must_use]
     pub fn as_original_string(&self) -> String {
         match self {
-            Token::LParen => "(".to_owned(),
-            Token::RParen => ")".to_owned(),
-            Token::Newline => "\n".to_owned(),
-            Token::Label(l) => format!("{l}:"),
-            Token::Symbol(s) => s.clone(),
-            Token::Directive(d) => format!(".{d}"),
-            Token::String(s) => format!("\"{s}\""),
-            Token::Char(c) => format!("'{c}'"),
-            Token::Comment(c) => format!("#{c}:"),
+            TokenType::LParen => "(".to_owned(),
+            TokenType::RParen => ")".to_owned(),
+            TokenType::Newline => "\n".to_owned(),
+            TokenType::Label(l) => format!("{l}:"),
+            TokenType::Symbol(s) => s.clone(),
+            TokenType::Directive(d) => format!(".{d}"),
+            TokenType::String(s) => format!("\"{s}\""),
+            TokenType::Char(c) => format!("'{c}'"),
+            TokenType::Comment(c) => format!("#{c}:"),
         }
     }
 }
 
-impl PartialEq<Token> for Info {
-    fn eq(&self, other: &Token) -> bool {
+impl PartialEq<TokenType> for Info {
+    fn eq(&self, other: &TokenType) -> bool {
         self.token == *other
     }
 }
@@ -223,7 +223,7 @@ where
 impl Default for Info {
     fn default() -> Self {
         Info {
-            token: Token::Newline,
+            token: TokenType::Newline,
             file: Uuid::nil(),
             pos: Range::default(),
         }
@@ -232,7 +232,7 @@ impl Default for Info {
 
 #[derive(Clone)]
 pub struct With<T> {
-    pub token: Token,
+    pub token: TokenType,
     pub pos: Range,
     pub file: Uuid,
     pub data: T,
@@ -253,7 +253,7 @@ where
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         Ok(With {
-            token: Token::default(),
+            token: TokenType::default(),
             pos: Range::default(),
             file: Uuid::nil(),
             data: T::deserialize(deserializer)?,
@@ -294,18 +294,18 @@ impl Display for Info {
     }
 }
 
-impl Display for Token {
+impl Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Label(s) => writeln!(f, "LABEL({s})"),
-            Token::Symbol(s) => write!(f, "SYMBOL({s})"),
-            Token::Directive(s) => write!(f, "DIRECTIVE({s})"),
-            Token::String(s) => write!(f, "STRING({s})"),
-            Token::Char(c) => write!(f, "CHAR({c})"),
-            Token::Comment(s) => write!(f, "COMMENT{s}"),
-            Token::Newline => write!(f, "NEWLINE"),
-            Token::LParen => write!(f, "LPAREN"),
-            Token::RParen => write!(f, "RPAREN"),
+            TokenType::Label(s) => writeln!(f, "LABEL({s})"),
+            TokenType::Symbol(s) => write!(f, "SYMBOL({s})"),
+            TokenType::Directive(s) => write!(f, "DIRECTIVE({s})"),
+            TokenType::String(s) => write!(f, "STRING({s})"),
+            TokenType::Char(c) => write!(f, "CHAR({c})"),
+            TokenType::Comment(s) => write!(f, "COMMENT{s}"),
+            TokenType::Newline => write!(f, "NEWLINE"),
+            TokenType::LParen => write!(f, "LPAREN"),
+            TokenType::RParen => write!(f, "RPAREN"),
         }
     }
 }
@@ -399,7 +399,7 @@ impl TryFrom<Info> for String {
 
     fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) | Token::String(s) => Ok(s),
+            TokenType::Symbol(s) | TokenType::String(s) => Ok(s),
             _ => Err(format!("Expected symbol or string, got {:?}", value.token)),
         }
     }

@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use super::{Info, Register, Token, With};
+use super::{Info, Register, TokenType, With};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct LabelString(pub String);
@@ -56,7 +56,7 @@ impl TryFrom<Info> for LabelString {
 
     fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) => LabelString::try_from(s),
+            TokenType::Symbol(s) => LabelString::try_from(s),
             _ => Err(()),
         }
     }

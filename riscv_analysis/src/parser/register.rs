@@ -2,7 +2,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::{
     cfg::RegisterSet,
-    parser::token::{Info, Token},
+    parser::token::{Info, TokenType},
 };
 use std::{
     collections::HashSet,
@@ -55,7 +55,7 @@ impl TryFrom<Info> for Register {
 
     fn try_from(value: Info) -> Result<Self, Self::Error> {
         match value.token {
-            Token::Symbol(s) => Register::from_str(&s),
+            TokenType::Symbol(s) => Register::from_str(&s),
             _ => Err(()),
         }
     }

@@ -1,4 +1,4 @@
-use crate::parser::{Range, RawToken, Token, With};
+use crate::parser::{Range, RawToken, TokenType, With};
 
 impl RawToken {
     #[must_use]
@@ -17,7 +17,7 @@ where
 {
     pub fn blank(data: T) -> Self {
         With {
-            token: Token::Symbol(String::new()),
+            token: TokenType::Symbol(String::new()),
             pos: Range::default(),
             file: uuid::Uuid::nil(),
             data,

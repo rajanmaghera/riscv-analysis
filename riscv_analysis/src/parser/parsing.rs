@@ -8,7 +8,7 @@ use crate::parser::token::With;
 use crate::parser::{DataType, RawToken, Register};
 use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{DirectiveType, ParserNode};
-use crate::parser::{Lexer, Token};
+use crate::parser::{Lexer, TokenType};
 use crate::passes::{DiagnosticItem, Manager};
 use crate::reader::FileReader;
 use serde::Deserialize;
@@ -92,7 +92,7 @@ impl<T: FileReader> RVParser<T> {
         let lexer = self.lexer();
         if let Some(x) = lexer {
             for token in x.by_ref().flatten() {
-                if token == Token::Newline {
+                if token == TokenType::Newline {
                     break;
                 }
             }
@@ -200,14 +200,14 @@ impl<T: FileReader> RVParser<T> {
 impl Info {
     fn as_lparen(&self) -> Result<(), LexError> {
         match self.token {
-            Token::LParen => Ok(()),
+            TokenType::LParen => Ok(()),
             _ => Err(LexError::Expected(vec![ExpectedType::LParen], self.clone())),
         }
     }
 
     fn as_rparen(&self) -> Result<(), LexError> {
         match self.token {
-            Token::RParen => Ok(()),
+            TokenType::RParen => Ok(()),
             _ => Err(LexError::Expected(vec![ExpectedType::RParen], self.clone())),
         }
     }
@@ -316,7 +316,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
 
         let next_node = lex.get_any()?;
         match &next_node.token {
-            Token::Symbol(s) => {
+            TokenType::Symbol(s) => {
                 if let Ok(inst) = Inst::from_str(s) {
                     let node = match Type::from(&inst) {
                         Type::CsrI(inst) => {
@@ -920,7 +920,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                     next_node.clone(),
                 ))
             }
-            Token::Label(s) => Ok(ParserNode::new_label(
+            TokenType::Label(s) => Ok(ParserNode::new_label(
                 With::new(
                     LabelString::from_str(s).map_err(|()| {
                         LexError::Expected(vec![ExpectedType::Label], next_node.clone())
@@ -929,7 +929,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                 ),
                 lex.raw_token,
             )),
-            Token::Directive(dir) => {
+            TokenType::Directive(dir) => {
                 if let Ok(directive) = DirectiveToken::from_str(dir) {
                     match directive {
                         DirectiveToken::Align => {
@@ -983,7 +983,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             let mut values = Vec::new();
                             loop {
                                 let next = lex.peek_any()?;
-                                if let Token::Newline = next.token {
+                                if let TokenType::Newline = next.token {
                                     // consume newline
                                     lex.get_any()?;
                                     continue;
@@ -1012,7 +1012,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                             // we will just ignore them until the we reach endmacro
                             loop {
                                 let next = lex.get_any()?;
-                                if let Token::Directive(dir2) = next.token {
+                                if let TokenType::Directive(dir2) = next.token {
                                     if let Ok(new_dir) = DirectiveToken::from_str(&dir2) {
                                         if new_dir == DirectiveToken::EndMacro {
                                             break;
@@ -1054,12 +1054,12 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                     Err(LexError::UnknownDirective(next_node.clone()))
                 }
             }
-            Token::Newline => Err(IsNewline(next_node)),
-            Token::LParen | Token::RParen | Token::String(_) | Token::Char(_) => {
+            TokenType::Newline => Err(IsNewline(next_node)),
+            TokenType::LParen | TokenType::RParen | TokenType::String(_) | TokenType::Char(_) => {
                 Err(LexError::UnexpectedToken(next_node))
             }
             // Skip comment token
-            Token::Comment(_) => Err(LexError::IgnoredWithoutWarning),
+            TokenType::Comment(_) => Err(LexError::IgnoredWithoutWarning),
         }
     }
 }
