@@ -53,6 +53,11 @@ pub use trait_instruction_properties::*;
 mod trait_has_identity;
 pub use trait_has_identity::*;
 
+mod trait_register_properties;
+pub use trait_register_properties::*;
+
 mod node_diagnostic_location;
 mod node_has_identity;
 mod node_instruction_properties;
+
+mod register_register_properties;

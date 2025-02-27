@@ -231,11 +231,6 @@ impl Register {
     }
 
     #[must_use]
-    pub fn is_sp(self) -> bool {
-        self == Register::X2
-    }
-
-    #[must_use]
     pub fn ecall_type() -> Register {
         Register::X17
     }

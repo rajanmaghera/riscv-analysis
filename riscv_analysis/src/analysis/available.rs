@@ -8,7 +8,9 @@ use std::rc::Rc;
 use serde::{Deserialize, Serialize};
 
 use crate::cfg::AvailableValueMap;
-use crate::parser::{CSRImm, InstructionProperties, LabelString, RegSets, With};
+use crate::parser::{
+    CSRImm, InstructionProperties, LabelString, RegSets, RegisterProperties, With,
+};
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
 
@@ -238,7 +240,7 @@ fn rule_zero_to_const(
         match val.1 {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
-                if r == &Register::X0 {
+                if r.is_const_zero() {
                     available_out.insert(*val.0, AvailableValue::Constant(*i));
                 }
             }
@@ -249,7 +251,7 @@ fn rule_zero_to_const(
         match val.1 {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
-                if r == &Register::X0 {
+                if r.is_const_zero() {
                     memory_out.insert(val.0.clone(), AvailableValue::Constant(*i));
                 }
             }
@@ -355,7 +357,7 @@ fn rule_value_from_stack(
         if let Some(AvailableValue::MemoryAtOriginalRegister(psp, off)) =
             available_out.get(&reg.data)
         {
-            if psp.is_sp() {
+            if psp.is_stack_pointer() {
                 if let Some(stack_val) = memory_in.get(&MemoryLocation::StackOffset(*off)) {
                     available_out.insert(reg.data, stack_val.clone());
                 }
