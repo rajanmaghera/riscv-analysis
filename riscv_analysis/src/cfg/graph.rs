@@ -198,7 +198,11 @@ impl Cfg {
                         };
 
                         let rc_node = Rc::new(CfgNode::new(
-                            ParserNode::new_func_entry(node.file(), node.token(), is_interrupt),
+                            ParserNode::new_func_entry(
+                                node.file(),
+                                node.token().clone(),
+                                is_interrupt,
+                            ),
                             current_labels.clone(),
                             segment,
                         ));

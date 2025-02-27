@@ -56,8 +56,12 @@ pub use trait_register_properties::*;
 mod trait_has_register_sets;
 pub use trait_has_register_sets::*;
 
+mod trait_has_raw_text;
+pub use trait_has_raw_text::*;
+
 mod node_diagnostic_location;
 mod node_has_identity;
+mod node_has_raw_text;
 mod node_instruction_properties;
 
 mod register_has_register_set;

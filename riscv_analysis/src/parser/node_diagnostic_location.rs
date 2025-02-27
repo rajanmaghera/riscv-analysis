@@ -9,6 +9,6 @@ impl DiagnosticLocation for ParserNode {
         self.token().file
     }
     fn range(&self) -> super::Range {
-        self.token().pos
+        self.token().pos.clone()
     }
 }

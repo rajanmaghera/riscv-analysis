@@ -1,4 +1,7 @@
-use crate::cfg::{Cfg, CfgNode};
+use crate::{
+    cfg::{Cfg, CfgNode},
+    passes::DiagnosticLocation,
+};
 use std::{collections::HashSet, rc::Rc};
 
 /// Iterate over all nodes in a CFG.
@@ -91,16 +94,16 @@ impl CfgSourceIterator {
 
         // Sort by location
         nodes.sort_by(|a, b| {
-            let a_token = a.node().token();
-            let b_token = b.node().token();
-            a_token.pos.end().cmp(&b_token.pos.end())
+            let a_token = a.range();
+            let b_token = b.range();
+            a_token.end().cmp(&b_token.end())
         });
 
         // Sort by file. We know that `sort_by` is stable, so this has the
         // effect of grouping by file
         nodes.sort_by(|a, b| {
-            let a_file = a.node().token().file;
-            let b_file = b.node().token().file;
+            let a_file = a.file();
+            let b_file = b.file();
             a_file.cmp(&b_file)
         });
 

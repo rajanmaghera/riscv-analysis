@@ -50,15 +50,15 @@ impl FunctionMarkupPass {
                     // Convert the found return into a jump
                     let info = Info {
                         token: crate::parser::Token::Symbol("return".to_string()),
-                        pos: found_ret.node().range().clone(),
-                        file: found_ret.node().file(),
+                        pos: found_ret.range().clone(),
+                        file: found_ret.file(),
                     };
 
                     let inst = With::new(JumpLinkType::Jal, info.clone());
                     let rd = With::new(Register::X0, info.clone());
                     let name = With::new(LabelString("__return__".to_string()), info.clone());
                     let new_node =
-                        ParserNode::new_jump_link(inst, rd, name, prev_ret.node().token());
+                        ParserNode::new_jump_link(inst, rd, name, prev_ret.node().token().clone());
                     let _ = found_ret.set_node(new_node);
                 }
                 // If this is the first return node, save it
@@ -128,7 +128,7 @@ mod tests {
     use std::collections::{HashMap, HashSet};
     use std::rc::Rc;
 
-    use crate::cfg::{Cfg, Function};
+    use crate::cfg::{Cfg, Function, HasRawTextOwned};
     use crate::parser::RVStringParser;
     use crate::passes::Manager;
 
@@ -152,7 +152,7 @@ mod tests {
     fn function_tokens(func: &Rc<Function>) -> HashSet<String> {
         let mut nodes = HashSet::new();
         for node in func.nodes().iter() {
-            nodes.insert(node.node().token().text);
+            nodes.insert(node.raw_text_owned());
         }
         nodes
     }

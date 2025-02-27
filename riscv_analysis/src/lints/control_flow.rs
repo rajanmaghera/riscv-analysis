@@ -52,7 +52,7 @@ impl LintPass for ControlFlowCheck {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::RVStringParser;
+    use crate::parser::{HasRawText, RVStringParser};
     use crate::passes::Manager;
 
     fn run_pass(input: &str) -> Vec<LintError> {
@@ -84,25 +84,25 @@ mod tests {
         // The first error should warn about the first instruction of `fn_a`
         assert!(matches!(
         &lints[0], LintError::FirstInstructionIsFunction(node, _)
-            if node.token().text == "addi a0 a0 1"
+            if node.raw_text() == "addi a0 a0 1"
         ));
 
         // Next four errors should be about unreachable code
         assert!(matches!(
         &lints[1], LintError::UnreachableCode(node, ..)
-            if node.token().text == "li a0 0"
+            if node.raw_text() == "li a0 0"
         ));
         assert!(matches!(
         &lints[2], LintError::UnreachableCode(node, ..)
-            if node.token().text == "jal fn_a"
+            if node.raw_text() == "jal fn_a"
         ));
         assert!(matches!(
         &lints[3], LintError::UnreachableCode(node, ..)
-            if node.token().text == "addi a7 zero 10"
+            if node.raw_text() == "addi a7 zero 10"
         ));
         assert!(matches!(
         &lints[4], LintError::UnreachableCode(node, ..)
-            if node.token().text == "ecall"
+            if node.raw_text() == "ecall"
         ));
     }
 
@@ -128,15 +128,15 @@ mod tests {
 
         assert!(matches!(
         &lints[0], LintError::UnreachableCode(node, ..)
-            if node.token().text == "addi a7 zero 10"
+            if node.raw_text() == "addi a7 zero 10"
         ));
         assert!(matches!(
         &lints[1], LintError::UnreachableCode(node, ..)
-            if node.token().text == "ecall"
+            if node.raw_text() == "ecall"
         ));
         assert!(matches!(
         &lints[2], LintError::InvalidJumpToFunction(node, ..)
-            if node.token().text == "addi a0 a0 1"
+            if node.raw_text() == "addi a0 a0 1"
         ));
     }
 

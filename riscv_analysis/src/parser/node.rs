@@ -40,23 +40,23 @@ pub enum ParserNode {
 
 impl ParserNode {
     #[must_use]
-    pub fn token(&self) -> RawToken {
+    pub fn token(&self) -> &RawToken {
         match self {
-            ParserNode::Arith(x) => x.token.clone(),
-            ParserNode::IArith(x) => x.token.clone(),
-            ParserNode::Label(x) => x.token.clone(),
-            ParserNode::JumpLink(x) => x.token.clone(),
-            ParserNode::JumpLinkR(x) => x.token.clone(),
-            ParserNode::Basic(x) => x.token.clone(),
-            ParserNode::Directive(x) => x.token.clone(),
-            ParserNode::Branch(x) => x.token.clone(),
-            ParserNode::Store(x) => x.token.clone(),
-            ParserNode::Load(x) => x.token.clone(),
-            ParserNode::Csr(x) => x.token.clone(),
-            ParserNode::CsrI(x) => x.token.clone(),
-            ParserNode::LoadAddr(x) => x.token.clone(),
-            ParserNode::ProgramEntry(x) => x.token.clone(),
-            ParserNode::FuncEntry(x) => x.token.clone(),
+            ParserNode::Arith(x) => &x.token,
+            ParserNode::IArith(x) => &x.token,
+            ParserNode::Label(x) => &x.token,
+            ParserNode::JumpLink(x) => &x.token,
+            ParserNode::JumpLinkR(x) => &x.token,
+            ParserNode::Basic(x) => &x.token,
+            ParserNode::Directive(x) => &x.token,
+            ParserNode::Branch(x) => &x.token,
+            ParserNode::Store(x) => &x.token,
+            ParserNode::Load(x) => &x.token,
+            ParserNode::Csr(x) => &x.token,
+            ParserNode::CsrI(x) => &x.token,
+            ParserNode::LoadAddr(x) => &x.token,
+            ParserNode::ProgramEntry(x) => &x.token,
+            ParserNode::FuncEntry(x) => &x.token,
         }
     }
 }
