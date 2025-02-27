@@ -109,13 +109,14 @@ impl Range {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub token: TokenType,
-    text: String,
+    pub text: String,
     pub pos: Range,
     pub file: Uuid,
 }
 
 impl Token {
     pub fn new(token: TokenType, text: String, pos: Range, file: Uuid) -> Self {
+        // TODO: assert token text and positions match
         Token {
             token,
             text,
