@@ -109,8 +109,29 @@ impl Range {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub token: TokenType,
+    text: String,
     pub pos: Range,
     pub file: Uuid,
+}
+
+impl Token {
+    pub fn new(token: TokenType, text: String, pos: Range, file: Uuid) -> Self {
+        Token {
+            token,
+            text,
+            pos,
+            file,
+        }
+    }
+
+    pub fn new_without_text(token: TokenType, pos: Range, file: Uuid) -> Self {
+        Token {
+            token,
+            text: "".to_owned(),
+            pos,
+            file,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -194,11 +215,12 @@ impl PartialEq<TokenType> for Token {
 }
 impl<T> With<T> {
     pub fn info(&self) -> Token {
-        Token {
-            file: self.file,
-            token: self.token.clone(),
-            pos: self.pos.clone(),
-        }
+        Token::new(
+            self.token.clone(),
+            self.text.to_string(),
+            self.pos.clone(),
+            self.file,
+        )
     }
 }
 
@@ -224,6 +246,7 @@ impl Default for Token {
     fn default() -> Self {
         Token {
             token: TokenType::Newline,
+            text: "".to_owned(),
             file: Uuid::nil(),
             pos: Range::default(),
         }
@@ -233,6 +256,7 @@ impl Default for Token {
 #[derive(Clone)]
 pub struct With<T> {
     pub token: TokenType,
+    text: String,
     pub pos: Range,
     pub file: Uuid,
     pub data: T,
@@ -256,6 +280,7 @@ where
             token: TokenType::default(),
             pos: Range::default(),
             file: Uuid::nil(),
+            text: "".to_owned(),
             data: T::deserialize(deserializer)?,
         })
     }
@@ -371,6 +396,7 @@ where
     pub fn new(data: T, info: Token) -> Self {
         With {
             token: info.token,
+            text: info.text,
             pos: info.pos,
             file: info.file,
             data,
@@ -389,6 +415,7 @@ where
             pos: value.pos.clone(),
             token: value.token.clone(),
             file: value.file,
+            text: value.text.clone(),
             data: T::try_from(value)?,
         })
     }

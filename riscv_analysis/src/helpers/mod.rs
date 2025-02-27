@@ -1,4 +1,4 @@
-use crate::parser::{Range, RawToken, TokenType, With};
+use crate::parser::{Range, RawToken, Token, TokenType, With};
 
 impl RawToken {
     #[must_use]
@@ -11,17 +11,24 @@ impl RawToken {
     }
 }
 
+impl Token {
+    #[must_use]
+    pub fn blank() -> Self {
+        Token::new(
+            TokenType::Newline,
+            "".to_string(),
+            Range::default(),
+            uuid::Uuid::nil(),
+        )
+    }
+}
+
 impl<T> With<T>
 where
     T: PartialEq<T>,
 {
     pub fn blank(data: T) -> Self {
-        With {
-            token: TokenType::Symbol(String::new()),
-            pos: Range::default(),
-            file: uuid::Uuid::nil(),
-            data,
-        }
+        With::new(data, Token::blank())
     }
 }
 

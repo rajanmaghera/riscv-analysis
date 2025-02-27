@@ -1,9 +1,11 @@
 use uuid::Uuid;
 
 use crate::parser::token::TokenType;
-use crate::parser::token::{Token, Position, Range};
+use crate::parser::token::{Position, Range, Token};
 
 use super::LexError;
+
+// TODO: add "RawToken" buffer rather than reconstructing raw token texts
 
 /// Possible errors when lexing a string.
 #[derive(Clone, Debug, PartialEq)]
@@ -256,11 +258,12 @@ impl Lexer {
         end: Position,
     ) -> Result<Token, LexError> {
         Err(LexError::InvalidString(
-            Token {
-                token: TokenType::String(partial),
-                pos: Range::new(start, end),
-                file: self.source_id,
-            },
+            Token::new(
+                TokenType::String(partial.clone()),
+                partial,
+                Range::new(start, end),
+                self.source_id,
+            ),
             Box::new(StringLexError::new(end, kind)),
         ))
     }
@@ -283,31 +286,34 @@ impl Iterator for Lexer {
 
                 self.consume_char();
 
-                Some(Token {
-                    token: TokenType::Newline,
-                    file: self.source_id,
+                Some(Token::new(
+                    TokenType::Newline,
+                    "\n".to_string(),
                     pos,
-                })
+                    self.source_id,
+                ))
             }
             Some('(') => {
                 let pos = self.get_range();
                 self.consume_char();
 
-                Some(Token {
-                    token: TokenType::LParen,
-                    file: self.source_id,
+                Some(Token::new(
+                    TokenType::LParen,
+                    "(".to_string(),
                     pos,
-                })
+                    self.source_id,
+                ))
             }
             Some(')') => {
                 let pos = self.get_range();
                 self.consume_char();
 
-                Some(Token {
-                    token: TokenType::RParen,
-                    file: self.source_id,
+                Some(Token::new(
+                    TokenType::RParen,
+                    ")".to_owned(),
                     pos,
-                })
+                    self.source_id,
+                ))
             }
             Some('.') => {
                 // directive
@@ -331,11 +337,12 @@ impl Iterator for Lexer {
                     return self.next();
                 }
 
-                Some(Token {
-                    token: TokenType::Directive(dir_str.clone()),
-                    pos: Range::new(start, end),
-                    file: self.source_id,
-                })
+                Some(Token::new(
+                    TokenType::Directive(dir_str.clone()),
+                    dir_str,
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
             Some('#') => {
                 // Convert comments to token
@@ -359,11 +366,12 @@ impl Iterator for Lexer {
                 // Empty comment strings are allowed, in the case of a
                 // comment with a new line. We don't strip any whitespace
                 // for comments here.
-                Some(Token {
-                    token: TokenType::Comment(comment_str.to_string()),
-                    pos: Range::new(start, end),
-                    file: self.source_id,
-                })
+                Some(Token::new(
+                    TokenType::Comment(comment_str.to_string()),
+                    comment_str.to_string(),
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
             Some('"') => {
                 // string
@@ -374,11 +382,12 @@ impl Iterator for Lexer {
                     Ok(s) => s,
                     Err(e) => {
                         return Some(Err(LexError::InvalidString(
-                            Token {
-                                token: TokenType::String(String::new()),
-                                pos: Range::new(start, e.pos),
-                                file: self.source_id,
-                            },
+                            Token::new(
+                                TokenType::String(String::new()),
+                                String::new(),
+                                Range::new(start, e.pos),
+                                self.source_id,
+                            ),
                             Box::new(e),
                         )));
                     }
@@ -388,11 +397,12 @@ impl Iterator for Lexer {
                 self.consume_char(); // Skip final '"'
                 self.consume_char();
 
-                Some(Token {
-                    token: TokenType::String(string_str.clone()),
-                    pos: Range::new(start, end),
-                    file: self.source_id,
-                })
+                Some(Token::new(
+                    TokenType::String(string_str.clone()),
+                    "\"".to_string() + &string_str + "\"",
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
             Some('\'') => {
                 let start = self.get_pos();
@@ -434,11 +444,12 @@ impl Iterator for Lexer {
                             let end = self.get_pos();
                             self.consume_char();
 
-                            return Some(Ok(Token {
-                                token: TokenType::Char(c),
-                                pos: Range::new(start, end),
-                                file: self.source_id,
-                            }));
+                            return Some(Ok(Token::new(
+                                TokenType::Char(c),
+                                '\''.to_string() + &c.to_string() + "'",
+                                Range::new(start, end),
+                                self.source_id,
+                            )));
                         }
 
                         // The character is unclosed
@@ -488,21 +499,23 @@ impl Iterator for Lexer {
                     let end = self.get_pos();
                     self.consume_char();
 
-                    return Some(Ok(Token {
-                        token: TokenType::Label(symbol_str.clone()),
-                        pos: Range::new(start, end),
-                        file: self.source_id,
-                    }));
+                    return Some(Ok(Token::new(
+                        TokenType::Label(symbol_str.clone()),
+                        symbol_str.clone() + ":",
+                        Range::new(start, end),
+                        self.source_id,
+                    )));
                 }
 
                 let end = self.get_pos();
                 self.consume_char();
 
-                Some(Token {
-                    token: TokenType::Symbol(symbol_str.clone()),
-                    pos: Range::new(start, end),
-                    file: self.source_id,
-                })
+                Some(Token::new(
+                    TokenType::Symbol(symbol_str.clone()),
+                    symbol_str,
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
         };
 
@@ -524,7 +537,7 @@ mod tests {
     // TODO: These tests only test the token output, but not the ranges or the
     // IDs of the file. Those need to be tested and documented.
 
-    use crate::parser::{Token, LexError, Lexer, StringLexErrorType, TokenType};
+    use crate::parser::{LexError, Lexer, StringLexErrorType, Token, TokenType};
     fn tokenize<S: Into<String>>(input: S) -> Vec<TokenType> {
         Lexer::new(input, uuid::Uuid::nil())
             .map(|x| x.unwrap().token) // All tokens should be valid
