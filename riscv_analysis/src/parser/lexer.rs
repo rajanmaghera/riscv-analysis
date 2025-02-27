@@ -1,8 +1,9 @@
 use uuid::Uuid;
 
+use crate::parser::token::Token;
 use crate::parser::token::TokenType;
-use crate::parser::token::{Range, Token};
 
+use super::Range;
 use super::{LexError, Position};
 
 // TODO: add "RawToken" buffer rather than reconstructing raw token texts
