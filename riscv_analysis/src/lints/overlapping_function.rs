@@ -1,7 +1,7 @@
 use crate::{
     cfg::Cfg,
-    parser::{Label, ParserNode, RawToken},
-    passes::{DiagnosticLocation, LintError, LintPass},
+    parser::{Label, ParserNode},
+    passes::{LintError, LintPass},
 };
 use uuid::Uuid;
 
@@ -28,11 +28,7 @@ impl LintPass for OverlappingFunctionCheck {
                     .map(|l| Label {
                         name: l.clone(),
                         key: Uuid::new_v4(),
-                        token: RawToken {
-                            text: l.get().0.clone(),
-                            pos: l.range(),
-                            file: l.file(),
-                        },
+                        token: l.clone().into(),
                     })
                     .collect::<Vec<_>>();
                 let label = labels.first();
@@ -51,7 +47,7 @@ impl LintPass for OverlappingFunctionCheck {
 #[cfg(test)]
 mod tests {
     use crate::lints::OverlappingFunctionCheck;
-    use crate::parser::{ParserNode, RVStringParser};
+    use crate::parser::{HasRawText, ParserNode, RVStringParser};
     use crate::passes::{LintError, LintPass, Manager};
 
     /// Compute the lints for a given input
@@ -80,13 +76,12 @@ mod tests {
                 ret                    \n";
 
         let lints = run_pass(input);
-
         assert_eq!(lints.len(), 1);
         assert!(matches!(
         &lints[0], LintError::NodeInManyFunctions(node, _)
             if matches!(
                 node, ParserNode::Label(label)
-                    if label.token.text == "fn_b"
+                    if label.token.raw_text() == "fn_b:"
             )
         ));
     }
@@ -117,14 +112,14 @@ mod tests {
         &lints[0], LintError::NodeInManyFunctions(node, _)
             if matches!(
                 node, ParserNode::Label(label)
-                    if label.token.text == "fn_b"
+                    if label.token.raw_text() == "fn_b:"
             )
         ));
         assert!(matches!(
         &lints[1], LintError::NodeInManyFunctions(node, _)
             if matches!(
                 node, ParserNode::Label(label)
-                    if label.token.text == "fn_c"
+                    if label.token.raw_text() == "fn_c:"
             )
         ));
     }

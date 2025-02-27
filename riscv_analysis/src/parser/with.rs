@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-use super::{HasRawText, Range, Token, TokenType};
+use super::{HasRawText, Range, RawToken, Token, TokenType};
 
 #[derive(Clone)]
 pub struct With<T> {
@@ -39,6 +39,12 @@ impl<T> With<T> {
 impl<T> From<With<T>> for Token {
     fn from(with: With<T>) -> Token {
         Token::new(with.token, with.text, with.pos, with.file)
+    }
+}
+
+impl<T> From<With<T>> for RawToken {
+    fn from(with: With<T>) -> RawToken {
+        RawToken::new(with.text, with.pos, with.file)
     }
 }
 

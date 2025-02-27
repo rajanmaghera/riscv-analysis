@@ -125,11 +125,7 @@ impl<T: FileReader> RVParser<T> {
         // Add program entry node
         nodes.push(ParserNode::new_program_entry(
             first_uuid,
-            RawToken {
-                text: String::new(),
-                pos: Range::default(),
-                file: first_uuid,
-            },
+            RawToken::new(String::new(), Range::default(), first_uuid),
         ));
 
         while let Some(l) = self.lexer() {
@@ -279,15 +275,13 @@ impl AnnotatedLexer<'_> {
         let item = self.lexer.next().ok_or(LexError::UnexpectedEOF)?;
         if let Ok(ref item) = item {
             if self.raw_token == RawToken::default() {
-                self.raw_token = RawToken {
-                    text: item.raw_text().to_owned(),
-                    pos: item.range(),
-                    file: item.file(),
-                };
+                self.raw_token = item.clone().into();
             } else {
-                self.raw_token.text.push(' ');
-                self.raw_token.text.push_str(item.raw_text());
-                self.raw_token.pos = Range::new(*self.raw_token.pos.start(), *item.range().end());
+                self.raw_token = RawToken::new(
+                    format!("{} {}", self.raw_token.raw_text(), item.raw_text()),
+                    Range::new(*self.raw_token.range().start(), *item.range().end()),
+                    self.raw_token.file(),
+                )
             }
         }
         item

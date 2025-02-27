@@ -3,11 +3,7 @@ use crate::parser::{Range, RawToken, Token, TokenType, With};
 impl RawToken {
     #[must_use]
     pub fn blank() -> Self {
-        RawToken {
-            text: String::new(),
-            pos: Range::default(),
-            file: uuid::Uuid::nil(),
-        }
+        RawToken::new(String::new(), Range::default(), uuid::Uuid::nil())
     }
 }
 

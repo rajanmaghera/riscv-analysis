@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-use super::{HasRawText, Range, TokenType};
+use super::{HasRawText, Range, RawToken, TokenType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
@@ -35,6 +35,12 @@ impl Token {
 
     pub fn token_type(&self) -> &TokenType {
         &self.token
+    }
+}
+
+impl From<Token> for RawToken {
+    fn from(token: Token) -> RawToken {
+        RawToken::new(token.text, token.pos, token.file)
     }
 }
 

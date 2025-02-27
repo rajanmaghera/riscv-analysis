@@ -67,9 +67,6 @@ mod node_instruction_properties;
 mod register_has_register_set;
 mod register_register_properties;
 
-mod rawtoken_diagnostic_location;
-mod rawtoken_has_raw_text;
-
 mod position;
 pub use position::*;
 
