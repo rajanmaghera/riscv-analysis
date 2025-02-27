@@ -2,7 +2,9 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::parser::token::{Token, TokenType};
+use crate::parser::token::Token;
+
+use super::TokenType;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Imm(pub i32);

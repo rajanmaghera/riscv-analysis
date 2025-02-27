@@ -1,9 +1,6 @@
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::{
-    cfg::RegisterSet,
-    parser::token::{Token, TokenType},
-};
+use crate::{cfg::RegisterSet, parser::token::Token};
 use std::{
     collections::HashSet,
     fmt::Display,
@@ -11,7 +8,7 @@ use std::{
     str::FromStr,
 };
 
-use super::With;
+use super::{TokenType, With};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]

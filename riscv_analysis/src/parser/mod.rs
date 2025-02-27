@@ -78,3 +78,6 @@ pub use position::*;
 
 mod range;
 pub use range::*;
+
+mod token_type;
+pub use token_type::*;
