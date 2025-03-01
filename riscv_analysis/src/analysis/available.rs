@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cfg::AvailableValueMap;
 use crate::parser::{
-    CSRImm, HasRegisterSets, InstructionProperties, LabelString, LabelStringToken,
+    CsrImm, HasRegisterSets, InstructionProperties, LabelString, LabelStringToken,
     RegisterProperties,
 };
 use crate::parser::{ParserNode, Register};
@@ -74,10 +74,10 @@ pub enum AvailableValue {
     MemoryAtOriginalRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we are sure it is the same as the original
     /// The value inside of a CSR register.
     #[serde(rename = "c")]
-    ValueInCsr(CSRImm),
+    ValueInCsr(CsrImm),
     /// Value at memory location of value in CSR register.
     #[serde(rename = "mc")]
-    MemoryAtCsr(CSRImm, i32),
+    MemoryAtCsr(CsrImm, i32),
 }
 
 /// Performs the available value analysis on the graph.

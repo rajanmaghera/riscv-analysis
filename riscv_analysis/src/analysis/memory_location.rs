@@ -2,7 +2,7 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt;
 
-use crate::parser::CSRImm;
+use crate::parser::CsrImm;
 
 /// A memory location.
 ///
@@ -35,9 +35,9 @@ pub enum MemoryLocation {
     ///
     /// We do not track the liveness of CSR registers. Thus, we treat the
     /// CSR registers as a special case of memory.
-    CsrRegister(CSRImm),
+    CsrRegister(CsrImm),
     /// A memory location indexed by the value inside a CSR register.
-    CsrRegisterValueOffset(CSRImm, i32),
+    CsrRegisterValueOffset(CsrImm, i32),
 }
 
 impl Serialize for MemoryLocation {
@@ -84,7 +84,7 @@ impl Visitor<'_> for MemoryLocationVisitor {
             }))
         } else if let Some(csr) = v.strip_prefix("csr+") {
             let csr = csr.parse::<u32>().map_err(de::Error::custom)?;
-            Ok(MemoryLocation::CsrRegister(CSRImm::new(csr)))
+            Ok(MemoryLocation::CsrRegister(CsrImm::new(csr)))
         } else if let Some(csro) = v.strip_prefix("csro+") {
             let mut split = csro.split('+');
             let csr = split
@@ -98,7 +98,7 @@ impl Visitor<'_> for MemoryLocationVisitor {
                 .parse::<i32>()
                 .map_err(de::Error::custom)?;
             Ok(MemoryLocation::CsrRegisterValueOffset(
-                CSRImm::new(csr),
+                CsrImm::new(csr),
                 offset,
             ))
         } else {

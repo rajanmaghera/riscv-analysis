@@ -1,7 +1,7 @@
 use crate::{
     cfg::RegisterSet,
     parser::{
-        CSRIType, CSRType, HasRegisterSets, IArithType, InstructionProperties, ParserNode,
+        CsrIType, CsrType, HasRegisterSets, IArithType, InstructionProperties, ParserNode,
         Register, RegisterProperties,
     },
 };
@@ -36,7 +36,7 @@ impl HasGenValueInfo for ParserNode {
     fn gen_memory_value(&self) -> Option<(MemoryLocation, AvailableValue)> {
         match self {
             ParserNode::Csr(expr) => match expr.inst.get() {
-                CSRType::Csrrw => Some((
+                CsrType::Csrrw => Some((
                     MemoryLocation::CsrRegister(*expr.csr.get()),
                     AvailableValue::RegisterWithScalar(*expr.rs1.get(), 0),
                 )),
@@ -44,7 +44,7 @@ impl HasGenValueInfo for ParserNode {
                 _ => None,
             },
             ParserNode::CsrI(expr) => match expr.inst.get() {
-                CSRIType::Csrrwi => Some((
+                CsrIType::Csrrwi => Some((
                     MemoryLocation::CsrRegister(*expr.csr.get()),
                     AvailableValue::Constant(expr.imm.get().value()),
                 )),

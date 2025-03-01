@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
-    ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, DirectiveToken, IArithType,
+    ArithType, BasicType, BranchType, CsrIType, CsrImm, CsrType, DirectiveToken, IArithType,
     IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelStringToken, LoadType, PseudoType, RawToken,
     Register, StoreType, With,
 };
@@ -177,9 +177,9 @@ pub struct Directive {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Csr {
-    pub inst: With<CSRType>,
+    pub inst: With<CsrType>,
     pub rd: With<Register>,
-    pub csr: With<CSRImm>,
+    pub csr: With<CsrImm>,
     pub rs1: With<Register>,
     #[serde(skip)]
     pub key: Uuid,
@@ -189,9 +189,9 @@ pub struct Csr {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CsrI {
-    pub inst: With<CSRIType>,
+    pub inst: With<CsrIType>,
     pub rd: With<Register>,
-    pub csr: With<CSRImm>,
+    pub csr: With<CsrImm>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,

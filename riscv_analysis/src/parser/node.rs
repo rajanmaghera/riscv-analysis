@@ -1,7 +1,7 @@
-use crate::parser::imm::{CSRImm, Imm};
+use crate::parser::imm::{CsrImm, Imm};
 use crate::parser::inst::Inst;
 use crate::parser::inst::{
-    ArithType, BasicType, BranchType, CSRIType, CSRType, IArithType, JumpLinkRType, JumpLinkType,
+    ArithType, BasicType, BranchType, CsrIType, CsrType, IArithType, JumpLinkRType, JumpLinkType,
     LoadType, PseudoType, StoreType,
 };
 
@@ -241,9 +241,9 @@ impl ParserNode {
 
     #[must_use]
     pub fn new_csr(
-        inst: With<CSRType>,
+        inst: With<CsrType>,
         rd: RegisterToken,
-        csr: With<CSRImm>,
+        csr: With<CsrImm>,
         rs1: RegisterToken,
         token: RawToken,
     ) -> ParserNode {
@@ -278,9 +278,9 @@ impl ParserNode {
 
     #[must_use]
     pub fn new_csri(
-        inst: With<CSRIType>,
+        inst: With<CsrIType>,
         rd: RegisterToken,
-        csr: With<CSRImm>,
+        csr: With<CsrImm>,
         imm: With<Imm>,
         token: RawToken,
     ) -> ParserNode {

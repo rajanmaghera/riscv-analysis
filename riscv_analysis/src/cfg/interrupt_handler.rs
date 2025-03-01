@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use crate::analysis::AvailableValue;
 use crate::cfg::{Cfg, CfgNode};
-use crate::parser::{CSRIType, CSRImm, CSRType, Imm, LabelStringToken, ParserNode, Register};
+use crate::parser::{CsrIType, CsrImm, CsrType, Imm, LabelStringToken, ParserNode, Register};
 
-impl CSRImm {
+impl CsrImm {
     /// Returns if this CSR register is the interrupt vector (utvec).
     fn is_interrupt_vector(&self) -> bool {
         self.value() == 0x005
@@ -38,13 +38,13 @@ impl ParserNode {
     ///
     /// This function ignores any other operations other than csrrw and csrrwi. The logical OR and
     /// clear bits functionality is not covered.
-    fn sets_csr(&self) -> Option<(CSRImm, CsrInstSource)> {
+    fn sets_csr(&self) -> Option<(CsrImm, CsrInstSource)> {
         match self {
-            ParserNode::Csr(node) if matches!(node.inst.get(), CSRType::Csrrw) => Some((
+            ParserNode::Csr(node) if matches!(node.inst.get(), CsrType::Csrrw) => Some((
                 node.csr.get().clone(),
                 CsrInstSource::from_register(*node.rs1.get()),
             )),
-            ParserNode::CsrI(node) if matches!(node.inst.get(), CSRIType::Csrrwi) => Some((
+            ParserNode::CsrI(node) if matches!(node.inst.get(), CsrIType::Csrrwi) => Some((
                 node.csr.get().clone(),
                 CsrInstSource::from_immediate(node.imm.get().clone()),
             )),
@@ -59,7 +59,7 @@ impl CfgNode {
     /// It is possible that a node sets a value, but it is not known what the value is. In that case, we
     /// will return None in the location of the AvailableValue. CSR instructions that use
     /// immediates are always known and converted to their constant AvailableValue counterparts.
-    fn sets_csr_to_value(&self) -> Option<(CSRImm, Option<AvailableValue>)> {
+    fn sets_csr_to_value(&self) -> Option<(CsrImm, Option<AvailableValue>)> {
         if let Some((csr, value)) = self.node().sets_csr() {
             match value {
                 CsrInstSource::Imm(imm) => Some((csr, Some(AvailableValue::Constant(imm.value())))),

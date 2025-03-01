@@ -85,14 +85,14 @@ pub enum StoreType {
 }
 
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
-pub enum CSRType {
+pub enum CsrType {
     Csrrw,
     Csrrs,
     Csrrc,
 }
 
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
-pub enum CSRIType {
+pub enum CsrIType {
     Csrrwi,
     Csrrsi,
     Csrrci,
@@ -448,8 +448,8 @@ pub enum Type {
     JumpLinkR(JumpLinkRType),
     Load(LoadType),
     Store(StoreType),
-    Csr(CSRType),
-    CsrI(CSRIType),
+    Csr(CsrType),
+    CsrI(CsrIType),
     Ignore(IgnoreType),
     Branch(BranchType),
     Pseudo(PseudoType),
@@ -670,12 +670,12 @@ impl From<&Inst> for Type {
             Inst::Ecall => Type::Basic(BasicType::Ecall),
             Inst::Ebreak => Type::Basic(BasicType::Ebreak),
             Inst::Ret => Type::Pseudo(PseudoType::Ret),
-            Inst::Csrrw => Type::Csr(CSRType::Csrrw),
-            Inst::Csrrs => Type::Csr(CSRType::Csrrs),
-            Inst::Csrrc => Type::Csr(CSRType::Csrrc),
-            Inst::Csrrwi => Type::CsrI(CSRIType::Csrrwi),
-            Inst::Csrrsi => Type::CsrI(CSRIType::Csrrsi),
-            Inst::Csrrci => Type::CsrI(CSRIType::Csrrci),
+            Inst::Csrrw => Type::Csr(CsrType::Csrrw),
+            Inst::Csrrs => Type::Csr(CsrType::Csrrs),
+            Inst::Csrrc => Type::Csr(CsrType::Csrrc),
+            Inst::Csrrwi => Type::CsrI(CsrIType::Csrrwi),
+            Inst::Csrrsi => Type::CsrI(CsrIType::Csrrsi),
+            Inst::Csrrci => Type::CsrI(CsrIType::Csrrci),
             Inst::Nop => Type::Pseudo(PseudoType::Nop),
             Inst::Auipc => Type::IArith(IArithType::Auipc),
             Inst::Beqz => Type::Pseudo(PseudoType::Beqz),
@@ -807,22 +807,22 @@ impl From<&JumpLinkRType> for Inst {
     }
 }
 
-impl From<&CSRType> for Inst {
-    fn from(value: &CSRType) -> Self {
+impl From<&CsrType> for Inst {
+    fn from(value: &CsrType) -> Self {
         match value {
-            CSRType::Csrrw => Inst::Csrrw,
-            CSRType::Csrrs => Inst::Csrrs,
-            CSRType::Csrrc => Inst::Csrrc,
+            CsrType::Csrrw => Inst::Csrrw,
+            CsrType::Csrrs => Inst::Csrrs,
+            CsrType::Csrrc => Inst::Csrrc,
         }
     }
 }
 
-impl From<&CSRIType> for Inst {
-    fn from(value: &CSRIType) -> Self {
+impl From<&CsrIType> for Inst {
+    fn from(value: &CsrIType) -> Self {
         match value {
-            CSRIType::Csrrwi => Inst::Csrrwi,
-            CSRIType::Csrrsi => Inst::Csrrsi,
-            CSRIType::Csrrci => Inst::Csrrci,
+            CsrIType::Csrrwi => Inst::Csrrwi,
+            CsrIType::Csrrsi => Inst::Csrrsi,
+            CsrIType::Csrrci => Inst::Csrrci,
         }
     }
 }

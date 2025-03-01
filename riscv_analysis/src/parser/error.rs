@@ -218,7 +218,7 @@ pub enum ExpectedType {
     Label,
     LParen,
     RParen,
-    CSRImm,
+    CsrImm,
     Inst,
     String,
 }
@@ -231,7 +231,7 @@ impl std::fmt::Display for ExpectedType {
             ExpectedType::Label => write!(f, "LABEL"),
             ExpectedType::LParen => write!(f, "LPAREN"),
             ExpectedType::RParen => write!(f, "RPAREN"),
-            ExpectedType::CSRImm => write!(f, "CSR-IMMEDIATE"),
+            ExpectedType::CsrImm => write!(f, "CSR-IMMEDIATE"),
             ExpectedType::Inst => write!(f, "INSTRUCTION"),
             ExpectedType::String => write!(f, "STRING"),
         }

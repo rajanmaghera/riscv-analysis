@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::parser::inst::{
-    ArithType, BranchType, CSRIType, CSRType, IArithType, Inst, JumpLinkRType, JumpLinkType,
+    ArithType, BranchType, CsrIType, CsrType, IArithType, Inst, JumpLinkRType, JumpLinkType,
     PseudoType, Type,
 };
 use crate::parser::{DataType, RawToken, Register};
@@ -14,7 +14,7 @@ use serde::Deserialize;
 use std::iter::Peekable;
 use std::str::FromStr;
 
-use super::imm::{CSRImm, Imm};
+use super::imm::{CsrImm, Imm};
 use super::token::Token;
 use super::{
     ExpectedType, HasRawText, LabelString, LabelStringToken, ParseError, Range, RegisterToken, With,
@@ -230,8 +230,8 @@ impl Token {
         self.as_type([ExpectedType::Label])
     }
 
-    fn as_csrimm(&self) -> Result<With<CSRImm>, LexError> {
-        self.as_type([ExpectedType::CSRImm])
+    fn as_csrimm(&self) -> Result<With<CsrImm>, LexError> {
+        self.as_type([ExpectedType::CsrImm])
     }
 
     fn as_string(&self) -> Result<With<String>, LexError> {
@@ -263,7 +263,7 @@ impl AnnotatedLexer<'_> {
         self.get_any()?.as_label()
     }
 
-    fn get_csrimm(&mut self) -> Result<With<CSRImm>, LexError> {
+    fn get_csrimm(&mut self) -> Result<With<CsrImm>, LexError> {
         self.get_any()?.as_csrimm()
     }
 
@@ -871,9 +871,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 let csr = lex.get_csrimm()?;
                                 let imm = lex.get_imm()?;
                                 let inst = match inst {
-                                    PseudoType::Csrci => CSRIType::Csrrci,
-                                    PseudoType::Csrsi => CSRIType::Csrrsi,
-                                    PseudoType::Csrwi => CSRIType::Csrrwi,
+                                    PseudoType::Csrci => CsrIType::Csrrci,
+                                    PseudoType::Csrsi => CsrIType::Csrrsi,
+                                    PseudoType::Csrwi => CsrIType::Csrrwi,
                                     _ => return Err(LexError::UnexpectedError(next_node.clone())),
                                 };
                                 return Ok(ParserNode::new_csri(
@@ -888,9 +888,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 let rs1 = lex.get_reg()?;
                                 let csr = lex.get_csrimm()?;
                                 let inst = match inst {
-                                    PseudoType::Csrc => CSRType::Csrrc,
-                                    PseudoType::Csrs => CSRType::Csrrs,
-                                    PseudoType::Csrw => CSRType::Csrrw,
+                                    PseudoType::Csrc => CsrType::Csrrc,
+                                    PseudoType::Csrs => CsrType::Csrrs,
+                                    PseudoType::Csrw => CsrType::Csrrw,
                                     _ => return Err(LexError::UnexpectedError(next_node.clone())),
                                 };
                                 return Ok(ParserNode::new_csr(
@@ -905,7 +905,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 let rd = lex.get_reg()?;
                                 let csr = lex.get_csrimm()?;
                                 return Ok(ParserNode::new_csr(
-                                    With::new(CSRType::Csrrs, next_node.clone()),
+                                    With::new(CsrType::Csrrs, next_node.clone()),
                                     rd,
                                     csr,
                                     With::new(Register::X0, next_node.clone()),

@@ -32,11 +32,11 @@ impl TryFrom<Token> for Imm {
 }
 
 #[derive(Debug, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Clone, Deserialize, Serialize)]
-pub struct CSRImm(u32);
+pub struct CsrImm(u32);
 
-impl CSRImm {
+impl CsrImm {
     pub fn new(value: u32) -> Self {
-        CSRImm(value)
+        CsrImm(value)
     }
 
     pub fn value(&self) -> u32 {
@@ -44,18 +44,18 @@ impl CSRImm {
     }
 }
 
-impl TryFrom<Token> for CSRImm {
+impl TryFrom<Token> for CsrImm {
     type Error = ();
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token_type() {
-            TokenType::Symbol(s) => CSRImm::from_str(&s),
+            TokenType::Symbol(s) => CsrImm::from_str(&s),
             _ => Err(()),
         }
     }
 }
 
-impl FromStr for CSRImm {
+impl FromStr for CsrImm {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -81,7 +81,7 @@ impl FromStr for CSRImm {
             #[allow(clippy::cast_sign_loss)]
             _ => Imm::from_str(s)?.value() as u32,
         };
-        Ok(CSRImm(num))
+        Ok(CsrImm(num))
     }
 }
 
@@ -132,15 +132,15 @@ impl FromStr for Imm {
     }
 }
 
-impl From<Imm> for CSRImm {
+impl From<Imm> for CsrImm {
     fn from(value: Imm) -> Self {
         #[allow(clippy::cast_sign_loss)]
-        CSRImm(value.0 as u32)
+        CsrImm(value.0 as u32)
     }
 }
 
-impl From<CSRImm> for Imm {
-    fn from(value: CSRImm) -> Self {
+impl From<CsrImm> for Imm {
+    fn from(value: CsrImm) -> Self {
         #[allow(clippy::cast_possible_wrap)]
         Imm(value.0 as i32)
     }
