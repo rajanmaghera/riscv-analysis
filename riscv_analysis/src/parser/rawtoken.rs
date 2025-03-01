@@ -12,8 +12,12 @@ pub struct RawToken {
 }
 
 impl RawToken {
-    pub fn new(text: String, pos: Range, file: Uuid) -> RawToken {
-        RawToken { text, pos, file }
+    pub fn new<S: Into<String>>(text: S, pos: Range, file: Uuid) -> RawToken {
+        RawToken {
+            text: text.into(),
+            pos,
+            file,
+        }
     }
 }
 
