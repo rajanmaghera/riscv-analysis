@@ -50,7 +50,7 @@ macro_rules! iarith {
             $crate::parser::With::blank($crate::parser::IArithType::$inst),
             $crate::parser::With::blank($crate::parser::Register::$rd),
             $crate::parser::With::blank($crate::parser::Register::$rs1),
-            $crate::parser::With::blank($crate::parser::Imm($imm)),
+            $crate::parser::With::blank($crate::parser::Imm::new($imm)),
             $crate::parser::RawToken::blank(),
         )
     };

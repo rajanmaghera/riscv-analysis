@@ -13,7 +13,7 @@ impl InstructionProperties for ParserNode {
                 x.inst == JumpLinkRType::Jalr
                     && x.rd == Register::X0
                     && x.rs1 == Register::X1
-                    && x.imm == Imm(0)
+                    && x.imm.get().value() == 0
             }
             ParserNode::Basic(x) => x.inst == BasicType::Uret,
             _ => false,

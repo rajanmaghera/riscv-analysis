@@ -47,7 +47,7 @@ impl Display for CfgNode {
             _ => self
                 .functions()
                 .iter()
-                .map(|func| func.name().0)
+                .map(|func| func.name().to_string())
                 .join(" | "),
         };
 

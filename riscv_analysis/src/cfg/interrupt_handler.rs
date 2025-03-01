@@ -7,7 +7,7 @@ use crate::parser::{CSRIType, CSRImm, CSRType, Imm, LabelStringToken, ParserNode
 impl CSRImm {
     /// Returns if this CSR register is the interrupt vector (utvec).
     fn is_interrupt_vector(&self) -> bool {
-        self.0 == 0x005
+        self.value() == 0x005
     }
 }
 
@@ -62,7 +62,7 @@ impl CfgNode {
     fn sets_csr_to_value(&self) -> Option<(CSRImm, Option<AvailableValue>)> {
         if let Some((csr, value)) = self.node().sets_csr() {
             match value {
-                CsrInstSource::Imm(imm) => Some((csr, Some(AvailableValue::Constant(imm.0)))),
+                CsrInstSource::Imm(imm) => Some((csr, Some(AvailableValue::Constant(imm.value())))),
                 CsrInstSource::Register(reg) => {
                     Some((csr, self.reg_values_in().get(&reg).cloned()))
                 }

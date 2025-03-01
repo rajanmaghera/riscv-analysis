@@ -346,8 +346,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                         Type::UpperArith(inst) => {
                             let rd = lex.get_reg()?;
                             let mut imm = lex.get_imm()?;
+                            let new_imm = Imm::new(imm.get().value() << 12);
                             // shift left by 12
-                            imm.get_mut().0 <<= 12;
+                            *imm.get_mut() = new_imm;
                             Ok(ParserNode::new_iarith(
                                 With::new(inst, next_node.clone()),
                                 rd,
@@ -446,7 +447,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(inst, next_node.clone()),
                                     reg1,
                                     rs1,
-                                    With::new(Imm(0), next_node),
+                                    With::new(Imm::new(0), next_node),
                                     lex.raw_token,
                                 ))
                             } else {
@@ -454,7 +455,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(inst, next_node.clone()),
                                     With::new(Register::X1, next_node.clone()),
                                     reg1,
-                                    With::new(Imm(0), next_node),
+                                    With::new(Imm::new(0), next_node),
                                     lex.raw_token,
                                 ))
                             };
@@ -495,7 +496,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         With::new(inst, next_node.clone()),
                                         rd.clone(),
                                         rd,
-                                        With::new(Imm(0), next_node),
+                                        With::new(Imm::new(0), next_node),
                                         lex.raw_token,
                                     )),
                                 ))
@@ -506,7 +507,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(inst, next_node.clone()),
                                     rd,
                                     rs1,
-                                    With::new(Imm(0), next_node),
+                                    With::new(Imm::new(0), next_node),
                                     lex.raw_token,
                                 ))
                             } else {
@@ -550,7 +551,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                             With::new(inst, next_node.clone()),
                                             tmp,
                                             rs2,
-                                            With::new(Imm(0), next_node),
+                                            With::new(Imm::new(0), next_node),
                                             lex.raw_token,
                                         )),
                                     ))
@@ -576,7 +577,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         With::new(inst, next_node.clone()),
                                         temp_reg,
                                         rs2,
-                                        With::new(Imm(0), next_node),
+                                        With::new(Imm::new(0), next_node),
                                         lex.raw_token,
                                     )),
                                 ))
@@ -587,7 +588,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(inst, next_node.clone()),
                                     rs1,
                                     rs2,
-                                    With::new(Imm(0), next_node),
+                                    With::new(Imm::new(0), next_node),
                                     lex.raw_token,
                                 ))
                             } else {
@@ -624,7 +625,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(JumpLinkRType::Jalr, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
                                     With::new(Register::X1, next_node.clone()),
-                                    With::new(Imm(0), next_node.clone()),
+                                    With::new(Imm::new(0), next_node.clone()),
                                     lex.raw_token,
                                 ))
                             }
@@ -675,7 +676,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(JumpLinkRType::Jalr, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
                                     rs1,
-                                    With::new(Imm(0), next_node.clone()),
+                                    With::new(Imm::new(0), next_node.clone()),
                                     lex.raw_token,
                                 ));
                             }
@@ -730,7 +731,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(IArithType::Xori, next_node.clone()),
                                     rd,
                                     rs1,
-                                    With::new(Imm(-1), next_node.clone()),
+                                    With::new(Imm::new(-1), next_node.clone()),
                                     lex.raw_token,
                                 ));
                             }
@@ -741,7 +742,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(IArithType::Sltiu, next_node.clone()),
                                     rd,
                                     rs1,
-                                    With::new(Imm(1), next_node.clone()),
+                                    With::new(Imm::new(1), next_node.clone()),
                                     lex.raw_token,
                                 ));
                             }
@@ -752,7 +753,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(IArithType::Sltiu, next_node.clone()),
                                     rd,
                                     rs1,
-                                    With::new(Imm(0), next_node.clone()),
+                                    With::new(Imm::new(0), next_node.clone()),
                                     lex.raw_token,
                                 ));
                             }
@@ -761,7 +762,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(IArithType::Addi, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
-                                    With::new(Imm(0), next_node.clone()),
+                                    With::new(Imm::new(0), next_node.clone()),
                                     lex.raw_token,
                                 ));
                             }

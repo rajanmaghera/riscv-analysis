@@ -211,7 +211,7 @@ impl Cfg {
 
                         // Add the node to the labels map
                         for label in current_labels.clone() {
-                            labels.insert(label.get().0.clone(), Rc::clone(&rc_node));
+                            labels.insert(label.get().to_string(), Rc::clone(&rc_node));
                         }
 
                         // Clear the current labels
@@ -228,7 +228,7 @@ impl Cfg {
 
                         // Add the node to the labels map
                         for label in current_labels.clone() {
-                            labels.insert(label.get().0.clone(), Rc::clone(&rc_node));
+                            labels.insert(label.get().to_string(), Rc::clone(&rc_node));
                         }
 
                         // Clear the current labels

@@ -140,7 +140,7 @@ impl std::fmt::Display for LintError {
                 write!(
                     f,
                     "Part of multiple functions: {}",
-                    funcs.iter().map(|fun| fun.name().0).join(" | ")
+                    funcs.iter().map(|fun| fun.name().to_string()).join(" | ")
                 )
             }
         }

@@ -1,7 +1,8 @@
 use crate::{
     cfg::RegisterSet,
     parser::{
-        CSRIType, CSRType, HasRegisterSets, IArithType, InstructionProperties, ParserNode, Register,
+        CSRIType, CSRType, HasRegisterSets, IArithType, InstructionProperties, ParserNode,
+        Register, RegisterProperties,
     },
 };
 
@@ -45,15 +46,15 @@ impl HasGenValueInfo for ParserNode {
             ParserNode::CsrI(expr) => match expr.inst.get() {
                 CSRIType::Csrrwi => Some((
                     MemoryLocation::CsrRegister(*expr.csr.get()),
-                    AvailableValue::Constant(expr.imm.get().0),
+                    AvailableValue::Constant(expr.imm.get().value()),
                 )),
                 // TODO handle other CSR instructions
                 _ => None,
             },
             ParserNode::Store(expr) => {
-                if expr.rs1 == Register::X2 {
+                if expr.rs1.get().is_stack_pointer() {
                     Some((
-                        MemoryLocation::StackOffset(expr.imm.get().0),
+                        MemoryLocation::StackOffset(expr.imm.get().value()),
                         AvailableValue::RegisterWithScalar(*expr.rs2.get(), 0),
                     ))
                 } else {
@@ -80,7 +81,7 @@ impl HasGenValueInfo for ParserNode {
             }
             ParserNode::Load(expr) => Some((
                 expr.rd.get(),
-                AvailableValue::MemoryAtRegister(*expr.rs1.get(), expr.imm.get().0),
+                AvailableValue::MemoryAtRegister(*expr.rs1.get(), expr.imm.get().value()),
             )),
             ParserNode::IArith(expr) => {
                 if expr.rs1 == Register::X0 {
@@ -89,9 +90,10 @@ impl HasGenValueInfo for ParserNode {
                         | IArithType::Lui
                         | IArithType::Addiw
                         | IArithType::Xori
-                        | IArithType::Ori => {
-                            Some((expr.rd.get(), AvailableValue::Constant(expr.imm.get().0)))
-                        }
+                        | IArithType::Ori => Some((
+                            expr.rd.get(),
+                            AvailableValue::Constant(expr.imm.get().value()),
+                        )),
                         IArithType::Andi
                         | IArithType::Slli
                         | IArithType::Slliw

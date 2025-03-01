@@ -7,7 +7,17 @@ use crate::parser::token::Token;
 use super::TokenType;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Imm(pub i32);
+pub struct Imm(i32);
+
+impl Imm {
+    pub fn new(value: i32) -> Self {
+        Imm(value)
+    }
+
+    pub fn value(&self) -> i32 {
+        self.0
+    }
+}
 
 impl TryFrom<Token> for Imm {
     type Error = ();
@@ -22,7 +32,17 @@ impl TryFrom<Token> for Imm {
 }
 
 #[derive(Debug, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Clone, Deserialize, Serialize)]
-pub struct CSRImm(pub u32);
+pub struct CSRImm(u32);
+
+impl CSRImm {
+    pub fn new(value: u32) -> Self {
+        CSRImm(value)
+    }
+
+    pub fn value(&self) -> u32 {
+        self.0
+    }
+}
 
 impl TryFrom<Token> for CSRImm {
     type Error = ();
@@ -59,7 +79,7 @@ impl FromStr for CSRImm {
             "timeh" => 0xC81,
             "instreth" => 0xC82,
             #[allow(clippy::cast_sign_loss)]
-            _ => Imm::from_str(s)?.0 as u32,
+            _ => Imm::from_str(s)?.value() as u32,
         };
         Ok(CSRImm(num))
     }

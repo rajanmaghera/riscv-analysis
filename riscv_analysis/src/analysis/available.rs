@@ -237,23 +237,23 @@ fn rule_zero_to_const(
     memory_out: &mut AvailableValueMap<MemoryLocation>,
     memory_in: &AvailableValueMap<MemoryLocation>,
 ) {
-    for val in available_in {
-        match val.1 {
+    for (reg, val) in available_in {
+        match val {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
                 if r.is_const_zero() {
-                    available_out.insert(*val.0, AvailableValue::Constant(*i));
+                    available_out.insert(*reg, AvailableValue::Constant(*i));
                 }
             }
             _ => {}
         }
     }
-    for val in memory_in {
-        match val.1 {
+    for (mem_loc, val) in memory_in {
+        match val {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
                 if r.is_const_zero() {
-                    memory_out.insert(val.0.clone(), AvailableValue::Constant(*i));
+                    memory_out.insert(mem_loc.clone(), AvailableValue::Constant(*i));
                 }
             }
             _ => {}
@@ -278,12 +278,12 @@ fn rule_expand_address_for_load(
             {
                 available_out.insert(
                     *store_reg.get(),
-                    AvailableValue::MemoryAtOriginalRegister(*reg, *off + load.imm.get().0),
+                    AvailableValue::MemoryAtOriginalRegister(*reg, *off + load.imm.get().value()),
                 );
             } else if let Some(AvailableValue::Address(label)) = available_in.get(&load.rs1.get()) {
                 available_out.insert(
                     *store_reg.get(),
-                    AvailableValue::Memory(label.get().clone(), load.imm.get().0),
+                    AvailableValue::Memory(label.get().clone(), load.imm.get().value()),
                 );
             }
         }
@@ -308,7 +308,7 @@ fn rule_perform_math_ops(
 
         let rhs = match node {
             ParserNode::Arith(expr) => available_in.get(&expr.rs2.get()).cloned(),
-            ParserNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.get().0)),
+            ParserNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.get().value())),
             _ => None,
         };
 
@@ -407,7 +407,7 @@ fn rule_push_value_to_csr_memory(
         if let Some(AvailableValue::ValueInCsr(csr)) = available_in.get(&reg) {
             // Push the value to the memory
             memory_out.insert(
-                MemoryLocation::CsrRegisterValueOffset(*csr, off.0),
+                MemoryLocation::CsrRegisterValueOffset(*csr, off.value()),
                 AvailableValue::RegisterWithScalar(source, 0),
             );
         }
@@ -425,7 +425,7 @@ fn rule_pull_value_from_csr_memory(
         if let Some(AvailableValue::ValueInCsr(csr)) = available_out.get(&reg) {
             // If the memory at csr contains a value
             if let Some(value) =
-                memory_out.get(&MemoryLocation::CsrRegisterValueOffset(*csr, off.0))
+                memory_out.get(&MemoryLocation::CsrRegisterValueOffset(*csr, off.value()))
             {
                 // Pull the value from the memory
                 available_out.insert(dest, value.clone());

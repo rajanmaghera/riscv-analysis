@@ -60,7 +60,7 @@ impl FunctionMarkupPass {
 
                     let inst = With::new(JumpLinkType::Jal, info.clone());
                     let rd = With::new(Register::X0, info.clone());
-                    let name = With::new(LabelString("__return__".to_string()), info.clone());
+                    let name = With::new(LabelString::new("__return__"), info.clone());
                     let new_node =
                         ParserNode::new_jump_link(inst, rd, name, prev_ret.node().token().clone());
                     let _ = found_ret.set_node(new_node);
@@ -148,7 +148,7 @@ mod tests {
         let funcs = cfg.functions();
         funcs
             .iter()
-            .map(|both| (both.0.get().0.clone(), both.1.clone()))
+            .map(|(name, func)| (name.to_string(), func.clone()))
             .collect()
     }
 

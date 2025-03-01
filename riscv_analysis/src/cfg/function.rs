@@ -40,11 +40,11 @@ impl Hash for Function {
 impl Function {
     #[must_use]
     pub fn name(&self) -> LabelString {
-        LabelString(
+        LabelString::new(
             self.entry
                 .labels()
                 .into_iter()
-                .map(|x| x.get().0.clone())
+                .map(|x| x.get().to_string())
                 .collect::<Vec<String>>()
                 .join(", "),
         )

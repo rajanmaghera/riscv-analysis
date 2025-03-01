@@ -231,10 +231,10 @@ impl LintPass for StackCheckPass {
                         }
 
                         if let Some((reg2, off2)) = node.uses_memory_location() {
-                            if reg2 == Register::X2 && off2.0 + off >= 0 {
+                            if reg2 == Register::X2 && off2.value() + off >= 0 {
                                 errors.push(LintError::InvalidStackOffsetUsage(
                                     node.node().clone(),
-                                    off2.0 + off,
+                                    off2.value() + off,
                                 ));
                             }
                         }

@@ -20,13 +20,13 @@ impl Display for ParserNode {
                 let inst: Inst = Inst::from(x.inst.get());
                 let rd = x.rd.get().to_string();
                 let rs1 = x.rs1.get().to_string();
-                let imm = x.imm.get().0.to_string();
+                let imm = x.imm.get().value().to_string();
                 format!("{inst} {rd} <- {rs1}, {imm}")
             }
-            ParserNode::Label(x) => format!("---[{}]---", x.name.get().0),
+            ParserNode::Label(x) => format!("---[{}]---", x.name.get().to_string()),
             ParserNode::JumpLink(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
-                let name = x.name.get().0.clone();
+                let name = x.name.get().to_string();
                 let rd = x.rd.get().to_string();
                 format!("{inst} [{name}] | {rd} <- PC")
             }
@@ -47,41 +47,41 @@ impl Display for ParserNode {
                 let inst: Inst = Inst::from(x.inst.get());
                 let rs1 = x.rs1.get().to_string();
                 let rs2 = x.rs2.get().to_string();
-                let name = x.name.get().0.clone();
+                let name = x.name.get().to_string();
                 format!("{inst} {rs1}--{rs2}, [{name}]")
             }
             ParserNode::Store(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
                 let rs1 = x.rs1.get().to_string();
                 let rs2 = x.rs2.get().to_string();
-                let imm = x.imm.get().0.to_string();
+                let imm = x.imm.get().value().to_string();
                 format!("{inst} {rs2} -> {imm}({rs1})")
             }
             ParserNode::Load(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
                 let rd = x.rd.get().to_string();
                 let rs1 = x.rs1.get().to_string();
-                let imm = x.imm.get().0.to_string();
+                let imm = x.imm.get().value().to_string();
                 format!("{inst} {rd} <- {imm}({rs1})")
             }
             ParserNode::LoadAddr(x) => {
                 let inst = "la";
                 let rd = x.rd.get().to_string();
-                let name = x.name.get().0.clone();
+                let name = x.name.get().to_string();
                 format!("{inst} {rd} <- [{name}]")
             }
             ParserNode::Csr(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
                 let rd = x.rd.get().to_string();
-                let csr = x.csr.get().0.to_string();
+                let csr = x.csr.get().value().to_string();
                 let rs1 = x.rs1.get().to_string();
                 format!("{inst} {rd} <- {csr} <- {rs1}")
             }
             ParserNode::CsrI(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
                 let rd = x.rd.get().to_string();
-                let csr = x.csr.get().0.to_string();
-                let imm = x.imm.get().0.to_string();
+                let csr = x.csr.get().value().to_string();
+                let imm = x.imm.get().value().to_string();
                 format!("{inst} {rd} <- {csr} <- {imm}")
             }
         };

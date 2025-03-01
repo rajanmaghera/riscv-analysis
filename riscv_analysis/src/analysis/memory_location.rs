@@ -46,9 +46,11 @@ impl Serialize for MemoryLocation {
         S: Serializer,
     {
         match self {
-            MemoryLocation::CsrRegister(csr) => serializer.serialize_str(&format!("csr+{}", csr.0)),
+            MemoryLocation::CsrRegister(csr) => {
+                serializer.serialize_str(&format!("csr+{}", csr.value()))
+            }
             MemoryLocation::CsrRegisterValueOffset(csr, offset) => {
-                serializer.serialize_str(&format!("csro+{}+{}", csr.0, offset))
+                serializer.serialize_str(&format!("csro+{}+{}", csr.value(), offset))
             }
             MemoryLocation::StackOffset(i) => serializer.serialize_str(&format!(
                 "so{}{}",
@@ -82,7 +84,7 @@ impl Visitor<'_> for MemoryLocationVisitor {
             }))
         } else if let Some(csr) = v.strip_prefix("csr+") {
             let csr = csr.parse::<u32>().map_err(de::Error::custom)?;
-            Ok(MemoryLocation::CsrRegister(CSRImm(csr)))
+            Ok(MemoryLocation::CsrRegister(CSRImm::new(csr)))
         } else if let Some(csro) = v.strip_prefix("csro+") {
             let mut split = csro.split('+');
             let csr = split
@@ -95,7 +97,10 @@ impl Visitor<'_> for MemoryLocationVisitor {
                 .unwrap()
                 .parse::<i32>()
                 .map_err(de::Error::custom)?;
-            Ok(MemoryLocation::CsrRegisterValueOffset(CSRImm(csr), offset))
+            Ok(MemoryLocation::CsrRegisterValueOffset(
+                CSRImm::new(csr),
+                offset,
+            ))
         } else {
             Err(de::Error::custom("invalid memory location"))
         }
@@ -118,9 +123,9 @@ impl std::fmt::Display for MemoryLocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // sp_i == "stack pointer at the beginning of the function, or initial"
         match self {
-            MemoryLocation::CsrRegister(csr) => write!(f, "csr[{}]", csr.0),
+            MemoryLocation::CsrRegister(csr) => write!(f, "csr[{}]", csr.value()),
             MemoryLocation::CsrRegisterValueOffset(csr, offset) => {
-                write!(f, "*(csr[{}]) + {}", csr.0, offset)
+                write!(f, "*(csr[{}]) + {}", csr.value(), offset)
             }
             MemoryLocation::StackOffset(offset) => {
                 if offset < &0 {

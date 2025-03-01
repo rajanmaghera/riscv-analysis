@@ -147,7 +147,7 @@ impl Display for DirectiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DirectiveType::Include(s) => write!(f, "include {s}"),
-            DirectiveType::Align(i) => write!(f, "align {}", i.get().0),
+            DirectiveType::Align(i) => write!(f, "align {}", i.get().value()),
             DirectiveType::Ascii { text, .. } => {
                 write!(f, "ascii \"{}\"", text.get())
             }
@@ -156,11 +156,11 @@ impl Display for DirectiveType {
             DirectiveType::Data(dt, data) => {
                 write!(f, "{dt} ")?;
                 for d in data {
-                    write!(f, "{}, ", d.get().0)?;
+                    write!(f, "{}, ", d.get().value())?;
                 }
                 Ok(())
             }
-            DirectiveType::Space(i) => write!(f, "space {}", i.get().0),
+            DirectiveType::Space(i) => write!(f, "space {}", i.get().value()),
         }
     }
 }
