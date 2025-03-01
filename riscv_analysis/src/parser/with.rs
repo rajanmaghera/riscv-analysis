@@ -5,24 +5,18 @@ use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-use super::{HasRawText, Range, RawToken, Token, TokenType};
+use super::{HasRawText, Range, RawToken, Token};
 
 #[derive(Clone)]
 pub struct With<T> {
-    token: TokenType,
-    text: String,
-    pos: Range,
-    file: Uuid,
+    token: Token,
     underlying_data: T,
 }
 
 impl<T> With<T> {
-    pub fn new(data: T, info: Token) -> Self {
+    pub fn new(data: T, token: Token) -> Self {
         With {
-            token: info.token_type().clone(),
-            text: info.raw_text().to_owned(),
-            pos: info.range(),
-            file: info.file(),
+            token,
             underlying_data: data,
         }
     }
@@ -38,28 +32,28 @@ impl<T> With<T> {
 
 impl<T> From<With<T>> for Token {
     fn from(with: With<T>) -> Token {
-        Token::new(with.token, with.text, with.pos, with.file)
+        with.token
     }
 }
 
 impl<T> From<With<T>> for RawToken {
     fn from(with: With<T>) -> RawToken {
-        RawToken::new(with.text, with.pos, with.file)
+        with.token.into()
     }
 }
 
 impl<T> DiagnosticLocation for With<T> {
     fn range(&self) -> Range {
-        self.pos.clone()
+        self.token.range()
     }
     fn file(&self) -> Uuid {
-        self.file
+        self.token.file()
     }
 }
 
 impl<T> HasRawText for With<T> {
     fn raw_text(&self) -> &str {
-        self.text.as_str()
+        self.token.raw_text()
     }
 }
 
@@ -80,10 +74,7 @@ where
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         Ok(With {
-            token: TokenType::default(),
-            pos: Range::default(),
-            file: Uuid::nil(),
-            text: "".to_owned(),
+            token: Token::default(),
             underlying_data: T::deserialize(deserializer)?,
         })
     }
