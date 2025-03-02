@@ -149,7 +149,7 @@ impl Display for DirectiveType {
             DirectiveType::Include(s) => write!(f, "include {s}"),
             DirectiveType::Align(i) => write!(f, "align {}", i.get().value()),
             DirectiveType::Ascii { text, .. } => {
-                write!(f, "ascii \"{}\"", text.get())
+                write!(f, "ascii \"{}\"", text)
             }
             DirectiveType::DataSection => write!(f, ".data"),
             DirectiveType::TextSection => write!(f, ".text"),

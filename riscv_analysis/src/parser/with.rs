@@ -1,16 +1,33 @@
-use std::hash::{Hash, Hasher};
+use std::{
+    hash::{Hash, Hasher},
+    ops::{Deref, DerefMut},
+};
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-use super::{HasRawText, Range, RawToken, Token};
+use super::{HasRawText, Range, RawToken, Register, Token};
 
 #[derive(Clone)]
 pub struct With<T> {
     token: Token,
     underlying_data: T,
+}
+
+impl<T> Deref for With<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.underlying_data
+    }
+}
+
+impl<T> DerefMut for With<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.underlying_data
+    }
 }
 
 impl<T> With<T> {
@@ -28,17 +45,20 @@ impl<T> With<T> {
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.underlying_data
     }
-}
 
-impl<T> From<With<T>> for Token {
-    fn from(with: With<T>) -> Token {
-        with.token
+    pub fn get_cloned(&self) -> T
+    where
+        T: Clone,
+    {
+        self.underlying_data.clone()
     }
-}
 
-impl<T> From<With<T>> for RawToken {
-    fn from(with: With<T>) -> RawToken {
-        with.token.into()
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
+
+    pub fn raw_token(&self) -> &RawToken {
+        self.token.raw_token()
     }
 }
 
@@ -144,3 +164,11 @@ where
 }
 
 impl<T> Eq for With<T> where T: Eq {}
+
+// Blanket implementation for into()
+
+impl From<With<Register>> for Register {
+    fn from(with: With<Register>) -> Register {
+        *with.get()
+    }
+}

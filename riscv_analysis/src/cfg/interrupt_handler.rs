@@ -41,12 +41,12 @@ impl ParserNode {
     fn sets_csr(&self) -> Option<(CsrImm, CsrInstSource)> {
         match self {
             ParserNode::Csr(node) if matches!(node.inst.get(), CsrType::Csrrw) => Some((
-                node.csr.get().clone(),
+                node.csr.get_cloned(),
                 CsrInstSource::from_register(*node.rs1.get()),
             )),
             ParserNode::CsrI(node) if matches!(node.inst.get(), CsrIType::Csrrwi) => Some((
-                node.csr.get().clone(),
-                CsrInstSource::from_immediate(node.imm.get().clone()),
+                node.csr.get_cloned(),
+                CsrInstSource::from_immediate(node.imm.get_cloned()),
             )),
             _ => None,
         }

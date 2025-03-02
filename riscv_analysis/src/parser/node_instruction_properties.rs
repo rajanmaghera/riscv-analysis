@@ -29,8 +29,8 @@ impl InstructionProperties for ParserNode {
 
     fn stores_to_memory(&self) -> Option<(Register, (Register, Imm))> {
         match self {
-            ParserNode::Store(x) if *x.rs2.get() != Register::X0 => {
-                Some((*x.rs2.get(), (*x.rs1.get(), x.imm.get().clone())))
+            ParserNode::Store(x) if x.rs2 != Register::X0 => {
+                Some((x.rs2.get_cloned(), (x.rs1.get_cloned(), x.imm.get_cloned())))
             }
             _ => None,
         }
@@ -38,7 +38,9 @@ impl InstructionProperties for ParserNode {
 
     fn reads_from_memory(&self) -> Option<((Register, Imm), Register)> {
         match self {
-            ParserNode::Load(x) => Some(((*x.rs1.get(), x.imm.get().clone()), *x.rd.get())),
+            ParserNode::Load(x) => {
+                Some(((x.rs1.get_cloned(), x.imm.get_cloned()), x.rd.get_cloned()))
+            }
             _ => None,
         }
     }
@@ -119,8 +121,8 @@ impl InstructionProperties for ParserNode {
 
     fn uses_memory_location(&self) -> Option<(Register, Imm)> {
         match self {
-            ParserNode::Store(s) => Some((*s.rs1.get(), s.imm.get().clone())),
-            ParserNode::Load(l) => Some((*l.rs1.get(), l.imm.get().clone())),
+            ParserNode::Store(s) => Some((s.rs1.get_cloned(), s.imm.get_cloned())),
+            ParserNode::Load(l) => Some((l.rs1.get_cloned(), l.imm.get_cloned())),
             _ => None,
         }
     }

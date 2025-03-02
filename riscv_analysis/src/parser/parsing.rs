@@ -135,7 +135,7 @@ impl<T: FileReader> RVParser<T> {
                 Ok(x) => {
                     if !ignore_imports {
                         if let Some(path) = x.get_include_path() {
-                            match self.reader.import_file(&path.get(), Some(path.file())) {
+                            match self.reader.import_file(path.get(), Some(path.file())) {
                                 Ok((new_uuid, new_text)) => {
                                     self.lexer_stack
                                         .push(Lexer::new(new_text, new_uuid).peekable());
@@ -646,7 +646,7 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 return Ok(ParserNode::new_iarith(
                                     With::new(IArithType::Addi, next_node.clone()),
                                     rd,
-                                    With::new(Register::X0, imm.clone().into()),
+                                    With::new(Register::X0, imm.token().clone()),
                                     imm,
                                     lex.raw_token,
                                 ));

@@ -30,6 +30,10 @@ impl Token {
     pub fn token_type(&self) -> &TokenType {
         &self.token_type
     }
+
+    pub fn raw_token(&self) -> &RawToken {
+        &self.raw_token
+    }
 }
 
 impl From<Token> for RawToken {

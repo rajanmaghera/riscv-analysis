@@ -14,7 +14,7 @@ impl HasGenKillInfo for ParserNode {
             Register::caller_saved_set()
         } else if self.is_function_entry() {
             Register::caller_saved_set()
-        } else if let Some(stored_reg) = self.writes_to().map(|x| *x.get()) {
+        } else if let Some(stored_reg) = self.writes_to().map(|x| x.get_cloned()) {
             RegisterSet::from_iter([stored_reg])
         } else {
             RegisterSet::new()
@@ -37,15 +37,15 @@ impl HasGenValueInfo for ParserNode {
         match self {
             ParserNode::Csr(expr) => match expr.inst.get() {
                 CsrType::Csrrw => Some((
-                    MemoryLocation::CsrRegister(*expr.csr.get()),
-                    AvailableValue::RegisterWithScalar(*expr.rs1.get(), 0),
+                    MemoryLocation::CsrRegister(expr.csr.get_cloned()),
+                    AvailableValue::RegisterWithScalar(expr.rs1.get_cloned(), 0),
                 )),
                 // TODO handle other CSR instructions
                 _ => None,
             },
             ParserNode::CsrI(expr) => match expr.inst.get() {
                 CsrIType::Csrrwi => Some((
-                    MemoryLocation::CsrRegister(*expr.csr.get()),
+                    MemoryLocation::CsrRegister(expr.csr.get_cloned()),
                     AvailableValue::Constant(expr.imm.get().value()),
                 )),
                 // TODO handle other CSR instructions
@@ -55,7 +55,7 @@ impl HasGenValueInfo for ParserNode {
                 if expr.rs1.get().is_stack_pointer() {
                     Some((
                         MemoryLocation::StackOffset(expr.imm.get().value()),
-                        AvailableValue::RegisterWithScalar(*expr.rs2.get(), 0),
+                        AvailableValue::RegisterWithScalar(expr.rs2.get_cloned(), 0),
                     ))
                 } else {
                     None
@@ -69,19 +69,24 @@ impl HasGenValueInfo for ParserNode {
         // The function entry case and program entry case is handled separately
         // to account for all the "original" registers.
         let item = match self {
-            ParserNode::Csr(expr) => {
-                Some((expr.rd.get(), AvailableValue::ValueInCsr(*expr.csr.get())))
-            }
-            ParserNode::CsrI(expr) => {
-                Some((expr.rd.get(), AvailableValue::ValueInCsr(*expr.csr.get())))
-            }
+            ParserNode::Csr(expr) => Some((
+                expr.rd.get(),
+                AvailableValue::ValueInCsr(expr.csr.get_cloned()),
+            )),
+            ParserNode::CsrI(expr) => Some((
+                expr.rd.get(),
+                AvailableValue::ValueInCsr(expr.csr.get_cloned()),
+            )),
 
             ParserNode::LoadAddr(expr) => {
                 Some((expr.rd.get(), AvailableValue::Address(expr.name.clone())))
             }
             ParserNode::Load(expr) => Some((
                 expr.rd.get(),
-                AvailableValue::MemoryAtRegister(*expr.rs1.get(), expr.imm.get().value()),
+                AvailableValue::MemoryAtRegister(
+                    expr.rs1.get_cloned(),
+                    expr.imm.get_cloned().value(),
+                ),
             )),
             ParserNode::IArith(expr) => {
                 if expr.rs1 == Register::X0 {

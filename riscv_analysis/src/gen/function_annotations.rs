@@ -35,7 +35,7 @@ impl FunctionMarkupPass {
 
             // Collect any registers written to by the node
             if let Some(dest) = node.writes_to() {
-                defs |= *dest.get();
+                defs |= dest.get_cloned();
             }
 
             // Collect return instructions

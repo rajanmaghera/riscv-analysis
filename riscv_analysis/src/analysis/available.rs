@@ -274,16 +274,16 @@ fn rule_expand_address_for_load(
     if let Some(store_reg) = node.writes_to() {
         if let ParserNode::Load(load) = node {
             if let Some(AvailableValue::OriginalRegisterWithScalar(reg, off)) =
-                available_in.get(&load.rs1.get())
+                available_in.get(load.rs1.get())
             {
                 available_out.insert(
-                    *store_reg.get(),
+                    store_reg.get_cloned(),
                     AvailableValue::MemoryAtOriginalRegister(*reg, *off + load.imm.get().value()),
                 );
-            } else if let Some(AvailableValue::Address(label)) = available_in.get(&load.rs1.get()) {
+            } else if let Some(AvailableValue::Address(label)) = available_in.get(load.rs1.get()) {
                 available_out.insert(
-                    *store_reg.get(),
-                    AvailableValue::Memory(label.get().clone(), load.imm.get().value()),
+                    store_reg.get_cloned(),
+                    AvailableValue::Memory(label.get_cloned(), load.imm.get().value()),
                 );
             }
         }
@@ -301,13 +301,13 @@ fn rule_perform_math_ops(
 ) {
     if let Some(reg) = node.writes_to() {
         let lhs = match node {
-            ParserNode::Arith(expr) => available_in.get(&expr.rs1.get()).cloned(),
-            ParserNode::IArith(expr) => available_in.get(&expr.rs1.get()).cloned(),
+            ParserNode::Arith(expr) => available_in.get(expr.rs1.get()).cloned(),
+            ParserNode::IArith(expr) => available_in.get(expr.rs1.get()).cloned(),
             _ => None,
         };
 
         let rhs = match node {
-            ParserNode::Arith(expr) => available_in.get(&expr.rs2.get()).cloned(),
+            ParserNode::Arith(expr) => available_in.get(expr.rs2.get()).cloned(),
             ParserNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.get().value())),
             _ => None,
         };
@@ -333,7 +333,7 @@ fn rule_perform_math_ops(
             (_, _) => None,
         };
         if let Some(val) = result {
-            available_out.insert(*reg.get(), val);
+            available_out.insert(reg.get_cloned(), val);
         }
     }
 }
@@ -349,18 +349,18 @@ fn rule_value_from_stack(
     memory_in: &AvailableValueMap<MemoryLocation>,
 ) {
     if let Some(reg) = node.writes_to() {
-        if let Some(AvailableValue::ValueInCsr(csr)) = available_out.get(&reg.get()) {
+        if let Some(AvailableValue::ValueInCsr(csr)) = available_out.get(reg.get()) {
             if let Some(csr_value) = memory_in.get(&MemoryLocation::CsrRegister(*csr)) {
-                available_out.insert(*reg.get(), csr_value.clone());
+                available_out.insert(reg.get_cloned(), csr_value.clone());
             }
         }
 
         if let Some(AvailableValue::MemoryAtOriginalRegister(psp, off)) =
-            available_out.get(&reg.get())
+            available_out.get(reg.get())
         {
             if psp.is_stack_pointer() {
                 if let Some(stack_val) = memory_in.get(&MemoryLocation::StackOffset(*off)) {
-                    available_out.insert(*reg.get(), stack_val.clone());
+                    available_out.insert(reg.get_cloned(), stack_val.clone());
                 }
             }
         }

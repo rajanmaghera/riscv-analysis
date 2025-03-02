@@ -52,9 +52,11 @@ impl FileReaderError {
     pub fn to_parse_error(&self, path: With<String>) -> ParseError {
         match self {
             FileReaderError::InternalFileNotFound | FileReaderError::Unexpected => {
-                ParseError::UnexpectedError(path.into())
+                ParseError::UnexpectedError(path.token().clone())
             }
-            FileReaderError::FileAlreadyRead(_) => ParseError::CyclicDependency(path.into()),
+            FileReaderError::FileAlreadyRead(_) => {
+                ParseError::CyclicDependency(path.token().clone())
+            }
             FileReaderError::InvalidPath => ParseError::FileNotFound(path),
             FileReaderError::IOErr(e) => ParseError::IOError(path, e.clone()),
         }
@@ -81,8 +83,8 @@ impl Display for ParseError {
             ParseError::UnexpectedError(_) => write!(f, "Unexpected error"),
             ParseError::UnknownDirective(_) => write!(f, "Unknown directive"),
             ParseError::CyclicDependency(_) => write!(f, "Cyclic dependency"),
-            ParseError::FileNotFound(file) => write!(f, "File not found: {}", file.get()),
-            ParseError::IOError(file, err) => write!(f, "IO Error: {} ({})", file.get(), err),
+            ParseError::FileNotFound(file) => write!(f, "File not found: {}", file),
+            ParseError::IOError(file, err) => write!(f, "IO Error: {} ({})", file, err),
             ParseError::InvalidString(_info, _kind) => {
                 write!(f, "Invalid string")
             }
@@ -132,8 +134,8 @@ impl DiagnosticMessage for ParseError {
                 This is likely due to a file importing itself or a file importing a file that imports it.\
                 Please remove the cyclic dependency to fix this error.
             ".to_string(),
-            ParseError::FileNotFound(file) => format!("File not found: {}", file.get()),
-            ParseError::IOError(file, err) => format!("IO Error: {} ({})", file.get(), err),
+            ParseError::FileNotFound(file) => format!("File not found: {}", file),
+            ParseError::IOError(file, err) => format!("IO Error: {} ({})", file, err),
             ParseError::InvalidString(_, e) => {
                 match e.kind {
                     StringLexErrorType::InvalidEscapeSequence => {

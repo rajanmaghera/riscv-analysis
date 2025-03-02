@@ -28,7 +28,7 @@ impl LintPass for OverlappingFunctionCheck {
                     .map(|l| Label {
                         name: l.clone(),
                         key: Uuid::new_v4(),
-                        token: l.clone().into(),
+                        token: l.raw_token().clone(),
                     })
                     .collect::<Vec<_>>();
                 let label = labels.first();
