@@ -12,3 +12,6 @@ pub use manager::*;
 
 mod diagnostics;
 pub use diagnostics::*;
+
+mod diagnostic_manager;
+pub use diagnostic_manager::*;

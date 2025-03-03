@@ -11,4 +11,8 @@ impl DiagnosticLocation for ParserNode {
     fn range(&self) -> super::Range {
         self.token().range()
     }
+
+    fn raw_text(&self) -> String {
+        self.token().raw_text()
+    }
 }

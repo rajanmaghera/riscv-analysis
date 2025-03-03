@@ -6,6 +6,7 @@ use crate::parser::HasRegisterSets;
 use crate::parser::InstructionProperties;
 use crate::parser::Register;
 use crate::parser::RegisterToken;
+use crate::passes::DiagnosticManager;
 use crate::passes::LintError;
 use crate::passes::LintPass;
 use std::collections::{HashSet, VecDeque};
@@ -102,7 +103,7 @@ impl Cfg {
 
 pub struct SaveToZeroCheck;
 impl LintPass for SaveToZeroCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if let Some(register) = node.writes_to() {
                 if register == Register::X0 && !node.can_skip_save_checks() {
@@ -115,7 +116,7 @@ impl LintPass for SaveToZeroCheck {
 
 pub struct DeadValueCheck;
 impl LintPass for DeadValueCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // check the out of the node for any uses that
             // should not be there (temporaries)
@@ -156,7 +157,7 @@ impl LintPass for DeadValueCheck {
 // Check if there are any instructions after an ecall to terminate the program
 pub struct EcallCheck;
 impl LintPass for EcallCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_ecall() && node.known_ecall().is_none() {
                 errors.push(LintError::UnknownEcall(node.node().clone()));
@@ -170,7 +171,7 @@ impl LintPass for EcallCheck {
 // Check if there are any in values at the start of a program
 pub struct GarbageInputValueCheck;
 impl LintPass for GarbageInputValueCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_program_entry() {
                 // get registers
@@ -206,7 +207,7 @@ impl LintPass for GarbageInputValueCheck {
 // Check that we know the stack position at every point in the program (aka. within scopes)
 pub struct StackCheckPass;
 impl LintPass for StackCheckPass {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         // PASS 1
         // check that we know the stack position at every point in the program
         // check that the stack is never in an invalid position
@@ -256,7 +257,7 @@ impl LintPass for StackCheckPass {
 // check if the value of a calle-saved register is read as its original value
 pub struct CalleeSavedGarbageReadCheck;
 impl LintPass for CalleeSavedGarbageReadCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             for read in node.reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
@@ -279,7 +280,7 @@ impl LintPass for CalleeSavedGarbageReadCheck {
 // Check if the values of callee-saved registers are restored to the original value at the end of the function
 pub struct CalleeSavedRegisterCheck;
 impl LintPass for CalleeSavedRegisterCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for func in cfg.functions().values() {
             let exit_vals = func.exit().reg_values_in();
             for reg in &Register::callee_saved_set() {
@@ -311,7 +312,7 @@ impl LintPass for CalleeSavedRegisterCheck {
 // diagnostic information in the future.
 pub struct LostCalleeSavedRegisterCheck;
 impl LintPass for LostCalleeSavedRegisterCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             let callee = Register::saved_set();
 

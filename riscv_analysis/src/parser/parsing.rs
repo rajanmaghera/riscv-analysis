@@ -16,9 +16,7 @@ use std::str::FromStr;
 
 use super::imm::{CsrImm, Imm};
 use super::token::Token;
-use super::{
-    ExpectedType, HasRawText, LabelString, LabelStringToken, ParseError, Range, RegisterToken, With,
-};
+use super::{ExpectedType, LabelString, LabelStringToken, ParseError, Range, RegisterToken, With};
 
 #[derive(Deserialize, Clone)]
 pub struct RVDocument {
@@ -70,7 +68,7 @@ impl<T: FileReader> RVParser<T> {
             Ok(lints) => {
                 lints
                     .iter()
-                    .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
+                    .for_each(|x| diags.push(DiagnosticItem::from_displayable(x.as_ref())));
             }
             Err(err) => diags.push(DiagnosticItem::from(*err)),
         }

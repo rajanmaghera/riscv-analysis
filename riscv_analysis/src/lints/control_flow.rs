@@ -1,7 +1,7 @@
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
-    passes::{LintError, LintPass},
+    passes::{DiagnosticManager, LintError, LintPass},
 };
 use std::rc::Rc;
 
@@ -13,7 +13,7 @@ use std::rc::Rc;
 /// - Any code that has no previous nodes, i.e. is unreachable.
 pub struct ControlFlowCheck;
 impl LintPass for ControlFlowCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in &cfg.clone() {
             if node.is_function_entry() {
                 // If the previous nodes set is not empty
@@ -51,11 +51,12 @@ impl LintPass for ControlFlowCheck {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
-    use crate::parser::{HasRawText, RVStringParser};
+    use crate::parser::RVStringParser;
     use crate::passes::Manager;
 
-    fn run_pass(input: &str) -> Vec<LintError> {
+    fn run_pass(input: &str) -> DiagnosticManager {
         let (nodes, error) = RVStringParser::parse_from_text(input);
         assert_eq!(error.len(), 0);
 
@@ -82,28 +83,22 @@ mod tests {
         assert_eq!(lints.len(), 5);
 
         // The first error should warn about the first instruction of `fn_a`
-        assert!(matches!(
-        &lints[0], LintError::FirstInstructionIsFunction(node, _)
-            if node.raw_text() == "addi a0 a0 1"
-        ));
+
+        assert_eq!(lints[0].get_error_code(), "first-instruction-is-function");
+        assert_eq!(lints[0].raw_text(), "addi a0 a0 1");
 
         // Next four errors should be about unreachable code
-        assert!(matches!(
-        &lints[1], LintError::UnreachableCode(node, ..)
-            if node.raw_text() == "li a0 0"
-        ));
-        assert!(matches!(
-        &lints[2], LintError::UnreachableCode(node, ..)
-            if node.raw_text() == "jal fn_a"
-        ));
-        assert!(matches!(
-        &lints[3], LintError::UnreachableCode(node, ..)
-            if node.raw_text() == "addi a7 zero 10"
-        ));
-        assert!(matches!(
-        &lints[4], LintError::UnreachableCode(node, ..)
-            if node.raw_text() == "ecall"
-        ));
+        assert_eq!(lints[1].get_error_code(), "unreachable-code");
+        assert_eq!(lints[1].raw_text(), "li a0 0");
+
+        assert_eq!(lints[2].get_error_code(), "unreachable-code");
+        assert_eq!(lints[2].raw_text(), "jal fn_a");
+
+        assert_eq!(lints[3].get_error_code(), "unreachable-code");
+        assert_eq!(lints[3].raw_text(), "addi a7 zero 10");
+
+        assert_eq!(lints[4].get_error_code(), "unreachable-code");
+        assert_eq!(lints[4].raw_text(), "ecall");
     }
 
     #[test]
@@ -126,18 +121,15 @@ mod tests {
         // unreachable instructions in `main` after the `j` instruction
         assert_eq!(lints.len(), 3);
 
-        assert!(matches!(
-        &lints[0], LintError::UnreachableCode(node, ..)
-            if node.raw_text() == "addi a7 zero 10"
-        ));
-        assert!(matches!(
-        &lints[1], LintError::UnreachableCode(node, ..)
-            if node.raw_text() == "ecall"
-        ));
-        assert!(matches!(
-        &lints[2], LintError::InvalidJumpToFunction(node, ..)
-            if node.raw_text() == "addi a0 a0 1"
-        ));
+        // The first error should warn about the first instruction of `fn_a`
+        assert_eq!(lints[0].get_error_code(), "unreachable-code");
+        assert_eq!(lints[0].raw_text(), "addi a7 zero 10");
+
+        assert_eq!(lints[1].get_error_code(), "unreachable-code");
+        assert_eq!(lints[1].raw_text(), "ecall");
+
+        assert_eq!(lints[2].get_error_code(), "invalid-jump-to-function");
+        assert_eq!(lints[2].raw_text(), "addi a0 a0 1");
     }
 
     #[test]

@@ -12,8 +12,8 @@ use std::{collections::HashMap, str::FromStr};
 use colored::Colorize;
 #[cfg(feature = "fixes")]
 use riscv_analysis::fix::Manipulation;
-use riscv_analysis::parser::RVParser;
 use riscv_analysis::passes::DiagnosticItem;
+use riscv_analysis::{parser::RVParser, passes::DiagnosticManager};
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -319,10 +319,10 @@ fn main() {
                     } else if lint.debug {
                         println!("{}", full_cfg);
                     }
-                    let mut errs = Vec::new();
+                    let mut errs = DiagnosticManager::new();
                     Manager::run_diagnostics(&full_cfg, &mut errs);
                     errs.iter()
-                        .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
+                        .for_each(|x| diags.push(DiagnosticItem::from_displayable(x.as_ref())));
                 }
                 Err(err) => {
                     diags.push(DiagnosticItem::from(*err));

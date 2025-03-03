@@ -1,6 +1,6 @@
 use crate::{cfg::Cfg, parser::ParserNode};
 
-use super::{CfgError, LintError};
+use super::{CfgError, DiagnosticManager};
 
 pub trait GenerationPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>>;
@@ -11,7 +11,7 @@ pub trait AssertionPass {
 }
 
 pub trait LintPass {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>);
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager);
 
     /// Run a single pass along a set of `ParserNode`s and return the errors.
     ///
@@ -25,7 +25,7 @@ pub trait LintPass {
     ///
     /// struct MyPass;
     /// impl LintPass for MyPass {
-    ///    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    ///    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
     ///       for node in cfg {
     ///         errors.push(LintError::InvalidStackPointer(node.node()));
     ///      }
@@ -38,14 +38,14 @@ pub trait LintPass {
     /// assert!(matches!(errors[0], LintError::InvalidStackPointer(_)));
     /// ```
     #[must_use]
-    fn run_single_pass_along_nodes(nodes: &[ParserNode]) -> Vec<LintError> {
+    fn run_single_pass_along_nodes(nodes: &[ParserNode]) -> DiagnosticManager {
         let cfg = Cfg::new(nodes.into()).unwrap();
         Self::run_single_pass_along_cfg(&cfg)
     }
 
     #[must_use]
-    fn run_single_pass_along_cfg(cfg: &Cfg) -> Vec<LintError> {
-        let mut errors = Vec::new();
+    fn run_single_pass_along_cfg(cfg: &Cfg) -> DiagnosticManager {
+        let mut errors = DiagnosticManager::new();
         Self::run(cfg, &mut errors);
         errors
     }

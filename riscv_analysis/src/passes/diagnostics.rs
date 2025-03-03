@@ -2,11 +2,12 @@ use uuid::Uuid;
 
 use crate::parser::Range;
 
-use super::SeverityLevel;
+use super::{IsSomeDisplayableDiagnostic, SeverityLevel};
 
 pub trait DiagnosticLocation {
     fn range(&self) -> Range;
     fn file(&self) -> Uuid;
+    fn raw_text(&self) -> String;
 }
 
 pub trait DiagnosticMessage {
@@ -33,6 +34,26 @@ pub struct DiagnosticItem {
     pub long_description: String,
     pub level: SeverityLevel,
     pub related: Option<Vec<RelatedDiagnosticItem>>,
+}
+
+impl DiagnosticItem {
+    pub fn from_displayable(item: &dyn IsSomeDisplayableDiagnostic) -> Self {
+        let level = item.get_severity();
+        let range = item.range();
+        let file = item.file();
+        let title = item.to_string();
+        let description = item.get_long_description_as_string();
+        let related = None;
+        DiagnosticItem {
+            file,
+            range,
+            title: title.clone(),
+            description: title,
+            long_description: description,
+            level,
+            related,
+        }
+    }
 }
 
 impl PartialEq for DiagnosticItem {

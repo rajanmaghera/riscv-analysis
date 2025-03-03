@@ -13,7 +13,7 @@ use crate::{
     parser::ParserNode,
 };
 
-use super::{CfgError, GenerationPass, LintError, LintPass};
+use super::{CfgError, DiagnosticManager, GenerationPass, LintPass};
 
 #[derive(Default)]
 pub struct DebugInfo {
@@ -44,7 +44,7 @@ impl Manager {
         LivenessPass::run(&mut cfg)?;
         Ok(cfg)
     }
-    pub fn run_diagnostics(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    pub fn run_diagnostics(cfg: &Cfg, errors: &mut DiagnosticManager) {
         SaveToZeroCheck::run(cfg, errors);
         DeadValueCheck::run(cfg, errors);
         InstructionInTextCheck::run(cfg, errors);
@@ -57,8 +57,8 @@ impl Manager {
         LostCalleeSavedRegisterCheck::run(cfg, errors);
         OverlappingFunctionCheck::run(cfg, errors);
     }
-    pub fn run(cfg: Vec<ParserNode>) -> Result<Vec<LintError>, Box<CfgError>> {
-        let mut errors = Vec::new();
+    pub fn run(cfg: Vec<ParserNode>) -> Result<DiagnosticManager, Box<CfgError>> {
+        let mut errors = DiagnosticManager::new();
         let cfg = Self::gen_full_cfg(cfg)?;
         Self::run_diagnostics(&cfg, &mut errors);
         Ok(errors)

@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-use super::{HasRawText, Range, RawToken, Register, Token};
+use super::{Range, RawToken, Register, Token};
 
 #[derive(Clone)]
 pub struct With<T> {
@@ -69,10 +69,7 @@ impl<T> DiagnosticLocation for With<T> {
     fn file(&self) -> Uuid {
         self.token.file()
     }
-}
-
-impl<T> HasRawText for With<T> {
-    fn raw_text(&self) -> &str {
+    fn raw_text(&self) -> String {
         self.token.raw_text()
     }
 }

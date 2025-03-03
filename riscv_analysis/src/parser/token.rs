@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-use super::{HasRawText, Range, RawToken, TokenType};
+use super::{Range, RawToken, TokenType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
@@ -69,10 +69,8 @@ impl DiagnosticLocation for Token {
     fn range(&self) -> super::Range {
         self.raw_token.range()
     }
-}
 
-impl HasRawText for Token {
-    fn raw_text(&self) -> &str {
-        &self.raw_token.raw_text()
+    fn raw_text(&self) -> String {
+        self.raw_token.raw_text().to_owned()
     }
 }

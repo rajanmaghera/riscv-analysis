@@ -103,6 +103,17 @@ impl DiagnosticLocation for CfgError {
             CfgError::UnexpectedError | CfgError::AssertionError => crate::parser::Range::default(),
         }
     }
+
+    fn raw_text(&self) -> String {
+        match self {
+            CfgError::MultipleLabelsForReturn(node, _) | CfgError::NoLabelForReturn(node) => {
+                node.raw_text()
+            }
+            CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().raw_text(),
+            CfgError::DuplicateLabel(label) => label.raw_text(),
+            CfgError::UnexpectedError | CfgError::AssertionError => String::new(),
+        }
+    }
 }
 
 impl DiagnosticMessage for CfgError {

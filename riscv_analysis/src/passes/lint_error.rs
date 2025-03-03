@@ -14,6 +14,47 @@ use itertools::Itertools;
 use super::DiagnosticLocation;
 use super::DiagnosticMessage;
 
+/// Use this trait to add extra information to a diagnostic.
+pub trait IsRelatedDiagnosticInformation: std::fmt::Display + DiagnosticLocation {
+    fn get_long_description(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "")
+    }
+}
+
+struct LongDescNewType<'a, T: IsSomeDisplayableDiagnostic + ?Sized>(&'a T);
+
+impl<'a, T: IsSomeDisplayableDiagnostic + ?Sized> std::fmt::Display for LongDescNewType<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.get_long_description(f)
+    }
+}
+
+pub trait IsSomeDisplayableDiagnostic: std::fmt::Display + DiagnosticLocation {
+    /// Get the severity level of this error.
+    fn get_severity(&self) -> SeverityLevel;
+
+    /// Get a longer, more verbose explanation.
+    ///
+    /// If no implementation is provided, then no message is displayed. The string from
+    /// std::fmt::Display will always be used as the main title string.
+    fn get_long_description(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "")
+    }
+
+    fn get_long_description_as_string(&self) -> String {
+        LongDescNewType(self).to_string()
+    }
+
+    /// Get related information to this error.
+    fn get_related_information<'a>(
+        &'a self,
+    ) -> Option<&'a [&'a dyn IsRelatedDiagnosticInformation]> {
+        None
+    }
+
+    fn get_error_code(&self) -> &'static str;
+}
+
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum LintError {
@@ -147,6 +188,33 @@ impl std::fmt::Display for LintError {
     }
 }
 
+impl IsSomeDisplayableDiagnostic for LintError {
+    fn get_severity(&self) -> SeverityLevel {
+        self.into()
+    }
+
+    fn get_error_code(&self) -> &'static str {
+        match self {
+            LintError::DeadAssignment(_) => "dead-assignment",
+            LintError::SaveToZero(_) => "save-to-zero",
+            LintError::InvalidUseAfterCall(_, _, _) => "invalid-use-after-call",
+            LintError::InvalidUseBeforeAssignment(_) => "invalid-use-before-assignment",
+            LintError::InvalidJumpToFunction(_, _, _) => "invalid-jump-to-function",
+            LintError::FirstInstructionIsFunction(_, _) => "first-instruction-is-function",
+            LintError::UnknownEcall(_) => "unknown-ecall",
+            LintError::UnreachableCode(_) => "unreachable-code",
+            LintError::InvalidSegment(_) => "invalid-segment",
+            LintError::UnknownStack(_) => "unknown-stack",
+            LintError::InvalidStackPointer(_) => "invalid-stack-pointer",
+            LintError::InvalidStackPosition(_, _) => "invalid-stack-position",
+            LintError::InvalidStackOffsetUsage(_, _) => "invalid-stack-offset-usage",
+            LintError::OverwriteCalleeSavedRegister(_) => "overwrite-callee-saved-register",
+            LintError::LostRegisterValue(_) => "lost-register-value",
+            LintError::NodeInManyFunctions(_, _) => "node-in-many-functions",
+        }
+    }
+}
+
 impl DiagnosticMessage for LintError {
     fn level(&self) -> SeverityLevel {
         self.into()
@@ -253,6 +321,27 @@ impl DiagnosticLocation for LintError {
             | LintError::InvalidStackOffsetUsage(r, _)
             | LintError::NodeInManyFunctions(r, _)
             | LintError::InvalidStackPosition(r, _) => r.file(),
+        }
+    }
+
+    fn raw_text(&self) -> String {
+        match self {
+            LintError::InvalidUseAfterCall(r, _, _)
+            | LintError::SaveToZero(r)
+            | LintError::InvalidUseBeforeAssignment(r)
+            | LintError::LostRegisterValue(r)
+            | LintError::OverwriteCalleeSavedRegister(r)
+            | LintError::DeadAssignment(r) => r.raw_text(),
+            LintError::FirstInstructionIsFunction(r, _)
+            | LintError::InvalidJumpToFunction(r, _, _)
+            | LintError::UnknownEcall(r)
+            | LintError::InvalidSegment(r)
+            | LintError::UnreachableCode(r)
+            | LintError::UnknownStack(r)
+            | LintError::InvalidStackPointer(r)
+            | LintError::InvalidStackOffsetUsage(r, _)
+            | LintError::NodeInManyFunctions(r, _)
+            | LintError::InvalidStackPosition(r, _) => r.raw_text(),
         }
     }
 }

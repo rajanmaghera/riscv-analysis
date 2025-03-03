@@ -1,7 +1,7 @@
 use std::{rc::Rc, vec};
 
 use crate::{
-    cfg::{Cfg, CfgNode, Function, HasRawTextOwned, RegisterSet},
+    cfg::{Cfg, CfgNode, Function, RegisterSet},
     parser::{
         InstructionProperties, JumpLinkType, LabelString, ParserNode, Register, Token, TokenType,
         With,
@@ -53,7 +53,7 @@ impl FunctionMarkupPass {
                     // Convert the found return into a jump
                     let info = Token::new(
                         TokenType::Symbol("return".to_string()),
-                        found_ret.raw_text_owned(),
+                        found_ret.raw_text(),
                         found_ret.range(),
                         found_ret.file(),
                     );
@@ -132,9 +132,9 @@ mod tests {
     use std::collections::{HashMap, HashSet};
     use std::rc::Rc;
 
-    use crate::cfg::{Cfg, Function, HasRawTextOwned};
+    use crate::cfg::{Cfg, Function};
     use crate::parser::RVStringParser;
-    use crate::passes::Manager;
+    use crate::passes::{DiagnosticLocation, Manager};
 
     /// Generate the complete CFG from an input string.
     fn gen_cfg(input: &str) -> Cfg {
@@ -156,7 +156,7 @@ mod tests {
     fn function_tokens(func: &Rc<Function>) -> HashSet<String> {
         let mut nodes = HashSet::new();
         for node in func.nodes().iter() {
-            nodes.insert(node.raw_text_owned());
+            nodes.insert(node.raw_text());
         }
         nodes
     }

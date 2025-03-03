@@ -1,7 +1,7 @@
 use crate::{
     cfg::{Cfg, Segment},
     parser::InstructionProperties,
-    passes::{LintError, LintPass},
+    passes::{DiagnosticManager, LintError, LintPass},
 };
 
 /// A lint to ensure that instructions only exist in the text
@@ -12,7 +12,7 @@ use crate::{
 /// behaviour that we do not handle.
 pub struct InstructionInTextCheck;
 impl LintPass for InstructionInTextCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_instruction() && node.segment() != Segment::Text {
                 errors.push(LintError::InvalidSegment(node.node().clone()));
@@ -53,8 +53,8 @@ mod tests {
         ];
         let errors = InstructionInTextCheck::run_single_pass_along_nodes(nodes);
         assert_eq!(errors.len(), 2);
-        assert!(matches!(errors[0], LintError::InvalidSegment(_)));
-        assert!(matches!(errors[1], LintError::InvalidSegment(_)));
+        assert_eq!(errors[0].get_error_code(), "invalid-segment");
+        assert_eq!(errors[1].get_error_code(), "invalid-segment");
     }
 
     #[test]
@@ -74,8 +74,8 @@ mod tests {
         ];
         let errors = InstructionInTextCheck::run_single_pass_along_nodes(nodes);
         assert_eq!(errors.len(), 3);
-        assert!(matches!(errors[0], LintError::InvalidSegment(_)));
-        assert!(matches!(errors[1], LintError::InvalidSegment(_)));
-        assert!(matches!(errors[2], LintError::InvalidSegment(_)));
+        assert_eq!(errors[0].get_error_code(), "invalid-segment");
+        assert_eq!(errors[1].get_error_code(), "invalid-segment");
+        assert_eq!(errors[2].get_error_code(), "invalid-segment");
     }
 }

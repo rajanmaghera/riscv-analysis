@@ -170,6 +170,19 @@ impl PartialOrd for dyn DiagnosticLocation {
 }
 
 impl DiagnosticLocation for ParseError {
+    fn raw_text(&self) -> String {
+        match self {
+            ParseError::Expected(_, info)
+            | ParseError::Unsupported(info)
+            | ParseError::UnexpectedToken(info)
+            | ParseError::UnexpectedError(info)
+            | ParseError::UnknownDirective(info)
+            | ParseError::InvalidString(info, _)
+            | ParseError::CyclicDependency(info) => info.raw_text(),
+            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.raw_text(),
+        }
+    }
+
     fn file(&self) -> Uuid {
         match self {
             ParseError::Expected(_, info)
