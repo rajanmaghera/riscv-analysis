@@ -15,21 +15,13 @@ use super::DiagnosticLocation;
 use super::DiagnosticMessage;
 
 /// Use this trait to add extra information to a diagnostic.
-pub trait IsRelatedDiagnosticInformation: std::fmt::Display + DiagnosticLocation {
-    fn get_long_description(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
-    }
+pub trait IsRelatedDiagnosticInformation: DiagnosticLocation {
+    fn get_description(&self) -> String;
 }
 
-struct LongDescNewType<'a, T: IsSomeDisplayableDiagnostic + ?Sized>(&'a T);
+pub trait IsSomeDisplayableDiagnostic: DiagnosticLocation {
+    fn get_title(&self) -> &'static str;
 
-impl<'a, T: IsSomeDisplayableDiagnostic + ?Sized> std::fmt::Display for LongDescNewType<'a, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.get_long_description(f)
-    }
-}
-
-pub trait IsSomeDisplayableDiagnostic: std::fmt::Display + DiagnosticLocation {
     /// Get the severity level of this error.
     fn get_severity(&self) -> SeverityLevel;
 
@@ -37,12 +29,8 @@ pub trait IsSomeDisplayableDiagnostic: std::fmt::Display + DiagnosticLocation {
     ///
     /// If no implementation is provided, then no message is displayed. The string from
     /// std::fmt::Display will always be used as the main title string.
-    fn get_long_description(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
-    }
-
-    fn get_long_description_as_string(&self) -> String {
-        LongDescNewType(self).to_string()
+    fn get_long_description(&self) -> String {
+        String::new()
     }
 
     /// Get related information to this error.
@@ -211,6 +199,27 @@ impl IsSomeDisplayableDiagnostic for LintError {
             LintError::OverwriteCalleeSavedRegister(_) => "overwrite-callee-saved-register",
             LintError::LostRegisterValue(_) => "lost-register-value",
             LintError::NodeInManyFunctions(_, _) => "node-in-many-functions",
+        }
+    }
+
+    fn get_title(&self) -> &'static str {
+        match self {
+            LintError::DeadAssignment(_) => "Unused value",
+            LintError::SaveToZero(_) => "Saving to zero register",
+            LintError::InvalidUseAfterCall(_, _, _) => "Invalid use after call",
+            LintError::InvalidUseBeforeAssignment(_) => "Invalid use before assignment",
+            LintError::InvalidJumpToFunction(_, _, _) => "Invalid jump to function",
+            LintError::FirstInstructionIsFunction(_, _) => "First instruction is function",
+            LintError::UnknownEcall(_) => "Unknown ecall",
+            LintError::UnreachableCode(_) => "Unreachable code",
+            LintError::InvalidSegment(_) => "Invalid segment",
+            LintError::UnknownStack(_) => "Unknown stack",
+            LintError::InvalidStackPointer(_) => "Invalid stack pointer",
+            LintError::InvalidStackPosition(_, _) => "Invalid stack position",
+            LintError::InvalidStackOffsetUsage(_, _) => "Invalid stack offset usage",
+            LintError::OverwriteCalleeSavedRegister(_) => "Overwrite callee-saved register",
+            LintError::LostRegisterValue(_) => "Lost register value",
+            LintError::NodeInManyFunctions(_, _) => "Node in many functions",
         }
     }
 }

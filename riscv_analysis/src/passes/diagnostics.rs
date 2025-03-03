@@ -41,14 +41,14 @@ impl DiagnosticItem {
         let level = item.get_severity();
         let range = item.range();
         let file = item.file();
-        let title = item.to_string();
-        let description = item.get_long_description_as_string();
+        let title = item.get_title();
+        let description = item.get_long_description();
         let related = None;
         DiagnosticItem {
             file,
             range,
-            title: title.clone(),
-            description: title,
+            title: title.to_string(),
+            description: description.to_string(),
             long_description: description,
             level,
             related,
