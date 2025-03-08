@@ -22,11 +22,11 @@ fn diagnostic_eq(actual: &DiagnosticTestCase, expected: &DiagnosticTestCase) -> 
     let expected_path = file_to_path(expected.file.clone());
 
     // All other fields must be equal
-    return actual.title == expected.title
+    actual.title == expected.title
         && actual_path == expected_path
         && actual.description == expected.description
         && actual.level == expected.level
-        && actual.range == expected.range;
+        && actual.range == expected.range
 }
 
 fn output_eq(actual: TestCase, expected: TestCase) -> bool {

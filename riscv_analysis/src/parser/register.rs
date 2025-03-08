@@ -52,7 +52,7 @@ impl TryFrom<Token> for Register {
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token_type() {
-            TokenType::Symbol(s) => Register::from_str(&s),
+            TokenType::Symbol(s) => Register::from_str(s),
             _ => Err(()),
         }
     }

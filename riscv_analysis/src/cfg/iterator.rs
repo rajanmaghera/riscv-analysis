@@ -96,7 +96,7 @@ impl CfgSourceIterator {
         nodes.sort_by(|a, b| {
             let a_token = a.range();
             let b_token = b.range();
-            a_token.end().cmp(&b_token.end())
+            a_token.end().cmp(b_token.end())
         });
 
         // Sort by file. We know that `sort_by` is stable, so this has the

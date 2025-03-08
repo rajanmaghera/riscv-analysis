@@ -181,10 +181,8 @@ impl GenerationPass for AvailableValuePass {
                         if let Some(curr_stack) = node.reg_values_in().stack_offset() {
                             map.insert(MemoryLocation::StackOffset(curr_stack + offset), value);
                         }
-                    } else {
-                        if let Some((memory, value)) = node.gen_memory_value() {
-                            map.insert(memory, value);
-                        }
+                    } else if let Some((memory, value)) = node.gen_memory_value() {
+                        map.insert(memory, value);
                     }
                     map
                 };

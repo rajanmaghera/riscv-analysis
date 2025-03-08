@@ -99,7 +99,7 @@ mod test {
         let mut reader = EmptyFileReader::new(text);
 
         let (uuid, contents) = reader
-            .import_file(&EmptyFileReader::get_file_path(), None)
+            .import_file(EmptyFileReader::get_file_path(), None)
             .expect("File reading should not fail");
         assert_eq!(contents, text);
 
@@ -141,7 +141,7 @@ mod test {
         let mut reader = EmptyFileReader::new(text);
 
         let (uuid, contents) = reader
-            .import_file(&EmptyFileReader::get_file_path(), None)
+            .import_file(EmptyFileReader::get_file_path(), None)
             .expect("File reading should not fail");
         assert_eq!(contents, text);
 

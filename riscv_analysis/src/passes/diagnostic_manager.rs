@@ -4,8 +4,14 @@ pub struct DiagnosticManager {
     diagnostics: Vec<Box<dyn IsSomeDisplayableDiagnostic>>,
 }
 
+impl Default for DiagnosticManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiagnosticManager {
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             diagnostics: Vec::new(),
         }
@@ -19,7 +25,7 @@ impl DiagnosticManager {
         self.diagnostics.push(Box::new(fake_diag));
     }
 
-    pub fn len(&self) -> usize {
+    #[must_use] pub fn len(&self) -> usize {
         self.diagnostics.len()
     }
 
@@ -50,6 +56,6 @@ impl<'a> IntoIterator for &'a DiagnosticManager {
     type Item = &'a Box<dyn IsSomeDisplayableDiagnostic>;
     type IntoIter = std::slice::Iter<'a, Box<dyn IsSomeDisplayableDiagnostic>>;
     fn into_iter(self) -> Self::IntoIter {
-        (&self.diagnostics).into_iter()
+        self.diagnostics.iter()
     }
 }

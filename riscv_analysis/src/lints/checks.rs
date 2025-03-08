@@ -145,7 +145,7 @@ impl LintPass for DeadValueCheck {
             // to the end of the node. These assignments are not
             // used.
             else if let Some(def) = node.writes_to() {
-                if !node.live_out().contains(&def.get()) && !node.can_skip_save_checks() {
+                if !node.live_out().contains(def.get()) && !node.can_skip_save_checks() {
                     errors.push(LintError::DeadAssignment(def));
                 }
             }
@@ -263,7 +263,7 @@ impl LintPass for CalleeSavedGarbageReadCheck {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
 
-                if Register::saved_set().contains(&read.get())
+                if Register::saved_set().contains(read.get())
                     && node.uses_memory_location().is_none()
                     && node.reg_values_in().is_original_value(*read.get())
                 {
@@ -321,9 +321,9 @@ impl LintPass for LostCalleeSavedRegisterCheck {
             // We intentionally do not check for callee-saved registers
             // as the value is mean to be modified
             if let Some(reg) = node.writes_to() {
-                if callee.contains(&reg.get())
+                if callee.contains(reg.get())
                     && node.is_part_of_some_function()
-                    && node.reg_values_in().get(&reg.get())
+                    && node.reg_values_in().get(reg.get())
                         == Some(&AvailableValue::OriginalRegisterWithScalar(*reg.get(), 0))
                 {
                     // Check that the value exists somewhere in the available values

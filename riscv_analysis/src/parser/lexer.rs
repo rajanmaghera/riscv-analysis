@@ -576,9 +576,9 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                TokenType::Comment("".to_owned()),
+                TokenType::Comment(String::new()),
                 TokenType::Newline,
-                TokenType::Comment("".to_owned()),
+                TokenType::Comment(String::new()),
                 TokenType::Newline,
                 TokenType::Comment(" new line comments  with lots of \t whitespace and other special .text characters is allowed  jal ra, x0   ".to_owned()),
                 TokenType::Newline,
@@ -598,9 +598,9 @@ mod tests {
             vec![
                 TokenType::Comment("this is a comment".to_owned()),
                 TokenType::Newline,
-                TokenType::Comment("".to_owned()),
+                TokenType::Comment(String::new()),
             ]
-        )
+        );
     }
 
     #[test]
@@ -765,7 +765,7 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                TokenType::String("".into()),
+                TokenType::String(String::new()),
                 TokenType::String("abcde".into()),
                 TokenType::String("\\'\"\n\t\r\u{8}\u{c}\0\u{03bb}".into()),
             ]
@@ -933,7 +933,7 @@ mod tests {
         let input = "'\\a'";
         let tokens = tokenize_err(input);
 
-        println!("{:?}", tokens);
+        println!("{tokens:?}");
         assert_eq!(tokens.len(), 1);
 
         assert!(matches!(

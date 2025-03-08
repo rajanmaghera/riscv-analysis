@@ -17,7 +17,7 @@ impl Display for ParserNode {
                 let inst: Inst = Inst::from(x.inst.get());
                 write!(f, "{inst} {} <- {}, {}", x.rd, x.rs1, x.imm.get().value())
             }
-            ParserNode::Label(x) => write!(f, "---[{}]---", x.name.to_string()),
+            ParserNode::Label(x) => write!(f, "---[{}]---", x.name),
             ParserNode::JumpLink(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
                 write!(f, "{inst} [{}] | {} <- PC", x.name, x.rd)

@@ -96,10 +96,10 @@ pub fn fix_stack(func: &Rc<Function>) -> Vec<Manipulation> {
     let offset = count + 4;
 
     // Move range to beginning of line
-    let mut entry_range = entry.node().range().start().clone();
+    let mut entry_range = *entry.node().range().start();
     entry_range.decrement_to_beginning_of_line();
 
-    let mut exit_range = exit.node().range().start().clone();
+    let mut exit_range = *exit.node().range().start();
     exit_range.decrement_to_beginning_of_line();
 
     vec![

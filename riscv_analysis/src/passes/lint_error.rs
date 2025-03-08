@@ -28,7 +28,7 @@ pub trait IsSomeDisplayableDiagnostic: DiagnosticLocation {
     /// Get a longer, more verbose explanation.
     ///
     /// If no implementation is provided, then no message is displayed. The string from
-    /// std::fmt::Display will always be used as the main title string.
+    /// `std::fmt::Display` will always be used as the main title string.
     fn get_long_description(&self) -> String {
         String::new()
     }
@@ -149,7 +149,7 @@ impl std::fmt::Display for LintError {
                 write!(f, "Overwriting callee-saved register")
             }
             LintError::LostRegisterValue(r) => {
-                write!(f, "Lost register value: {}", r)
+                write!(f, "Lost register value: {r}")
             }
             LintError::InvalidStackOffsetUsage(_, i) => {
                 write!(

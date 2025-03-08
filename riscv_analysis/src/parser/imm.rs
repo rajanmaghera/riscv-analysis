@@ -10,11 +10,11 @@ use super::TokenType;
 pub struct Imm(i32);
 
 impl Imm {
-    pub fn new(value: i32) -> Self {
+    #[must_use] pub fn new(value: i32) -> Self {
         Imm(value)
     }
 
-    pub fn value(&self) -> i32 {
+    #[must_use] pub fn value(&self) -> i32 {
         self.0
     }
 }
@@ -24,7 +24,7 @@ impl TryFrom<Token> for Imm {
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token_type() {
-            TokenType::Symbol(s) => Imm::from_str(&s),
+            TokenType::Symbol(s) => Imm::from_str(s),
             TokenType::Char(c) => Ok(Imm(*c as i32)),
             _ => Err(()),
         }
@@ -35,11 +35,11 @@ impl TryFrom<Token> for Imm {
 pub struct CsrImm(u32);
 
 impl CsrImm {
-    pub fn new(value: u32) -> Self {
+    #[must_use] pub fn new(value: u32) -> Self {
         CsrImm(value)
     }
 
-    pub fn value(&self) -> u32 {
+    #[must_use] pub fn value(&self) -> u32 {
         self.0
     }
 }
@@ -49,7 +49,7 @@ impl TryFrom<Token> for CsrImm {
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token_type() {
-            TokenType::Symbol(s) => CsrImm::from_str(&s),
+            TokenType::Symbol(s) => CsrImm::from_str(s),
             _ => Err(()),
         }
     }

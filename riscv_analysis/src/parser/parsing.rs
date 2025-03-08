@@ -279,7 +279,7 @@ impl AnnotatedLexer<'_> {
                     format!("{} {}", self.raw_token.raw_text(), item.raw_text()),
                     Range::new(*self.raw_token.range().start(), *item.range().end()),
                     self.raw_token.file(),
-                )
+                );
             }
         }
         item

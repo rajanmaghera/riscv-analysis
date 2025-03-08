@@ -58,7 +58,7 @@ mod test {
     fn run_pass(text: &str) -> Result<Vec<Rc<CfgNode>>, Box<CfgError>> {
         let (nodes, error) = RVStringParser::parse_from_text(text);
         assert_eq!(error.len(), 0);
-        let mut cfg = Cfg::new(nodes.into()).unwrap();
+        let mut cfg = Cfg::new(nodes).unwrap();
         NodeDirectionPass::run(&mut cfg)?;
         Ok(cfg.iter().collect())
     }

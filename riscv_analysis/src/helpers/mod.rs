@@ -12,7 +12,7 @@ impl Token {
     pub fn blank() -> Self {
         Token::new(
             TokenType::Newline,
-            "".to_string(),
+            String::new(),
             Range::default(),
             uuid::Uuid::nil(),
         )

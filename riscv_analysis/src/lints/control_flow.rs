@@ -40,14 +40,12 @@ impl LintPass for ControlFlowCheck {
                         }
                     }
                 }
-            } else if !node.is_program_entry() {
-                if node.prevs().is_empty() {
-                    errors.push_real(
-                        DiagnosticBuilder::new("unreachable-code", "Unreachable line of code")
-                            .description("There is no path to this instruction.")
-                            .is_warning_on(node),
-                    );
-                }
+            } else if !node.is_program_entry() && node.prevs().is_empty() {
+                errors.push_real(
+                    DiagnosticBuilder::new("unreachable-code", "Unreachable line of code")
+                        .description("There is no path to this instruction.")
+                        .is_warning_on(node),
+                );
             }
         }
     }

@@ -75,12 +75,12 @@ impl IsSomeDisplayableDiagnostic for SimpleDisplayedDiagnostic {
     fn get_related_information<'a>(
         &'a self,
     ) -> Option<Box<dyn Iterator<Item = &'a dyn IsRelatedDiagnosticInformation> + 'a>> {
-        if self.related_information.len() > 0 {
-            Some(Box::new(
-                self.related_information.iter().map(|x| x.as_ref()),
-            ))
-        } else {
+        if self.related_information.is_empty() {
             None
+        } else {
+            Some(Box::new(
+                self.related_information.iter().map(std::convert::AsRef::as_ref),
+            ))
         }
     }
 }
@@ -93,7 +93,7 @@ pub struct DiagnosticBuilder {
 }
 
 impl DiagnosticBuilder {
-    pub fn new(code_name: &'static str, title: &'static str) -> Self {
+    #[must_use] pub fn new(code_name: &'static str, title: &'static str) -> Self {
         Self {
             code_name,
             title,
@@ -110,7 +110,7 @@ impl DiagnosticBuilder {
         Box::new(SimpleDisplayedDiagnostic {
             code_name: self.code_name,
             title: self.title,
-            severity: severity,
+            severity,
             token: annotated_item.as_ref().as_raw_token(),
             long_description: self.long_description,
             related_information: self.related_information,

@@ -7,11 +7,11 @@ pub trait RefCellReplacement<T: PartialEq> {
 impl<T: PartialEq> RefCellReplacement<T> for RefCell<T> {
     fn replace_if_changed(&self, new: T) -> bool {
         let mut original = self.borrow_mut();
-        if *original != new {
+        if *original == new {
+            false
+        } else {
             *original = new;
             true
-        } else {
-            false
         }
     }
 }

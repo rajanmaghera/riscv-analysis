@@ -290,7 +290,7 @@ mod tests {
     fn can_loop_in_order_of_registers() {
         let mut set = RegisterSet::new();
         set.set_register(&Register::X3);
-        set = set | Register::X1;
+        set |= Register::X1;
         set |= Register::X2;
         let mut set_iter = set.iter();
         assert_eq!(set_iter.next(), Some(Register::X1));
