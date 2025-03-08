@@ -32,6 +32,8 @@ fn diagnostic_eq(actual: &DiagnosticTestCase, expected: &DiagnosticTestCase) -> 
 fn output_eq(actual: TestCase, expected: TestCase) -> bool {
     // There must be the same number of errors
     if actual.diagnostics.len() != expected.diagnostics.len() {
+        println!("actual: {:#?}", actual.diagnostics);
+        println!("expected: {:#?}", expected.diagnostics);
         return false;
     }
 
