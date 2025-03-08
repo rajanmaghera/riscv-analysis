@@ -20,6 +20,10 @@ impl InstructionProperties for ParserNode {
         }
     }
 
+    fn might_terminate(&self) -> bool {
+        self.is_ecall()
+    }
+
     fn is_ureturn(&self) -> bool {
         match self {
             ParserNode::Basic(x) => x.inst == BasicType::Uret,

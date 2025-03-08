@@ -174,4 +174,14 @@ mod tests {
         // An "unreachable" directive shouldn't cause an error
         assert_eq!(lints.len(), 0);
     }
+
+    #[test]
+    fn immediate_exit_of_code() {
+        let input = "\
+            main:       \n\
+            li a7, 10   \n\
+            ecall       \n";
+        let errors = run_pass(input);
+        assert_eq!(errors.len(), 0);
+    }
 }

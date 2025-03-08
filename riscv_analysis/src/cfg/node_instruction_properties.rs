@@ -7,6 +7,10 @@ impl InstructionProperties for CfgNode {
         self.node().is_return()
     }
 
+    fn might_terminate(&self) -> bool {
+        self.node().might_terminate()
+    }
+
     fn is_ureturn(&self) -> bool {
         self.node().is_ureturn()
     }

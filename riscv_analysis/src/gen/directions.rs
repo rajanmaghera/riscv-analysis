@@ -43,3 +43,39 @@ impl GenerationPass for NodeDirectionPass {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::rc::Rc;
+
+    use super::*;
+    use crate::{
+        cfg::CfgNode,
+        parser::RVStringParser,
+        passes::{CfgError, GenerationPass},
+    };
+
+    fn run_pass(text: &str) -> Result<Vec<Rc<CfgNode>>, Box<CfgError>> {
+        let (nodes, error) = RVStringParser::parse_from_text(text);
+        assert_eq!(error.len(), 0);
+        let mut cfg = Cfg::new(nodes.into()).unwrap();
+        NodeDirectionPass::run(&mut cfg)?;
+        Ok(cfg.iter().collect())
+    }
+
+    #[test]
+    fn test_immediate_exit() {
+        let input = "\
+            main:       \n\
+            li a7, 10   \n\
+            ecall       \n";
+        let cfg = run_pass(input).unwrap();
+        assert_eq!(cfg.len(), 3);
+        assert!(cfg[0].prevs().is_empty());
+        assert!(cfg[0].nexts().len() == 1);
+        assert!(cfg[1].prevs().len() == 1);
+        assert!(cfg[1].nexts().len() == 1);
+        assert!(cfg[2].prevs().len() == 1);
+        assert!(cfg[2].nexts().is_empty());
+    }
+}

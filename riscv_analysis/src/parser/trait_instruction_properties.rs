@@ -5,6 +5,14 @@ use super::{Imm, LabelStringToken, Register, RegisterToken};
 pub trait InstructionProperties {
     fn is_return(&self) -> bool;
 
+    /// Checks if an insturction might terminate the program.
+    ///
+    /// This is used to determine if a node might be a terminating instruction.
+    /// Some forms of environment calls might terminate the program. In early
+    /// stages, we might not know if a function will or will not terminate, thus
+    /// this function is used.
+    fn might_terminate(&self) -> bool;
+
     fn is_ureturn(&self) -> bool;
 
     fn stores_to_memory(&self) -> Option<(Register, (Register, Imm))>;
