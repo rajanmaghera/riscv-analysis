@@ -18,7 +18,7 @@ pub trait LintPass {
     /// # Example
     ///
     /// ```
-    /// use riscv_analysis::passes::{LintPass, LintError};
+    /// use riscv_analysis::passes::{LintPass, LintError, DiagnosticManager};
     /// use riscv_analysis::parser::ParserNode;
     /// use riscv_analysis::{arith, iarith};
     /// use riscv_analysis::cfg::Cfg;
@@ -35,7 +35,7 @@ pub trait LintPass {
     /// let nodes = &[iarith!(Addi X1 X0 0)];
     /// let errors = MyPass::run_single_pass_along_nodes(nodes);
     /// assert_eq!(errors.len(), 1);
-    /// assert!(matches!(errors[0], LintError::InvalidStackPointer(_)));
+    /// assert_eq!(errors[0].get_error_code(), "invalid-stack-pointer");
     /// ```
     #[must_use]
     fn run_single_pass_along_nodes(nodes: &[ParserNode]) -> DiagnosticManager {
