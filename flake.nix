@@ -92,7 +92,7 @@
         in
           naersk-lib.buildPackage (buildPackageAttrs // rec {
             src = ./.;
-            version = "0.1.0-alpha.1";
+            version = "0.1.0-alpha.2";
             cargoBuildOptions = x: x ++ [ "-p" "riscv_analysis_cli" ];
             cargoTestOptions = x: x ++ [ "-p" "riscv_analysis_cli" ];
             strictDeps = true;

@@ -1,6 +1,6 @@
 [package]
 name = "riscv_analysis"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2021"
 description = "RISC-V static analysis tools"
 authors = ["Rajan Maghera"]

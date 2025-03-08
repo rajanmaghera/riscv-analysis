@@ -1,6 +1,6 @@
 [package]
 name = "riscv_analysis_cli"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2021"
 description = "RISC-V Analyzer -- static analysis tool for RISC-V assembly"
 authors = ["Rajan Maghera"]
@@ -21,7 +21,7 @@ analysis_debugger = []
 c229 = []
 
 [dependencies]
-riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-alpha.1"}
+riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-alpha.2"}
 clap = { version = "4.3.8", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
