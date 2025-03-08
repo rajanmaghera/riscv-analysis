@@ -10,9 +10,7 @@ use super::{AvailableValue, HasGenKillInfo, HasGenValueInfo, MemoryLocation};
 
 impl HasGenKillInfo for ParserNode {
     fn kill_reg(&self) -> RegisterSet {
-        (if self.calls_to().is_some() {
-            Register::caller_saved_set()
-        } else if self.is_function_entry() {
+        (if self.calls_to().is_some() || self.is_function_entry() {
             Register::caller_saved_set()
         } else if let Some(stored_reg) = self.writes_to().map(|x| x.get_cloned()) {
             RegisterSet::from_iter([stored_reg])

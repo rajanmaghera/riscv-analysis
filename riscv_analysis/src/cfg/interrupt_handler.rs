@@ -6,7 +6,7 @@ use crate::parser::{CsrIType, CsrImm, CsrType, Imm, LabelStringToken, ParserNode
 
 impl CsrImm {
     /// Returns if this CSR register is the interrupt vector (utvec).
-    fn is_interrupt_vector(&self) -> bool {
+    fn is_interrupt_vector(self) -> bool {
         self.value() == 0x005
     }
 }

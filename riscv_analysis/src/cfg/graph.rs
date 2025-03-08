@@ -115,12 +115,12 @@ impl BaseCfgGen for Vec<ParserNode> {
 }
 impl Cfg {
     pub fn new(old_nodes: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
-        Cfg::new_with_predefined_call_names(old_nodes, None)
+        Cfg::new_with_predefined_call_names(old_nodes, &None)
     }
 
     pub fn new_with_predefined_call_names(
         old_nodes: Vec<ParserNode>,
-        predefined_call_names: Option<HashSet<LabelStringToken>>,
+        predefined_call_names: &Option<HashSet<LabelStringToken>>,
     ) -> Result<Cfg, Box<CfgError>> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
@@ -130,8 +130,8 @@ impl Cfg {
         let label_names = old_nodes.label_names();
         let call_names = {
             let mut set = old_nodes.call_names();
-            if let Some(new_set) = &predefined_call_names {
-                set.extend(new_set.clone());
+            if let Some(new_set) = predefined_call_names.clone() {
+                set.extend(new_set);
             }
             set
         };
@@ -184,7 +184,7 @@ impl Cfg {
                         .next()
                         .is_some()
                     {
-                        let is_interrupt = if let Some(p_call_names) = &predefined_call_names {
+                        let is_interrupt = if let Some(ref p_call_names) = predefined_call_names {
                             // If any of the current_labels are in the predefined call names, then we need to add
                             // a boolean switch
                             current_labels

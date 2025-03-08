@@ -52,7 +52,7 @@ impl DiagnosticItem {
             file,
             range,
             title: title.to_string(),
-            description: description.to_string(),
+            description: description.clone(),
             long_description: description,
             level,
             related,

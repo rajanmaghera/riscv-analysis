@@ -148,11 +148,13 @@ impl DiagnosticBuilder {
         self.on(annotated_item, SeverityLevel::Information)
     }
 
+    #[must_use]
     pub fn description<S: Into<String>>(mut self, long_description: S) -> Self {
         self.long_description = Some(long_description.into());
         self
     }
 
+    #[must_use]
     pub fn related<S: Into<String>>(mut self, description: S, token: RawToken) -> Self {
         self.related_information
             .push(Box::new(RelatedDisplayedDiagnostic {

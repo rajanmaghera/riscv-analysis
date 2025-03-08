@@ -259,12 +259,12 @@ impl Lexer {
         end: Position,
     ) -> Result<Token, LexError> {
         Err(LexError::InvalidString(
-            Token::new(
+            Box::new(Token::new(
                 TokenType::String(partial.clone()),
                 partial,
                 Range::new(start, end),
                 self.source_id,
-            ),
+            )),
             Box::new(StringLexError::new(end, kind)),
         ))
     }
@@ -383,12 +383,12 @@ impl Iterator for Lexer {
                     Ok(s) => s,
                     Err(e) => {
                         return Some(Err(LexError::InvalidString(
-                            Token::new(
+                            Box::new(Token::new(
                                 TokenType::String(String::new()),
                                 String::new(),
                                 Range::new(start, e.pos),
                                 self.source_id,
-                            ),
+                            )),
                             Box::new(e),
                         )));
                     }

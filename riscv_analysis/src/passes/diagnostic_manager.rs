@@ -31,6 +31,11 @@ impl DiagnosticManager {
         self.diagnostics.len()
     }
 
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.diagnostics.is_empty()
+    }
+
     pub fn iter(&self) -> std::slice::Iter<Box<dyn IsSomeDisplayableDiagnostic>> {
         self.diagnostics.iter()
     }
@@ -41,6 +46,7 @@ impl std::ops::Index<usize> for DiagnosticManager {
     type Output = Box<dyn IsSomeDisplayableDiagnostic>;
 
     fn index(&self, index: usize) -> &Self::Output {
+        #[allow(clippy::indexing_slicing)]
         &self.diagnostics[index]
     }
 }
