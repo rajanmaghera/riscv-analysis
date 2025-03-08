@@ -11,7 +11,8 @@ impl Default for DiagnosticManager {
 }
 
 impl DiagnosticManager {
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             diagnostics: Vec::new(),
         }
@@ -25,7 +26,8 @@ impl DiagnosticManager {
         self.diagnostics.push(Box::new(fake_diag));
     }
 
-    #[must_use] pub fn len(&self) -> usize {
+    #[must_use]
+    pub fn len(&self) -> usize {
         self.diagnostics.len()
     }
 

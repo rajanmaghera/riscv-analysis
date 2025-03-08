@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Copy, Clone, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, PartialEq, Copy, Clone, Eq, Serialize, Deserialize, Default)]
 pub struct Position {
     line: usize,
     column: usize,
@@ -20,10 +19,10 @@ impl PartialOrd for Position {
     }
 }
 
-
 impl Position {
     /// Create a new position from the zero-indexed `line` and `column` numbers.
-    #[must_use] pub fn new(line: usize, column: usize, raw_index: usize) -> Self {
+    #[must_use]
+    pub fn new(line: usize, column: usize, raw_index: usize) -> Self {
         Position {
             line,
             column,
@@ -32,27 +31,32 @@ impl Position {
     }
 
     /// Get the line number in zero-based index.
-    #[must_use] pub fn zero_idx_line(&self) -> usize {
+    #[must_use]
+    pub fn zero_idx_line(&self) -> usize {
         self.line
     }
 
     /// Get the line number in one-based index.
-    #[must_use] pub fn one_idx_line(&self) -> usize {
+    #[must_use]
+    pub fn one_idx_line(&self) -> usize {
         self.line + 1
     }
 
     /// Get the column number in zero-based index.
-    #[must_use] pub fn zero_idx_column(&self) -> usize {
+    #[must_use]
+    pub fn zero_idx_column(&self) -> usize {
         self.column
     }
 
     /// Get the column number in one-based index.
-    #[must_use] pub fn one_idx_column(&self) -> usize {
+    #[must_use]
+    pub fn one_idx_column(&self) -> usize {
         self.column + 1
     }
 
     /// Get the raw index of the position.
-    #[must_use] pub fn raw_index(&self) -> usize {
+    #[must_use]
+    pub fn raw_index(&self) -> usize {
         self.raw_index
     }
 

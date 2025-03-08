@@ -20,18 +20,21 @@ impl Token {
         }
     }
 
-    #[must_use] pub fn new_without_text(token: TokenType, pos: Range, file: Uuid) -> Self {
+    #[must_use]
+    pub fn new_without_text(token: TokenType, pos: Range, file: Uuid) -> Self {
         Token {
             token_type: token,
             raw_token: RawToken::new(String::new(), pos, file),
         }
     }
 
-    #[must_use] pub fn token_type(&self) -> &TokenType {
+    #[must_use]
+    pub fn token_type(&self) -> &TokenType {
         &self.token_type
     }
 
-    #[must_use] pub fn raw_token(&self) -> &RawToken {
+    #[must_use]
+    pub fn raw_token(&self) -> &RawToken {
         &self.raw_token
     }
 }

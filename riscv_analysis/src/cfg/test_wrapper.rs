@@ -56,7 +56,11 @@ impl NodeWrapper {
     fn from(node: &CfgNode, cfg: &Cfg) -> Self {
         NodeWrapper {
             node: node.node(),
-            labels: node.labels.iter().map(std::string::ToString::to_string).collect(),
+            labels: node
+                .labels
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
             func_entry: node
                 .functions()
                 .iter()

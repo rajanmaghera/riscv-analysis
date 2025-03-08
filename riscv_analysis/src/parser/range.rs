@@ -9,15 +9,18 @@ pub struct Range {
 }
 
 impl Range {
-    #[must_use] pub fn new(start: Position, end: Position) -> Range {
+    #[must_use]
+    pub fn new(start: Position, end: Position) -> Range {
         Range { start, end }
     }
 
-    #[must_use] pub fn start(&self) -> &Position {
+    #[must_use]
+    pub fn start(&self) -> &Position {
         &self.start
     }
 
-    #[must_use] pub fn end(&self) -> &Position {
+    #[must_use]
+    pub fn end(&self) -> &Position {
         &self.end
     }
 }

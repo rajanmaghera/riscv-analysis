@@ -79,7 +79,9 @@ impl IsSomeDisplayableDiagnostic for SimpleDisplayedDiagnostic {
             None
         } else {
             Some(Box::new(
-                self.related_information.iter().map(std::convert::AsRef::as_ref),
+                self.related_information
+                    .iter()
+                    .map(std::convert::AsRef::as_ref),
             ))
         }
     }
@@ -93,7 +95,8 @@ pub struct DiagnosticBuilder {
 }
 
 impl DiagnosticBuilder {
-    #[must_use] pub fn new(code_name: &'static str, title: &'static str) -> Self {
+    #[must_use]
+    pub fn new(code_name: &'static str, title: &'static str) -> Self {
         Self {
             code_name,
             title,

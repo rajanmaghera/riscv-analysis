@@ -10,11 +10,13 @@ use super::TokenType;
 pub struct Imm(i32);
 
 impl Imm {
-    #[must_use] pub fn new(value: i32) -> Self {
+    #[must_use]
+    pub fn new(value: i32) -> Self {
         Imm(value)
     }
 
-    #[must_use] pub fn value(&self) -> i32 {
+    #[must_use]
+    pub fn value(&self) -> i32 {
         self.0
     }
 }
@@ -35,11 +37,13 @@ impl TryFrom<Token> for Imm {
 pub struct CsrImm(u32);
 
 impl CsrImm {
-    #[must_use] pub fn new(value: u32) -> Self {
+    #[must_use]
+    pub fn new(value: u32) -> Self {
         CsrImm(value)
     }
 
-    #[must_use] pub fn value(&self) -> u32 {
+    #[must_use]
+    pub fn value(&self) -> u32 {
         self.0
     }
 }

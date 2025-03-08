@@ -12,7 +12,8 @@ impl LabelString {
         LabelString(value.into())
     }
 
-    #[must_use] pub fn as_str(&self) -> &str {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 }
