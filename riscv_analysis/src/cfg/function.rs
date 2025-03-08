@@ -1,3 +1,4 @@
+use super::RefCellReplacement;
 use std::{
     cell::{Ref, RefCell},
     collections::HashSet,
@@ -6,7 +7,7 @@ use std::{
 };
 use uuid::Uuid;
 
-use crate::parser::{LabelString, RegSets, Register, With};
+use crate::parser::{HasRegisterSets, LabelString, LabelStringToken, Register};
 
 use super::{CfgNode, RegisterSet};
 
@@ -15,7 +16,7 @@ pub struct Function {
     uuid: Uuid,
 
     /// Labels for the entry point of this function
-    labels: HashSet<With<LabelString>>,
+    labels: HashSet<LabelStringToken>,
 
     /// List of all nodes in the function. May not be in any particular order.
     nodes: RefCell<Vec<Rc<CfgNode>>>,
@@ -36,22 +37,21 @@ impl Hash for Function {
         self.uuid.hash(state);
     }
 }
-
 impl Function {
     #[must_use]
     pub fn name(&self) -> LabelString {
-        LabelString(
+        LabelString::new(
             self.entry
                 .labels()
                 .into_iter()
-                .map(|x| x.data.0)
+                .map(|x| x.to_string())
                 .collect::<Vec<String>>()
                 .join(", "),
         )
     }
 
     pub fn new(
-        labels: Vec<With<LabelString>>,
+        labels: Vec<LabelStringToken>,
         nodes: Vec<Rc<CfgNode>>,
         entry: Rc<CfgNode>,
         exit: Rc<CfgNode>,
@@ -67,23 +67,24 @@ impl Function {
     }
 
     #[must_use]
-    pub fn labels(&self) -> HashSet<With<LabelString>> {
+    pub fn labels(&self) -> HashSet<LabelStringToken> {
         self.entry.labels()
     }
 
     #[must_use]
     pub fn arguments(&self) -> RegisterSet {
-        self.entry.live_out() & RegSets::argument()
+        self.entry.live_out() & Register::argument_set()
     }
 
     #[must_use]
     pub fn returns(&self) -> RegisterSet {
-        self.exit().live_in() & RegSets::ret()
+        self.exit().live_in() & Register::return_set()
     }
 
     /// Set the registers used by this function.
-    pub fn set_defs(&self, defs: RegisterSet) {
-        *self.defs.borrow_mut() = defs;
+    #[must_use]
+    pub fn set_defs(&self, defs: RegisterSet) -> bool {
+        self.defs.replace_if_changed(defs)
     }
 
     /// Return the set of written registers.
@@ -94,12 +95,13 @@ impl Function {
     #[must_use]
     pub fn to_save(&self) -> RegisterSet {
         // Remove the stack pointer()
-        (*self.defs() & RegSets::callee_saved()) - Register::X2
+        (*self.defs() & Register::callee_saved_set()) - Register::X2
     }
 
     /// Set the instructions composing this function.
-    pub fn set_nodes(&self, instructions: Vec<Rc<CfgNode>>) {
-        *self.nodes.borrow_mut() = instructions;
+    #[must_use]
+    pub fn set_nodes(&self, instructions: Vec<Rc<CfgNode>>) -> bool {
+        self.nodes.replace_if_changed(instructions)
     }
 
     /// Return the instructions in the function.
@@ -119,7 +121,8 @@ impl Function {
     }
 
     /// Set the exit node of this function.
-    pub fn set_exit(&self, node: Rc<CfgNode>) {
-        *self.exit.borrow_mut() = node;
+    #[must_use]
+    pub fn set_exit(&self, node: Rc<CfgNode>) -> bool {
+        self.exit.replace_if_changed(node)
     }
 }

@@ -1,9 +1,12 @@
 use crate::analysis::AvailableValue;
+use crate::analysis::HasGenKillInfo;
 use crate::cfg::Cfg;
 use crate::cfg::CfgNode;
-use crate::parser::RegSets;
+use crate::parser::HasRegisterSets;
+use crate::parser::InstructionProperties;
 use crate::parser::Register;
-use crate::parser::With;
+use crate::parser::RegisterToken;
+use crate::passes::DiagnosticManager;
 use crate::passes::LintError;
 use crate::passes::LintPass;
 use std::collections::{HashSet, VecDeque};
@@ -20,7 +23,7 @@ impl Cfg {
     /// This function works by traversing the previous nodes until it finds a node that stores to the given register.
     /// This is used to correctly mark up the first store to a register that might
     /// have been incorrect.
-    fn error_ranges_for_first_store(node: &Rc<CfgNode>, item: Register) -> Vec<With<Register>> {
+    fn error_ranges_for_first_store(node: &Rc<CfgNode>, item: Register) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the previous nodes onto the queue
@@ -39,8 +42,8 @@ impl Cfg {
                 continue;
             }
             visited.insert(Rc::clone(&prev));
-            if let Some(reg) = prev.node().stores_to() {
-                if reg.data == item {
+            if let Some(reg) = prev.writes_to() {
+                if *reg.get() == item {
                     ranges.push(reg);
                     continue;
                 }
@@ -52,7 +55,7 @@ impl Cfg {
 
     // TODO move to a more appropriate place
     // TODO make better, what even is this?
-    fn error_ranges_for_first_usage(node: &Rc<CfgNode>, item: Register) -> Vec<With<Register>> {
+    fn error_ranges_for_first_usage(node: &Rc<CfgNode>, item: Register) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the next nodes onto the queue
@@ -72,9 +75,9 @@ impl Cfg {
                 continue;
             }
             visited.insert(Rc::clone(&next));
-            if next.node().gen_reg().contains(&item) {
+            if next.gen_reg().contains(&item) {
                 // find the use
-                let regs = next.node().reads_from();
+                let regs = next.reads_from();
                 let mut it = None;
                 for reg in regs {
                     if reg == item {
@@ -100,10 +103,10 @@ impl Cfg {
 
 pub struct SaveToZeroCheck;
 impl LintPass for SaveToZeroCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
-            if let Some(register) = node.node().stores_to() {
-                if register == Register::X0 && !node.node().can_skip_save_checks() {
+            if let Some(register) = node.writes_to() {
+                if register == Register::X0 && !node.can_skip_save_checks() {
                     errors.push(LintError::SaveToZero(register.clone()));
                 }
             }
@@ -113,15 +116,15 @@ impl LintPass for SaveToZeroCheck {
 
 pub struct DeadValueCheck;
 impl LintPass for DeadValueCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // check the out of the node for any uses that
             // should not be there (temporaries)
             // TODO merge with Callee saved register check
-            if let Some((function, call_site)) = node.calls_to(cfg) {
+            if let Some((function, call_site)) = node.calls_to_from_cfg(cfg) {
                 // check the expected return values of the function:
 
-                let out = (RegSets::caller_saved() - function.returns()) & node.live_out();
+                let out = (Register::caller_saved_set() - function.returns()) & node.live_out();
 
                 // if there is anything left, then there is an error
                 // for each item, keep going to the next node until a use of
@@ -141,8 +144,8 @@ impl LintPass for DeadValueCheck {
             // Check for any assignments that don't make it
             // to the end of the node. These assignments are not
             // used.
-            else if let Some(def) = node.node().stores_to() {
-                if !node.live_out().contains(&def.data) && !node.node().can_skip_save_checks() {
+            else if let Some(def) = node.writes_to() {
+                if !node.live_out().contains(def.get()) && !node.can_skip_save_checks() {
                     errors.push(LintError::DeadAssignment(def));
                 }
             }
@@ -154,9 +157,9 @@ impl LintPass for DeadValueCheck {
 // Check if there are any instructions after an ecall to terminate the program
 pub struct EcallCheck;
 impl LintPass for EcallCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
-            if node.node().is_ecall() && node.known_ecall().is_none() {
+            if node.is_ecall() && node.known_ecall().is_none() {
                 errors.push(LintError::UnknownEcall(node.node().clone()));
             }
         }
@@ -168,11 +171,11 @@ impl LintPass for EcallCheck {
 // Check if there are any in values at the start of a program
 pub struct GarbageInputValueCheck;
 impl LintPass for GarbageInputValueCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
-            if node.node().is_program_entry() {
+            if node.is_program_entry() {
                 // get registers
-                let garbage = node.live_in() - RegSets::program_args();
+                let garbage = node.live_in() - Register::program_args_set();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
@@ -183,9 +186,9 @@ impl LintPass for GarbageInputValueCheck {
                         errors.push(LintError::InvalidUseBeforeAssignment(range.clone()));
                     }
                 }
-            } else if let Some(func) = node.is_function_entry() {
+            } else if let Some(func) = node.is_function_entry_with_func() {
                 let args = func.arguments();
-                let garbage = node.live_in() - args - RegSets::callee_saved();
+                let garbage = node.live_in() - args - Register::callee_saved_set();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
@@ -204,7 +207,7 @@ impl LintPass for GarbageInputValueCheck {
 // Check that we know the stack position at every point in the program (aka. within scopes)
 pub struct StackCheckPass;
 impl LintPass for StackCheckPass {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         // PASS 1
         // check that we know the stack position at every point in the program
         // check that the stack is never in an invalid position
@@ -228,11 +231,11 @@ impl LintPass for StackCheckPass {
                             break 'outer;
                         }
 
-                        if let Some((reg2, off2)) = node.node().uses_memory_location() {
-                            if reg2 == Register::X2 && off2.0 + off >= 0 {
+                        if let Some((reg2, off2)) = node.uses_memory_location() {
+                            if reg2 == Register::X2 && off2.value() + off >= 0 {
                                 errors.push(LintError::InvalidStackOffsetUsage(
                                     node.node().clone(),
-                                    off2.0 + off,
+                                    off2.value() + off,
                                 ));
                             }
                         }
@@ -242,7 +245,7 @@ impl LintPass for StackCheckPass {
                     }
                 }
             }
-            if let Some((reg, _)) = node.node().uses_memory_location() {
+            if let Some((reg, _)) = node.uses_memory_location() {
                 if reg == Register::X2 {}
             }
         }
@@ -254,15 +257,15 @@ impl LintPass for StackCheckPass {
 // check if the value of a calle-saved register is read as its original value
 pub struct CalleeSavedGarbageReadCheck;
 impl LintPass for CalleeSavedGarbageReadCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
-            for read in node.node().reads_from() {
+            for read in node.reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
                 // DESIGN DECISION: we allow any memory accesses for calle saved registers
 
-                if RegSets::saved().contains(&read.data)
-                    && node.node().uses_memory_location().is_none()
-                    && node.reg_values_in().is_original_value(read.data)
+                if Register::saved_set().contains(read.get())
+                    && node.uses_memory_location().is_none()
+                    && node.reg_values_in().is_original_value(*read.get())
                 {
                     errors.push(LintError::InvalidUseBeforeAssignment(read.clone()));
                     // then we are reading a garbage value
@@ -277,10 +280,10 @@ impl LintPass for CalleeSavedGarbageReadCheck {
 // Check if the values of callee-saved registers are restored to the original value at the end of the function
 pub struct CalleeSavedRegisterCheck;
 impl LintPass for CalleeSavedRegisterCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for func in cfg.functions().values() {
             let exit_vals = func.exit().reg_values_in();
-            for reg in &RegSets::callee_saved() {
+            for reg in &Register::callee_saved_set() {
                 match exit_vals.get(&reg) {
                     Some(AvailableValue::OriginalRegisterWithScalar(reg2, offset))
                         if reg2 == &reg && offset == &0 =>
@@ -309,19 +312,19 @@ impl LintPass for CalleeSavedRegisterCheck {
 // diagnostic information in the future.
 pub struct LostCalleeSavedRegisterCheck;
 impl LintPass for LostCalleeSavedRegisterCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
-            let callee = RegSets::saved();
+            let callee = Register::saved_set();
 
             // If: within a function, node stores to a saved register,
             // and the value going in was the original value
             // We intentionally do not check for callee-saved registers
             // as the value is mean to be modified
-            if let Some(reg) = node.node().stores_to() {
-                if callee.contains(&reg.data)
+            if let Some(reg) = node.writes_to() {
+                if callee.contains(reg.get())
                     && node.is_part_of_some_function()
-                    && node.reg_values_in().get(&reg.data)
-                        == Some(&AvailableValue::OriginalRegisterWithScalar(reg.data, 0))
+                    && node.reg_values_in().get(reg.get())
+                        == Some(&AvailableValue::OriginalRegisterWithScalar(*reg.get(), 0))
                 {
                     // Check that the value exists somewhere in the available values
                     // like the stack.
@@ -332,7 +335,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
                     let stack = node.memory_values_out();
                     for (_, val) in stack {
                         if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) = val {
-                            if reg2 == reg.data && offset == 0 {
+                            if reg2 == *reg.get() && offset == 0 {
                                 found = true;
                                 break;
                             }
@@ -343,7 +346,7 @@ impl LintPass for LostCalleeSavedRegisterCheck {
                     let regs = node.reg_values_out();
                     for (_, val) in regs {
                         if let AvailableValue::OriginalRegisterWithScalar(reg2, offset) = val {
-                            if reg2 == reg.data && offset == 0 {
+                            if reg2 == *reg.get() && offset == 0 {
                                 found = true;
                                 break;
                             }

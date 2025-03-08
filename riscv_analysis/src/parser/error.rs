@@ -7,7 +7,7 @@ use crate::{
     reader::FileReaderError,
 };
 
-use super::{Info, ParserNode, StringLexError, StringLexErrorType, With};
+use super::{ParserNode, StringLexError, StringLexErrorType, Token, With};
 
 #[derive(Debug, Clone)]
 /// Lexer error
@@ -16,17 +16,17 @@ use super::{Info, ParserNode, StringLexError, StringLexErrorType, With};
 /// inherently mean that the code is wrong, but rather that the parser must go
 /// down an alternate path to parse the code.
 pub enum LexError {
-    Expected(Vec<ExpectedType>, Info),
-    IsNewline(Info),
-    IgnoredWithWarning(Info),
+    Expected(Vec<ExpectedType>, Box<Token>),
+    IsNewline(Box<Token>),
+    IgnoredWithWarning(Box<Token>),
     IgnoredWithoutWarning,
-    UnexpectedToken(Info),
+    UnexpectedToken(Box<Token>),
     UnexpectedEOF,
     NeedTwoNodes(Box<ParserNode>, Box<ParserNode>),
-    UnexpectedError(Info),
-    UnknownDirective(Info),
-    UnsupportedDirective(Info),
-    InvalidString(Info, Box<StringLexError>),
+    UnexpectedError(Box<Token>),
+    UnknownDirective(Box<Token>),
+    UnsupportedDirective(Box<Token>),
+    InvalidString(Box<Token>, Box<StringLexError>),
 }
 
 #[derive(Debug, Clone)]
@@ -36,15 +36,15 @@ pub enum LexError {
 /// that the parser recovers from by skipping the line, and continuing to parse
 /// the rest of the file. The user should see these errors within their editor
 pub enum ParseError {
-    Expected(Vec<ExpectedType>, Info),
-    Unsupported(Info),
-    UnexpectedToken(Info),
-    UnexpectedError(Info),
-    UnknownDirective(Info),
-    CyclicDependency(Info),
+    Expected(Vec<ExpectedType>, Box<Token>),
+    Unsupported(Box<Token>),
+    UnexpectedToken(Box<Token>),
+    UnexpectedError(Box<Token>),
+    UnknownDirective(Box<Token>),
+    CyclicDependency(Box<Token>),
     FileNotFound(With<String>),
     IOError(With<String>, String),
-    InvalidString(Info, Box<StringLexError>),
+    InvalidString(Box<Token>, Box<StringLexError>),
 }
 
 impl FileReaderError {
@@ -52,9 +52,11 @@ impl FileReaderError {
     pub fn to_parse_error(&self, path: With<String>) -> ParseError {
         match self {
             FileReaderError::InternalFileNotFound | FileReaderError::Unexpected => {
-                ParseError::UnexpectedError(path.info())
+                ParseError::UnexpectedError(Box::new(path.token().clone()))
             }
-            FileReaderError::FileAlreadyRead(_) => ParseError::CyclicDependency(path.info()),
+            FileReaderError::FileAlreadyRead(_) => {
+                ParseError::CyclicDependency(Box::new(path.token().clone()))
+            }
             FileReaderError::InvalidPath => ParseError::FileNotFound(path),
             FileReaderError::IOErr(e) => ParseError::IOError(path, e.clone()),
         }
@@ -73,7 +75,7 @@ impl Display for ParseError {
                         .map(std::string::ToString::to_string)
                         .collect::<Vec<_>>()
                         .join(" or "),
-                    found.token
+                    found.token_type()
                 )
             }
             ParseError::Unsupported(_) => write!(f, "Unsupported operation"),
@@ -81,8 +83,8 @@ impl Display for ParseError {
             ParseError::UnexpectedError(_) => write!(f, "Unexpected error"),
             ParseError::UnknownDirective(_) => write!(f, "Unknown directive"),
             ParseError::CyclicDependency(_) => write!(f, "Cyclic dependency"),
-            ParseError::FileNotFound(file) => write!(f, "File not found: {}", file.data),
-            ParseError::IOError(file, err) => write!(f, "IO Error: {} ({})", file.data, err),
+            ParseError::FileNotFound(file) => write!(f, "File not found: {file}"),
+            ParseError::IOError(file, err) => write!(f, "IO Error: {file} ({err})"),
             ParseError::InvalidString(_info, _kind) => {
                 write!(f, "Invalid string")
             }
@@ -127,13 +129,13 @@ impl DiagnosticMessage for ParseError {
             }
             ParseError::UnknownDirective(token) => format!("Unknown directive {0}\n\n\
                 This directive is not recognized by the program. Please file a bug report or ignore this error.
-            ", token.token),
+            ", token.token_type()),
             ParseError::CyclicDependency(_) => "There is a cyclic dependency between files.\n\n\
                 This is likely due to a file importing itself or a file importing a file that imports it.\
                 Please remove the cyclic dependency to fix this error.
             ".to_string(),
-            ParseError::FileNotFound(file) => format!("File not found: {}", file.data),
-            ParseError::IOError(file, err) => format!("IO Error: {} ({})", file.data, err),
+            ParseError::FileNotFound(file) => format!("File not found: {file}"),
+            ParseError::IOError(file, err) => format!("IO Error: {file} ({err})"),
             ParseError::InvalidString(_, e) => {
                 match e.kind {
                     StringLexErrorType::InvalidEscapeSequence => {
@@ -168,6 +170,19 @@ impl PartialOrd for dyn DiagnosticLocation {
 }
 
 impl DiagnosticLocation for ParseError {
+    fn raw_text(&self) -> String {
+        match self {
+            ParseError::Expected(_, info)
+            | ParseError::Unsupported(info)
+            | ParseError::UnexpectedToken(info)
+            | ParseError::UnexpectedError(info)
+            | ParseError::UnknownDirective(info)
+            | ParseError::InvalidString(info, _)
+            | ParseError::CyclicDependency(info) => info.raw_text(),
+            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.raw_text(),
+        }
+    }
+
     fn file(&self) -> Uuid {
         match self {
             ParseError::Expected(_, info)
@@ -176,8 +191,8 @@ impl DiagnosticLocation for ParseError {
             | ParseError::UnexpectedError(info)
             | ParseError::UnknownDirective(info)
             | ParseError::InvalidString(info, _)
-            | ParseError::CyclicDependency(info) => info.file,
-            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.file,
+            | ParseError::CyclicDependency(info) => info.file(),
+            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.file(),
         }
     }
 
@@ -189,8 +204,8 @@ impl DiagnosticLocation for ParseError {
             | ParseError::UnexpectedError(info)
             | ParseError::UnknownDirective(info)
             | ParseError::InvalidString(info, _)
-            | ParseError::CyclicDependency(info) => info.pos.clone(),
-            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.pos.clone(),
+            | ParseError::CyclicDependency(info) => info.range(),
+            ParseError::FileNotFound(file) | ParseError::IOError(file, _) => file.range(),
         }
     }
 }
@@ -218,7 +233,7 @@ pub enum ExpectedType {
     Label,
     LParen,
     RParen,
-    CSRImm,
+    CsrImm,
     Inst,
     String,
 }
@@ -231,7 +246,7 @@ impl std::fmt::Display for ExpectedType {
             ExpectedType::Label => write!(f, "LABEL"),
             ExpectedType::LParen => write!(f, "LPAREN"),
             ExpectedType::RParen => write!(f, "RPAREN"),
-            ExpectedType::CSRImm => write!(f, "CSR-IMMEDIATE"),
+            ExpectedType::CsrImm => write!(f, "CSR-IMMEDIATE"),
             ExpectedType::Inst => write!(f, "INSTRUCTION"),
             ExpectedType::String => write!(f, "STRING"),
         }

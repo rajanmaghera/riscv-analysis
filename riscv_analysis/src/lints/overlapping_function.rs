@@ -1,5 +1,7 @@
 use crate::{
-    cfg::Cfg, parser::{Label, ParserNode, RawToken}, passes::{LintError, LintPass}
+    cfg::Cfg,
+    parser::{Label, ParserNode},
+    passes::{DiagnosticManager, LintError, LintPass},
 };
 use uuid::Uuid;
 
@@ -12,27 +14,21 @@ use uuid::Uuid;
 /// function.
 pub struct OverlappingFunctionCheck;
 impl LintPass for OverlappingFunctionCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // Capture entry points that are part of more than one function
             // NOTE: We only give an error for the first line of a function,
             //       even though there may be many overlapping instructions.
             //       This is done to not overwhelm the user with errors.
-            if node.functions().len() > 1 && node.is_function_entry().is_some() {
+            if node.functions().len() > 1 && node.is_function_entry_with_func().is_some() {
                 // HACK: Create a dummy label with the same name
                 let labels = node.labels();
                 let labels = labels
                     .iter()
-                    .map(|l| {
-                        Label {
-                            name: l.clone(),
-                            key: Uuid::new_v4(),
-                            token: RawToken {
-                                text: l.data.0.clone(),
-                                pos: l.pos.clone(),
-                                file: l.file,
-                            },
-                        }
+                    .map(|l| Label {
+                        name: l.clone(),
+                        key: Uuid::new_v4(),
+                        token: l.raw_token().clone(),
                     })
                     .collect::<Vec<_>>();
                 let label = labels.first();
@@ -40,10 +36,7 @@ impl LintPass for OverlappingFunctionCheck {
                 if let Some(l) = label {
                     errors.push(LintError::NodeInManyFunctions(
                         ParserNode::Label(l.clone()),
-                        node.functions()
-                            .clone()
-                            .into_iter()
-                            .collect::<Vec<_>>(),
+                        node.functions().clone().into_iter().collect::<Vec<_>>(),
                     ));
                 }
             }
@@ -54,11 +47,11 @@ impl LintPass for OverlappingFunctionCheck {
 #[cfg(test)]
 mod tests {
     use crate::lints::OverlappingFunctionCheck;
-    use crate::parser::{ParserNode, RVStringParser};
-    use crate::passes::{LintError, LintPass, Manager};
+    use crate::parser::RVStringParser;
+    use crate::passes::{DiagnosticManager, LintPass, Manager};
 
     /// Compute the lints for a given input
-    fn run_pass(input: &str) -> Vec<LintError> {
+    fn run_pass(input: &str) -> DiagnosticManager {
         let (nodes, error) = RVStringParser::parse_from_text(input);
         assert_eq!(error.len(), 0);
 
@@ -83,16 +76,10 @@ mod tests {
                 ret                    \n";
 
         let lints = run_pass(input);
-
         assert_eq!(lints.len(), 1);
-        assert!(matches!(
-            &lints[0], LintError::NodeInManyFunctions(node, _)
-                if matches!(
-                    node, ParserNode::Label(label)
-                        if label.token.text == "fn_b"
-                )
-            )
-        );
+
+        assert_eq!(lints[0].get_error_code(), "node-in-many-functions");
+        assert_eq!(lints[0].raw_text(), "fn_b:",);
     }
 
     #[test]
@@ -117,22 +104,12 @@ mod tests {
         let lints = run_pass(input);
 
         assert_eq!(lints.len(), 2);
-        assert!(matches!(
-            &lints[0], LintError::NodeInManyFunctions(node, _)
-                if matches!(
-                    node, ParserNode::Label(label)
-                        if label.token.text == "fn_b"
-                )
-            )
-        );
-        assert!(matches!(
-            &lints[1], LintError::NodeInManyFunctions(node, _)
-                if matches!(
-                    node, ParserNode::Label(label)
-                        if label.token.text == "fn_c"
-                )
-            )
-        );
+
+        assert_eq!(lints[0].get_error_code(), "node-in-many-functions");
+        assert_eq!(lints[0].raw_text(), "fn_b:");
+
+        assert_eq!(lints[1].get_error_code(), "node-in-many-functions");
+        assert_eq!(lints[1].raw_text(), "fn_c:");
     }
 
     #[test]

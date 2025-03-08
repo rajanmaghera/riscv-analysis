@@ -2,38 +2,64 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::parser::token::{Info, Token};
+use crate::parser::token::Token;
+
+use super::TokenType;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Imm(pub i32);
+pub struct Imm(i32);
 
-impl TryFrom<Info> for Imm {
+impl Imm {
+    #[must_use]
+    pub fn new(value: i32) -> Self {
+        Imm(value)
+    }
+
+    #[must_use]
+    pub fn value(&self) -> i32 {
+        self.0
+    }
+}
+
+impl TryFrom<Token> for Imm {
     type Error = ();
 
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
-        match value.token {
-            Token::Symbol(s) => Imm::from_str(&s),
-            Token::Char(c) => Ok(Imm(c as i32)),
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.token_type() {
+            TokenType::Symbol(s) => Imm::from_str(s),
+            TokenType::Char(c) => Ok(Imm(*c as i32)),
             _ => Err(()),
         }
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
-pub struct CSRImm(pub u32);
+#[derive(Debug, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Clone, Deserialize, Serialize)]
+pub struct CsrImm(u32);
 
-impl TryFrom<Info> for CSRImm {
+impl CsrImm {
+    #[must_use]
+    pub fn new(value: u32) -> Self {
+        CsrImm(value)
+    }
+
+    #[must_use]
+    pub fn value(&self) -> u32 {
+        self.0
+    }
+}
+
+impl TryFrom<Token> for CsrImm {
     type Error = ();
 
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
-        match value.token {
-            Token::Symbol(s) => CSRImm::from_str(&s),
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.token_type() {
+            TokenType::Symbol(s) => CsrImm::from_str(s),
             _ => Err(()),
         }
     }
 }
 
-impl FromStr for CSRImm {
+impl FromStr for CsrImm {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -57,9 +83,9 @@ impl FromStr for CSRImm {
             "timeh" => 0xC81,
             "instreth" => 0xC82,
             #[allow(clippy::cast_sign_loss)]
-            _ => Imm::from_str(s)?.0 as u32,
+            _ => Imm::from_str(s)?.value() as u32,
         };
-        Ok(CSRImm(num))
+        Ok(CsrImm(num))
     }
 }
 
@@ -110,15 +136,15 @@ impl FromStr for Imm {
     }
 }
 
-impl From<Imm> for CSRImm {
+impl From<Imm> for CsrImm {
     fn from(value: Imm) -> Self {
         #[allow(clippy::cast_sign_loss)]
-        CSRImm(value.0 as u32)
+        CsrImm(value.0 as u32)
     }
 }
 
-impl From<CSRImm> for Imm {
-    fn from(value: CSRImm) -> Self {
+impl From<CsrImm> for Imm {
+    fn from(value: CsrImm) -> Self {
         #[allow(clippy::cast_possible_wrap)]
         Imm(value.0 as i32)
     }

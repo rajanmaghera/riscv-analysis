@@ -30,3 +30,13 @@ pub use register_set::*;
 
 mod available_value_map;
 pub use available_value_map::*;
+
+mod interrupt_handler;
+
+mod ref_cell_replacement;
+pub use ref_cell_replacement::*;
+
+mod node_diagnostic_location;
+mod node_gen_kill;
+mod node_has_identity;
+mod node_instruction_properties;

@@ -2,7 +2,10 @@ use std::{rc::Rc, vec};
 
 use crate::{
     cfg::{Cfg, CfgNode, Function, RegisterSet},
-    parser::{Info, JumpLinkType, LabelString, ParserNode, Register, With},
+    parser::{
+        InstructionProperties, JumpLinkType, LabelString, ParserNode, Register, Token, TokenType,
+        With,
+    },
     passes::{CfgError, DiagnosticLocation, GenerationPass},
 };
 
@@ -15,10 +18,13 @@ struct MarkData {
 pub struct FunctionMarkupPass;
 
 impl FunctionMarkupPass {
-    fn mark_reachable(cfg: &Cfg, entry: &Rc<CfgNode>, func: &Rc<Function>)
-                      -> Result<MarkData, Box<CfgError>> {
-        let mut defs = RegisterSet::new();      // Registers this function writes to
-        let mut returns = None;             // Return instructions in this function
+    fn mark_reachable(
+        cfg: &Cfg,
+        entry: &Rc<CfgNode>,
+        func: &Rc<Function>,
+    ) -> Result<MarkData, Box<CfgError>> {
+        let mut defs = RegisterSet::new(); // Registers this function writes to
+        let mut returns = None; // Return instructions in this function
         let mut instructions = vec![];
 
         // Traverse the CFG for all nodes reachable from the entry point
@@ -28,12 +34,12 @@ impl FunctionMarkupPass {
             node.insert_function(Rc::clone(func));
 
             // Collect any registers written to by the node
-            if let Some(dest) = node.node().stores_to() {
-                defs |= dest.data;
+            if let Some(dest) = node.writes_to() {
+                defs |= dest.get_cloned();
             }
 
             // Collect return instructions
-            if node.node().is_return() {
+            if node.is_return() {
                 // Set the newly found return to be an jump to the previously
                 // found return.
                 if let Some(ref prev_ret) = returns {
@@ -45,17 +51,19 @@ impl FunctionMarkupPass {
                     prev_ret.insert_prev(Rc::clone(&found_ret));
 
                     // Convert the found return into a jump
-                    let info = Info {
-                        token: crate::parser::Token::Symbol("return".to_string()),
-                        pos: found_ret.node().range().clone(),
-                        file: found_ret.node().file(),
-                    };
+                    let info = Token::new(
+                        TokenType::Symbol("return".to_string()),
+                        found_ret.raw_text(),
+                        found_ret.range(),
+                        found_ret.file(),
+                    );
 
                     let inst = With::new(JumpLinkType::Jal, info.clone());
                     let rd = With::new(Register::X0, info.clone());
-                    let name = With::new(LabelString("__return__".to_string()), info.clone());
+                    let name = With::new(LabelString::new("__return__"), info.clone());
                     let new_node =
-                        ParserNode::new_jump_link(inst, rd, name, prev_ret.node().token());
+                        ParserNode::new_jump_link(inst, rd, name, prev_ret.node().token().clone());
+                    #[allow(unused_must_use)]
                     found_ret.set_node(new_node);
                 }
                 // If this is the first return node, save it
@@ -83,7 +91,7 @@ impl GenerationPass for FunctionMarkupPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
         for entry in &cfg.clone() {
             // Skip all nodes that are not entry points
-            if !entry.node().is_function_entry() {
+            if !entry.is_function_entry() {
                 continue;
             }
 
@@ -106,8 +114,11 @@ impl GenerationPass for FunctionMarkupPass {
             // FIXME: What to do if there is more than one return
             match Self::mark_reachable(cfg, &entry, &Rc::clone(&func)) {
                 Ok(data) => {
+                    #[allow(unused_must_use)]
                     func.set_defs(data.found);
+                    #[allow(unused_must_use)]
                     func.set_nodes(data.instructions);
+                    #[allow(unused_must_use)]
                     func.set_exit(data.returns);
                 }
                 Err(e) => {
@@ -127,7 +138,7 @@ mod tests {
 
     use crate::cfg::{Cfg, Function};
     use crate::parser::RVStringParser;
-    use crate::passes::Manager;
+    use crate::passes::{DiagnosticLocation, Manager};
 
     /// Generate the complete CFG from an input string.
     fn gen_cfg(input: &str) -> Cfg {
@@ -141,7 +152,7 @@ mod tests {
         let funcs = cfg.functions();
         funcs
             .iter()
-            .map(|both| (both.0.data.0.clone(), both.1.clone()))
+            .map(|(name, func)| (name.to_string(), func.clone()))
             .collect()
     }
 
@@ -149,7 +160,7 @@ mod tests {
     fn function_tokens(func: &Rc<Function>) -> HashSet<String> {
         let mut nodes = HashSet::new();
         for node in func.nodes().iter() {
-            nodes.insert(node.node().token().text);
+            nodes.insert(node.raw_text());
         }
         nodes
     }

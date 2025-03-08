@@ -6,7 +6,7 @@ use super::RegisterSet;
 #[must_use]
 pub fn environment_in_outs(call_num: i32) -> Option<(RegisterSet, RegisterSet)> {
     use crate::parser::Register::{X10, X11, X12, X13};
-    let vecs: (&[Register], &[Register]) = match call_num {
+    let (args, rets): (&[Register], &[Register]) = match call_num {
         1 => (&[X10], &[]),
         // 2 => (&[], &[]), Not supporting floating point yet
         // 3 => (&[], &[]),
@@ -49,7 +49,7 @@ pub fn environment_in_outs(call_num: i32) -> Option<(RegisterSet, RegisterSet)> 
     };
 
     Some((
-        vecs.0.iter().copied().collect(),
-        vecs.1.iter().copied().collect(),
+        args.iter().copied().collect(),
+        rets.iter().copied().collect(),
     ))
 }

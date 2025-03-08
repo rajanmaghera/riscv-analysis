@@ -1,9 +1,12 @@
 use uuid::Uuid;
 
 use crate::parser::token::Token;
-use crate::parser::token::{Info, Position, Range};
+use crate::passes::DiagnosticLocation;
 
-use super::LexError;
+use super::{LexError, Position};
+use super::{Range, TokenType};
+
+// TODO: add "RawToken" buffer rather than reconstructing raw token texts
 
 /// Possible errors when lexing a string.
 #[derive(Clone, Debug, PartialEq)]
@@ -25,8 +28,6 @@ impl StringLexError {
         Self { pos, kind }
     }
 }
-
-
 
 /// Lexer for RISC-V assembly
 ///
@@ -60,7 +61,7 @@ impl Lexer {
     fn peek(&self, n: usize) -> Option<char> {
         self.source.get(self.pos + n).copied()
     }
-    
+
     /// Get the current next character.
     fn current(&self) -> Option<char> {
         self.peek(0)
@@ -137,11 +138,8 @@ impl Lexer {
     /// being the current position of the lexer.
     fn get_range(&self) -> Range {
         let mut end = self.get_pos();
-        end.column += 1;
-        Range {
-            start: self.get_pos(),
-            end,
-        }
+        end.increment_column();
+        Range::new(self.get_pos(), end)
     }
 
     /// Get the current position of the lexer.
@@ -149,12 +147,7 @@ impl Lexer {
     /// This function will return the current position of the lexer.
     fn get_pos(&self) -> Position {
         let column = if self.col == 0 { 0 } else { self.col - 1 };
-
-        Position {
-            line: self.row,
-            column,
-            raw_index: self.pos,
-        }
+        Position::new(self.row, column, self.pos)
     }
 
     /// Lex a unicode escape code.
@@ -162,12 +155,7 @@ impl Lexer {
     /// Returns None if the code doesn't define a valid unicode character. The
     /// escape code is lexed into a single unicode character.
     fn unicode_code(&mut self) -> Option<char> {
-        let chars = vec![
-            self.peek(2)?,
-            self.peek(3)?,
-            self.peek(4)?,
-            self.peek(5)?,
-        ];
+        let chars = vec![self.peek(2)?, self.peek(3)?, self.peek(4)?, self.peek(5)?];
 
         // Convert to a codepoint number
         let code_number: Option<u32> = {
@@ -196,20 +184,20 @@ impl Lexer {
             let real = match c {
                 '\\' => '\\',
                 '\'' => '\'',
-                '"'  => '"',
-                'n'  => '\n',
-                't'  => '\t',
-                'r'  => '\r',
-                'b'  => '\x08',  // Backspace
-                'f'  => '\x0c',  // Form feed
-                '0'  => '\0',
-                'u'  => self.unicode_code()?,
+                '"' => '"',
+                'n' => '\n',
+                't' => '\t',
+                'r' => '\r',
+                'b' => '\x08', // Backspace
+                'f' => '\x0c', // Form feed
+                '0' => '\0',
+                'u' => self.unicode_code()?,
                 // TODO: Unicode input
                 _ => return None,
             };
 
             self.consume_char();
-            return Some(real)
+            return Some(real);
         }
 
         None
@@ -223,7 +211,6 @@ impl Lexer {
     fn acc_string(&mut self) -> Result<String, StringLexError> {
         let mut acc: String = String::new();
 
-
         while let Some(current) = self.current() {
             if current == '"' {
                 return Ok(acc);
@@ -231,21 +218,24 @@ impl Lexer {
 
             // All strings must be on a single line
             if current == '\n' {
-                return Err(
-                    StringLexError::new(self.get_pos(), StringLexErrorType::Newline)
-                );
+                return Err(StringLexError::new(
+                    self.get_pos(),
+                    StringLexErrorType::Newline,
+                ));
             }
 
             // Check if this is an escape sequence
             if current == '\\' {
                 match self.escape_code() {
                     Some(ec) => acc.push(ec),
-                    None => return Err(
-                        StringLexError::new(self.get_pos(), StringLexErrorType::InvalidEscapeSequence)
-                    ),
+                    None => {
+                        return Err(StringLexError::new(
+                            self.get_pos(),
+                            StringLexErrorType::InvalidEscapeSequence,
+                        ))
+                    }
                 }
             }
-
             // Otherwise, add the character
             else {
                 acc.push(current);
@@ -254,24 +244,34 @@ impl Lexer {
         }
 
         // If we run out of characters, we have an un-closed string
-        Err(StringLexError::new(self.get_pos(), StringLexErrorType::Unclosed))
+        Err(StringLexError::new(
+            self.get_pos(),
+            StringLexErrorType::Unclosed,
+        ))
     }
 
     /// Create the error for an invalid string.
-    fn invalid_string(&self, partial: String, kind: StringLexErrorType, start: Position, end: Position) -> Result<Info, LexError> {
+    fn invalid_string(
+        &self,
+        partial: String,
+        kind: StringLexErrorType,
+        start: Position,
+        end: Position,
+    ) -> Result<Token, LexError> {
         Err(LexError::InvalidString(
-            Info {
-                token: Token::String(partial),
-                pos: Range { start, end },
-                file: self.source_id,
-            },
-            Box::new(StringLexError::new(end, kind))
+            Box::new(Token::new(
+                TokenType::String(partial.clone()),
+                partial,
+                Range::new(start, end),
+                self.source_id,
+            )),
+            Box::new(StringLexError::new(end, kind)),
         ))
     }
 }
 
 impl Iterator for Lexer {
-    type Item = Result<Info, LexError>;
+    type Item = Result<Token, LexError>;
 
     #[allow(clippy::too_many_lines)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -287,31 +287,34 @@ impl Iterator for Lexer {
 
                 self.consume_char();
 
-                Some(Info {
-                    token: Token::Newline,
-                    file: self.source_id,
+                Some(Token::new(
+                    TokenType::Newline,
+                    "\n".to_string(),
                     pos,
-                })
+                    self.source_id,
+                ))
             }
             Some('(') => {
                 let pos = self.get_range();
                 self.consume_char();
 
-                Some(Info {
-                    token: Token::LParen,
-                    file: self.source_id,
+                Some(Token::new(
+                    TokenType::LParen,
+                    "(".to_string(),
                     pos,
-                })
+                    self.source_id,
+                ))
             }
             Some(')') => {
                 let pos = self.get_range();
                 self.consume_char();
 
-                Some(Info {
-                    token: Token::RParen,
-                    file: self.source_id,
+                Some(Token::new(
+                    TokenType::RParen,
+                    ")".to_owned(),
                     pos,
-                })
+                    self.source_id,
+                ))
             }
             Some('.') => {
                 // directive
@@ -335,11 +338,12 @@ impl Iterator for Lexer {
                     return self.next();
                 }
 
-                Some(Info {
-                    token: Token::Directive(dir_str.clone()),
-                    pos: Range { start, end },
-                    file: self.source_id,
-                })
+                Some(Token::new(
+                    TokenType::Directive(dir_str.clone()),
+                    dir_str,
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
             Some('#') => {
                 // Convert comments to token
@@ -363,40 +367,43 @@ impl Iterator for Lexer {
                 // Empty comment strings are allowed, in the case of a
                 // comment with a new line. We don't strip any whitespace
                 // for comments here.
-                Some(Info {
-                    token: Token::Comment(comment_str.to_string()),
-                    pos: Range { start, end },
-                    file: self.source_id,
-                })
+                Some(Token::new(
+                    TokenType::Comment(comment_str.to_string()),
+                    comment_str.to_string(),
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
             Some('"') => {
                 // string
                 let start = self.get_pos();
-                self.consume_char();   // Skip the first quote
+                self.consume_char(); // Skip the first quote
 
                 let string_str = match self.acc_string() {
                     Ok(s) => s,
                     Err(e) => {
                         return Some(Err(LexError::InvalidString(
-                            Info {
-                                token: Token::String(String::new()),
-                                pos: Range { start, end: e.pos },
-                                file: self.source_id,
-                            },
-                            Box::new(e)
+                            Box::new(Token::new(
+                                TokenType::String(String::new()),
+                                String::new(),
+                                Range::new(start, e.pos),
+                                self.source_id,
+                            )),
+                            Box::new(e),
                         )));
-                    },
+                    }
                 };
 
                 let end = self.get_pos();
-                self.consume_char();   // Skip final '"'
+                self.consume_char(); // Skip final '"'
                 self.consume_char();
 
-                Some(Info {
-                    token: Token::String(string_str.clone()),
-                    pos: Range { start, end },
-                    file: self.source_id,
-                })
+                Some(Token::new(
+                    TokenType::String(string_str.clone()),
+                    "\"".to_string() + &string_str + "\"",
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
             Some('\'') => {
                 let start = self.get_pos();
@@ -408,19 +415,24 @@ impl Iterator for Lexer {
                         // Is an escape code
                         '\\' => match self.escape_code() {
                             Some(ec) => ec,
-                            None => return Some(self.invalid_string(
-                                c.to_string(),
-                                StringLexErrorType::InvalidEscapeSequence,
-                                start, self.get_pos())
-                            )
+                            None => {
+                                return Some(self.invalid_string(
+                                    c.to_string(),
+                                    StringLexErrorType::InvalidEscapeSequence,
+                                    start,
+                                    self.get_pos(),
+                                ))
+                            }
                         },
                         // Can't have a literal newline in a character
-                        '\n' => return Some(self.invalid_string(
-                            c.to_string(),
-                            StringLexErrorType::Newline,
-                            start,
-                            self.get_pos()
-                        )),
+                        '\n' => {
+                            return Some(self.invalid_string(
+                                c.to_string(),
+                                StringLexErrorType::Newline,
+                                start,
+                                self.get_pos(),
+                            ))
+                        }
                         // Otherwise, return the character as is
                         c => c,
                     };
@@ -428,17 +440,17 @@ impl Iterator for Lexer {
                     // Ensure that the next character is the closing quote
                     self.consume_char();
                     if let Some(eq) = self.current() {
-
                         // Return the character
                         if eq == '\'' {
                             let end = self.get_pos();
                             self.consume_char();
 
-                            return Some(Ok(Info {
-                                token: Token::Char(c),
-                                pos: Range { start, end },
-                                file: self.source_id,
-                            }));
+                            return Some(Ok(Token::new(
+                                TokenType::Char(c),
+                                '\''.to_string() + &c.to_string() + "'",
+                                Range::new(start, end),
+                                self.source_id,
+                            )));
                         }
 
                         // The character is unclosed
@@ -446,7 +458,8 @@ impl Iterator for Lexer {
                         return Some(self.invalid_string(
                             c.to_string(),
                             StringLexErrorType::Unclosed,
-                            start, end
+                            start,
+                            end,
                         ));
                     }
                 }
@@ -455,7 +468,8 @@ impl Iterator for Lexer {
                 return Some(self.invalid_string(
                     String::new(), // Empty string, since we are at EOF
                     StringLexErrorType::Unclosed,
-                    start, end
+                    start,
+                    end,
                 ));
             }
             _ => {
@@ -482,33 +496,40 @@ impl Iterator for Lexer {
 
                 // If the next char is ':', this is a label
                 if self.peek(1) == Some(':') {
-                    self.consume_char();   // Move onto the ':'
+                    self.consume_char(); // Move onto the ':'
                     let end = self.get_pos();
                     self.consume_char();
 
-                    return Some(Ok(Info {
-                        token: Token::Label(symbol_str.clone()),
-                        pos: Range { start, end },
-                        file: self.source_id,
-                    }));
+                    return Some(Ok(Token::new(
+                        TokenType::Label(symbol_str.clone()),
+                        symbol_str.clone() + ":",
+                        Range::new(start, end),
+                        self.source_id,
+                    )));
                 }
 
                 let end = self.get_pos();
                 self.consume_char();
 
-                Some(Info {
-                    token: Token::Symbol(symbol_str.clone()),
-                    pos: Range { start, end },
-                    file: self.source_id,
-                })
+                Some(Token::new(
+                    TokenType::Symbol(symbol_str.clone()),
+                    symbol_str,
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
         };
 
         match token {
             Some(t) => {
                 // TODO: remove these debug asserts once we fix the get_pos() function
-                debug_assert_eq!(t.pos.start.line, t.pos.end.line);
-                debug_assert!(t.pos.start.column <= t.pos.end.column);
+                debug_assert_eq!(
+                    t.range().start().zero_idx_line(),
+                    t.range().end().zero_idx_line()
+                );
+                debug_assert!(
+                    t.range().start().zero_idx_column() <= t.range().end().zero_idx_column()
+                );
                 Some(Ok(t))
             }
             None => None,
@@ -522,22 +543,21 @@ mod tests {
     // TODO: These tests only test the token output, but not the ranges or the
     // IDs of the file. Those need to be tested and documented.
 
-    use crate::parser::{Info, LexError, Lexer, StringLexErrorType, Token};
-    fn tokenize<S: Into<String>>(input: S) -> Vec<Token> {
+    use crate::parser::{LexError, Lexer, StringLexErrorType, Token, TokenType};
+    fn tokenize<S: Into<String>>(input: S) -> Vec<TokenType> {
         Lexer::new(input, uuid::Uuid::nil())
-            .map(|x| x.unwrap().token) // All tokens should be valid
+            .map(|x| x.unwrap().token_type().clone()) // All tokens should be valid
             .collect()
     }
 
-    fn tokenize_err<S: Into<String>>(input: S) -> Vec<Result<Info, LexError>> {
-        Lexer::new(input, uuid::Uuid::nil())
-            .collect()
+    fn tokenize_err<S: Into<String>>(input: S) -> Vec<Result<Token, LexError>> {
+        Lexer::new(input, uuid::Uuid::nil()).collect()
     }
 
     #[test]
     fn lex_label() {
         let tokens = tokenize("My_Label:");
-        assert_eq!(tokens, vec![Token::Label("My_Label".to_owned())]);
+        assert_eq!(tokens, vec![TokenType::Label("My_Label".to_owned())]);
     }
 
     #[test]
@@ -545,7 +565,7 @@ mod tests {
         let tokens = tokenize("# comments are needed");
         assert_eq!(
             tokens,
-            vec![Token::Comment(" comments are needed".to_owned())]
+            vec![TokenType::Comment(" comments are needed".to_owned())]
         );
     }
 
@@ -556,16 +576,16 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Comment("".to_owned()),
-                Token::Newline,
-                Token::Comment("".to_owned()),
-                Token::Newline,
-                Token::Comment(" new line comments  with lots of \t whitespace and other special .text characters is allowed  jal ra, x0   ".to_owned()),
-                Token::Newline,
-                Token::Newline,
-                Token::Comment(".text".to_owned()),
-                Token::Newline,
-                Token::Comment("li a0, 0".to_owned()),
+                TokenType::Comment(String::new()),
+                TokenType::Newline,
+                TokenType::Comment(String::new()),
+                TokenType::Newline,
+                TokenType::Comment(" new line comments  with lots of \t whitespace and other special .text characters is allowed  jal ra, x0   ".to_owned()),
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Comment(".text".to_owned()),
+                TokenType::Newline,
+                TokenType::Comment("li a0, 0".to_owned()),
             ]
         );
     }
@@ -576,17 +596,17 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Comment("this is a comment".to_owned()),
-                Token::Newline,
-                Token::Comment("".to_owned()),
+                TokenType::Comment("this is a comment".to_owned()),
+                TokenType::Newline,
+                TokenType::Comment(String::new()),
             ]
-        )
+        );
     }
 
     #[test]
     fn lex_directive() {
         let tokens = tokenize(".text");
-        assert_eq!(tokens, vec![Token::Directive(".text".to_owned())]);
+        assert_eq!(tokens, vec![TokenType::Directive(".text".to_owned())]);
     }
 
     #[test]
@@ -595,10 +615,10 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Symbol("add".to_owned()),
-                Token::Symbol("s0".to_owned()),
-                Token::Symbol("s0".to_owned()),
-                Token::Symbol("s2".to_owned()),
+                TokenType::Symbol("add".to_owned()),
+                TokenType::Symbol("s0".to_owned()),
+                TokenType::Symbol("s0".to_owned()),
+                TokenType::Symbol("s2".to_owned()),
             ]
         );
     }
@@ -609,10 +629,10 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Symbol("0x1234".to_owned()),
-                Token::Symbol("0b1010".to_owned()),
-                Token::Symbol("1234".to_owned()),
-                Token::Symbol("-222".to_owned()),
+                TokenType::Symbol("0x1234".to_owned()),
+                TokenType::Symbol("0b1010".to_owned()),
+                TokenType::Symbol("1234".to_owned()),
+                TokenType::Symbol("-222".to_owned()),
             ]
         );
     }
@@ -625,30 +645,30 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Symbol("add".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x3".into()),
-                Token::Newline,
-                Token::Label("BLCOK".to_owned()),
-                Token::Newline,
-                Token::Newline,
-                Token::Newline,
-                Token::Symbol("sub".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a1".into()),
-                Token::Newline,
-                Token::Label("my_block".to_owned()),
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
-                Token::Newline,
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
+                TokenType::Symbol("add".into()),
+                TokenType::Symbol("x2".into()),
+                TokenType::Symbol("x2".into()),
+                TokenType::Symbol("x3".into()),
+                TokenType::Newline,
+                TokenType::Label("BLCOK".to_owned()),
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Symbol("sub".into()),
+                TokenType::Symbol("a0".into()),
+                TokenType::Symbol("a0".into()),
+                TokenType::Symbol("a1".into()),
+                TokenType::Newline,
+                TokenType::Label("my_block".to_owned()),
+                TokenType::Symbol("add".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s2".into()),
+                TokenType::Newline,
+                TokenType::Symbol("add".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s2".into()),
             ]
         );
     }
@@ -662,32 +682,32 @@ mod tests {
         assert_eq!(
             lexer,
             vec![
-                Token::Directive(".text".to_string()),
-                Token::Symbol("add".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x3".into()),
-                Token::Comment(" hello, world!@#DKSAOKLJu3iou12o".to_string()),
-                Token::Newline,
-                Token::Label("BLCOK".to_string()),
-                Token::Newline,
-                Token::Newline,
-                Token::Newline,
-                Token::Symbol("sub".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a1".into()),
-                Token::Newline, // ERROR HERE
-                Token::Label("my_block".to_string()),
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
-                Token::Newline, // ERROR HERE
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
+                TokenType::Directive(".text".to_string()),
+                TokenType::Symbol("add".into()),
+                TokenType::Symbol("x2".into()),
+                TokenType::Symbol("x2".into()),
+                TokenType::Symbol("x3".into()),
+                TokenType::Comment(" hello, world!@#DKSAOKLJu3iou12o".to_string()),
+                TokenType::Newline,
+                TokenType::Label("BLCOK".to_string()),
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Symbol("sub".into()),
+                TokenType::Symbol("a0".into()),
+                TokenType::Symbol("a0".into()),
+                TokenType::Symbol("a1".into()),
+                TokenType::Newline, // ERROR HERE
+                TokenType::Label("my_block".to_string()),
+                TokenType::Symbol("add".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s2".into()),
+                TokenType::Newline, // ERROR HERE
+                TokenType::Symbol("add".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s2".into()),
             ]
         );
     }
@@ -701,38 +721,38 @@ mod tests {
         assert_eq!(
             lexer,
             vec![
-                Token::Directive(".text".to_string()),
-                Token::Newline,
-                Token::Symbol("add".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x2".into()),
-                Token::Symbol("x3".into()),
-                Token::Newline,
-                Token::Comment(" hello, world!@#DKSAOKLJu3iou12o".to_string()),
-                Token::Newline,
-                Token::Label("BLCOK".to_string()),
-                Token::Newline,
-                Token::Newline,
-                Token::Newline,
-                Token::Symbol("sub".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a0".into()),
-                Token::Symbol("a1".into()),
-                Token::Newline, // ERROR HERE
-                Token::Label("my_block".to_string()),
-                Token::Newline,
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
-                Token::Newline, // ERROR HERE
-                Token::Symbol("add".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s0".into()),
-                Token::Symbol("s2".into()),
-                Token::Newline,
-                Token::Label("label_abc".to_string()),
-                Token::Newline,
+                TokenType::Directive(".text".to_string()),
+                TokenType::Newline,
+                TokenType::Symbol("add".into()),
+                TokenType::Symbol("x2".into()),
+                TokenType::Symbol("x2".into()),
+                TokenType::Symbol("x3".into()),
+                TokenType::Newline,
+                TokenType::Comment(" hello, world!@#DKSAOKLJu3iou12o".to_string()),
+                TokenType::Newline,
+                TokenType::Label("BLCOK".to_string()),
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Symbol("sub".into()),
+                TokenType::Symbol("a0".into()),
+                TokenType::Symbol("a0".into()),
+                TokenType::Symbol("a1".into()),
+                TokenType::Newline, // ERROR HERE
+                TokenType::Label("my_block".to_string()),
+                TokenType::Newline,
+                TokenType::Symbol("add".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s2".into()),
+                TokenType::Newline, // ERROR HERE
+                TokenType::Symbol("add".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s0".into()),
+                TokenType::Symbol("s2".into()),
+                TokenType::Newline,
+                TokenType::Label("label_abc".to_string()),
+                TokenType::Newline,
             ]
         );
     }
@@ -745,9 +765,9 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::String("".into()),
-                Token::String("abcde".into()),
-                Token::String("\\'\"\n\t\r\u{8}\u{c}\0\u{03bb}".into()),
+                TokenType::String(String::new()),
+                TokenType::String("abcde".into()),
+                TokenType::String("\\'\"\n\t\r\u{8}\u{c}\0\u{03bb}".into()),
             ]
         );
     }
@@ -763,8 +783,8 @@ mod tests {
         assert!(matches!(
             &tokens[0],
             Ok(info) if matches!(
-                &info.token,
-                Token::String(s) if s == "Good string"
+                info.token_type(),
+                TokenType::String(s) if s == "Good string"
             )
         ));
 
@@ -802,7 +822,7 @@ mod tests {
 
         assert!(matches!(
             &tokens[1],
-            Ok(info) if matches!(&info.token, Token::Newline)
+            Ok(info) if matches!(info.token_type(), TokenType::Newline)
         ));
 
         assert!(matches!(
@@ -840,10 +860,10 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Char('a'),
-                Token::Char('b'),
-                Token::Char('\''),
-                Token::Char('\u{03bb}'),
+                TokenType::Char('a'),
+                TokenType::Char('b'),
+                TokenType::Char('\''),
+                TokenType::Char('\u{03bb}'),
             ]
         );
     }
@@ -865,7 +885,7 @@ mod tests {
 
         assert!(matches!(
             &tokens[1],
-            Ok(info) if matches!(&info.token, Token::Newline)
+            Ok(info) if matches!(info.token_type(), TokenType::Newline)
         ));
 
         assert!(matches!(
@@ -895,7 +915,7 @@ mod tests {
 
         assert!(matches!(
             &tokens[1],
-            Ok(info) if matches!(&info.token, Token::Newline)
+            Ok(info) if matches!(info.token_type(), TokenType::Newline)
         ));
 
         assert!(matches!(
@@ -913,7 +933,7 @@ mod tests {
         let input = "'\\a'";
         let tokens = tokenize_err(input);
 
-        println!("{:?}", tokens);
+        println!("{tokens:?}");
         assert_eq!(tokens.len(), 1);
 
         assert!(matches!(
@@ -933,7 +953,11 @@ mod tests {
 
         assert_eq!(
             tokens,
-            vec![Token::Char('\n'), Token::Char('n'), Token::Newline]
+            vec![
+                TokenType::Char('\n'),
+                TokenType::Char('n'),
+                TokenType::Newline
+            ]
         );
     }
 }

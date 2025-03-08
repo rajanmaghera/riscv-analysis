@@ -1,24 +1,21 @@
-use crate::parser::{Position, Range, RawToken, Token, With};
+use crate::parser::{Range, RawToken, Token, TokenType, With};
 
 impl RawToken {
     #[must_use]
     pub fn blank() -> Self {
-        RawToken {
-            text: String::new(),
-            pos: Range {
-                start: Position {
-                    raw_index: 0,
-                    line: 0,
-                    column: 0,
-                },
-                end: Position {
-                    raw_index: 0,
-                    line: 0,
-                    column: 0,
-                },
-            },
-            file: uuid::Uuid::nil(),
-        }
+        RawToken::new(String::new(), Range::default(), uuid::Uuid::nil())
+    }
+}
+
+impl Token {
+    #[must_use]
+    pub fn blank() -> Self {
+        Token::new(
+            TokenType::Newline,
+            String::new(),
+            Range::default(),
+            uuid::Uuid::nil(),
+        )
     }
 }
 
@@ -27,23 +24,7 @@ where
     T: PartialEq<T>,
 {
     pub fn blank(data: T) -> Self {
-        With {
-            token: Token::Symbol(String::new()),
-            pos: Range {
-                start: Position {
-                    raw_index: 0,
-                    line: 0,
-                    column: 0,
-                },
-                end: Position {
-                    raw_index: 0,
-                    line: 0,
-                    column: 0,
-                },
-            },
-            file: uuid::Uuid::nil(),
-            data,
-        }
+        With::new(data, Token::blank())
     }
 }
 
@@ -69,7 +50,7 @@ macro_rules! iarith {
             $crate::parser::With::blank($crate::parser::IArithType::$inst),
             $crate::parser::With::blank($crate::parser::Register::$rd),
             $crate::parser::With::blank($crate::parser::Register::$rs1),
-            $crate::parser::With::blank($crate::parser::Imm($imm)),
+            $crate::parser::With::blank($crate::parser::Imm::new($imm)),
             $crate::parser::RawToken::blank(),
         )
     };
@@ -113,34 +94,11 @@ macro_rules! store {
 }
 
 #[macro_export]
-macro_rules! act {
-    ($x:expr) => {
-        Mem::try_from(token!($x)).unwrap()
-    };
-}
-
-#[macro_export]
 macro_rules! exp {
     ($a:expr, $b:ident) => {
         Mem {
             offset: With::blank(Imm($a)),
             reg: With::blank(Register::$b),
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! token {
-    ($x:expr) => {
-        Info {
-            token: Token::Symbol($x.to_owned()),
-            pos: Range {
-                start: Position { line: 0, column: 0 },
-                end: Position {
-                    line: 0,
-                    column: $x.len(),
-                },
-            },
         }
     };
 }

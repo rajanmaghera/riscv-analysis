@@ -8,11 +8,15 @@ use std::rc::Rc;
 use serde::{Deserialize, Serialize};
 
 use crate::cfg::AvailableValueMap;
-use crate::parser::{LabelString, RegSets};
+use crate::parser::{
+    CsrImm, HasRegisterSets, InstructionProperties, LabelString, LabelStringToken,
+    RegisterProperties,
+};
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
 
 use super::memory_location::MemoryLocation;
+use super::{HasGenKillInfo, HasGenValueInfo};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 
 /// A value that is available at some point in the program.
@@ -34,7 +38,7 @@ pub enum AvailableValue {
     /// This is used when loading the address from a label. For example, using
     /// the `la` instruction to load the address of a label into a register.
     #[serde(rename = "a")]
-    Address(LabelString),
+    Address(LabelStringToken),
     /// The value of a memory location at some offset.
     ///
     /// This is a copy of the actual bit of memory that lives at plus some offset.
@@ -68,6 +72,12 @@ pub enum AvailableValue {
     MemoryAtRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we do not know the label
     #[serde(rename = "omr")]
     MemoryAtOriginalRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we are sure it is the same as the original
+    /// The value inside of a CSR register.
+    #[serde(rename = "c")]
+    ValueInCsr(CsrImm),
+    /// Value at memory location of value in CSR register.
+    #[serde(rename = "mc")]
+    MemoryAtCsr(CsrImm, i32),
 }
 
 /// Performs the available value analysis on the graph.
@@ -124,7 +134,7 @@ impl GenerationPass for AvailableValuePass {
                         acc
                     })
                     .unwrap_or_default();
-                node.set_reg_values_in(in_reg_n);
+                changed |= node.set_reg_values_in(in_reg_n);
 
                 // in_memory[n] = AND out_memory[p] for all p in prev[n]
                 let in_memory_n = node
@@ -138,33 +148,41 @@ impl GenerationPass for AvailableValuePass {
                         acc
                     })
                     .unwrap_or_default();
-                node.set_memory_values_in(in_memory_n);
+                changed |= node.set_memory_values_in(in_memory_n);
 
                 // out[n] = gen[n] U (in[n] - kill[n]) U (callee_saved if n is entry)
                 let mut out_reg_n = node.reg_values_in();
-                out_reg_n -= node.node().kill_reg_value().iter();
-                if let Some((reg, reg_value)) = node.node().gen_reg_value() {
+                out_reg_n -= node.kill_reg().iter();
+                if node.calls_to().is_some() {
+                    out_reg_n -= Register::return_addr_set().iter();
+                }
+                if let Some((reg, reg_value)) = node.gen_reg_value() {
                     out_reg_n.insert(reg, reg_value);
                 }
-                if node.node().is_function_entry() {
-                    out_reg_n.extend(RegSets::callee_saved().into_available_values());
+                if node.is_handler_function_entry() {
+                    out_reg_n.extend(Register::all_writable_set().into_available_values());
                 }
-                if node.node().is_program_entry() {
-                    out_reg_n.extend(RegSets::sp_ra().into_available_values());
+                if node.is_function_entry() {
+                    out_reg_n.extend(Register::callee_saved_set().into_available_values());
+                }
+                if node.is_program_entry() {
+                    out_reg_n.extend(Register::sp_ra_set().into_available_values());
                 }
 
                 // out_memory[n] = (gen_memory[n] if we know the location of the stack pointer) U in_memory[n]
                 // (There is no kill_stacks[n])
-                let mut out_memory_n = if node.node().is_any_entry() {
+                let mut out_memory_n = if node.is_any_entry() {
                     AvailableValueMap::new()
                 } else {
                     let mut map = node.memory_values_in();
                     if let Some((MemoryLocation::StackOffset(offset), value)) =
-                        node.node().gen_memory_value()
+                        node.gen_memory_value()
                     {
                         if let Some(curr_stack) = node.reg_values_in().stack_offset() {
                             map.insert(MemoryLocation::StackOffset(curr_stack + offset), value);
                         }
+                    } else if let Some((memory, value)) = node.gen_memory_value() {
+                        map.insert(memory, value);
                     }
                     map
                 };
@@ -176,6 +194,11 @@ impl GenerationPass for AvailableValuePass {
 
                 rule_expand_address_for_load(&node.node(), &mut out_reg_n, &node.reg_values_in());
                 rule_value_from_stack(&node.node(), &mut out_reg_n, &node.memory_values_in());
+                rule_pull_value_from_csr_memory(
+                    &node.node(),
+                    &mut out_reg_n,
+                    &node.memory_values_out(),
+                );
                 rule_zero_to_const(
                     &mut out_reg_n,
                     &node.reg_values_in(),
@@ -183,19 +206,14 @@ impl GenerationPass for AvailableValuePass {
                     &node.memory_values_in(),
                 );
                 rule_perform_math_ops(&node.node(), &mut out_reg_n, &node.reg_values_in());
-                rule_known_values_to_stack(&node.node(), &mut out_memory_n, &node.reg_values_in());
+                rule_push_value_to_csr_memory(&node.node(), &mut out_memory_n, &out_reg_n);
+                rule_known_values_to_stack(&mut out_memory_n, &node.reg_values_in());
                 // TODO stack reset?
 
                 // If either of the outs changed, replace the old outs with the new outs
                 // and mark that we changed something.
-                if out_reg_n != node.reg_values_out() {
-                    changed = true;
-                    node.set_reg_values_out(out_reg_n);
-                }
-                if out_memory_n != node.memory_values_out() {
-                    changed = true;
-                    node.set_memory_values_out(out_memory_n);
-                }
+                changed |= node.set_reg_values_out(out_reg_n);
+                changed |= node.set_memory_values_out(out_memory_n);
 
                 // Add node to visited
                 visited.insert(Rc::clone(&node));
@@ -217,23 +235,23 @@ fn rule_zero_to_const(
     memory_out: &mut AvailableValueMap<MemoryLocation>,
     memory_in: &AvailableValueMap<MemoryLocation>,
 ) {
-    for val in available_in {
-        match val.1 {
+    for (reg, val) in available_in {
+        match val {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
-                if r == &Register::X0 {
-                    available_out.insert(*val.0, AvailableValue::Constant(*i));
+                if r.is_const_zero() {
+                    available_out.insert(*reg, AvailableValue::Constant(*i));
                 }
             }
             _ => {}
         }
     }
-    for val in memory_in {
-        match val.1 {
+    for (mem_loc, val) in memory_in {
+        match val {
             AvailableValue::OriginalRegisterWithScalar(r, i)
             | AvailableValue::RegisterWithScalar(r, i) => {
-                if r == &Register::X0 {
-                    memory_out.insert(val.0.clone(), AvailableValue::Constant(*i));
+                if r.is_const_zero() {
+                    memory_out.insert(mem_loc.clone(), AvailableValue::Constant(*i));
                 }
             }
             _ => {}
@@ -251,19 +269,19 @@ fn rule_expand_address_for_load(
     available_out: &mut AvailableValueMap<Register>,
     available_in: &AvailableValueMap<Register>,
 ) {
-    if let Some(store_reg) = node.stores_to() {
+    if let Some(store_reg) = node.writes_to() {
         if let ParserNode::Load(load) = node {
             if let Some(AvailableValue::OriginalRegisterWithScalar(reg, off)) =
-                available_in.get(&load.rs1.data)
+                available_in.get(load.rs1.get())
             {
                 available_out.insert(
-                    store_reg.data,
-                    AvailableValue::MemoryAtOriginalRegister(*reg, *off + load.imm.data.0),
+                    store_reg.get_cloned(),
+                    AvailableValue::MemoryAtOriginalRegister(*reg, *off + load.imm.get().value()),
                 );
-            } else if let Some(AvailableValue::Address(label)) = available_in.get(&load.rs1.data) {
+            } else if let Some(AvailableValue::Address(label)) = available_in.get(load.rs1.get()) {
                 available_out.insert(
-                    store_reg.data,
-                    AvailableValue::Memory(label.clone(), load.imm.data.0),
+                    store_reg.get_cloned(),
+                    AvailableValue::Memory(label.get_cloned(), load.imm.get().value()),
                 );
             }
         }
@@ -279,16 +297,16 @@ fn rule_perform_math_ops(
     available_out: &mut AvailableValueMap<Register>,
     available_in: &AvailableValueMap<Register>,
 ) {
-    if let Some(reg) = node.stores_to() {
+    if let Some(reg) = node.writes_to() {
         let lhs = match node {
-            ParserNode::Arith(expr) => available_in.get(&expr.rs1.data).cloned(),
-            ParserNode::IArith(expr) => available_in.get(&expr.rs1.data).cloned(),
+            ParserNode::Arith(expr) => available_in.get(expr.rs1.get()).cloned(),
+            ParserNode::IArith(expr) => available_in.get(expr.rs1.get()).cloned(),
             _ => None,
         };
 
         let rhs = match node {
-            ParserNode::Arith(expr) => available_in.get(&expr.rs2.data).cloned(),
-            ParserNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.data.0)),
+            ParserNode::Arith(expr) => available_in.get(expr.rs2.get()).cloned(),
+            ParserNode::IArith(expr) => Some(AvailableValue::Constant(expr.imm.get().value())),
             _ => None,
         };
 
@@ -313,7 +331,7 @@ fn rule_perform_math_ops(
             (_, _) => None,
         };
         if let Some(val) = result {
-            available_out.insert(reg.data, val);
+            available_out.insert(reg.get_cloned(), val);
         }
     }
 }
@@ -324,17 +342,23 @@ fn rule_perform_math_ops(
 /// the stack contains a value at the offset, then store the value from the
 /// stack into the register.
 fn rule_value_from_stack(
-    node: &ParserNode,
+    node: &impl InstructionProperties,
     available_out: &mut AvailableValueMap<Register>,
     memory_in: &AvailableValueMap<MemoryLocation>,
 ) {
-    if let Some(reg) = node.stores_to() {
+    if let Some(reg) = node.writes_to() {
+        if let Some(AvailableValue::ValueInCsr(csr)) = available_out.get(reg.get()) {
+            if let Some(csr_value) = memory_in.get(&MemoryLocation::CsrRegister(*csr)) {
+                available_out.insert(reg.get_cloned(), csr_value.clone());
+            }
+        }
+
         if let Some(AvailableValue::MemoryAtOriginalRegister(psp, off)) =
-            available_out.get(&reg.data)
+            available_out.get(reg.get())
         {
-            if psp.is_sp() {
+            if psp.is_stack_pointer() {
                 if let Some(stack_val) = memory_in.get(&MemoryLocation::StackOffset(*off)) {
-                    available_out.insert(reg.data, stack_val.clone());
+                    available_out.insert(reg.get_cloned(), stack_val.clone());
                 }
             }
         }
@@ -347,7 +371,6 @@ fn rule_value_from_stack(
 /// but that register value is either a constant or the guaranteed register
 /// value at the entry of the function (B), then replace A with B.
 fn rule_known_values_to_stack(
-    _node: &ParserNode,
     memory_out: &mut AvailableValueMap<MemoryLocation>,
     available_in: &AvailableValueMap<Register>,
 ) {
@@ -370,3 +393,43 @@ fn rule_known_values_to_stack(
         }
     }
 }
+
+fn rule_push_value_to_csr_memory(
+    node: &impl InstructionProperties,
+    memory_out: &mut AvailableValueMap<MemoryLocation>,
+    available_in: &AvailableValueMap<Register>,
+) {
+    // If the node writes to memory
+    if let Some((source, (reg, off))) = node.stores_to_memory() {
+        // If the register contains a csr value
+        if let Some(AvailableValue::ValueInCsr(csr)) = available_in.get(&reg) {
+            // Push the value to the memory
+            memory_out.insert(
+                MemoryLocation::CsrRegisterValueOffset(*csr, off.value()),
+                AvailableValue::RegisterWithScalar(source, 0),
+            );
+        }
+    }
+}
+
+fn rule_pull_value_from_csr_memory(
+    node: &impl InstructionProperties,
+    available_out: &mut AvailableValueMap<Register>,
+    memory_out: &AvailableValueMap<MemoryLocation>,
+) {
+    // If the node reads from memory
+    if let Some(((reg, off), dest)) = node.reads_from_memory() {
+        // If the source address is a csr memory location
+        if let Some(AvailableValue::ValueInCsr(csr)) = available_out.get(&reg) {
+            // If the memory at csr contains a value
+            if let Some(value) =
+                memory_out.get(&MemoryLocation::CsrRegisterValueOffset(*csr, off.value()))
+            {
+                // Pull the value from the memory
+                available_out.insert(dest, value.clone());
+            }
+        }
+    }
+}
+
+// TODO: generic function that converts available value to memory location and vice versa

@@ -1,7 +1,7 @@
 use crate::{
     cfg::Cfg,
-    parser::ParserNode,
-    passes::{LintError, LintPass},
+    parser::InstructionProperties,
+    passes::{DiagnosticBuilder, DiagnosticManager, LintError, LintPass},
 };
 use std::rc::Rc;
 
@@ -13,42 +13,39 @@ use std::rc::Rc;
 /// - Any code that has no previous nodes, i.e. is unreachable.
 pub struct ControlFlowCheck;
 impl LintPass for ControlFlowCheck {
-    fn run(cfg: &Cfg, errors: &mut Vec<LintError>) {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in &cfg.clone() {
-            match node.node() {
-                ParserNode::FuncEntry(_) => {
-                    // If the previous nodes set is not empty
-                    // Note: this also accounts for functions being at the beginning
-                    // of a program, as the ProgEntry node will be the previous node
-                    for prev_node in node.prevs().iter() {
-                        for function in node.functions().iter() {
-                            if prev_node.node().is_program_entry() {
-                                errors.push(LintError::FirstInstructionIsFunction(
-                                    node.node().clone(),
-                                    Rc::clone(function),
-                                ));
-                            }
-                            // Jumps (J not JAL) to the start of recognized
-                            // functions are errors
-                            else if prev_node.node().is_unconditional_jump() {
-                                errors.push(LintError::InvalidJumpToFunction(
-                                    node.node().clone(),
-                                    prev_node.node().clone(),
-                                    Rc::clone(function),
-                                ));
-                                // Create at most one error per node
-                                break;
-                            }
+            if node.is_function_entry() {
+                // If the previous nodes set is not empty
+                // Note: this also accounts for functions being at the beginning
+                // of a program, as the ProgEntry node will be the previous node
+                for prev_node in node.prevs().iter() {
+                    for function in node.functions().iter() {
+                        if prev_node.is_program_entry() {
+                            errors.push(LintError::FirstInstructionIsFunction(
+                                node.node().clone(),
+                                Rc::clone(function),
+                            ));
+                        }
+                        // Jumps (J not JAL) to the start of recognized
+                        // functions are errors
+                        else if prev_node.is_unconditional_jump() {
+                            errors.push(LintError::InvalidJumpToFunction(
+                                node.node().clone(),
+                                prev_node.node().clone(),
+                                Rc::clone(function),
+                            ));
+                            // Create at most one error per node
+                            break;
                         }
                     }
                 }
-                // The program entry should have no prevs
-                ParserNode::ProgramEntry(_) => {}
-                _ => {
-                    if node.prevs().is_empty() {
-                        errors.push(LintError::UnreachableCode(node.node().clone()));
-                    }
-                }
+            } else if !node.is_program_entry() && node.prevs().is_empty() {
+                errors.push_real(
+                    DiagnosticBuilder::new("unreachable-code", "Unreachable line of code")
+                        .description("There is no path to this instruction.")
+                        .is_warning_on(node),
+                );
             }
         }
     }
@@ -56,11 +53,12 @@ impl LintPass for ControlFlowCheck {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use crate::parser::RVStringParser;
     use crate::passes::Manager;
 
-    fn run_pass(input: &str) -> Vec<LintError> {
+    fn run_pass(input: &str) -> DiagnosticManager {
         let (nodes, error) = RVStringParser::parse_from_text(input);
         assert_eq!(error.len(), 0);
 
@@ -87,28 +85,22 @@ mod tests {
         assert_eq!(lints.len(), 5);
 
         // The first error should warn about the first instruction of `fn_a`
-        assert!(matches!(
-        &lints[0], LintError::FirstInstructionIsFunction(node, _)
-            if node.token().text == "addi a0 a0 1"
-        ));
+
+        assert_eq!(lints[0].get_error_code(), "first-instruction-is-function");
+        assert_eq!(lints[0].raw_text(), "addi a0 a0 1");
 
         // Next four errors should be about unreachable code
-        assert!(matches!(
-        &lints[1], LintError::UnreachableCode(node, ..)
-            if node.token().text == "li a0 0"
-        ));
-        assert!(matches!(
-        &lints[2], LintError::UnreachableCode(node, ..)
-            if node.token().text == "jal fn_a"
-        ));
-        assert!(matches!(
-        &lints[3], LintError::UnreachableCode(node, ..)
-            if node.token().text == "addi a7 zero 10"
-        ));
-        assert!(matches!(
-        &lints[4], LintError::UnreachableCode(node, ..)
-            if node.token().text == "ecall"
-        ));
+        assert_eq!(lints[1].get_error_code(), "unreachable-code");
+        assert_eq!(lints[1].raw_text(), "li a0 0");
+
+        assert_eq!(lints[2].get_error_code(), "unreachable-code");
+        assert_eq!(lints[2].raw_text(), "jal fn_a");
+
+        assert_eq!(lints[3].get_error_code(), "unreachable-code");
+        assert_eq!(lints[3].raw_text(), "addi a7 zero 10");
+
+        assert_eq!(lints[4].get_error_code(), "unreachable-code");
+        assert_eq!(lints[4].raw_text(), "ecall");
     }
 
     #[test]
@@ -131,18 +123,15 @@ mod tests {
         // unreachable instructions in `main` after the `j` instruction
         assert_eq!(lints.len(), 3);
 
-        assert!(matches!(
-        &lints[0], LintError::UnreachableCode(node, ..)
-            if node.token().text == "addi a7 zero 10"
-        ));
-        assert!(matches!(
-        &lints[1], LintError::UnreachableCode(node, ..)
-            if node.token().text == "ecall"
-        ));
-        assert!(matches!(
-        &lints[2], LintError::InvalidJumpToFunction(node, ..)
-            if node.token().text == "addi a0 a0 1"
-        ));
+        // The first error should warn about the first instruction of `fn_a`
+        assert_eq!(lints[0].get_error_code(), "unreachable-code");
+        assert_eq!(lints[0].raw_text(), "addi a7 zero 10");
+
+        assert_eq!(lints[1].get_error_code(), "unreachable-code");
+        assert_eq!(lints[1].raw_text(), "ecall");
+
+        assert_eq!(lints[2].get_error_code(), "invalid-jump-to-function");
+        assert_eq!(lints[2].raw_text(), "addi a0 a0 1");
     }
 
     #[test]
@@ -166,7 +155,6 @@ mod tests {
         assert_eq!(lints.len(), 0);
     }
 
-
     #[test]
     fn unreachable_directive() {
         let input = "\
@@ -187,5 +175,15 @@ mod tests {
 
         // An "unreachable" directive shouldn't cause an error
         assert_eq!(lints.len(), 0);
+    }
+
+    #[test]
+    fn immediate_exit_of_code() {
+        let input = "\
+            main:       \n\
+            li a7, 10   \n\
+            ecall       \n";
+        let errors = run_pass(input);
+        assert_eq!(errors.len(), 0);
     }
 }

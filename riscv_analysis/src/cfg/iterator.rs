@@ -1,12 +1,15 @@
-use crate::cfg::{Cfg, CfgNode};
+use crate::{
+    cfg::{Cfg, CfgNode},
+    passes::DiagnosticLocation,
+};
 use std::{collections::HashSet, rc::Rc};
 
 /// Iterate over all nodes in a CFG.
 pub struct CfgIterator<'a> {
     nodes: &'a Vec<Rc<CfgNode>>,
-    start: usize,       // Location in the iteration
+    start: usize, // Location in the iteration
     end: usize,
-    end_final: bool,    // True if `end` has reached the start
+    end_final: bool, // True if `end` has reached the start
 }
 
 impl<'a> CfgIterator<'a> {
@@ -21,7 +24,7 @@ impl<'a> CfgIterator<'a> {
             0 => {
                 end_final = true;
                 0
-            },
+            }
             l => l - 1,
         };
 
@@ -62,9 +65,7 @@ impl DoubleEndedIterator for CfgIterator<'_> {
             return None;
         }
 
-        let result = self.nodes
-                         .get(self.end)
-                         .map(Rc::clone);
+        let result = self.nodes.get(self.end).map(Rc::clone);
 
         if self.end == 0 {
             self.end_final = true;
@@ -75,7 +76,6 @@ impl DoubleEndedIterator for CfgIterator<'_> {
         result
     }
 }
-
 
 /// Iterate over all nodes in the order that they appear in the source file.
 ///
@@ -94,23 +94,20 @@ impl CfgSourceIterator {
 
         // Sort by location
         nodes.sort_by(|a, b| {
-            let a_pos = a.node().token().pos.end.raw_index;
-            let b_pos = b.node().token().pos.end.raw_index;
-            a_pos.cmp(&b_pos)
+            let a_token = a.range();
+            let b_token = b.range();
+            a_token.end().cmp(b_token.end())
         });
 
         // Sort by file. We know that `sort_by` is stable, so this has the
         // effect of grouping by file
         nodes.sort_by(|a, b| {
-            let a_file = a.node().token().file;
-            let b_file = b.node().token().file;
+            let a_file = a.file();
+            let b_file = b.file();
             a_file.cmp(&b_file)
         });
 
-        Self {
-            nodes,
-            start: 0,
-        }
+        Self { nodes, start: 0 }
     }
 }
 
@@ -136,8 +133,8 @@ impl Iterator for CfgSourceIterator {
 ///
 /// You must not modify the key of any CFG node during the traversal.
 pub struct CfgNextsIterator {
-    queue: Vec<Rc<CfgNode>>,        // Nodes we have seen but not visited yet
-    visted: HashSet<Rc<CfgNode>>,   // Nodes we have visited
+    queue: Vec<Rc<CfgNode>>,      // Nodes we have seen but not visited yet
+    visted: HashSet<Rc<CfgNode>>, // Nodes we have visited
 }
 
 impl CfgNextsIterator {
@@ -185,8 +182,8 @@ impl Iterator for CfgNextsIterator {
 ///
 /// You must not modify the key of any CFG node during the traversal.
 pub struct CfgPrevsIterator {
-    queue: Vec<Rc<CfgNode>>,        // Nodes we have seen but not visited yet
-    visted: HashSet<Rc<CfgNode>>,   // Nodes we have visited
+    queue: Vec<Rc<CfgNode>>,      // Nodes we have seen but not visited yet
+    visted: HashSet<Rc<CfgNode>>, // Nodes we have visited
 }
 
 impl CfgPrevsIterator {

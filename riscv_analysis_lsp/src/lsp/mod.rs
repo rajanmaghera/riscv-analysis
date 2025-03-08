@@ -23,12 +23,12 @@ impl RangeInto for MyRange {
     fn to_range(&self) -> Range {
         lsp_types::Range {
             start: Position {
-                line: self.start.line.try_into().unwrap_or(0),
-                character: self.start.column.try_into().unwrap_or(0),
+                line: self.start().zero_idx_line().try_into().unwrap_or(0),
+                character: self.start().zero_idx_column().try_into().unwrap_or(0),
             },
             end: Position {
-                line: self.end.line.try_into().unwrap_or(0),
-                character: self.end.column.try_into().unwrap_or(0),
+                line: self.end().zero_idx_line().try_into().unwrap_or(0),
+                character: self.end().zero_idx_column().try_into().unwrap_or(0),
             },
         }
     }
@@ -56,10 +56,7 @@ pub trait LSPDiag {
 impl LSPDiag for DiagnosticItem {
     fn to_lsp_diag(&self, parser: &RVParser<LSPFileReader>) -> LSPRVSingleDiagnostic {
         LSPRVSingleDiagnostic {
-            uri: parser
-                .reader
-                .get_filename(self.file)
-                .unwrap_or_default(), // Empty string by default
+            uri: parser.reader.get_filename(self.file).unwrap_or_default(), // Empty string by default
             diagnostic: Diagnostic {
                 range: self.range.to_range(),
                 severity: Some(self.level.clone().to_severity()),
@@ -72,8 +69,7 @@ impl LSPDiag for DiagnosticItem {
                         .map(|f1| DiagnosticRelatedInformation {
                             location: Location {
                                 uri: Url::parse(
-                                    &parser.reader.get_filename(f1.file)
-                                                  .unwrap_or_default(), // Empty string by default
+                                    &parser.reader.get_filename(f1.file).unwrap_or_default(), // Empty string by default
                                 )
                                 .unwrap(),
                                 range: f1.range.to_range(),
@@ -92,6 +88,7 @@ impl LSPDiag for DiagnosticItem {
 #[derive(Clone)]
 pub struct LSPFileReader {
     pub file_uris: HashMap<Uuid, RVDocument>,
+    pub base_file: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -152,17 +149,25 @@ impl FileReader for LSPFileReader {
         let doc = doc.unwrap();
         Ok((doc.0, doc.1.text))
     }
+
+    fn get_base_file(&self) -> Option<uuid::Uuid> {
+        self.base_file
+    }
 }
 
 impl LSPFileReader {
     pub fn new(docs: Vec<RVDocument>) -> Self {
         let mut map = HashMap::new();
-
+        let mut base_file: Option<Uuid> = None;
         for doc in docs {
             let uuid = Uuid::new_v4();
+            base_file.get_or_insert(uuid);
             map.insert(uuid, doc);
         }
 
-        LSPFileReader { file_uris: map }
+        LSPFileReader {
+            file_uris: map,
+            base_file,
+        }
     }
 }

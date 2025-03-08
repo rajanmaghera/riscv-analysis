@@ -1,15 +1,14 @@
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::{
-    cfg::RegisterSet,
-    parser::token::{Info, Token},
-};
+use crate::{cfg::RegisterSet, parser::token::Token};
 use std::{
     collections::HashSet,
     fmt::Display,
     hash::{Hash, Hasher},
     str::FromStr,
 };
+
+use super::{TokenType, With};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
@@ -48,12 +47,12 @@ pub enum Register {
     X31,
 }
 
-impl TryFrom<Info> for Register {
+impl TryFrom<Token> for Register {
     type Error = ();
 
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
-        match value.token {
-            Token::Symbol(s) => Register::from_str(&s),
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.token_type() {
+            TokenType::Symbol(s) => Register::from_str(s),
             _ => Err(()),
         }
     }
@@ -231,11 +230,6 @@ impl Register {
     }
 
     #[must_use]
-    pub fn is_sp(self) -> bool {
-        self == Register::X2
-    }
-
-    #[must_use]
     pub fn ecall_type() -> Register {
         Register::X17
     }
@@ -330,3 +324,5 @@ impl Display for Register {
         f.write_str(res)
     }
 }
+
+pub type RegisterToken = With<Register>;

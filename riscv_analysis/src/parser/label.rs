@@ -2,10 +2,27 @@ use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use super::{Info, Register, Token};
+use super::{Register, Token, TokenType, With};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-pub struct LabelString(pub String);
+pub struct LabelString(String);
+
+impl LabelString {
+    pub fn new<S: Into<String>>(value: S) -> Self {
+        LabelString(value.into())
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<'a> From<&'a LabelString> for &'a str {
+    fn from(label: &'a LabelString) -> &'a str {
+        label.0.as_str()
+    }
+}
 
 impl PartialEq<str> for LabelString {
     fn eq(&self, other: &str) -> bool {
@@ -51,12 +68,12 @@ impl Display for LabelString {
     }
 }
 
-impl TryFrom<Info> for LabelString {
+impl TryFrom<Token> for LabelString {
     type Error = ();
 
-    fn try_from(value: Info) -> Result<Self, Self::Error> {
-        match value.token {
-            Token::Symbol(s) => LabelString::try_from(s),
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.token_type() {
+            TokenType::Symbol(s) => LabelString::try_from(s.clone()),
             _ => Err(()),
         }
     }
@@ -69,3 +86,5 @@ impl TryFrom<String> for LabelString {
         LabelString::from_str(&value)
     }
 }
+
+pub type LabelStringToken = With<LabelString>;

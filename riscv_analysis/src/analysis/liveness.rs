@@ -1,8 +1,10 @@
 use crate::{
-    parser::RegSets,
+    parser::{HasRegisterSets, InstructionProperties, Register},
     passes::{CfgError, GenerationPass},
 };
 use std::collections::HashSet;
+
+use super::HasGenKillInfo;
 
 pub struct LivenessPass;
 impl GenerationPass for LivenessPass {
@@ -22,19 +24,13 @@ impl GenerationPass for LivenessPass {
                     .map(|x| x.live_in())
                     .reduce(|acc, x| acc | x)
                     .unwrap_or_default();
-                node.set_live_out(live_out);
+                changed |= node.set_live_out(live_out);
 
-                if let Some((func, _)) = node.calls_to(cfg) {
-                    // live_in[F_exit] = live_in[F_exit] U gen[F_exit] (live_out[n] AND u_def[F_exit])
+                if let Some((func, _)) = node.calls_to_from_cfg(cfg) {
+                    // live_in[F_exit] = live_in[F_exit] U gen[F_exit] U live_out[n]
                     // We take the union of the existing live_in to match multiple call sites
-                    let func_exit_live_in = (node.live_out() & func.exit().u_def())
-                        | func.exit().live_in()
-                        | func.exit().node().gen_reg();
-
-                    if func_exit_live_in != func.exit().live_in() {
-                        changed = true;
-                        func.exit().set_live_in(func_exit_live_in);
-                    }
+                    let func_exit_live_in = (node.live_out()) | func.exit().live_in();
+                    changed |= func.exit().set_live_in(func_exit_live_in);
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - kill[n] | (u_def[F_exit] AND return-registers)
                     // kill[n] = caller-saved
@@ -53,23 +49,19 @@ impl GenerationPass for LivenessPass {
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default()
-                        - RegSets::caller_saved())
-                        | (func.exit().u_def() & RegSets::ret());
+                        - Register::caller_saved_set())
+                        | (func.exit().u_def() & Register::return_set());
 
-                    // live_in[n] = (live_in[F] & argument-registers) U (live_out[n] - kill[n])
+                    // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - kill[n])
                     // kill[n] = caller-saved
-                    let live_in_temp = node.live_out() - RegSets::caller_saved();
-                    let live_in = (func.entry().live_out() & RegSets::argument()) | live_in_temp;
+                    let live_in_temp = node.live_out() - node.kill_reg();
+                    let live_in = (func.entry().live_out() & Register::argument_set())
+                        | live_in_temp
+                        | node.gen_reg();
 
-                    if live_in != node.live_in() {
-                        changed = true;
-                        node.set_live_in(live_in);
-                    }
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
-                } else if node.node().is_ecall() {
+                    changed |= node.set_live_in(live_in);
+                    changed |= node.set_u_def(u_def);
+                } else if node.is_ecall() {
                     let (args, rets) = node.known_ecall_signature().unwrap_or_default();
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - caller-saved | ecall_returns
@@ -81,24 +73,21 @@ impl GenerationPass for LivenessPass {
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default()
-                        - RegSets::caller_saved())
+                        - Register::caller_saved_set())
                         | rets;
 
                     // live_in[n] = (live_out[n] - caller-saved) U ecall_args U ecall_ins
                     // ecall_args = X17 (a7) in every case U inputs to the ecall if known by available value analysis, otherwise empty
-                    let live_in = (node.live_out() - RegSets::caller_saved())
-                        | RegSets::ecall_always_argument()
+                    let live_in = (node.live_out() - Register::caller_saved_set())
+                        | Register::ecall_always_argument_set()
                         | args;
+                    changed |= node.set_live_in(live_in);
+                    changed |= node.set_u_def(u_def);
+                } else if node.is_return() {
+                    // live_in[n] = live_in[n] U gen[n]
+                    let live_in = node.live_in() | node.gen_reg();
+                    changed |= node.set_live_in(live_in);
 
-                    if live_in != node.live_in() {
-                        changed = true;
-                        node.set_live_in(live_in);
-                    }
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
-                } else if node.node().is_return() {
                     // u_def[n] = AND u_def[s] for all s in prev[n]
                     let u_def = node
                         .prevs()
@@ -108,27 +97,16 @@ impl GenerationPass for LivenessPass {
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default();
-
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
-                } else if node.node().is_function_entry() {
+                    changed |= node.set_u_def(u_def);
+                } else if node.is_function_entry() {
                     // live_in[n] = gen[n] U (live_out[n] - kill[n])
-                    let live_in =
-                        (node.live_out() - node.node().kill_reg()) | node.node().gen_reg();
+                    let live_in = (node.live_out() - node.kill_reg()) | node.gen_reg();
 
                     // u_def[n] = live_in[n] AND argument-registers
-                    let u_def = live_in & RegSets::argument();
+                    let u_def = live_in & Register::argument_set();
 
-                    if live_in != node.live_in() {
-                        changed = true;
-                        node.set_live_in(live_in);
-                    }
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
+                    changed |= node.set_live_in(live_in);
+                    changed |= node.set_u_def(u_def);
                 } else {
                     // u_def[n] = AND u_def[s] for all s in prev[n] | kill[n]
                     let u_def = (node
@@ -139,20 +117,13 @@ impl GenerationPass for LivenessPass {
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default())
-                        | node.node().kill_reg();
+                        | node.kill_reg();
 
                     // live_in[n] = gen[n] U (live_out[n] - kill[n])
-                    let live_in =
-                        (node.live_out() - node.node().kill_reg()) | node.node().gen_reg();
+                    let live_in = (node.live_out() - node.kill_reg()) | node.gen_reg();
 
-                    if live_in != node.live_in() {
-                        changed = true;
-                        node.set_live_in(live_in);
-                    }
-                    if u_def != node.u_def() {
-                        changed = true;
-                        node.set_u_def(u_def);
-                    }
+                    changed |= node.set_live_in(live_in);
+                    changed |= node.set_u_def(u_def);
                 }
                 visited.insert(node);
             }

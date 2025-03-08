@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display};
 
-use crate::parser::{LabelString, ParserNode, With};
+use crate::parser::{LabelStringToken, ParserNode};
 
 use super::{DiagnosticLocation, DiagnosticMessage, SeverityLevel};
 
@@ -14,12 +14,12 @@ use super::{DiagnosticLocation, DiagnosticMessage, SeverityLevel};
 /// and to use `LintErrors`, as those are recoverable.
 pub enum CfgError {
     /// This error occurs when a label is used but not defined.
-    LabelsNotDefined(HashSet<With<LabelString>>),
+    LabelsNotDefined(HashSet<LabelStringToken>),
     /// This error occurs when a label is defined more than once.
-    DuplicateLabel(With<LabelString>),
+    DuplicateLabel(LabelStringToken),
     /// This error occurs when a return statement is used but can be reached by
     /// multiple labels.
-    MultipleLabelsForReturn(ParserNode, HashSet<With<LabelString>>),
+    MultipleLabelsForReturn(ParserNode, HashSet<LabelStringToken>),
     /// This error occurs when a return statement is used but can be reached by
     /// no labels.
     NoLabelForReturn(ParserNode),
@@ -84,8 +84,7 @@ impl From<&CfgError> for SeverityLevel {
 impl DiagnosticLocation for CfgError {
     fn file(&self) -> uuid::Uuid {
         match self {
-            CfgError::MultipleLabelsForReturn(node, _)
-                | CfgError::NoLabelForReturn(node) => {
+            CfgError::MultipleLabelsForReturn(node, _) | CfgError::NoLabelForReturn(node) => {
                 node.file()
             }
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().file(),
@@ -96,13 +95,23 @@ impl DiagnosticLocation for CfgError {
 
     fn range(&self) -> crate::parser::Range {
         match self {
-            CfgError::MultipleLabelsForReturn(node, _)
-                | CfgError::NoLabelForReturn(node) => {
+            CfgError::MultipleLabelsForReturn(node, _) | CfgError::NoLabelForReturn(node) => {
                 node.range()
             }
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().range(),
             CfgError::DuplicateLabel(label) => label.range(),
             CfgError::UnexpectedError | CfgError::AssertionError => crate::parser::Range::default(),
+        }
+    }
+
+    fn raw_text(&self) -> String {
+        match self {
+            CfgError::MultipleLabelsForReturn(node, _) | CfgError::NoLabelForReturn(node) => {
+                node.raw_text()
+            }
+            CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().raw_text(),
+            CfgError::DuplicateLabel(label) => label.raw_text(),
+            CfgError::UnexpectedError | CfgError::AssertionError => String::new(),
         }
     }
 }

@@ -3,7 +3,7 @@
     {
       "file": "sample/unused-value.s",
       "title": "Unused value",
-      "description": "Unused value",
+      "description": "",
       "level": "Warning",
       "range": {
         "start": {

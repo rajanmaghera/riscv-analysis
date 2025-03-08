@@ -82,6 +82,10 @@ impl FileReader for EmptyFileReader {
             None
         }
     }
+
+    fn get_base_file(&self) -> Option<uuid::Uuid> {
+        self.base_file_uuid
+    }
 }
 
 #[cfg(test)]
@@ -95,7 +99,7 @@ mod test {
         let mut reader = EmptyFileReader::new(text);
 
         let (uuid, contents) = reader
-            .import_file(&EmptyFileReader::get_file_path(), None)
+            .import_file(EmptyFileReader::get_file_path(), None)
             .expect("File reading should not fail");
         assert_eq!(contents, text);
 
@@ -137,7 +141,7 @@ mod test {
         let mut reader = EmptyFileReader::new(text);
 
         let (uuid, contents) = reader
-            .import_file(&EmptyFileReader::get_file_path(), None)
+            .import_file(EmptyFileReader::get_file_path(), None)
             .expect("File reading should not fail");
         assert_eq!(contents, text);
 

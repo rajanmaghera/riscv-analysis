@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
-    ArithType, BasicType, BranchType, CSRIType, CSRImm, CSRType, DirectiveToken, IArithType,
-    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelString, LoadType, PseudoType, RawToken,
+    ArithType, BasicType, BranchType, CsrIType, CsrImm, CsrType, DirectiveToken, IArithType,
+    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelStringToken, LoadType, PseudoType, RawToken,
     Register, StoreType, With,
 };
 
@@ -35,7 +35,7 @@ pub struct IArith {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Label {
-    pub name: With<LabelString>,
+    pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
@@ -45,7 +45,7 @@ pub struct Label {
 pub struct JumpLink {
     pub inst: With<JumpLinkType>,
     pub rd: With<Register>,
-    pub name: With<LabelString>,
+    pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
@@ -78,7 +78,7 @@ pub struct Branch {
     pub inst: With<BranchType>,
     pub rs1: With<Register>,
     pub rs2: With<Register>,
-    pub name: With<LabelString>,
+    pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
@@ -147,20 +147,20 @@ impl Display for DirectiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DirectiveType::Include(s) => write!(f, "include {s}"),
-            DirectiveType::Align(i) => write!(f, "align {}", i.data.0),
+            DirectiveType::Align(i) => write!(f, "align {}", i.get().value()),
             DirectiveType::Ascii { text, .. } => {
-                write!(f, "ascii \"{}\"", text.data)
+                write!(f, "ascii \"{text}\"")
             }
             DirectiveType::DataSection => write!(f, ".data"),
             DirectiveType::TextSection => write!(f, ".text"),
             DirectiveType::Data(dt, data) => {
                 write!(f, "{dt} ")?;
                 for d in data {
-                    write!(f, "{}, ", d.data.0)?;
+                    write!(f, "{}, ", d.get().value())?;
                 }
                 Ok(())
             }
-            DirectiveType::Space(i) => write!(f, "space {}", i.data.0),
+            DirectiveType::Space(i) => write!(f, "space {}", i.get().value()),
         }
     }
 }
@@ -177,9 +177,9 @@ pub struct Directive {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Csr {
-    pub inst: With<CSRType>,
+    pub inst: With<CsrType>,
     pub rd: With<Register>,
-    pub csr: With<CSRImm>,
+    pub csr: With<CsrImm>,
     pub rs1: With<Register>,
     #[serde(skip)]
     pub key: Uuid,
@@ -189,9 +189,9 @@ pub struct Csr {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CsrI {
-    pub inst: With<CSRIType>,
+    pub inst: With<CsrIType>,
     pub rd: With<Register>,
-    pub csr: With<CSRImm>,
+    pub csr: With<CsrImm>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
@@ -212,7 +212,7 @@ pub struct Ignore {
 pub struct LoadAddr {
     pub inst: With<PseudoType>,
     pub rd: With<Register>,
-    pub name: With<LabelString>,
+    pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip)]
@@ -227,6 +227,8 @@ pub struct FuncEntry {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    #[serde(skip)]
+    pub is_interrupt_handler: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

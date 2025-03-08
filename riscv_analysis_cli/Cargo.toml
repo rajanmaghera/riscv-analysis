@@ -1,8 +1,8 @@
 [package]
 name = "riscv_analysis_cli"
-version = "0.1.0-alpha"
+version = "0.1.0-alpha.2"
 edition = "2021"
-description = "RISC-V static analysis tool -- CLI"
+description = "RISC-V Analyzer -- static analysis tool for RISC-V assembly"
 authors = ["Rajan Maghera"]
 repository = "https://github.com/rajanmaghera/riscv-analysis"
 license = "GPL-3.0"
@@ -15,8 +15,13 @@ path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+fixes = []
+analysis_debugger = []
+c229 = []
+
 [dependencies]
-riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-alpha" }
+riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-alpha.2"}
 clap = { version = "4.3.8", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
@@ -33,4 +38,3 @@ features = [
     "fast-rng",          # Use a faster (but still sufficiently random) RNG
     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
 ]
-

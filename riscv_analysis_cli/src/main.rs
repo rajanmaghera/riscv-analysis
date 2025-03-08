@@ -1,20 +1,25 @@
 mod printer;
+use pretty_print_options::PrettyPrintOptions;
 use printer::*;
+mod pretty_print_options;
 
 use std::fmt::Display;
+#[cfg(feature = "fixes")]
 use std::io::Write;
 use std::{collections::HashMap, str::FromStr};
 
-// use bat::line_range::{LineRange, LineRanges};
-// use bat::{Input, PrettyPrinter};
+#[cfg(feature = "fixes")]
 use colored::Colorize;
+#[cfg(feature = "fixes")]
 use riscv_analysis::fix::Manipulation;
-use riscv_analysis::parser::RVParser;
 use riscv_analysis::passes::DiagnosticItem;
+use riscv_analysis::{parser::RVParser, passes::DiagnosticManager};
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use riscv_analysis::passes::{DiagnosticLocation, Manager};
+#[cfg(feature = "analysis_debugger")]
+use riscv_analysis::passes::DiagnosticLocation;
+use riscv_analysis::passes::Manager;
 
 use clap::{Args, Parser, Subcommand};
 use riscv_analysis::reader::{FileReader, FileReaderError};
@@ -32,6 +37,7 @@ enum Commands {
     #[clap(name = "lint")]
     Lint(Lint),
     /// Debug options for testing
+    #[cfg(feature = "analysis_debugger")]
     #[clap(name = "debug_parse")]
     DebugParse(DebugParse),
 }
@@ -39,7 +45,7 @@ enum Commands {
 #[derive(Args)]
 struct Lint {
     /// Input file
-    input: PathBuf,
+    path: PathBuf,
     /// Debug mode
     #[clap(short, long)]
     debug: bool,
@@ -52,8 +58,18 @@ struct Lint {
     /// Remove output
     #[clap(long)]
     no_output: bool,
+    /// No color output
+    #[clap(long)]
+    no_color: bool,
+    /// Compact output
+    #[clap(long)]
+    compact: bool,
+    /// Display errors from all files
+    #[clap(long)]
+    all_files: bool,
 }
 
+#[cfg(feature = "fixes")]
 #[derive(Args)]
 struct Fix {
     /// Input file
@@ -67,6 +83,7 @@ struct Fix {
     func_name: String,
 }
 
+#[cfg(feature = "analysis_debugger")]
 #[derive(Args)]
 struct DebugParse {
     /// Input file
@@ -77,6 +94,7 @@ struct DebugParse {
 struct IOFileReader {
     // path, uuid
     files: HashMap<uuid::Uuid, (String, String)>,
+    base_file: Option<uuid::Uuid>,
 }
 
 #[derive(Debug)]
@@ -97,9 +115,10 @@ impl IOFileReader {
     fn new() -> Self {
         IOFileReader {
             files: HashMap::new(),
+            base_file: None,
         }
     }
-    #[allow(dead_code)]
+    #[cfg(feature = "fixes")]
     fn apply_fixes(&self, fixes: Vec<Manipulation>) -> Result<(), ManipulationError> {
         struct ChangedRanges {
             filename: String,
@@ -255,6 +274,7 @@ impl FileReader for IOFileReader {
 
         // store full path to file
         let uuid = uuid::Uuid::new_v4();
+        self.base_file.get_or_insert(uuid);
         if self
             .files
             .insert(uuid, (path.clone(), file.clone()))
@@ -264,6 +284,10 @@ impl FileReader for IOFileReader {
         }
 
         Ok((uuid, file))
+    }
+
+    fn get_base_file(&self) -> Option<uuid::Uuid> {
+        self.base_file
     }
 }
 
@@ -276,7 +300,7 @@ fn main() {
 
             let mut diags = Vec::new();
             let parsed = parser.parse_from_file(
-                lint.input
+                lint.path
                     .to_str()
                     .expect("unable to convert path to string"),
                 false,
@@ -295,10 +319,10 @@ fn main() {
                     } else if lint.debug {
                         println!("{}", full_cfg);
                     }
-                    let mut errs = Vec::new();
+                    let mut errs = DiagnosticManager::new();
                     Manager::run_diagnostics(&full_cfg, &mut errs);
                     errs.iter()
-                        .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
+                        .for_each(|x| diags.push(DiagnosticItem::from_displayable(x.as_ref())));
                 }
                 Err(err) => {
                     diags.push(DiagnosticItem::from(*err));
@@ -315,11 +339,20 @@ fn main() {
                 }
                 // Pretty print output
                 else {
-                    let mut printer = PrettyPrint::new(diags);
+                    let mut printer = PrettyPrint::new(
+                        diags,
+                        PrettyPrintOptions::new()
+                            .color(!lint.no_color)
+                            .compact(lint.compact)
+                            .all_files(lint.all_files),
+                    );
                     printer.display_errors(&parser);
+                    #[cfg(feature = "c229")]
+                    println!("You are using an alpha version of this software. Please report any bugs to the developers.");
                 }
             }
         }
+        #[cfg(feature = "analysis_debugger")]
         Commands::DebugParse(debu) => {
             // Debug mode that prints out parsing errors only
             let reader = IOFileReader::new();

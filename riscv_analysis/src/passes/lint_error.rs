@@ -4,28 +4,56 @@ use uuid::Uuid;
 
 use crate::cfg::Function;
 
-use crate::parser::LabelString;
+use crate::parser::LabelStringToken;
 use crate::parser::ParserNode;
 use crate::parser::Range;
-use crate::parser::Register;
-use crate::parser::With;
+use crate::parser::RegisterToken;
 
 use itertools::Itertools;
 
 use super::DiagnosticLocation;
 use super::DiagnosticMessage;
 
+/// Use this trait to add extra information to a diagnostic.
+pub trait IsRelatedDiagnosticInformation: DiagnosticLocation {
+    fn get_description(&self) -> String;
+}
+
+pub trait IsSomeDisplayableDiagnostic: DiagnosticLocation {
+    fn get_title(&self) -> &'static str;
+
+    /// Get the severity level of this error.
+    fn get_severity(&self) -> SeverityLevel;
+
+    /// Get a longer, more verbose explanation.
+    ///
+    /// If no implementation is provided, then no message is displayed. The string from
+    /// `std::fmt::Display` will always be used as the main title string.
+    fn get_long_description(&self) -> String {
+        String::new()
+    }
+
+    /// Get related information to this error.
+    fn get_related_information<'a>(
+        &'a self,
+    ) -> Option<Box<dyn Iterator<Item = &'a dyn IsRelatedDiagnosticInformation> + 'a>> {
+        None
+    }
+
+    fn get_error_code(&self) -> &'static str;
+}
+
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum LintError {
     // if a loop variable does not change, then it will infinitely run
     // if a branch is always going to execute (i.e. if true) using constants and zero register
-    LostRegisterValue(With<Register>),
+    LostRegisterValue(RegisterToken),
 
     /// A register 0 is used after a call to function 1 at call site 2
-    InvalidUseAfterCall(With<Register>, Rc<Function>, With<LabelString>),
-    InvalidUseBeforeAssignment(With<Register>),
-    OverwriteCalleeSavedRegister(With<Register>),
+    InvalidUseAfterCall(RegisterToken, Rc<Function>, LabelStringToken),
+    InvalidUseBeforeAssignment(RegisterToken),
+    OverwriteCalleeSavedRegister(RegisterToken),
     FirstInstructionIsFunction(ParserNode, Rc<Function>), // if the first instruction has a function, it is incorrect
     /// A function is entered through a non-conventional way
     ///
@@ -35,8 +63,8 @@ pub enum LintError {
     ///
     /// (First line in function, line where function is entered through, function)
     InvalidJumpToFunction(ParserNode, ParserNode, Rc<Function>),
-    DeadAssignment(With<Register>),
-    SaveToZero(With<Register>),
+    DeadAssignment(RegisterToken),
+    SaveToZero(RegisterToken),
     InvalidSegment(ParserNode),
     UnknownEcall(ParserNode),
     UnknownStack(ParserNode),        // stack value is not definitely known
@@ -44,16 +72,15 @@ pub enum LintError {
     InvalidStackPosition(ParserNode, i32), // stack value is wrong way (positive)
     InvalidStackOffsetUsage(ParserNode, i32), // read/write using invalid stack offser
     UnreachableCode(ParserNode),     // -- code that is unreachable
-                                     // SetBadRegister(Range, Register), -- used when setting registers that should not be set
-                                     // FallOffEnd(Range), program may fall off the end of code
-                                     // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
-                                     // ProgramExit in the middle of a function
-                                     // NonMatchingOffset -- if the multiple of the offset does not match the instruction (ex. 4 for lw), then it is a warning
-                                     // LoadAddressFromTextLabel -- if the address is a label in the text area, then it is a warning
-                                     // AnyJumpToData -- if any jump is to a data label, then it is a warning (label strings should have data/text prefix)
-
+    // SetBadRegister(Range, Register), -- used when setting registers that should not be set
+    // FallOffEnd(Range), program may fall off the end of code
+    // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
+    // ProgramExit in the middle of a function
+    // NonMatchingOffset -- if the multiple of the offset does not match the instruction (ex. 4 for lw), then it is a warning
+    // LoadAddressFromTextLabel -- if the address is a label in the text area, then it is a warning
+    // AnyJumpToData -- if any jump is to a data label, then it is a warning (label strings should have data/text prefix)
     /// An instruction is a member of more than one function.
-    NodeInManyFunctions(ParserNode, Vec<Rc<Function>>)
+    NodeInManyFunctions(ParserNode, Vec<Rc<Function>>),
 }
 
 #[derive(Clone)]
@@ -122,7 +149,7 @@ impl std::fmt::Display for LintError {
                 write!(f, "Overwriting callee-saved register")
             }
             LintError::LostRegisterValue(r) => {
-                write!(f, "Lost register value: {}", r.data)
+                write!(f, "Lost register value: {r}")
             }
             LintError::InvalidStackOffsetUsage(_, i) => {
                 write!(
@@ -139,12 +166,60 @@ impl std::fmt::Display for LintError {
                 )
             }
             LintError::NodeInManyFunctions(_node, funcs) => {
-                write!(f, "Part of multiple functions: {}",
-                       funcs.iter()
-                       .map(|fun| fun.name().0)
-                       .join(" | ")
+                write!(
+                    f,
+                    "Part of multiple functions: {}",
+                    funcs.iter().map(|fun| fun.name().to_string()).join(" | ")
                 )
             }
+        }
+    }
+}
+
+impl IsSomeDisplayableDiagnostic for LintError {
+    fn get_severity(&self) -> SeverityLevel {
+        self.into()
+    }
+
+    fn get_error_code(&self) -> &'static str {
+        match self {
+            LintError::DeadAssignment(_) => "dead-assignment",
+            LintError::SaveToZero(_) => "save-to-zero",
+            LintError::InvalidUseAfterCall(_, _, _) => "invalid-use-after-call",
+            LintError::InvalidUseBeforeAssignment(_) => "invalid-use-before-assignment",
+            LintError::InvalidJumpToFunction(_, _, _) => "invalid-jump-to-function",
+            LintError::FirstInstructionIsFunction(_, _) => "first-instruction-is-function",
+            LintError::UnknownEcall(_) => "unknown-ecall",
+            LintError::UnreachableCode(_) => "unreachable-code",
+            LintError::InvalidSegment(_) => "invalid-segment",
+            LintError::UnknownStack(_) => "unknown-stack",
+            LintError::InvalidStackPointer(_) => "invalid-stack-pointer",
+            LintError::InvalidStackPosition(_, _) => "invalid-stack-position",
+            LintError::InvalidStackOffsetUsage(_, _) => "invalid-stack-offset-usage",
+            LintError::OverwriteCalleeSavedRegister(_) => "overwrite-callee-saved-register",
+            LintError::LostRegisterValue(_) => "lost-register-value",
+            LintError::NodeInManyFunctions(_, _) => "node-in-many-functions",
+        }
+    }
+
+    fn get_title(&self) -> &'static str {
+        match self {
+            LintError::DeadAssignment(_) => "Unused value",
+            LintError::SaveToZero(_) => "Saving to zero register",
+            LintError::InvalidUseAfterCall(_, _, _) => "Invalid use after call",
+            LintError::InvalidUseBeforeAssignment(_) => "Invalid use before assignment",
+            LintError::InvalidJumpToFunction(_, _, _) => "Invalid jump to function",
+            LintError::FirstInstructionIsFunction(_, _) => "First instruction is function",
+            LintError::UnknownEcall(_) => "Unknown ecall",
+            LintError::UnreachableCode(_) => "Unreachable code",
+            LintError::InvalidSegment(_) => "Invalid segment",
+            LintError::UnknownStack(_) => "Unknown stack",
+            LintError::InvalidStackPointer(_) => "Invalid stack pointer",
+            LintError::InvalidStackPosition(_, _) => "Invalid stack position",
+            LintError::InvalidStackOffsetUsage(_, _) => "Invalid stack offset usage",
+            LintError::OverwriteCalleeSavedRegister(_) => "Overwrite callee-saved register",
+            LintError::LostRegisterValue(_) => "Lost register value",
+            LintError::NodeInManyFunctions(_, _) => "Node in many functions",
         }
     }
 }
@@ -157,10 +232,18 @@ impl DiagnosticMessage for LintError {
         self.to_string()
     }
     fn description(&self) -> String {
-        self.long_description()
+        self.to_string()
     }
     fn long_description(&self) -> String {
-        self.to_string()
+        match self {
+            LintError::InvalidUseBeforeAssignment(_) => {
+                "This register is being used before it is assigned to. \
+                If you see this, check the following suggestions: \
+                - Did you call this code as a function (jal ra <label>) rather than a jump (jal zero <label>)? \
+                ".to_string()
+            }
+            _ => self.description(),
+            }
     }
     fn related(&self) -> Option<Vec<super::RelatedDiagnosticItem>> {
         match self {
@@ -215,7 +298,7 @@ impl DiagnosticLocation for LintError {
             | LintError::InvalidUseBeforeAssignment(r)
             | LintError::LostRegisterValue(r)
             | LintError::OverwriteCalleeSavedRegister(r)
-            | LintError::DeadAssignment(r) => r.pos.clone(),
+            | LintError::DeadAssignment(r) => r.range(),
             LintError::InvalidJumpToFunction(r, _, _)
             | LintError::FirstInstructionIsFunction(r, _)
             | LintError::UnknownEcall(r)
@@ -236,7 +319,7 @@ impl DiagnosticLocation for LintError {
             | LintError::InvalidUseBeforeAssignment(r)
             | LintError::LostRegisterValue(r)
             | LintError::OverwriteCalleeSavedRegister(r)
-            | LintError::DeadAssignment(r) => r.file,
+            | LintError::DeadAssignment(r) => r.file(),
             LintError::FirstInstructionIsFunction(r, _)
             | LintError::InvalidJumpToFunction(r, _, _)
             | LintError::UnknownEcall(r)
@@ -247,6 +330,27 @@ impl DiagnosticLocation for LintError {
             | LintError::InvalidStackOffsetUsage(r, _)
             | LintError::NodeInManyFunctions(r, _)
             | LintError::InvalidStackPosition(r, _) => r.file(),
+        }
+    }
+
+    fn raw_text(&self) -> String {
+        match self {
+            LintError::InvalidUseAfterCall(r, _, _)
+            | LintError::SaveToZero(r)
+            | LintError::InvalidUseBeforeAssignment(r)
+            | LintError::LostRegisterValue(r)
+            | LintError::OverwriteCalleeSavedRegister(r)
+            | LintError::DeadAssignment(r) => r.raw_text(),
+            LintError::FirstInstructionIsFunction(r, _)
+            | LintError::InvalidJumpToFunction(r, _, _)
+            | LintError::UnknownEcall(r)
+            | LintError::InvalidSegment(r)
+            | LintError::UnreachableCode(r)
+            | LintError::UnknownStack(r)
+            | LintError::InvalidStackPointer(r)
+            | LintError::InvalidStackOffsetUsage(r, _)
+            | LintError::NodeInManyFunctions(r, _)
+            | LintError::InvalidStackPosition(r, _) => r.raw_text(),
         }
     }
 }

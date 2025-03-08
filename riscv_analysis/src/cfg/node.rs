@@ -1,9 +1,9 @@
 use crate::analysis::AvailableValue;
 use crate::analysis::MemoryLocation;
-use crate::parser::LabelString;
+use crate::parser::InstructionProperties;
+use crate::parser::LabelStringToken;
 use crate::parser::ParserNode;
 use crate::parser::Register;
-use crate::parser::With;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -14,6 +14,7 @@ use super::environment_in_outs;
 use super::AvailableValueMap;
 use super::Cfg;
 use super::Function;
+use super::RefCellReplacement;
 use super::RegisterSet;
 use super::Segment;
 
@@ -22,7 +23,7 @@ pub struct CfgNode {
     /// Parser node that this CFG node is wrapping.
     node: RefCell<ParserNode>,
     /// Any labels that refer to this instruction.
-    pub labels: HashSet<With<LabelString>>,
+    pub labels: HashSet<LabelStringToken>,
     /// Which segment is this node in?
     segment: Segment,
     /// CFG nodes that come after this one (forward edges).
@@ -82,7 +83,7 @@ pub struct CfgNode {
 
 impl CfgNode {
     #[must_use]
-    pub fn new(node: ParserNode, labels: HashSet<With<LabelString>>, segment: Segment) -> Self {
+    pub fn new(node: ParserNode, labels: HashSet<LabelStringToken>, segment: Segment) -> Self {
         CfgNode {
             node: RefCell::new(node),
             labels,
@@ -100,8 +101,9 @@ impl CfgNode {
         }
     }
 
-    pub fn set_node(&self, node: ParserNode) {
-        *self.node.borrow_mut() = node;
+    #[must_use]
+    pub fn set_node(&self, node: ParserNode) -> bool {
+        self.node.replace_if_changed(node)
     }
 
     pub fn node(&self) -> ParserNode {
@@ -131,60 +133,70 @@ impl CfgNode {
         self.reg_values_in.borrow().clone()
     }
 
-    pub fn set_reg_values_in(&self, available_in: AvailableValueMap<Register>) {
-        *self.reg_values_in.borrow_mut() = available_in;
+    #[must_use]
+    pub fn set_reg_values_in(&self, available_in: AvailableValueMap<Register>) -> bool {
+        self.reg_values_in.replace_if_changed(available_in)
     }
 
     pub fn reg_values_out(&self) -> AvailableValueMap<Register> {
         self.reg_values_out.borrow().clone()
     }
 
-    pub fn set_reg_values_out(&self, available_out: AvailableValueMap<Register>) {
-        *self.reg_values_out.borrow_mut() = available_out;
+    #[must_use]
+    pub fn set_reg_values_out(&self, available_out: AvailableValueMap<Register>) -> bool {
+        self.reg_values_out.replace_if_changed(available_out)
     }
 
     pub fn memory_values_in(&self) -> AvailableValueMap<MemoryLocation> {
         self.memory_values_in.borrow().clone()
     }
 
-    pub fn set_memory_values_in(&self, memory_in: AvailableValueMap<MemoryLocation>) {
-        *self.memory_values_in.borrow_mut() = memory_in;
+    #[must_use]
+    pub fn set_memory_values_in(&self, memory_in: AvailableValueMap<MemoryLocation>) -> bool {
+        self.memory_values_in.replace_if_changed(memory_in)
     }
 
     pub fn memory_values_out(&self) -> AvailableValueMap<MemoryLocation> {
         self.memory_values_out.borrow().clone()
     }
 
-    pub fn set_memory_values_out(&self, memory_out: AvailableValueMap<MemoryLocation>) {
-        *self.memory_values_out.borrow_mut() = memory_out;
+    #[must_use]
+    pub fn set_memory_values_out(&self, memory_out: AvailableValueMap<MemoryLocation>) -> bool {
+        self.memory_values_out.replace_if_changed(memory_out)
     }
 
     pub fn live_in(&self) -> RegisterSet {
         *self.live_in.borrow()
     }
 
-    pub fn set_live_in(&self, live_in: RegisterSet) {
-        *self.live_in.borrow_mut() = live_in;
+    #[must_use]
+    pub fn set_live_in(&self, live_in: RegisterSet) -> bool {
+        self.live_in.replace_if_changed(live_in)
     }
 
     pub fn live_out(&self) -> RegisterSet {
         *self.live_out.borrow()
     }
 
-    pub fn set_live_out(&self, live_out: RegisterSet) {
-        *self.live_out.borrow_mut() = live_out;
+    #[must_use]
+    pub fn set_live_out(&self, live_out: RegisterSet) -> bool {
+        self.live_out.replace_if_changed(live_out)
     }
 
     pub fn u_def(&self) -> RegisterSet {
         *self.u_def.borrow()
     }
 
-    pub fn set_u_def(&self, u_def: RegisterSet) {
-        *self.u_def.borrow_mut() = u_def;
+    #[must_use]
+    pub fn set_u_def(&self, u_def: RegisterSet) -> bool {
+        self.u_def.replace_if_changed(u_def)
     }
 
-    pub fn calls_to(&self, cfg: &Cfg) -> Option<(Rc<Function>, With<LabelString>)> {
-        if let Some(name) = self.node().calls_to() {
+    pub fn calls_to_from_cfg(&self, cfg: &Cfg) -> Option<(Rc<Function>, LabelStringToken)> {
+        if let Some(name) = self.calls_to() {
+            cfg.functions().get(&name).cloned().map(|x| (x, name))
+        } else if let Some(name) = self.is_some_jump_to_label() {
+            // In some cases, functions may be called by jumping to them indirectly
             cfg.functions().get(&name).cloned().map(|x| (x, name))
         } else {
             None
@@ -192,7 +204,7 @@ impl CfgNode {
     }
 
     pub fn known_ecall(&self) -> Option<i32> {
-        if self.node().is_ecall() {
+        if self.is_ecall() {
             if let Some(AvailableValue::Constant(call_num)) =
                 self.reg_values_in().get(&Register::ecall_type())
             {
@@ -240,7 +252,7 @@ impl CfgNode {
     }
 
     /// If this node is an entry point, return the corresponding function.
-    pub fn is_function_entry(&self) -> Option<Rc<Function>> {
+    pub fn is_function_entry_with_func(&self) -> Option<Rc<Function>> {
         for func in self.functions().iter() {
             let func = Rc::clone(func);
             if &*func.entry() == self {
@@ -252,10 +264,10 @@ impl CfgNode {
 
     /// Return true if this node is part of a function.
     pub fn is_part_of_some_function(&self) -> bool {
-        return self.functions().len() > 0;
+        return !self.functions().is_empty();
     }
 
-    pub fn labels(&self) -> HashSet<With<LabelString>> {
+    pub fn labels(&self) -> HashSet<LabelStringToken> {
         self.labels.clone()
     }
 

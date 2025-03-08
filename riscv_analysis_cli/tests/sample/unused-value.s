@@ -1,3 +1,4 @@
 main:
     addi a0, a0, 1
-    ret
+    li a7, 10
+    ecall
