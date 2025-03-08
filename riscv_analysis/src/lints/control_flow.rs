@@ -1,7 +1,7 @@
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
-    passes::{DiagnosticManager, LintError, LintPass},
+    passes::{DiagnosticBuilder, DiagnosticManager, LintError, LintPass},
 };
 use std::rc::Rc;
 
@@ -42,7 +42,11 @@ impl LintPass for ControlFlowCheck {
                 }
             } else if !node.is_program_entry() {
                 if node.prevs().is_empty() {
-                    errors.push(LintError::UnreachableCode(node.node().clone()));
+                    errors.push_real(
+                        DiagnosticBuilder::new("unreachable-code", "Unreachable line of code")
+                            .description("There is no path to this instruction.")
+                            .is_warning_on(node),
+                    );
                 }
             }
         }

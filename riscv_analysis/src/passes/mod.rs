@@ -15,3 +15,6 @@ pub use diagnostics::*;
 
 mod diagnostic_manager;
 pub use diagnostic_manager::*;
+
+mod simple_error;
+pub use simple_error::*;

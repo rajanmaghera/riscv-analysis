@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::parser::Range;
+use crate::parser::{Range, RawToken};
 
 use super::{IsSomeDisplayableDiagnostic, SeverityLevel};
 
@@ -8,6 +8,10 @@ pub trait DiagnosticLocation {
     fn range(&self) -> Range;
     fn file(&self) -> Uuid;
     fn raw_text(&self) -> String;
+
+    fn as_raw_token(&self) -> RawToken {
+        RawToken::new(self.raw_text(), self.range(), self.file())
+    }
 }
 
 pub trait DiagnosticMessage {

@@ -36,7 +36,7 @@ pub trait IsSomeDisplayableDiagnostic: DiagnosticLocation {
     /// Get related information to this error.
     fn get_related_information<'a>(
         &'a self,
-    ) -> Option<&'a [&'a dyn IsRelatedDiagnosticInformation]> {
+    ) -> Option<Box<dyn Iterator<Item = &'a dyn IsRelatedDiagnosticInformation> + 'a>> {
         None
     }
 
