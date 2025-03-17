@@ -181,7 +181,7 @@ impl ErrorDisplay for PrettyPrint {
         }
         if errors_in_other_files > 0 {
             let end_str = if errors_in_other_files > 1 { "s" } else { "" };
-            println!("{} diagnostic{} found in other files. To see all errors, run with the `--all_files` option.", errors_in_other_files, end_str);
+            println!("{} diagnostic{} found in other files. To see all errors, run with the `--all-files` option.", errors_in_other_files, end_str);
         }
     }
 }
