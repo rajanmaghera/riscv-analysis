@@ -8,7 +8,7 @@ use crate::{
     lints::{
         CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
         EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck,
-        OverlappingFunctionCheck, SaveToZeroCheck, StackCheckPass,
+        OverlappingFunctionCheck, SaveToZeroCheck, StackCheckPass, DotCFGGenerationPass,
     },
     parser::ParserNode,
 };
@@ -47,6 +47,7 @@ impl Manager {
         Ok(cfg)
     }
     pub fn run_diagnostics(cfg: &Cfg, errors: &mut DiagnosticManager) {
+        DotCFGGenerationPass::run(cfg, errors);
         SaveToZeroCheck::run(cfg, errors);
         DeadValueCheck::run(cfg, errors);
         InstructionInTextCheck::run(cfg, errors);
