@@ -181,8 +181,6 @@ impl LintPass for DotCFGGenerationPass {
                 assert!(succs.len() == 1);
                 let return_address: &Rc<CfgNode> = succs.iter().next()
                     .expect("Call should have one successor"); // TODO push error and return
-                
-                dbg!(node.raw_text(), node.is_instruction(), return_address.raw_text(), return_address.is_instruction(), return_address.id());
 
                 // Update return_addresses, returns, and caller_info_map
                 return_addresses.insert(return_address.id());
@@ -278,61 +276,57 @@ impl LintPass for DotCFGGenerationPass {
 
             println!("\t{}", current_block.dot_str());
 
-            // Print outgoing edges to successor basic blocks in DOT format
+            // Print call and return as dashed edges in DOT format
             if let Some((call_target, return_address, return_inst)) = caller_info_map.get(&terminator_id) {
-                // If node is call, then it only has one successor basic block (the block whose leader is the call target)
-
                 let call_count = call_counts.get_mut(&call_target.id())
                     .expect("Call target should be mapped to call count");  // TODO push error and return
                 *call_count += 1;
 
                 println!(
-                    "\t\"{}\" -> \"{}\"[label=\"call from site {}\"];",
+                    "\t\"{}\" -> \"{}\"[style=\"dashed\", label=\"call from site {}\"]",
                     current_block.id(),
                     call_target.id(),
                     call_count,
-                    // current_block.dot_str_heading(),
                 );
 
                 let return_inst_block_leader = return_inst_to_leader_map.get(&return_inst.id())
                     .expect("Return instruction should be mapped to its block leader");  // TODO push error and return
                 let return_address_block_leader = return_address_to_leader_map.get(&return_address.id())
                     .expect("Return address should be mapped to its block leader");  // TODO push error and return
+
                 println!(
-                    "\t\"{}\" -> \"{}\"[label=\"return after call site {}\"];",
+                    "\t\"{}\" -> \"{}\"[style=\"dashed\", label=\"return after call site {}\"];",
                     return_inst_block_leader.id(),
                     return_address_block_leader.id(),
                     call_count,
                 );
-                
-                // dbg!(&call_counts);
-            } else {
-                // Otherwise, print all successor basic blocks
-                let succs = terminator.nexts();
-                let mut succ_error = false;
-                let succ_string = succs
-                .iter()
-                .map(|succ| if ids_to_blocks.contains_key(&succ.id()) {
-                    succ.id().to_string()
-                } else {
-                    errors.push(LintError::DotCFGSuccessorOfTerminatorIsNotLeader(succ.node()));
-                    succ_error = true;
-                    String::new()
-                })
-                .collect::<Vec<String>>()
-                .join("\" \"");
-                
-                if succ_error {
-                    return;
-                }
+            }
 
-                if !succs.is_empty() {
-                    println!(
-                        "\t\"{}\" -> {{ \"{}\" }};",
-                        current_block.id(),
-                        succ_string
-                    );
-                }
+            // Print outgoing edges to all successor basic blocks in DOT format
+            let succs = terminator.nexts();
+            let mut succ_error = false;
+            let succ_string = succs
+            .iter()
+            .map(|succ| if ids_to_blocks.contains_key(&succ.id()) {
+                succ.id().to_string()
+            } else {
+                errors.push(LintError::DotCFGSuccessorOfTerminatorIsNotLeader(succ.node()));
+                succ_error = true;
+                String::new()
+            })
+            .collect::<Vec<String>>()
+            .join("\" \"");
+            
+            if succ_error {
+                return;
+            }
+
+            if !succs.is_empty() {
+                println!(
+                    "\t\"{}\" -> {{ \"{}\" }};",
+                    current_block.id(),
+                    succ_string
+                );
             }
         }
         // End DOT graph
