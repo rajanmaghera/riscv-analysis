@@ -81,6 +81,13 @@ impl BasicBlock {
         Some(label.clone())
     }
 
+    pub fn dot_str_heading(&self) -> String {
+        match self.canonical_label() {
+            Some(l) => l.to_string(),
+            None => self.id().to_string()
+        }
+    }
+
     pub fn dot_str(&self) -> String {
         let instruction_string = self.iter()
         .filter(|n| n.is_instruction())
@@ -95,12 +102,7 @@ impl BasicBlock {
         .replace("<", "\\<")
         .replace(">", "\\>");
 
-        let heading = match self.canonical_label() {
-            Some(l) => l.to_string(),
-            None => self.id().to_string()
-        };
-
-        format!("\"{}\" [label=\"{{{}:\\l|{}\\l}}\"]", self.id(), heading, instruction_string)
+        format!("\"{}\" [label=\"{{{}:\\l|{}\\l}}\"]", self.id(), self.dot_str_heading(), instruction_string)
     }
 }
 
@@ -111,8 +113,15 @@ impl LintPass for DotCFGGenerationPass {
         // Identify block leaders/terminators and callers/call targets
         let mut leaders: HashSet<Uuid> = HashSet::new();
         let mut terminators: HashSet<Uuid> = HashSet::new();
+        let mut return_addresses: HashSet<Uuid> = HashSet::new();
+        let mut returns: HashSet<Uuid> = HashSet::new();
         let mut target_to_callers_map: HashMap<Uuid, Vec<Rc<CfgNode>>> = HashMap::new(); // each function can have multiple callers
-        let mut caller_to_target_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new(); // each caller calls exactly one function
+
+        // maps caller to target, return address, and return
+        let mut caller_info_map: HashMap<Uuid, (Rc<CfgNode>, Rc<CfgNode>, Rc<CfgNode>)> = HashMap::new();
+        let mut call_counts: HashMap<Uuid, u32> = HashMap::new(); // number of times each function label is called in the code
+        let mut return_address_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
+        let mut return_inst_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
 
         for node in cfg.iter() {
             let prevs = node.prevs();
@@ -176,10 +185,33 @@ impl LintPass for DotCFGGenerationPass {
                     }
                 };
 
-                // Update caller_to_target_map
-                caller_to_target_map.insert(node.id(), Rc::clone(call_target_instruction));
-            }
+                // Node should have one successor: the next instruction after the call
+                // The call target is not considered a successor
+                assert!(succs.len() == 1);
+                let return_address: &Rc<CfgNode>;
 
+                for succ in succs.iter() {
+                    if **succ == **call_target_instruction {
+                        continue
+                    }
+                    return_address = succ;
+                    // Update return_addresses, returns, and caller_info_map
+                    return_addresses.insert(return_address.id());
+                    let target = Rc::clone(call_target_instruction);
+                    let return_address = Rc::clone(return_address);
+
+                    // TODO proper error handling
+                    let target_label = target.labels().iter().next().expect("Call target should have a label").to_owned();
+                    // TODO proper error handling
+                    let called_function = Rc::clone(cfg.functions().get(&target_label).expect("Call target should be a function"));
+                    let called_function_return = called_function.exit().clone();
+                    returns.insert(called_function_return.id());
+
+                    caller_info_map.insert(node.id(), (target, return_address, called_function_return));
+                    call_counts.insert(called_function.entry().id(), 0);
+                    break;
+                }
+            }
             
             if node_is_leader {
                 leaders.insert(node.id());
@@ -201,6 +233,14 @@ impl LintPass for DotCFGGenerationPass {
 
         for node in cfg.iter() {
             current_block.nodes.push(Rc::clone(&node));
+            if return_addresses.contains(&node.id()) {
+                // TODO proper error handling
+                return_address_to_leader_map.insert(node.id(), Rc::clone(&current_block.leader().expect("Current block should have leader")));
+            }
+            if returns.contains(&node.id()) {
+                // TODO proper error handling
+                return_inst_to_leader_map.insert(node.id(), Rc::clone(&current_block.leader().expect("Current block should have leader")));
+            }
             if terminators.contains(&node.id()) {
                 ids_to_blocks.insert(current_block.id(), current_block);
                 current_block = BasicBlock::new_empty();
@@ -226,18 +266,36 @@ impl LintPass for DotCFGGenerationPass {
                 // Print block in DOT format
                 println!("\t{}", current_block.dot_str());
 
-                // Print successors in DOT format
-                if let Some(call_target) = caller_to_target_map.get(&node.id()) {
-                    // If node is call, then it only has one successor (the call target)
-                    let succ_string = call_target.id();
+                // Print outgoing edges to successor basic blocks in DOT format
+                if let Some((call_target, return_address, return_inst)) = caller_info_map.get(&node_id) {
+                    // If node is call, then it only has one successor basic block (the block whose leader is the call target)
+
+                    // TODO proper error handling
+                    let call_count = call_counts.get_mut(&call_target.id()).expect("Call target should be mapped to call count");
+                    *call_count += 1;
 
                     println!(
-                        "\t\"{}\" -> {{ \"{}\" }};",
+                        "\t\"{}\" -> \"{}\"[label=\"call id {}\"];",
                         current_block.id(),
-                        succ_string
+                        call_target.id(),
+                        call_count,
+                        // current_block.dot_str_heading(),
                     );
+                    
+                    // TODO proper error handling
+                    let return_inst_block_leader = return_inst_to_leader_map.get(&return_inst.id()).expect("Return instruction should be mapped to its block leader");
+                    // TODO proper error handling
+                    let return_address_block_leader = return_address_to_leader_map.get(&return_address.id()).expect("Return address should be mapped to its block leader");
+                    println!(
+                        "\t\"{}\" -> \"{}\"[label=\"return from call id {}\"];",
+                        return_inst_block_leader.id(), // TODO this should be ret_block_leader
+                        return_address_block_leader.id(),
+                        call_count,
+                    );
+                    
+                    // dbg!(&call_counts);
                 } else {
-                    // Otherwise, print all successors
+                    // Otherwise, print all successor basic blocks
                     let succs = node.nexts();
                     let mut succ_error = false;
                     let succ_string = succs
