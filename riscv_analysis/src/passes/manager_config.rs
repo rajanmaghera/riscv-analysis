@@ -1,64 +1,64 @@
-use crate::{lints::{
-    CalleeSavedGarbageReadCheckConfiguration,
-    CalleeSavedRegisterCheckConfiguration,
-    ControlFlowCheckConfiguration,
-    DeadValueCheckConfiguration,
+use crate::lints::{
+    CalleeSavedGarbageReadPassConfiguration,
+    CalleeSavedRegisterPassConfiguration,
+    ControlFlowPassConfiguration,
+    DeadValuePassConfiguration,
     DotCFGGenerationPassConfiguration,
-    EcallCheckConfiguration,
-    GarbageInputValueCheckConfiguration,
-    InstructionInTextCheckConfiguration,
-    LostCalleeSavedRegisterCheckConfiguration,
-    OverlappingFunctionCheckConfiguration,
-    SaveToZeroCheckConfiguration,
-    StackCheckPassConfiguration,
-}, passes::Manager};
+    EcallPassConfiguration,
+    GarbageInputValuePassConfiguration,
+    InstructionInTextPassConfiguration,
+    LostCalleeSavedRegisterPassConfiguration,
+    OverlappingFunctionPassConfiguration,
+    SaveToZeroPassConfiguration,
+    StackPassConfiguration,
+};
 
 #[derive(Default)]
 pub struct ManagerConfiguration {
-    callee_saved_garbage_read_check_config: CalleeSavedGarbageReadCheckConfiguration,
-    callee_saved_register_check_config: CalleeSavedRegisterCheckConfiguration,
-    control_flow_check_config: ControlFlowCheckConfiguration,
-    dead_value_check_config: DeadValueCheckConfiguration,
+    callee_saved_garbage_read_pass_config: CalleeSavedGarbageReadPassConfiguration,
+    callee_saved_register_pass_config: CalleeSavedRegisterPassConfiguration,
+    control_flow_pass_config: ControlFlowPassConfiguration,
+    dead_value_pass_config: DeadValuePassConfiguration,
     dot_cfg_generation_pass_config: DotCFGGenerationPassConfiguration,
-    ecall_check_config: EcallCheckConfiguration,
-    garbage_input_value_check_config: GarbageInputValueCheckConfiguration,
-    instruction_in_text_check_config: InstructionInTextCheckConfiguration,
-    lost_callee_saved_register_check_config: LostCalleeSavedRegisterCheckConfiguration,
-    overlapping_function_check_config: OverlappingFunctionCheckConfiguration,
-    save_to_zero_check_config: SaveToZeroCheckConfiguration,
-    stack_check_pass_config: StackCheckPassConfiguration,
+    ecall_pass_config: EcallPassConfiguration,
+    garbage_input_value_pass_config: GarbageInputValuePassConfiguration,
+    instruction_in_text_pass_config: InstructionInTextPassConfiguration,
+    lost_callee_saved_register_pass_config: LostCalleeSavedRegisterPassConfiguration,
+    overlapping_function_pass_config: OverlappingFunctionPassConfiguration,
+    save_to_zero_pass_config: SaveToZeroPassConfiguration,
+    stack_pass_config: StackPassConfiguration,
 }
 impl ManagerConfiguration {
-    // CalleeSavedGarbageReadCheck
-    pub fn get_callee_saved_garbage_read_check_config(&self) -> &CalleeSavedGarbageReadCheckConfiguration {
-        &self.callee_saved_garbage_read_check_config
+    // CalleeSavedGarbageReadPass
+    pub fn get_callee_saved_garbage_read_pass_config(&self) -> &CalleeSavedGarbageReadPassConfiguration {
+        &self.callee_saved_garbage_read_pass_config
     }
-    pub fn get_mut_callee_saved_garbage_read_check_config(&mut self) -> &mut CalleeSavedGarbageReadCheckConfiguration {
-        &mut self.callee_saved_garbage_read_check_config
-    }
-
-    // CalleeSavedRegisterCheck
-    pub fn get_callee_saved_register_check_config(&self) -> &CalleeSavedRegisterCheckConfiguration {
-        &self.callee_saved_register_check_config
-    }
-    pub fn get_mut_callee_saved_register_check_config(&mut self) -> &mut CalleeSavedRegisterCheckConfiguration {
-        &mut self.callee_saved_register_check_config
+    pub fn get_mut_callee_saved_garbage_read_pass_config(&mut self) -> &mut CalleeSavedGarbageReadPassConfiguration {
+        &mut self.callee_saved_garbage_read_pass_config
     }
 
-    // ControlFlowCheck
-    pub fn get_control_flow_check_config(&self) -> &ControlFlowCheckConfiguration {
-        &self.control_flow_check_config
+    // CalleeSavedRegisterPass
+    pub fn get_callee_saved_register_pass_config(&self) -> &CalleeSavedRegisterPassConfiguration {
+        &self.callee_saved_register_pass_config
     }
-    pub fn get_mut_control_flow_check_config(&mut self) -> &mut ControlFlowCheckConfiguration {
-        &mut self.control_flow_check_config
+    pub fn get_mut_callee_saved_register_pass_config(&mut self) -> &mut CalleeSavedRegisterPassConfiguration {
+        &mut self.callee_saved_register_pass_config
     }
 
-    // DeadValueCheck
-    pub fn get_dead_value_check_config(&self) -> &DeadValueCheckConfiguration {
-        &self.dead_value_check_config
+    // ControlFlowPass
+    pub fn get_control_flow_pass_config(&self) -> &ControlFlowPassConfiguration {
+        &self.control_flow_pass_config
     }
-    pub fn get_mut_dead_value_check_config(&mut self) -> &mut DeadValueCheckConfiguration {
-        &mut self.dead_value_check_config
+    pub fn get_mut_control_flow_pass_config(&mut self) -> &mut ControlFlowPassConfiguration {
+        &mut self.control_flow_pass_config
+    }
+
+    // DeadValuePass
+    pub fn get_dead_value_pass_config(&self) -> &DeadValuePassConfiguration {
+        &self.dead_value_pass_config
+    }
+    pub fn get_mut_dead_value_pass_config(&mut self) -> &mut DeadValuePassConfiguration {
+        &mut self.dead_value_pass_config
     }
 
     // DotCFGGenerationPass
@@ -69,60 +69,60 @@ impl ManagerConfiguration {
         &mut self.dot_cfg_generation_pass_config
     }
 
-    // EcallCheck
-    pub fn get_ecall_check_config(&self) -> &EcallCheckConfiguration {
-        &self.ecall_check_config
+    // EcallPass
+    pub fn get_ecall_pass_config(&self) -> &EcallPassConfiguration {
+        &self.ecall_pass_config
     }
-    pub fn get_mut_ecall_check_config(&mut self) -> &mut EcallCheckConfiguration {
-        &mut self.ecall_check_config
-    }
-
-    // GarbageInputValueCheck
-    pub fn get_garbage_input_value_check_config(&self) -> &GarbageInputValueCheckConfiguration {
-        &self.garbage_input_value_check_config
-    }
-    pub fn get_mut_garbage_input_value_check_config(&mut self) -> &mut GarbageInputValueCheckConfiguration {
-        &mut self.garbage_input_value_check_config
+    pub fn get_mut_ecall_pass_config(&mut self) -> &mut EcallPassConfiguration {
+        &mut self.ecall_pass_config
     }
 
-    // InstructionInTextCheck
-    pub fn get_instruction_in_text_check_config(&self) -> &InstructionInTextCheckConfiguration {
-        &self.instruction_in_text_check_config
+    // GarbageInputValuePass
+    pub fn get_garbage_input_value_pass_config(&self) -> &GarbageInputValuePassConfiguration {
+        &self.garbage_input_value_pass_config
     }
-    pub fn get_mut_instruction_in_text_check_config(&mut self) -> &mut InstructionInTextCheckConfiguration {
-        &mut self.instruction_in_text_check_config
-    }
-
-    // LostCalleeSavedRegisterCheck
-    pub fn get_lost_callee_saved_register_check_config(&self) -> &LostCalleeSavedRegisterCheckConfiguration {
-        &self.lost_callee_saved_register_check_config
-    }
-    pub fn get_mut_lost_callee_saved_register_check_config(&mut self) -> &mut LostCalleeSavedRegisterCheckConfiguration {
-        &mut self.lost_callee_saved_register_check_config
+    pub fn get_mut_garbage_input_value_pass_config(&mut self) -> &mut GarbageInputValuePassConfiguration {
+        &mut self.garbage_input_value_pass_config
     }
 
-    // OverlappingFunctionCheck
-    pub fn get_overlapping_function_check_config(&self) -> &OverlappingFunctionCheckConfiguration {
-        &self.overlapping_function_check_config
+    // InstructionInTextPass
+    pub fn get_instruction_in_text_pass_config(&self) -> &InstructionInTextPassConfiguration {
+        &self.instruction_in_text_pass_config
     }
-    pub fn get_mut_overlapping_function_check_config(&mut self) -> &mut OverlappingFunctionCheckConfiguration {
-        &mut self.overlapping_function_check_config
-    }
-
-    // SaveToZeroCheck
-    pub fn get_save_to_zero_check_config(&self) -> &SaveToZeroCheckConfiguration {
-        &self.save_to_zero_check_config
-    }
-    pub fn get_mut_save_to_zero_check_config(&mut self) -> &mut SaveToZeroCheckConfiguration {
-        &mut self.save_to_zero_check_config
+    pub fn get_mut_instruction_in_text_pass_config(&mut self) -> &mut InstructionInTextPassConfiguration {
+        &mut self.instruction_in_text_pass_config
     }
 
-    // StackCheckPass
-    pub fn get_stack_check_pass_config(&self) -> &StackCheckPassConfiguration {
-        &self.stack_check_pass_config
+    // LostCalleeSavedRegisterPass
+    pub fn get_lost_callee_saved_register_pass_config(&self) -> &LostCalleeSavedRegisterPassConfiguration {
+        &self.lost_callee_saved_register_pass_config
     }
-    pub fn get_mut_stack_check_pass_config(&mut self) -> &mut StackCheckPassConfiguration {
-        &mut self.stack_check_pass_config
+    pub fn get_mut_lost_callee_saved_register_pass_config(&mut self) -> &mut LostCalleeSavedRegisterPassConfiguration {
+        &mut self.lost_callee_saved_register_pass_config
+    }
+
+    // OverlappingFunctionPass
+    pub fn get_overlapping_function_pass_config(&self) -> &OverlappingFunctionPassConfiguration {
+        &self.overlapping_function_pass_config
+    }
+    pub fn get_mut_overlapping_function_pass_config(&mut self) -> &mut OverlappingFunctionPassConfiguration {
+        &mut self.overlapping_function_pass_config
+    }
+
+    // SaveToZeroPass
+    pub fn get_save_to_zero_pass_config(&self) -> &SaveToZeroPassConfiguration {
+        &self.save_to_zero_pass_config
+    }
+    pub fn get_mut_save_to_zero_pass_config(&mut self) -> &mut SaveToZeroPassConfiguration {
+        &mut self.save_to_zero_pass_config
+    }
+
+    // StackPass
+    pub fn get_stack_pass_config(&self) -> &StackPassConfiguration {
+        &self.stack_pass_config
+    }
+    pub fn get_mut_stack_pass_config(&mut self) -> &mut StackPassConfiguration {
+        &mut self.stack_pass_config
     }
 }
 

@@ -4,9 +4,9 @@ use crate::parser::{HasRegisterSets, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 
 // Check if the values of callee-saved registers are restored to the original value at the end of the function
-pub struct CalleeSavedRegisterCheck;
-impl LintPass<CalleeSavedRegisterCheckConfiguration> for CalleeSavedRegisterCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &CalleeSavedRegisterCheckConfiguration) {
+pub struct CalleeSavedRegisterPass;
+impl LintPass<CalleeSavedRegisterPassConfiguration> for CalleeSavedRegisterPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &CalleeSavedRegisterPassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -35,16 +35,16 @@ impl LintPass<CalleeSavedRegisterCheckConfiguration> for CalleeSavedRegisterChec
         }
     }
 }
-pub struct CalleeSavedRegisterCheckConfiguration {
+pub struct CalleeSavedRegisterPassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl Default for CalleeSavedRegisterCheckConfiguration {
+impl Default for CalleeSavedRegisterPassConfiguration {
     fn default() -> Self {
-        CalleeSavedRegisterCheckConfiguration { enabled: true }
+        CalleeSavedRegisterPassConfiguration { enabled: true }
     }
 }
-impl PassConfiguration for CalleeSavedRegisterCheckConfiguration {
+impl PassConfiguration for CalleeSavedRegisterPassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }

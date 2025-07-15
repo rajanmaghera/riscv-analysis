@@ -10,9 +10,9 @@ use crate::{
 /// Instructions will only be assembled if they appear in
 /// the text segment. Instructions in other locations is
 /// behaviour that we do not handle.
-pub struct InstructionInTextCheck;
-impl LintPass<InstructionInTextCheckConfiguration> for InstructionInTextCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &InstructionInTextCheckConfiguration) {
+pub struct InstructionInTextPass;
+impl LintPass<InstructionInTextPassConfiguration> for InstructionInTextPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &InstructionInTextPassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -24,11 +24,11 @@ impl LintPass<InstructionInTextCheckConfiguration> for InstructionInTextCheck {
     }
 }
 #[derive(Default)]
-pub struct InstructionInTextCheckConfiguration {
+pub struct InstructionInTextPassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl PassConfiguration for InstructionInTextCheckConfiguration {
+impl PassConfiguration for InstructionInTextPassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }
@@ -46,18 +46,18 @@ mod tests {
     #[test]
     fn default_segment_is_text() {
         let nodes = &[iarith!(Addi X1 X0 0)];
-        let mut config = InstructionInTextCheckConfiguration::default();
+        let mut config = InstructionInTextPassConfiguration::default();
         config.set_enabled(true);
-        let errors = InstructionInTextCheck::run_single_pass_along_nodes(nodes, &config);
+        let errors = InstructionInTextPass::run_single_pass_along_nodes(nodes, &config);
         assert_eq!(errors.len(), 0);
     }
 
     #[test]
     fn explicit_text_segment_is_allowed() {
         let nodes = &[directive!(Text, TextSection), iarith!(Addi X1 X0 0)];
-        let mut config = InstructionInTextCheckConfiguration::default();
+        let mut config = InstructionInTextPassConfiguration::default();
         config.set_enabled(true);
-        let errors = InstructionInTextCheck::run_single_pass_along_nodes(nodes, &config);
+        let errors = InstructionInTextPass::run_single_pass_along_nodes(nodes, &config);
         assert_eq!(errors.len(), 0);
     }
 
@@ -72,9 +72,9 @@ mod tests {
             directive!(Text, TextSection),
             iarith!(Andi X1 X0 0),
         ];
-        let mut config = InstructionInTextCheckConfiguration::default();
+        let mut config = InstructionInTextPassConfiguration::default();
         config.set_enabled(true);
-        let errors = InstructionInTextCheck::run_single_pass_along_nodes(nodes, &config);
+        let errors = InstructionInTextPass::run_single_pass_along_nodes(nodes, &config);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[0].get_error_code(), "invalid-segment");
         assert_eq!(errors[1].get_error_code(), "invalid-segment");
@@ -95,9 +95,9 @@ mod tests {
             directive!(Text, TextSection),
             iarith!(Andi X1 X0 0),
         ];
-        let mut config = InstructionInTextCheckConfiguration::default();
+        let mut config = InstructionInTextPassConfiguration::default();
         config.set_enabled(true);
-        let errors = InstructionInTextCheck::run_single_pass_along_nodes(nodes, &config);
+        let errors = InstructionInTextPass::run_single_pass_along_nodes(nodes, &config);
         assert_eq!(errors.len(), 3);
         assert_eq!(errors[0].get_error_code(), "invalid-segment");
         assert_eq!(errors[1].get_error_code(), "invalid-segment");

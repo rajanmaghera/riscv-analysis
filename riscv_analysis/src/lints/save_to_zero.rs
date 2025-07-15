@@ -2,9 +2,9 @@ use crate::cfg::Cfg;
 use crate::parser::{InstructionProperties, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 
-pub struct SaveToZeroCheck;
-impl LintPass<SaveToZeroCheckConfiguration> for SaveToZeroCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &SaveToZeroCheckConfiguration) {
+pub struct SaveToZeroPass;
+impl LintPass<SaveToZeroPassConfiguration> for SaveToZeroPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &SaveToZeroPassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -17,16 +17,16 @@ impl LintPass<SaveToZeroCheckConfiguration> for SaveToZeroCheck {
         }
     }
 }
-pub struct SaveToZeroCheckConfiguration {
+pub struct SaveToZeroPassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl Default for SaveToZeroCheckConfiguration {
+impl Default for SaveToZeroPassConfiguration {
     fn default() -> Self {
-        SaveToZeroCheckConfiguration { enabled: true }
+        SaveToZeroPassConfiguration { enabled: true }
     }
 }
-impl PassConfiguration for SaveToZeroCheckConfiguration {
+impl PassConfiguration for SaveToZeroPassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }

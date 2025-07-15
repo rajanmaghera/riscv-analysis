@@ -4,9 +4,9 @@ use crate::parser::{InstructionProperties, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 
 // Check that we know the stack position at every point in the program (aka. within scopes)
-pub struct StackCheckPass;
-impl LintPass<StackCheckPassConfiguration> for StackCheckPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &StackCheckPassConfiguration) {
+pub struct StackPass;
+impl LintPass<StackPassConfiguration> for StackPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &StackPassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -55,16 +55,16 @@ impl LintPass<StackCheckPassConfiguration> for StackCheckPass {
         // PASS 2: check that
     }
 }
-pub struct StackCheckPassConfiguration {
+pub struct StackPassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl Default for StackCheckPassConfiguration {
+impl Default for StackPassConfiguration {
     fn default() -> Self {
-        StackCheckPassConfiguration { enabled: true }
+        StackPassConfiguration { enabled: true }
     }
 }
-impl PassConfiguration for StackCheckPassConfiguration {
+impl PassConfiguration for StackPassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }

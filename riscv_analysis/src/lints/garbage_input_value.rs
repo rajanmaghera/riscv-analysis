@@ -5,9 +5,9 @@ use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 // TODO deprecate
 // Check if there are any in values to the start of functions that are not args or saved registers
 // Check if there are any in values at the start of a program
-pub struct GarbageInputValueCheck;
-impl LintPass<GarbageInputValueCheckConfiguration> for GarbageInputValueCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &GarbageInputValueCheckConfiguration) {
+pub struct GarbageInputValuePass;
+impl LintPass<GarbageInputValuePassConfiguration> for GarbageInputValuePass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &GarbageInputValuePassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -42,16 +42,16 @@ impl LintPass<GarbageInputValueCheckConfiguration> for GarbageInputValueCheck {
         }
     }
 }
-pub struct GarbageInputValueCheckConfiguration {
+pub struct GarbageInputValuePassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl Default for GarbageInputValueCheckConfiguration {
+impl Default for GarbageInputValuePassConfiguration {
     fn default() -> Self {
-        GarbageInputValueCheckConfiguration { enabled: true }
+        GarbageInputValuePassConfiguration { enabled: true }
     }
 }
-impl PassConfiguration for GarbageInputValueCheckConfiguration {
+impl PassConfiguration for GarbageInputValuePassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }

@@ -3,9 +3,9 @@ use crate::parser::{HasRegisterSets, InstructionProperties, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 
 // check if the value of a callee-saved register is read as its original value
-pub struct CalleeSavedGarbageReadCheck;
-impl LintPass<CalleeSavedGarbageReadCheckConfiguration> for CalleeSavedGarbageReadCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &CalleeSavedGarbageReadCheckConfiguration) {
+pub struct CalleeSavedGarbageReadPass;
+impl LintPass<CalleeSavedGarbageReadPassConfiguration> for CalleeSavedGarbageReadPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &CalleeSavedGarbageReadPassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -25,16 +25,16 @@ impl LintPass<CalleeSavedGarbageReadCheckConfiguration> for CalleeSavedGarbageRe
         }
     }
 }
-pub struct CalleeSavedGarbageReadCheckConfiguration {
+pub struct CalleeSavedGarbageReadPassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl Default for CalleeSavedGarbageReadCheckConfiguration {
+impl Default for CalleeSavedGarbageReadPassConfiguration {
     fn default() -> Self {
-        CalleeSavedGarbageReadCheckConfiguration { enabled: true }
+        CalleeSavedGarbageReadPassConfiguration { enabled: true }
     }
 }
-impl PassConfiguration for CalleeSavedGarbageReadCheckConfiguration {
+impl PassConfiguration for CalleeSavedGarbageReadPassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }

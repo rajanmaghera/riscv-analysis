@@ -4,9 +4,9 @@ use crate::cfg::Cfg;
 use crate::parser::{HasRegisterSets, InstructionProperties, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 
-pub struct DeadValueCheck;
-impl LintPass<DeadValueCheckConfiguration> for DeadValueCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &DeadValueCheckConfiguration) {
+pub struct DeadValuePass;
+impl LintPass<DeadValuePassConfiguration> for DeadValuePass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &DeadValuePassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -45,16 +45,16 @@ impl LintPass<DeadValueCheckConfiguration> for DeadValueCheck {
         }
     }
 }
-pub struct DeadValueCheckConfiguration {
+pub struct DeadValuePassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl Default for DeadValueCheckConfiguration {
+impl Default for DeadValuePassConfiguration {
     fn default() -> Self {
-        DeadValueCheckConfiguration { enabled: true }
+        DeadValuePassConfiguration { enabled: true }
     }
 }
-impl PassConfiguration for DeadValueCheckConfiguration {
+impl PassConfiguration for DeadValuePassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }

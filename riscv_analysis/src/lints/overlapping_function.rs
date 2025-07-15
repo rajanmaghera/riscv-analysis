@@ -12,9 +12,9 @@ use uuid::Uuid;
 /// doesn't generally occur in canonical code. Instead, the existence of
 /// overlapping functions usually indicates a mistaken jump to the middle of a
 /// function.
-pub struct OverlappingFunctionCheck;
-impl LintPass<OverlappingFunctionCheckConfiguration> for OverlappingFunctionCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &OverlappingFunctionCheckConfiguration) {
+pub struct OverlappingFunctionPass;
+impl LintPass<OverlappingFunctionPassConfiguration> for OverlappingFunctionPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &OverlappingFunctionPassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -47,11 +47,11 @@ impl LintPass<OverlappingFunctionCheckConfiguration> for OverlappingFunctionChec
     }
 }
 #[derive(Default)]
-pub struct OverlappingFunctionCheckConfiguration {
+pub struct OverlappingFunctionPassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl PassConfiguration for OverlappingFunctionCheckConfiguration {
+impl PassConfiguration for OverlappingFunctionPassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }
@@ -63,7 +63,7 @@ impl PassConfiguration for OverlappingFunctionCheckConfiguration {
 
 #[cfg(test)]
 mod tests {
-    use crate::lints::{OverlappingFunctionCheck, OverlappingFunctionCheckConfiguration};
+    use crate::lints::{OverlappingFunctionPass, OverlappingFunctionPassConfiguration};
     use crate::parser::RVStringParser;
     use crate::passes::{DiagnosticManager, LintPass, Manager, PassConfiguration};
 
@@ -73,9 +73,9 @@ mod tests {
         assert_eq!(error.len(), 0);
 
         let cfg = Manager::gen_full_cfg(nodes).unwrap(); // Need fn annotations
-        let mut config = OverlappingFunctionCheckConfiguration::default();
+        let mut config = OverlappingFunctionPassConfiguration::default();
         config.set_enabled(true);
-        OverlappingFunctionCheck::run_single_pass_along_cfg(&cfg, &config)
+        OverlappingFunctionPass::run_single_pass_along_cfg(&cfg, &config)
     }
 
     #[test]

@@ -31,5 +31,5 @@ pub use overlapping_function::*;
 mod save_to_zero;
 pub use save_to_zero::*;
 
-mod stack_check;
-pub use stack_check::*;
+mod stack;
+pub use stack::*;

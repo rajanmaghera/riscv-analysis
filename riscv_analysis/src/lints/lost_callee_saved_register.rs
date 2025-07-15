@@ -6,9 +6,9 @@ use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 // Check if the value of a calle-saved register is ever "lost" (aka. overwritten without being restored)
 // This provides a more detailed image compared to above, and could be turned into extra
 // diagnostic information in the future.
-pub struct LostCalleeSavedRegisterCheck;
-impl LintPass<LostCalleeSavedRegisterCheckConfiguration> for LostCalleeSavedRegisterCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &LostCalleeSavedRegisterCheckConfiguration) {
+pub struct LostCalleeSavedRegisterPass;
+impl LintPass<LostCalleeSavedRegisterPassConfiguration> for LostCalleeSavedRegisterPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &LostCalleeSavedRegisterPassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -60,16 +60,16 @@ impl LintPass<LostCalleeSavedRegisterCheckConfiguration> for LostCalleeSavedRegi
         }
     }
 }
-pub struct LostCalleeSavedRegisterCheckConfiguration {
+pub struct LostCalleeSavedRegisterPassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl Default for LostCalleeSavedRegisterCheckConfiguration {
+impl Default for LostCalleeSavedRegisterPassConfiguration {
     fn default() -> Self {
-        LostCalleeSavedRegisterCheckConfiguration { enabled: true }
+        LostCalleeSavedRegisterPassConfiguration { enabled: true }
     }
 }
-impl PassConfiguration for LostCalleeSavedRegisterCheckConfiguration {
+impl PassConfiguration for LostCalleeSavedRegisterPassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }

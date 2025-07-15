@@ -11,9 +11,9 @@ use std::rc::Rc;
 /// - A function is entered through the first line of code (Why?).
 /// - A function is entered through an jump that is not a function call.
 /// - Any code that has no previous nodes, i.e. is unreachable.
-pub struct ControlFlowCheck;
-impl LintPass<ControlFlowCheckConfiguration> for ControlFlowCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &ControlFlowCheckConfiguration) {
+pub struct ControlFlowPass;
+impl LintPass<ControlFlowPassConfiguration> for ControlFlowPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &ControlFlowPassConfiguration) {
         if !config.get_enabled() {
             return;
         }
@@ -53,16 +53,16 @@ impl LintPass<ControlFlowCheckConfiguration> for ControlFlowCheck {
         }
     }
 }
-pub struct ControlFlowCheckConfiguration {
+pub struct ControlFlowPassConfiguration {
     /// Is the pass enabled?
     enabled: bool,
 }
-impl Default for ControlFlowCheckConfiguration {
+impl Default for ControlFlowPassConfiguration {
     fn default() -> Self {
-        ControlFlowCheckConfiguration { enabled: true }
+        ControlFlowPassConfiguration { enabled: true }
     }
 }
-impl PassConfiguration for ControlFlowCheckConfiguration {
+impl PassConfiguration for ControlFlowPassConfiguration {
     fn get_enabled(&self) -> bool {
         self.enabled
     }
@@ -84,9 +84,9 @@ mod tests {
         assert_eq!(error.len(), 0);
 
         let cfg = Manager::gen_full_cfg(nodes).unwrap();
-        let mut config = ControlFlowCheckConfiguration::default();
+        let mut config = ControlFlowPassConfiguration::default();
         config.set_enabled(true);
-        ControlFlowCheck::run_single_pass_along_cfg(&cfg, &config)
+        ControlFlowPass::run_single_pass_along_cfg(&cfg, &config)
     }
 
     #[test]
