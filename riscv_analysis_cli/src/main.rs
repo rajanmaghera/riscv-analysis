@@ -7,24 +7,20 @@ use std::fmt::Display;
 use std::{collections::HashMap, str::FromStr};
 
 #[cfg(feature = "fixes")]
-use std::io::Write;
-#[cfg(feature = "fixes")]
 use colored::Colorize;
 #[cfg(feature = "fixes")]
 use riscv_analysis::fix::Manipulation;
+#[cfg(feature = "fixes")]
+use std::io::Write;
 
+use clap::{Args, Parser, Subcommand};
 use riscv_analysis::passes::{
-    DiagnosticItem,
-    Manager,
-    ManagerConfiguration,
-    PassConfiguration,
-    ToManagerConfiguration,
+    DiagnosticItem, Manager, ManagerConfiguration, PassConfiguration, ToManagerConfiguration,
 };
+use riscv_analysis::reader::{FileReader, FileReaderError};
 use riscv_analysis::{parser::RVParser, passes::DiagnosticManager};
 use std::path::PathBuf;
 use uuid::Uuid;
-use clap::{Args, Parser, Subcommand};
-use riscv_analysis::reader::{FileReader, FileReaderError};
 
 #[derive(Parser)]
 #[command(author, version, about)]

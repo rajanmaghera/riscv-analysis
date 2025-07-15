@@ -62,7 +62,7 @@ impl<T: FileReader> RVParser<T> {
             .1
             .iter()
             .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
-        let res = Manager::run(parsed.0, &config); // TODO make this configurable
+        let res = Manager::run(parsed.0, config); // TODO make this configurable
         match res {
             Ok(lints) => {
                 lints

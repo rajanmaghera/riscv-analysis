@@ -1,5 +1,5 @@
-use crate::{cfg::Cfg, parser::ParserNode};
 use super::{CfgError, DiagnosticManager};
+use crate::{cfg::Cfg, parser::ParserNode};
 
 pub trait GenerationPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>>;
@@ -10,7 +10,7 @@ pub trait AssertionPass {
 }
 
 /// Configuration for a pass.
-/// 
+///
 /// Every `PassConfiguration` must implement `Default`.
 pub trait PassConfiguration: Default {
     /// Check if the pass is enabled.
@@ -18,7 +18,7 @@ pub trait PassConfiguration: Default {
     /// Enable or disable the pass.
     fn set_enabled(&mut self, enabled: bool);
 }
-pub trait LintPass<Config:PassConfiguration> {
+pub trait LintPass<Config: PassConfiguration> {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &Config);
 
     /// Run a single pass along a set of `ParserNode`s and return the errors.
@@ -66,13 +66,13 @@ pub trait LintPass<Config:PassConfiguration> {
     #[must_use]
     fn run_single_pass_along_nodes(nodes: &[ParserNode], config: &Config) -> DiagnosticManager {
         let cfg = Cfg::new(nodes.into()).unwrap();
-        Self::run_single_pass_along_cfg(&cfg, &config)
+        Self::run_single_pass_along_cfg(&cfg, config)
     }
 
     #[must_use]
     fn run_single_pass_along_cfg(cfg: &Cfg, config: &Config) -> DiagnosticManager {
         let mut errors = DiagnosticManager::new();
-        Self::run(cfg, &mut errors, &config);
+        Self::run(cfg, &mut errors, config);
         errors
     }
 }

@@ -14,7 +14,11 @@ use uuid::Uuid;
 /// function.
 pub struct OverlappingFunctionPass;
 impl LintPass<OverlappingFunctionPassConfiguration> for OverlappingFunctionPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &OverlappingFunctionPassConfiguration) {
+    fn run(
+        cfg: &Cfg,
+        errors: &mut DiagnosticManager,
+        config: &OverlappingFunctionPassConfiguration,
+    ) {
         if !config.get_enabled() {
             return;
         }
@@ -57,7 +61,7 @@ impl PassConfiguration for OverlappingFunctionPassConfiguration {
     }
 
     fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled
+        self.enabled = enabled;
     }
 }
 

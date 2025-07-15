@@ -6,7 +6,11 @@ use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 // Check if the values of callee-saved registers are restored to the original value at the end of the function
 pub struct CalleeSavedRegisterPass;
 impl LintPass<CalleeSavedRegisterPassConfiguration> for CalleeSavedRegisterPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &CalleeSavedRegisterPassConfiguration) {
+    fn run(
+        cfg: &Cfg,
+        errors: &mut DiagnosticManager,
+        config: &CalleeSavedRegisterPassConfiguration,
+    ) {
         if !config.get_enabled() {
             return;
         }
@@ -50,6 +54,6 @@ impl PassConfiguration for CalleeSavedRegisterPassConfiguration {
     }
 
     fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled
+        self.enabled = enabled;
     }
 }

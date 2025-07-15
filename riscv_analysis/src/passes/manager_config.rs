@@ -1,16 +1,9 @@
 use crate::lints::{
-    CalleeSavedGarbageReadPassConfiguration,
-    CalleeSavedRegisterPassConfiguration,
-    ControlFlowPassConfiguration,
-    DeadValuePassConfiguration,
-    DotCFGGenerationPassConfiguration,
-    EcallPassConfiguration,
-    GarbageInputValuePassConfiguration,
-    InstructionInTextPassConfiguration,
-    LostCalleeSavedRegisterPassConfiguration,
-    OverlappingFunctionPassConfiguration,
-    SaveToZeroPassConfiguration,
-    StackPassConfiguration,
+    CalleeSavedGarbageReadPassConfiguration, CalleeSavedRegisterPassConfiguration,
+    ControlFlowPassConfiguration, DeadValuePassConfiguration, DotCFGGenerationPassConfiguration,
+    EcallPassConfiguration, GarbageInputValuePassConfiguration, InstructionInTextPassConfiguration,
+    LostCalleeSavedRegisterPassConfiguration, OverlappingFunctionPassConfiguration,
+    SaveToZeroPassConfiguration, StackPassConfiguration,
 };
 
 #[derive(Default)]
@@ -30,22 +23,31 @@ pub struct ManagerConfiguration {
 }
 impl ManagerConfiguration {
     // CalleeSavedGarbageReadPass
-    pub fn get_callee_saved_garbage_read_pass_config(&self) -> &CalleeSavedGarbageReadPassConfiguration {
+    #[must_use]
+    pub fn get_callee_saved_garbage_read_pass_config(
+        &self,
+    ) -> &CalleeSavedGarbageReadPassConfiguration {
         &self.callee_saved_garbage_read_pass_config
     }
-    pub fn get_mut_callee_saved_garbage_read_pass_config(&mut self) -> &mut CalleeSavedGarbageReadPassConfiguration {
+    pub fn get_mut_callee_saved_garbage_read_pass_config(
+        &mut self,
+    ) -> &mut CalleeSavedGarbageReadPassConfiguration {
         &mut self.callee_saved_garbage_read_pass_config
     }
 
     // CalleeSavedRegisterPass
+    #[must_use]
     pub fn get_callee_saved_register_pass_config(&self) -> &CalleeSavedRegisterPassConfiguration {
         &self.callee_saved_register_pass_config
     }
-    pub fn get_mut_callee_saved_register_pass_config(&mut self) -> &mut CalleeSavedRegisterPassConfiguration {
+    pub fn get_mut_callee_saved_register_pass_config(
+        &mut self,
+    ) -> &mut CalleeSavedRegisterPassConfiguration {
         &mut self.callee_saved_register_pass_config
     }
 
     // ControlFlowPass
+    #[must_use]
     pub fn get_control_flow_pass_config(&self) -> &ControlFlowPassConfiguration {
         &self.control_flow_pass_config
     }
@@ -54,6 +56,7 @@ impl ManagerConfiguration {
     }
 
     // DeadValuePass
+    #[must_use]
     pub fn get_dead_value_pass_config(&self) -> &DeadValuePassConfiguration {
         &self.dead_value_pass_config
     }
@@ -62,14 +65,18 @@ impl ManagerConfiguration {
     }
 
     // DotCFGGenerationPass
+    #[must_use]
     pub fn get_dot_cfg_generation_pass_config(&self) -> &DotCFGGenerationPassConfiguration {
         &self.dot_cfg_generation_pass_config
     }
-    pub fn get_mut_dot_cfg_generation_pass_config(&mut self) -> &mut DotCFGGenerationPassConfiguration {
+    pub fn get_mut_dot_cfg_generation_pass_config(
+        &mut self,
+    ) -> &mut DotCFGGenerationPassConfiguration {
         &mut self.dot_cfg_generation_pass_config
     }
 
     // EcallPass
+    #[must_use]
     pub fn get_ecall_pass_config(&self) -> &EcallPassConfiguration {
         &self.ecall_pass_config
     }
@@ -78,38 +85,53 @@ impl ManagerConfiguration {
     }
 
     // GarbageInputValuePass
+    #[must_use]
     pub fn get_garbage_input_value_pass_config(&self) -> &GarbageInputValuePassConfiguration {
         &self.garbage_input_value_pass_config
     }
-    pub fn get_mut_garbage_input_value_pass_config(&mut self) -> &mut GarbageInputValuePassConfiguration {
+    pub fn get_mut_garbage_input_value_pass_config(
+        &mut self,
+    ) -> &mut GarbageInputValuePassConfiguration {
         &mut self.garbage_input_value_pass_config
     }
 
     // InstructionInTextPass
+    #[must_use]
     pub fn get_instruction_in_text_pass_config(&self) -> &InstructionInTextPassConfiguration {
         &self.instruction_in_text_pass_config
     }
-    pub fn get_mut_instruction_in_text_pass_config(&mut self) -> &mut InstructionInTextPassConfiguration {
+    pub fn get_mut_instruction_in_text_pass_config(
+        &mut self,
+    ) -> &mut InstructionInTextPassConfiguration {
         &mut self.instruction_in_text_pass_config
     }
 
     // LostCalleeSavedRegisterPass
-    pub fn get_lost_callee_saved_register_pass_config(&self) -> &LostCalleeSavedRegisterPassConfiguration {
+    #[must_use]
+    pub fn get_lost_callee_saved_register_pass_config(
+        &self,
+    ) -> &LostCalleeSavedRegisterPassConfiguration {
         &self.lost_callee_saved_register_pass_config
     }
-    pub fn get_mut_lost_callee_saved_register_pass_config(&mut self) -> &mut LostCalleeSavedRegisterPassConfiguration {
+    pub fn get_mut_lost_callee_saved_register_pass_config(
+        &mut self,
+    ) -> &mut LostCalleeSavedRegisterPassConfiguration {
         &mut self.lost_callee_saved_register_pass_config
     }
 
     // OverlappingFunctionPass
+    #[must_use]
     pub fn get_overlapping_function_pass_config(&self) -> &OverlappingFunctionPassConfiguration {
         &self.overlapping_function_pass_config
     }
-    pub fn get_mut_overlapping_function_pass_config(&mut self) -> &mut OverlappingFunctionPassConfiguration {
+    pub fn get_mut_overlapping_function_pass_config(
+        &mut self,
+    ) -> &mut OverlappingFunctionPassConfiguration {
         &mut self.overlapping_function_pass_config
     }
 
     // SaveToZeroPass
+    #[must_use]
     pub fn get_save_to_zero_pass_config(&self) -> &SaveToZeroPassConfiguration {
         &self.save_to_zero_pass_config
     }
@@ -118,6 +140,7 @@ impl ManagerConfiguration {
     }
 
     // StackPass
+    #[must_use]
     pub fn get_stack_pass_config(&self) -> &StackPassConfiguration {
         &self.stack_pass_config
     }

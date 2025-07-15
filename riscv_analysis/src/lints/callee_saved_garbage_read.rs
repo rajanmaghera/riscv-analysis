@@ -5,7 +5,11 @@ use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 // check if the value of a callee-saved register is read as its original value
 pub struct CalleeSavedGarbageReadPass;
 impl LintPass<CalleeSavedGarbageReadPassConfiguration> for CalleeSavedGarbageReadPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &CalleeSavedGarbageReadPassConfiguration) {
+    fn run(
+        cfg: &Cfg,
+        errors: &mut DiagnosticManager,
+        config: &CalleeSavedGarbageReadPassConfiguration,
+    ) {
         if !config.get_enabled() {
             return;
         }
@@ -40,7 +44,7 @@ impl PassConfiguration for CalleeSavedGarbageReadPassConfiguration {
     }
 
     fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled
+        self.enabled = enabled;
     }
 }
 // TODO check if the stack is ever stored at 0 or what not

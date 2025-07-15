@@ -248,7 +248,7 @@ impl Cfg {
             label_node_map: labels,
         })
     }
-    
+
     // If we need to add an error to a register at its first use/store, we need to
     // know their ranges. This function will take a register and return the ranges
     // that need to be annotated. If it cannot find any, then it will return the original

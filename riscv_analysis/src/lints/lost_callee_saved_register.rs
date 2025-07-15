@@ -8,7 +8,11 @@ use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 // diagnostic information in the future.
 pub struct LostCalleeSavedRegisterPass;
 impl LintPass<LostCalleeSavedRegisterPassConfiguration> for LostCalleeSavedRegisterPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &LostCalleeSavedRegisterPassConfiguration) {
+    fn run(
+        cfg: &Cfg,
+        errors: &mut DiagnosticManager,
+        config: &LostCalleeSavedRegisterPassConfiguration,
+    ) {
         if !config.get_enabled() {
             return;
         }
@@ -75,6 +79,6 @@ impl PassConfiguration for LostCalleeSavedRegisterPassConfiguration {
     }
 
     fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled
+        self.enabled = enabled;
     }
 }

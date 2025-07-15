@@ -177,8 +177,7 @@ impl std::fmt::Display for LintError {
             LintError::DotCFGSuccessorOfTerminatorIsNotLeader(node) => {
                 write!(
                     f,
-                    "CFG node is the successor of a terminator but not a block leader: {}",
-                    node.to_string(),
+                    "CFG node is the successor of a terminator but not a block leader: {node}"
                 )
             }
         }
@@ -230,7 +229,9 @@ impl IsSomeDisplayableDiagnostic for LintError {
             LintError::OverwriteCalleeSavedRegister(_) => "Overwrite callee-saved register",
             LintError::LostRegisterValue(_) => "Lost register value",
             LintError::NodeInManyFunctions(_, _) => "Node in many functions",
-            LintError::DotCFGSuccessorOfTerminatorIsNotLeader(_) => "Node could not be mapped to index for DOT CFG",
+            LintError::DotCFGSuccessorOfTerminatorIsNotLeader(_) => {
+                "Node could not be mapped to index for DOT CFG"
+            }
         }
     }
 }

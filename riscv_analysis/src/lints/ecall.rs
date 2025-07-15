@@ -32,6 +32,6 @@ impl PassConfiguration for EcallPassConfiguration {
     }
 
     fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled
+        self.enabled = enabled;
     }
 }
