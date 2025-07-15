@@ -2,7 +2,7 @@ use crate::cfg::Cfg;
 use crate::parser::{HasRegisterSets, InstructionProperties, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass, PassConfiguration};
 
-// check if the value of a calle-saved register is read as its original value
+// check if the value of a callee-saved register is read as its original value
 pub struct CalleeSavedGarbageReadCheck;
 impl LintPass<CalleeSavedGarbageReadCheckConfiguration> for CalleeSavedGarbageReadCheck {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &CalleeSavedGarbageReadCheckConfiguration) {
@@ -11,8 +11,8 @@ impl LintPass<CalleeSavedGarbageReadCheckConfiguration> for CalleeSavedGarbageRe
         }
         for node in cfg {
             for read in node.reads_from() {
-                // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
-                // DESIGN DECISION: we allow any memory accesses for calle saved registers
+                // if the node uses a callee saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
+                // DESIGN DECISION: we allow any memory accesses for callee saved registers
 
                 if Register::saved_set().contains(read.get())
                     && node.uses_memory_location().is_none()
