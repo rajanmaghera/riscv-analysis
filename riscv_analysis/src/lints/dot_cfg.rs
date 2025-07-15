@@ -1,114 +1,13 @@
 use uuid::Uuid;
 
 use crate::{
-    cfg::{Cfg, CfgNode},
-    parser::{HasIdentity, InstructionProperties, LabelString, With},
-    passes::{DiagnosticLocation, DiagnosticManager, LintError, LintPass, PassConfiguration}
+    cfg::{Cfg, CfgNode, BasicBlock},
+    parser::{HasIdentity, InstructionProperties},
+    passes::{DiagnosticManager, LintError, LintPass, PassConfiguration}
 };
 use std::{collections::{HashMap, HashSet}, fs::File, path::PathBuf};
 use std::rc::Rc;
 use std::io::Write;
-
-#[derive(Debug)]
-struct BasicBlock {
-    nodes: Vec<Rc<CfgNode>>,
-}
-
-impl BasicBlock {
-    pub fn new(nodes: Vec<Rc<CfgNode>>) -> Self {
-        BasicBlock {
-            nodes: nodes,
-        }
-    }
-
-    pub fn new_empty() -> Self {
-        BasicBlock {
-            nodes: Vec::new(),
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
-    }
-
-    pub fn leader(&self) -> Option<Rc<CfgNode>> {
-        let Some(leader) = self.nodes.first() else { return None };
-        Some(Rc::clone(leader))
-    }
-
-    pub fn terminator(&self) -> Option<Rc<CfgNode>> {
-        let Some(leader) = self.nodes.last() else { return None };
-        Some(Rc::clone(leader))
-    }
-
-    pub fn len(&self) -> usize {
-        self.nodes.len()
-    }
-
-    pub fn is_leader_of(&self, node: &Rc<CfgNode>) -> bool {
-        let Some(leader) = self.leader() else { return false };
-        *leader == **node
-    }
-
-    pub fn is_terminator_of(&self, node: &Rc<CfgNode>) -> bool {
-        let Some(terminator) = self.terminator() else { return false };
-        *terminator == **node
-    }
-
-    pub fn is_in(&self, node: &Rc<CfgNode>) -> bool {
-        for own_node in self.iter() {
-            if **own_node == **node { return true }
-        };
-        false
-    }
-
-    pub fn id(&self) -> Uuid {
-        let Some(leader) = self.leader() else { return Uuid::nil() };
-        leader.id()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &Rc<CfgNode>> {
-        self.nodes.iter()
-    }
-
-    pub fn labels(&self) -> Option<HashSet<With<LabelString>>> {
-        let Some(leader) = self.leader() else { return None };
-        Some(leader.labels())
-    }
-
-    pub fn canonical_label(&self) -> Option<With<LabelString>> {
-        let Some(labels) = self.labels() else { return None };
-        if labels.len() != 1 {
-            return None;
-        }
-        let Some(label) = labels.iter().next() else { return None };
-        Some(label.clone())
-    }
-
-    pub fn dot_str_heading(&self) -> String {
-        match self.canonical_label() {
-            Some(l) => l.to_string(),
-            None => self.id().to_string()
-        }
-    }
-
-    pub fn dot_str(&self) -> String {
-        let instruction_string = self.iter()
-        .filter(|n| n.is_instruction())
-        .map(|n| n.raw_text())
-        .collect::<Vec<String>>()
-        .join("\\l")
-        // square brackets, vertical bars, and angle brackets must be escaped
-        // see https://graphviz.org/doc/info/shapes.html#record
-        .replace("[", "\\[")
-        .replace("]", "\\]")
-        .replace("|", "\\|")
-        .replace("<", "\\<")
-        .replace(">", "\\>");
-
-        format!("\"{}\" [label=\"{{{}:\\l|{}\\l}}\"]", self.id(), self.dot_str_heading(), instruction_string)
-    }
-}
 
 // Generates a CFG in dot format
 pub struct DotCFGGenerationPass;
@@ -120,16 +19,24 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
         let dot_cfg_path = config.get_dot_cfg_path();
         let mut dot_cfg_file = File::create(dot_cfg_path).expect("Failed to create file at \"{}\" for DOT CFG");
 
-        // Identify block leaders and callers/call targets
+        // Block leaders
         let mut leaders: HashSet<Uuid> = HashSet::new();
+        // Return addresses (cfg nodes that will be returned to after a call)
         let mut return_addresses: HashSet<Uuid> = HashSet::new();
+        // Returns (cfg node that returns to the caller)
         let mut returns: HashSet<Uuid> = HashSet::new();
-        let mut target_to_callers_map: HashMap<Uuid, Vec<Rc<CfgNode>>> = HashMap::new(); // each function can have multiple callers
-
-        // maps caller to target, return address, and return
+        // Maps each target (cfg node representing entry point of function) to the cfg nodes that call it
+        let mut target_to_callers_map: HashMap<Uuid, Vec<Rc<CfgNode>>> = HashMap::new();
+        // Maps caller to tuple of:
+        // - target (cfg node representing entry point of function)
+        // - return address (cfg node that will be returned to after a call)
+        // - return (cfg node that returns to the caller)
         let mut caller_info_map: HashMap<Uuid, (Rc<CfgNode>, Rc<CfgNode>, Rc<CfgNode>)> = HashMap::new();
-        let mut call_counts: HashMap<Uuid, u32> = HashMap::new(); // number of times each function label is called in the code
+        // Maps each function entry point to the number of times it is called in the code
+        let mut call_counts: HashMap<Uuid, u32> = HashMap::new();
+        // Maps each return address to its block leader
         let mut return_address_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
+        // Maps each return instruction to its block leader
         let mut return_inst_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
 
         for node in cfg.iter() {
@@ -233,7 +140,8 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
             }
 
             // Add node to current block
-            current_block.nodes.push(Rc::clone(&node));
+            // It should not be in the current block already.
+            assert!(current_block.push(Rc::clone(&node)));
             
             // Update return_address_to_leader_map if node is return address
             if return_addresses.contains(&node.id()) {

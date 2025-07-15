@@ -10,6 +10,9 @@ pub use ecall::*;
 mod node;
 pub use node::*;
 
+mod basic_block;
+pub use basic_block::*;
+
 mod function;
 pub use function::*;
 
