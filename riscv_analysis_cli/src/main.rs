@@ -4,23 +4,25 @@ use printer::*;
 mod pretty_print_options;
 
 use std::fmt::Display;
-#[cfg(feature = "fixes")]
-use std::io::Write;
 use std::{collections::HashMap, str::FromStr};
 
+#[cfg(feature = "fixes")]
+use std::io::Write;
 #[cfg(feature = "fixes")]
 use colored::Colorize;
 #[cfg(feature = "fixes")]
 use riscv_analysis::fix::Manipulation;
-use riscv_analysis::passes::DiagnosticItem;
+
+use riscv_analysis::passes::{
+    DiagnosticItem,
+    Manager,
+    ManagerConfiguration,
+    PassConfiguration,
+    ToManagerConfiguration,
+};
 use riscv_analysis::{parser::RVParser, passes::DiagnosticManager};
 use std::path::PathBuf;
 use uuid::Uuid;
-
-#[cfg(feature = "analysis_debugger")]
-use riscv_analysis::passes::DiagnosticLocation;
-use riscv_analysis::passes::Manager;
-
 use clap::{Args, Parser, Subcommand};
 use riscv_analysis::reader::{FileReader, FileReaderError};
 
@@ -67,6 +69,21 @@ struct Lint {
     /// Display errors from all files
     #[clap(long)]
     all_files: bool,
+    /// Optionally output a CFG to a file in dot format
+    #[clap(long)]
+    dot_cfg: Option<PathBuf>,
+}
+
+impl ToManagerConfiguration for Lint {
+    fn to_manager_configuration(&self) -> ManagerConfiguration {
+        let mut config = ManagerConfiguration::default();
+        if let Some(dot_cfg_path) = &self.dot_cfg {
+            let dot_cfg_config = config.get_mut_dot_cfg_generation_pass_config();
+            dot_cfg_config.set_enabled(true);
+            dot_cfg_config.set_dot_cfg_path(dot_cfg_path.clone());
+        }
+        config
+    }
 }
 
 #[cfg(feature = "fixes")]
@@ -319,8 +336,11 @@ fn main() {
                     } else if lint.debug {
                         println!("{}", full_cfg);
                     }
+                    // convert Lint arguments to ManagerConfiguration
+                    let manager_config = lint.to_manager_configuration();
                     let mut errs = DiagnosticManager::new();
-                    Manager::run_diagnostics(&full_cfg, &mut errs);
+                    // run diagnostic passes using the ManagerConfiguration
+                    Manager::run_diagnostics(&full_cfg, &mut errs, &manager_config);
                     errs.iter()
                         .for_each(|x| diags.push(DiagnosticItem::from_displayable(x.as_ref())));
                 }

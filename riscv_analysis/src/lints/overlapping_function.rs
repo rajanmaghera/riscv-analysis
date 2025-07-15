@@ -1,7 +1,7 @@
 use crate::{
     cfg::Cfg,
     parser::{Label, ParserNode},
-    passes::{DiagnosticManager, LintError, LintPass},
+    passes::{DiagnosticManager, LintError, LintPass, PassConfiguration},
 };
 use uuid::Uuid;
 
@@ -13,8 +13,11 @@ use uuid::Uuid;
 /// overlapping functions usually indicates a mistaken jump to the middle of a
 /// function.
 pub struct OverlappingFunctionCheck;
-impl LintPass for OverlappingFunctionCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<OverlappingFunctionCheckConfiguration> for OverlappingFunctionCheck {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &OverlappingFunctionCheckConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         for node in cfg {
             // Capture entry points that are part of more than one function
             // NOTE: We only give an error for the first line of a function,
@@ -43,12 +46,26 @@ impl LintPass for OverlappingFunctionCheck {
         }
     }
 }
+#[derive(Default)]
+pub struct OverlappingFunctionCheckConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl PassConfiguration for OverlappingFunctionCheckConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::lints::OverlappingFunctionCheck;
+    use crate::lints::{OverlappingFunctionCheck, OverlappingFunctionCheckConfiguration};
     use crate::parser::RVStringParser;
-    use crate::passes::{DiagnosticManager, LintPass, Manager};
+    use crate::passes::{DiagnosticManager, LintPass, Manager, PassConfiguration};
 
     /// Compute the lints for a given input
     fn run_pass(input: &str) -> DiagnosticManager {
@@ -56,7 +73,9 @@ mod tests {
         assert_eq!(error.len(), 0);
 
         let cfg = Manager::gen_full_cfg(nodes).unwrap(); // Need fn annotations
-        OverlappingFunctionCheck::run_single_pass_along_cfg(&cfg)
+        let mut config = OverlappingFunctionCheckConfiguration::default();
+        config.set_enabled(true);
+        OverlappingFunctionCheck::run_single_pass_along_cfg(&cfg, &config)
     }
 
     #[test]

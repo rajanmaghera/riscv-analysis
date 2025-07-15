@@ -1,7 +1,7 @@
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
-    passes::{DiagnosticBuilder, DiagnosticManager, LintError, LintPass},
+    passes::{DiagnosticBuilder, DiagnosticManager, LintError, LintPass, PassConfiguration},
 };
 use std::rc::Rc;
 
@@ -12,8 +12,11 @@ use std::rc::Rc;
 /// - A function is entered through an jump that is not a function call.
 /// - Any code that has no previous nodes, i.e. is unreachable.
 pub struct ControlFlowCheck;
-impl LintPass for ControlFlowCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<ControlFlowCheckConfiguration> for ControlFlowCheck {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &ControlFlowCheckConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         for node in &cfg.clone() {
             if node.is_function_entry() {
                 // If the previous nodes set is not empty
@@ -50,6 +53,24 @@ impl LintPass for ControlFlowCheck {
         }
     }
 }
+pub struct ControlFlowCheckConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl Default for ControlFlowCheckConfiguration {
+    fn default() -> Self {
+        ControlFlowCheckConfiguration { enabled: true }
+    }
+}
+impl PassConfiguration for ControlFlowCheckConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -63,7 +84,9 @@ mod tests {
         assert_eq!(error.len(), 0);
 
         let cfg = Manager::gen_full_cfg(nodes).unwrap();
-        ControlFlowCheck::run_single_pass_along_cfg(&cfg)
+        let mut config = ControlFlowCheckConfiguration::default();
+        config.set_enabled(true);
+        ControlFlowCheck::run_single_pass_along_cfg(&cfg, &config)
     }
 
     #[test]

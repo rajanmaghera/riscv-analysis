@@ -3,13 +3,13 @@ use uuid::Uuid;
 use crate::{
     cfg::{Cfg, CfgNode},
     parser::{HasIdentity, InstructionProperties, LabelString, With},
-    passes::{DiagnosticLocation, DiagnosticManager, LintError, LintPass}
+    passes::{DiagnosticLocation, DiagnosticManager, LintError, LintPass, PassConfiguration}
 };
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, fs::File, path::PathBuf};
 use std::rc::Rc;
+use std::io::Write;
 
 #[derive(Debug)]
-
 struct BasicBlock {
     nodes: Vec<Rc<CfgNode>>,
 }
@@ -112,8 +112,14 @@ impl BasicBlock {
 
 // Generates a CFG in dot format
 pub struct DotCFGGenerationPass;
-impl LintPass for DotCFGGenerationPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &DotCFGGenerationPassConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
+        let dot_cfg_path = config.get_dot_cfg_path();
+        let mut dot_cfg_file = File::create(dot_cfg_path).expect("Failed to create file at \"{}\" for DOT CFG");
+
         // Identify block leaders and callers/call targets
         let mut leaders: HashSet<Uuid> = HashSet::new();
         let mut return_addresses: HashSet<Uuid> = HashSet::new();
@@ -255,8 +261,8 @@ impl LintPass for DotCFGGenerationPass {
         }
 
         // Begin DOT graph and set node style
-        println!("digraph cfg {{");
-        println!("\tnode [shape=record, fontname=\"Courier\"];");
+        writeln!(dot_cfg_file, "digraph cfg {{").expect("File \"{}\" should be writable");
+        writeln!(dot_cfg_file, "\tnode [shape=record, fontname=\"Courier\"];").expect("File \"{}\" should be writable");
         for node in cfg.iter() {
             // If node is not leader, skip it
             if !leaders.contains(&node.id()) {
@@ -274,7 +280,7 @@ impl LintPass for DotCFGGenerationPass {
                 .expect("Nonempty block should have a terminator");  // TODO push error and return
             let terminator_id = terminator.id();
 
-            println!("\t{}", current_block.dot_str());
+            writeln!(dot_cfg_file, "\t{}", current_block.dot_str()).expect("DOT CFG file should be writable");
 
             // Print call and return as dashed edges in DOT format
             if let Some((call_target, return_address, return_inst)) = caller_info_map.get(&terminator_id) {
@@ -282,24 +288,24 @@ impl LintPass for DotCFGGenerationPass {
                     .expect("Call target should be mapped to call count");  // TODO push error and return
                 *call_count += 1;
 
-                println!(
+                writeln!(dot_cfg_file, 
                     "\t\"{}\" -> \"{}\"[style=\"dashed\", label=\"call from site {}\"]",
                     current_block.id(),
                     call_target.id(),
                     call_count,
-                );
+                ).expect("DOT CFG file should be writable");
 
                 let return_inst_block_leader = return_inst_to_leader_map.get(&return_inst.id())
                     .expect("Return instruction should be mapped to its block leader");  // TODO push error and return
                 let return_address_block_leader = return_address_to_leader_map.get(&return_address.id())
                     .expect("Return address should be mapped to its block leader");  // TODO push error and return
 
-                println!(
+                writeln!(dot_cfg_file, 
                     "\t\"{}\" -> \"{}\"[style=\"dashed\", label=\"return after call site {}\"];",
                     return_inst_block_leader.id(),
                     return_address_block_leader.id(),
                     call_count,
-                );
+                ).expect("DOT CFG file should be writable");
             }
 
             // Print outgoing edges to all successor basic blocks in DOT format
@@ -322,14 +328,39 @@ impl LintPass for DotCFGGenerationPass {
             }
 
             if !succs.is_empty() {
-                println!(
+                writeln!(dot_cfg_file, 
                     "\t\"{}\" -> {{ \"{}\" }};",
                     current_block.id(),
                     succ_string
-                );
+                ).expect("DOT CFG file should be writable");
             }
         }
         // End DOT graph
-        println!("}}");
+        writeln!(dot_cfg_file, "}}").expect("DOT CFG file should be writable");
+    }
+}
+#[derive(Default)] // pass should be disabled by default
+pub struct DotCFGGenerationPassConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+    /// The path of the file to write the CFG to
+    dot_cfg_path: PathBuf,
+}
+impl PassConfiguration for DotCFGGenerationPassConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
+impl DotCFGGenerationPassConfiguration {
+    pub fn get_dot_cfg_path(&self) -> &PathBuf {
+        &self.dot_cfg_path
+    }
+
+    pub fn set_dot_cfg_path(&mut self, dot_cfg_path: PathBuf) {
+        self.dot_cfg_path = dot_cfg_path
     }
 }

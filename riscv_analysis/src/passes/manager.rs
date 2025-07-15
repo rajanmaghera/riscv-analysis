@@ -2,15 +2,27 @@ use crate::{
     analysis::{AvailableValuePass, LivenessPass},
     cfg::Cfg,
     gen::{
-        EcallTerminationPass, EliminateDeadCodeDirectionsPass, FunctionMarkupPass,
+        EcallTerminationPass,
+        EliminateDeadCodeDirectionsPass,
+        FunctionMarkupPass,
         NodeDirectionPass,
     },
     lints::{
-        CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
-        EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck,
-        OverlappingFunctionCheck, SaveToZeroCheck, StackCheckPass, DotCFGGenerationPass,
+        CalleeSavedGarbageReadCheck,
+        CalleeSavedRegisterCheck,
+        ControlFlowCheck,
+        DeadValueCheck,
+        DotCFGGenerationPass,
+        EcallCheck,
+        GarbageInputValueCheck,
+        InstructionInTextCheck,
+        LostCalleeSavedRegisterCheck,
+        OverlappingFunctionCheck,
+        SaveToZeroCheck,
+        StackCheckPass,
     },
     parser::ParserNode,
+    passes::ManagerConfiguration,
 };
 
 use super::{CfgError, DiagnosticManager, GenerationPass, LintPass};
@@ -46,24 +58,27 @@ impl Manager {
         LivenessPass::run(&mut cfg)?;
         Ok(cfg)
     }
-    pub fn run_diagnostics(cfg: &Cfg, errors: &mut DiagnosticManager) {
-        DotCFGGenerationPass::run(cfg, errors);
-        SaveToZeroCheck::run(cfg, errors);
-        DeadValueCheck::run(cfg, errors);
-        InstructionInTextCheck::run(cfg, errors);
-        EcallCheck::run(cfg, errors);
-        ControlFlowCheck::run(cfg, errors);
-        GarbageInputValueCheck::run(cfg, errors);
-        StackCheckPass::run(cfg, errors);
-        CalleeSavedRegisterCheck::run(cfg, errors);
-        CalleeSavedGarbageReadCheck::run(cfg, errors);
-        LostCalleeSavedRegisterCheck::run(cfg, errors);
-        OverlappingFunctionCheck::run(cfg, errors);
+    pub fn run_diagnostics(cfg: &Cfg, errors: &mut DiagnosticManager, config: &ManagerConfiguration) {
+        DotCFGGenerationPass::run(cfg, errors, config.get_dot_cfg_generation_pass_config());
+        SaveToZeroCheck::run(cfg, errors, config.get_save_to_zero_check_config());
+        DeadValueCheck::run(cfg, errors, config.get_dead_value_check_config());
+        InstructionInTextCheck::run(cfg, errors, config.get_instruction_in_text_check_config());
+        EcallCheck::run(cfg, errors, config.get_ecall_check_config());
+        ControlFlowCheck::run(cfg, errors, config.get_control_flow_check_config());
+        GarbageInputValueCheck::run(cfg, errors, config.get_garbage_input_value_check_config());
+        StackCheckPass::run(cfg, errors, config.get_stack_check_pass_config());
+        CalleeSavedRegisterCheck::run(cfg, errors, config.get_callee_saved_register_check_config());
+        CalleeSavedGarbageReadCheck::run(cfg, errors, config.get_callee_saved_garbage_read_check_config());
+        LostCalleeSavedRegisterCheck::run(cfg, errors, config.get_lost_callee_saved_register_check_config());
+        OverlappingFunctionCheck::run(cfg, errors, config.get_overlapping_function_check_config());
     }
-    pub fn run(cfg: Vec<ParserNode>) -> Result<DiagnosticManager, Box<CfgError>> {
+    pub fn run(cfg: Vec<ParserNode>, config: &ManagerConfiguration) -> Result<DiagnosticManager, Box<CfgError>> {
         let mut errors = DiagnosticManager::new();
         let cfg = Self::gen_full_cfg(cfg)?;
-        Self::run_diagnostics(&cfg, &mut errors);
+        Self::run_diagnostics(&cfg, &mut errors, &config);
         Ok(errors)
+    }
+    pub fn run_with_default_config(cfg: Vec<ParserNode>) -> Result<DiagnosticManager, Box<CfgError>> {
+        Self::run(cfg, &ManagerConfiguration::default())
     }
 }

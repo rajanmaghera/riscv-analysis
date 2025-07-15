@@ -9,6 +9,7 @@ use crate::parser::RegisterToken;
 use crate::passes::DiagnosticManager;
 use crate::passes::LintError;
 use crate::passes::LintPass;
+use crate::passes::PassConfiguration;
 use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;
 
@@ -102,8 +103,11 @@ impl Cfg {
 // during the CFG build. Then, the data is applied via a check.
 
 pub struct SaveToZeroCheck;
-impl LintPass for SaveToZeroCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<SaveToZeroCheckConfiguration> for SaveToZeroCheck {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &SaveToZeroCheckConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         for node in cfg {
             if let Some(register) = node.writes_to() {
                 if register == Register::X0 && !node.can_skip_save_checks() {
@@ -113,10 +117,31 @@ impl LintPass for SaveToZeroCheck {
         }
     }
 }
+pub struct SaveToZeroCheckConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl Default for SaveToZeroCheckConfiguration {
+    fn default() -> Self {
+        SaveToZeroCheckConfiguration { enabled: true }
+    }
+}
+impl PassConfiguration for SaveToZeroCheckConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
 
 pub struct DeadValueCheck;
-impl LintPass for DeadValueCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<DeadValueCheckConfiguration> for DeadValueCheck {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &DeadValueCheckConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         for node in cfg {
             // check the out of the node for any uses that
             // should not be there (temporaries)
@@ -152,12 +177,33 @@ impl LintPass for DeadValueCheck {
         }
     }
 }
+pub struct DeadValueCheckConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl Default for DeadValueCheckConfiguration {
+    fn default() -> Self {
+        DeadValueCheckConfiguration { enabled: true }
+    }
+}
+impl PassConfiguration for DeadValueCheckConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
 
 // Check if every ecall has a known call number
 // Check if there are any instructions after an ecall to terminate the program
 pub struct EcallCheck;
-impl LintPass for EcallCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<EcallCheckConfiguration> for EcallCheck {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &EcallCheckConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         for node in cfg {
             if node.is_ecall() && node.known_ecall().is_none() {
                 errors.push(LintError::UnknownEcall(node.node().clone()));
@@ -165,13 +211,34 @@ impl LintPass for EcallCheck {
         }
     }
 }
+pub struct EcallCheckConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl Default for EcallCheckConfiguration {
+    fn default() -> Self {
+        EcallCheckConfiguration { enabled: true }
+    }
+}
+impl PassConfiguration for EcallCheckConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
 
 // TODO deprecate
 // Check if there are any in values to the start of functions that are not args or saved registers
 // Check if there are any in values at the start of a program
 pub struct GarbageInputValueCheck;
-impl LintPass for GarbageInputValueCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<GarbageInputValueCheckConfiguration> for GarbageInputValueCheck {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &GarbageInputValueCheckConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         for node in cfg {
             if node.is_program_entry() {
                 // get registers
@@ -203,11 +270,32 @@ impl LintPass for GarbageInputValueCheck {
         }
     }
 }
+pub struct GarbageInputValueCheckConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl Default for GarbageInputValueCheckConfiguration {
+    fn default() -> Self {
+        GarbageInputValueCheckConfiguration { enabled: true }
+    }
+}
+impl PassConfiguration for GarbageInputValueCheckConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
 
 // Check that we know the stack position at every point in the program (aka. within scopes)
 pub struct StackCheckPass;
-impl LintPass for StackCheckPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<StackCheckPassConfiguration> for StackCheckPass {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &StackCheckPassConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         // PASS 1
         // check that we know the stack position at every point in the program
         // check that the stack is never in an invalid position
@@ -253,11 +341,32 @@ impl LintPass for StackCheckPass {
         // PASS 2: check that
     }
 }
+pub struct StackCheckPassConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl Default for StackCheckPassConfiguration {
+    fn default() -> Self {
+        StackCheckPassConfiguration { enabled: true }
+    }
+}
+impl PassConfiguration for StackCheckPassConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
 
 // check if the value of a calle-saved register is read as its original value
 pub struct CalleeSavedGarbageReadCheck;
-impl LintPass for CalleeSavedGarbageReadCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<CalleeSavedGarbageReadCheckConfiguration> for CalleeSavedGarbageReadCheck {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &CalleeSavedGarbageReadCheckConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         for node in cfg {
             for read in node.reads_from() {
                 // if the node uses a calle saved register but not a memory access and the value going in is the original value, then we are reading a garbage value
@@ -274,13 +383,33 @@ impl LintPass for CalleeSavedGarbageReadCheck {
         }
     }
 }
+pub struct CalleeSavedGarbageReadCheckConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl Default for CalleeSavedGarbageReadCheckConfiguration {
+    fn default() -> Self {
+        CalleeSavedGarbageReadCheckConfiguration { enabled: true }
+    }
+}
+impl PassConfiguration for CalleeSavedGarbageReadCheckConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
 
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
 // TODO check if the stack is ever stored at 0 or what not
 
 // Check if the values of callee-saved registers are restored to the original value at the end of the function
 pub struct CalleeSavedRegisterCheck;
-impl LintPass for CalleeSavedRegisterCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<CalleeSavedRegisterCheckConfiguration> for CalleeSavedRegisterCheck {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &CalleeSavedRegisterCheckConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         for func in cfg.functions().values() {
             let exit_vals = func.exit().reg_values_in();
             for reg in &Register::callee_saved_set() {
@@ -306,13 +435,34 @@ impl LintPass for CalleeSavedRegisterCheck {
         }
     }
 }
+pub struct CalleeSavedRegisterCheckConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl Default for CalleeSavedRegisterCheckConfiguration {
+    fn default() -> Self {
+        CalleeSavedRegisterCheckConfiguration { enabled: true }
+    }
+}
+impl PassConfiguration for CalleeSavedRegisterCheckConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
+    }
+}
 
 // Check if the value of a calle-saved register is ever "lost" (aka. overwritten without being restored)
 // This provides a more detailed image compared to above, and could be turned into extra
 // diagnostic information in the future.
 pub struct LostCalleeSavedRegisterCheck;
-impl LintPass for LostCalleeSavedRegisterCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+impl LintPass<LostCalleeSavedRegisterCheckConfiguration> for LostCalleeSavedRegisterCheck {
+    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &LostCalleeSavedRegisterCheckConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
         for node in cfg {
             let callee = Register::saved_set();
 
@@ -359,5 +509,23 @@ impl LintPass for LostCalleeSavedRegisterCheck {
                 }
             }
         }
+    }
+}
+pub struct LostCalleeSavedRegisterCheckConfiguration {
+    /// Is the pass enabled?
+    enabled: bool,
+}
+impl Default for LostCalleeSavedRegisterCheckConfiguration {
+    fn default() -> Self {
+        LostCalleeSavedRegisterCheckConfiguration { enabled: true }
+    }
+}
+impl PassConfiguration for LostCalleeSavedRegisterCheckConfiguration {
+    fn get_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled
     }
 }
