@@ -180,12 +180,20 @@ impl BasicBlock {
             .replace('<', "\\<")
             .replace('>', "\\>");
 
-        format!(
-            "\"{}\" [label=\"{{{}:\\l|{}\\l}}\"]",
-            self.id(),
-            self.heading(),
-            instruction_string
-        )
+        match self.canonical_label() {
+            Some(label) => format!(
+                "\"{}\" [label=\"{{{}:\\l|{}\\l}}\"]",
+                self.id(),
+                label,
+                instruction_string
+            ),
+            None => format!(
+                "\"{}\" [label=\"{{{}\\l}}\"]",
+                self.id(),
+                instruction_string
+            ),
+        }
+        
     }
 }
 
