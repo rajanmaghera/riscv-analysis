@@ -352,6 +352,7 @@ struct DotCFGGenerationPassInfo {
     return_inst_to_leader_map: HashMap<Uuid, Rc<CfgNode>>,
 }
 impl DotCFGGenerationPassInfo {
+    #[must_use]
     fn new() -> Self {
         DotCFGGenerationPassInfo {
             leaders: HashSet::new(),
