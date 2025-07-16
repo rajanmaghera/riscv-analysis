@@ -2,8 +2,8 @@ use uuid::Uuid;
 
 use crate::{
     cfg::{BasicBlock, Cfg, CfgNode},
-    parser::{HasIdentity, InstructionProperties},
-    passes::{DiagnosticManager, LintError, LintPass, PassConfiguration},
+    parser::{HasIdentity, InstructionProperties, LabelString, ParserNode, With},
+    passes::{DiagnosticManager, LintPass, PassConfiguration},
 };
 use std::io::Write;
 use std::rc::Rc;
@@ -15,15 +15,19 @@ use std::{
 
 // Generates a CFG in dot format
 pub struct DotCFGGenerationPass;
-impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager, config: &DotCFGGenerationPassConfiguration) {
-        if !config.get_enabled() {
-            return;
-        }
-        let dot_cfg_path = config.get_dot_cfg_path();
-        let mut dot_cfg_file =
-            File::create(dot_cfg_path).expect("Failed to create file at \"{}\" for DOT CFG");
-
+impl DotCFGGenerationPass {
+    fn scan_leaders_and_calls(
+        cfg: &Cfg,
+    ) -> Result<
+        (
+            HashSet<Uuid>,
+            HashSet<Uuid>,
+            HashSet<Uuid>,
+            HashMap<Uuid, CallInfo>,
+            HashMap<Uuid, u32>,
+        ),
+        DotCFGError,
+    > {
         // Block leaders
         let mut leaders: HashSet<Uuid> = HashSet::new();
         // Return addresses (cfg nodes that will be returned to after a call)
@@ -32,18 +36,10 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
         let mut returns: HashSet<Uuid> = HashSet::new();
         // Maps each target (cfg node representing entry point of function) to the cfg nodes that call it
         let mut target_to_callers_map: HashMap<Uuid, Vec<Rc<CfgNode>>> = HashMap::new();
-        // Maps caller to tuple of:
-        // - target (cfg node representing entry point of function)
-        // - return address (cfg node that will be returned to after a call)
-        // - return (cfg node that returns to the caller)
-        let mut caller_info_map: HashMap<Uuid, (Rc<CfgNode>, Rc<CfgNode>, Rc<CfgNode>)> =
-            HashMap::new();
+        // Maps each caller to its target, return address, and return instruction
+        let mut caller_info_map: HashMap<Uuid, CallInfo> = HashMap::new();
         // Maps each function entry point to the number of times it is called in the code
         let mut call_counts: HashMap<Uuid, u32> = HashMap::new();
-        // Maps each return address to its block leader
-        let mut return_address_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
-        // Maps each return instruction to its block leader
-        let mut return_inst_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
 
         for node in cfg {
             let prevs = node.prevs();
@@ -81,7 +77,7 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
                 let call_target_instruction = cfg
                     .label_node_map
                     .get(label_string.as_str())
-                    .expect("Call target should be in the label node map"); // TODO push error and return
+                    .ok_or_else(|| DotCFGError::CallTargetLabelNotInLabelNodeMap(label_string))?;
                 leaders.insert(call_target_instruction.id());
 
                 // Update target_to_callers_map
@@ -95,9 +91,13 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
 
                 // Node should have one successor: the next instruction after the call
                 // The call target is not considered a successor
-                assert!(succs.len() == 1);
-                let return_address: &Rc<CfgNode> =
-                    succs.iter().next().expect("Call should have one successor"); // TODO push error and return
+                if succs.len() > 1 {
+                    return Err(DotCFGError::CallHasMoreThanOneSuccessor(node.node()));
+                }
+                let return_address: &Rc<CfgNode> = succs
+                    .iter()
+                    .next()
+                    .ok_or_else(|| DotCFGError::CallHasNoSuccessors(node.node()))?;
 
                 // Update return_addresses, returns, and caller_info_map
                 return_addresses.insert(return_address.id());
@@ -108,17 +108,17 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
                     .labels()
                     .iter()
                     .next()
-                    .expect("Call target should have a label") // TODO push error and return
+                    .ok_or_else(|| DotCFGError::MissingCallTargetLabel(target.node()))?
                     .to_owned();
                 let called_function = Rc::clone(
                     cfg.functions()
                         .get(&target_label)
-                        .expect("Call target should be a function"), // TODO push error and return
+                        .ok_or_else(|| DotCFGError::CallTargetIsNotFunction(target.node()))?,
                 );
                 let called_function_return = called_function.exit().clone();
                 returns.insert(called_function_return.id());
-
-                caller_info_map.insert(node.id(), (target, return_address, called_function_return));
+                let call_info = CallInfo::new(target, return_address, called_function_return);
+                caller_info_map.insert(node.id(), call_info);
                 call_counts.insert(called_function.entry().id(), 0);
             }
 
@@ -134,8 +134,35 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
             }
         }
 
-        // Create basic blocks
+        Ok((
+            leaders,
+            return_addresses,
+            returns,
+            caller_info_map,
+            call_counts,
+        ))
+    }
+
+    fn create_blocks_and_return_leaders(
+        cfg: &Cfg,
+        leaders: &HashSet<Uuid>,
+        return_addresses: &HashSet<Uuid>,
+        returns: &HashSet<Uuid>,
+    ) -> Result<
+        (
+            HashMap<Uuid, BasicBlock>,
+            HashMap<Uuid, Rc<CfgNode>>,
+            HashMap<Uuid, Rc<CfgNode>>,
+        ),
+        DotCFGError,
+    > {
+        // Maps leader ids to basic blocks
         let mut ids_to_blocks: HashMap<Uuid, BasicBlock> = HashMap::new();
+        // Maps each return address to its block leader
+        let mut return_address_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
+        // Maps each return instruction to its block leader
+        let mut return_inst_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
+
         let mut current_block = BasicBlock::new_empty(); // need to initialize here to make compiler happy
         for node in cfg {
             // If node is leader, add the previous block to the ids_to_blocks map and begin the next block
@@ -148,30 +175,24 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
 
             // Add node to current block
             // It should not be in the current block already.
-            assert!(current_block.push(Rc::clone(&node)));
+            if !current_block.push(Rc::clone(&node)) {
+                return Err(DotCFGError::PushedDuplicateNodeIntoBlock(node.node()));
+            }
 
             // Update return_address_to_leader_map if node is return address
             if return_addresses.contains(&node.id()) {
-                return_address_to_leader_map.insert(
-                    node.id(),
-                    Rc::clone(
-                        &current_block
-                            .leader()
-                            .expect("Current block should have leader"), // TODO proper error handling
-                    ),
-                );
+                let leader = current_block
+                    .leader()
+                    .ok_or_else(|| DotCFGError::MissingBlockLeader(current_block.clone()))?;
+                return_address_to_leader_map.insert(node.id(), Rc::clone(&leader));
             }
 
             // Update return_inst_to_leader_map if node is return
             if returns.contains(&node.id()) {
-                return_inst_to_leader_map.insert(
-                    node.id(),
-                    Rc::clone(
-                        &current_block
-                            .leader()
-                            .expect("Current block should have leader"), // TODO proper error handling
-                    ),
-                );
+                let leader = current_block
+                    .leader()
+                    .ok_or_else(|| DotCFGError::MissingBlockLeader(current_block.clone()))?;
+                return_inst_to_leader_map.insert(node.id(), Rc::clone(&leader));
             }
         }
         // Add last block to ids_to_blocks map
@@ -179,10 +200,27 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
             ids_to_blocks.insert(current_block.id(), current_block);
         }
 
+        Ok((
+            ids_to_blocks,
+            return_address_to_leader_map,
+            return_inst_to_leader_map,
+        ))
+    }
+
+    fn write_cfg_as_dot(
+        cfg: &Cfg,
+        dot_cfg_file: &mut File,
+        leaders: &HashSet<Uuid>,
+        ids_to_blocks: &HashMap<Uuid, BasicBlock>,
+        call_counts: &mut HashMap<Uuid, u32>,
+        caller_info_map: &HashMap<Uuid, CallInfo>,
+        return_inst_to_leader_map: &HashMap<Uuid, Rc<CfgNode>>,
+        return_address_to_leader_map: &HashMap<Uuid, Rc<CfgNode>>,
+    ) -> Result<(), DotCFGError> {
         // Begin DOT graph and set node style
-        writeln!(dot_cfg_file, "digraph cfg {{").expect("File \"{}\" should be writable");
+        writeln!(dot_cfg_file, "digraph cfg {{").map_err(|_| DotCFGError::FileWriteError)?;
         writeln!(dot_cfg_file, "\tnode [shape=record, fontname=\"Courier\"];")
-            .expect("File \"{}\" should be writable");
+            .map_err(|_| DotCFGError::FileWriteError)?;
         for node in cfg {
             // If node is not leader, skip it
             if !leaders.contains(&node.id()) {
@@ -195,40 +233,47 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
 
             let current_block = ids_to_blocks
                 .get(&leader_id)
-                .expect("Leader id {} not found in ids_to_blocks HashMap"); // TODO push error and return
+                .ok_or_else(|| DotCFGError::LeaderNotInLeadersToBlocksMap(leader.node()))?;
 
-            let terminator = current_block
-                .terminator()
-                .expect("Nonempty block should have a terminator"); // TODO push error and return
+            let terminator = current_block.terminator().ok_or_else(|| {
+                DotCFGError::BlockWithLeaderMissingTerminator(current_block.clone())
+            })?;
             let terminator_id = terminator.id();
 
             writeln!(dot_cfg_file, "\t{}", current_block.dot_str())
-                .expect("DOT CFG file should be writable");
+                .map_err(|_| DotCFGError::FileWriteError)?;
 
             // Print call and return as dashed edges in DOT format
-            if let Some((call_target, return_address, return_inst)) =
-                caller_info_map.get(&terminator_id)
+            if let Some(CallInfo {
+                target,
+                return_address,
+                return_inst,
+            }) = caller_info_map.get(&terminator_id)
             {
                 let call_count = call_counts
-                    .get_mut(&call_target.id())
-                    .expect("Call target should be mapped to call count"); // TODO push error and return
+                    .get_mut(&target.id())
+                    .ok_or_else(|| DotCFGError::CallTargetNotInCallCountMap(target.node()))?;
                 *call_count += 1;
 
                 writeln!(
                     dot_cfg_file,
                     "\t\"{}\" -> \"{}\"[style=\"dashed\", label=\"call from site {}\"]",
                     current_block.id(),
-                    call_target.id(),
+                    target.id(),
                     call_count,
                 )
-                .expect("DOT CFG file should be writable");
+                .map_err(|_| DotCFGError::FileWriteError)?;
 
                 let return_inst_block_leader = return_inst_to_leader_map
                     .get(&return_inst.id())
-                    .expect("Return instruction should be mapped to its block leader"); // TODO push error and return
+                    .ok_or_else(|| {
+                        DotCFGError::ReturnInstNotInReturnInstToLeaderMap(return_inst.node())
+                    })?;
                 let return_address_block_leader = return_address_to_leader_map
                     .get(&return_address.id())
-                    .expect("Return address should be mapped to its block leader"); // TODO push error and return
+                    .ok_or_else(|| {
+                        DotCFGError::ReturnAddressNotInReturnAddressToLeaderMap(return_inst.node())
+                    })?;
 
                 writeln!(
                     dot_cfg_file,
@@ -237,31 +282,22 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
                     return_address_block_leader.id(),
                     call_count,
                 )
-                .expect("DOT CFG file should be writable");
+                .map_err(|_| DotCFGError::FileWriteError)?;
             }
 
             // Print outgoing edges to all successor basic blocks in DOT format
             let succs = terminator.nexts();
-            let mut succ_error = false;
-            let succ_string = succs
+            let succ_strings: Vec<String> = succs
                 .iter()
                 .map(|succ| {
                     if ids_to_blocks.contains_key(&succ.id()) {
-                        succ.id().to_string()
+                        Ok(succ.id().to_string())
                     } else {
-                        errors.push(LintError::DotCFGSuccessorOfTerminatorIsNotLeader(
-                            succ.node(),
-                        ));
-                        succ_error = true;
-                        String::new()
+                        Err(DotCFGError::SuccessorOfTerminatorIsNotLeader(succ.node()))
                     }
                 })
-                .collect::<Vec<String>>()
-                .join("\" \"");
-
-            if succ_error {
-                return;
-            }
+                .collect::<Result<Vec<String>, DotCFGError>>()?;
+            let succ_string = succ_strings.join("\" \"");
 
             if !succs.is_empty() {
                 writeln!(
@@ -270,11 +306,52 @@ impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
                     current_block.id(),
                     succ_string
                 )
-                .expect("DOT CFG file should be writable");
+                .map_err(|_| DotCFGError::FileWriteError)?;
             }
         }
         // End DOT graph
-        writeln!(dot_cfg_file, "}}").expect("DOT CFG file should be writable");
+        writeln!(dot_cfg_file, "}}").map_err(|_| DotCFGError::FileWriteError)?;
+
+        Ok(())
+    }
+
+    fn create_dot_cfg(
+        cfg: &Cfg,
+        config: &DotCFGGenerationPassConfiguration,
+    ) -> Result<(), DotCFGError> {
+        let dot_cfg_path = config.get_dot_cfg_path();
+        let mut dot_cfg_file = File::create(dot_cfg_path)
+            .map_err(|_| DotCFGError::FailedToCreateFile(dot_cfg_path.clone()))?;
+
+        let (leaders, return_addresses, returns, caller_info_map, mut call_counts) =
+            DotCFGGenerationPass::scan_leaders_and_calls(cfg)?;
+        let (ids_to_blocks, return_address_to_leader_map, return_inst_to_leader_map) =
+            DotCFGGenerationPass::create_blocks_and_return_leaders(
+                cfg,
+                &leaders,
+                &return_addresses,
+                &returns,
+            )?;
+        DotCFGGenerationPass::write_cfg_as_dot(
+            cfg,
+            &mut dot_cfg_file,
+            &leaders,
+            &ids_to_blocks,
+            &mut call_counts,
+            &caller_info_map,
+            &return_inst_to_leader_map,
+            &return_address_to_leader_map,
+        )
+    }
+}
+impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
+    fn run(cfg: &Cfg, _errors: &mut DiagnosticManager, config: &DotCFGGenerationPassConfiguration) {
+        if !config.get_enabled() {
+            return;
+        }
+
+        // TODO proper error handling
+        DotCFGGenerationPass::create_dot_cfg(cfg, config).expect("Failed to create DOT CFG");
     }
 }
 #[derive(Default)] // pass should be disabled by default
@@ -301,5 +378,126 @@ impl DotCFGGenerationPassConfiguration {
 
     pub fn set_dot_cfg_path(&mut self, dot_cfg_path: PathBuf) {
         self.dot_cfg_path = dot_cfg_path;
+    }
+}
+
+struct CallInfo {
+    /// cfg node representing entry point of function
+    target: Rc<CfgNode>,
+    /// cfg node that will be returned to after the call
+    return_address: Rc<CfgNode>,
+    /// cfg node that returns to the caller
+    return_inst: Rc<CfgNode>,
+}
+impl CallInfo {
+    #[must_use]
+    pub fn new(target: Rc<CfgNode>, return_address: Rc<CfgNode>, return_inst: Rc<CfgNode>) -> Self {
+        CallInfo {
+            target,
+            return_address,
+            return_inst,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum DotCFGError {
+    BlockWithLeaderMissingTerminator(BasicBlock),
+    CallHasMoreThanOneSuccessor(ParserNode),
+    CallHasNoSuccessors(ParserNode),
+    CallTargetIsNotFunction(ParserNode),
+    CallTargetLabelNotInLabelNodeMap(With<LabelString>),
+    CallTargetNotInCallCountMap(ParserNode),
+    FailedToCreateFile(PathBuf),
+    FileWriteError,
+    LeaderNotInLeadersToBlocksMap(ParserNode),
+    MissingBlockLeader(BasicBlock),
+    MissingCallTargetLabel(ParserNode),
+    PushedDuplicateNodeIntoBlock(ParserNode),
+    ReturnInstNotInReturnInstToLeaderMap(ParserNode),
+    ReturnAddressNotInReturnAddressToLeaderMap(ParserNode),
+    SuccessorOfTerminatorIsNotLeader(ParserNode),
+}
+
+impl std::fmt::Display for DotCFGError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            DotCFGError::BlockWithLeaderMissingTerminator(block) => {
+                write!(
+                    f,
+                    "Block has leader, so it is nonempty, but has no terminator:\n{block}"
+                )
+            }
+            DotCFGError::CallHasMoreThanOneSuccessor(node) => {
+                write!(
+                    f,
+                    "Call has more than one successor, return address could not be determined: {node}"
+                )
+            }
+            DotCFGError::CallHasNoSuccessors(node) => {
+                write!(
+                    f,
+                    "Call has no successors, return address could not be determined: {node}"
+                )
+            }
+            DotCFGError::CallTargetIsNotFunction(node) => {
+                write!(f, "Call target is not a function: {node}")
+            }
+            DotCFGError::CallTargetLabelNotInLabelNodeMap(label) => {
+                write!(
+                    f,
+                    "Call target label {label} is not in the label -> node map"
+                )
+            }
+            DotCFGError::CallTargetNotInCallCountMap(node) => {
+                write!(
+                    f,
+                    "Call target is not in the call target -> call count map: {node}"
+                )
+            }
+            DotCFGError::FailedToCreateFile(path) => {
+                write!(
+                    f,
+                    "Failed to create file at \"{}\" for DOT CFG",
+                    path.display()
+                )
+            }
+            DotCFGError::FileWriteError => {
+                write!(f, "Failed to write to file")
+            }
+            DotCFGError::LeaderNotInLeadersToBlocksMap(node) => {
+                write!(f, "Leader is not in the leaders -> blocks map: {node}")
+            }
+            DotCFGError::MissingBlockLeader(block) => {
+                write!(f, "Block does not have leader:\n{block}")
+            }
+            DotCFGError::MissingCallTargetLabel(node) => {
+                write!(f, "Call target does not have a label: {node}")
+            }
+            DotCFGError::PushedDuplicateNodeIntoBlock(node) => {
+                write!(
+                    f,
+                    "Attempted to push a node into a block that already contains that node: {node}"
+                )
+            }
+            DotCFGError::ReturnInstNotInReturnInstToLeaderMap(node) => {
+                write!(
+                    f,
+                    "Return instruction is not in the return instruction -> return instruction block leader map: {node}"
+                )
+            }
+            DotCFGError::ReturnAddressNotInReturnAddressToLeaderMap(node) => {
+                write!(
+                    f,
+                    "Return address is not in the return address -> return address block leader map: {node}"
+                )
+            }
+            DotCFGError::SuccessorOfTerminatorIsNotLeader(node) => {
+                write!(
+                    f,
+                    "CFG node is the successor of a terminator but not a block leader: {node}"
+                )
+            }
+        }
     }
 }

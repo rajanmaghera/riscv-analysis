@@ -7,6 +7,7 @@ use crate::cfg::CfgNode;
 use crate::parser::{HasIdentity, InstructionProperties, LabelString, With};
 use crate::passes::DiagnosticLocation;
 
+#[derive(Clone, Debug)]
 pub struct BasicBlock {
     /// The nodes in the basic block.
     nodes: Vec<Rc<CfgNode>>,
@@ -147,12 +148,12 @@ impl BasicBlock {
         Some(canonical_label.clone())
     }
 
-    /// Get a string to act as the heading for the basic block's DOT representation.
+    /// Get a string to act as the heading for the basic block.
     ///
     /// The heading is the canonical label of the basic block if it exists,
     /// and the id of the block otherwise.
     #[must_use]
-    pub fn dot_str_heading(&self) -> String {
+    pub fn heading(&self) -> String {
         match self.canonical_label() {
             Some(l) => l.to_string(),
             None => self.id().to_string(),
@@ -182,8 +183,18 @@ impl BasicBlock {
         format!(
             "\"{}\" [label=\"{{{}:\\l|{}\\l}}\"]",
             self.id(),
-            self.dot_str_heading(),
+            self.heading(),
             instruction_string
         )
+    }
+}
+
+impl std::fmt::Display for BasicBlock {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(f, "{}:", self.heading())?;
+        self.iter()
+            .filter(|n| n.is_instruction())
+            .try_for_each(|n| writeln!(f, "{}", n.raw_text()))?;
+        Ok(())
     }
 }

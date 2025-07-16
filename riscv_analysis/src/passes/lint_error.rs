@@ -81,7 +81,6 @@ pub enum LintError {
     // AnyJumpToData -- if any jump is to a data label, then it is a warning (label strings should have data/text prefix)
     /// An instruction is a member of more than one function.
     NodeInManyFunctions(ParserNode, Vec<Rc<Function>>),
-    DotCFGSuccessorOfTerminatorIsNotLeader(ParserNode),
 }
 
 #[derive(Clone)]
@@ -110,8 +109,7 @@ impl From<&LintError> for SeverityLevel {
             | LintError::InvalidStackPointer(_)
             | LintError::InvalidStackPosition(_, _)
             | LintError::InvalidStackOffsetUsage(_, _)
-            | LintError::OverwriteCalleeSavedRegister(_)
-            | LintError::DotCFGSuccessorOfTerminatorIsNotLeader(_) => SeverityLevel::Error,
+            | LintError::OverwriteCalleeSavedRegister(_) => SeverityLevel::Error,
         }
     }
 }
@@ -174,12 +172,6 @@ impl std::fmt::Display for LintError {
                     funcs.iter().map(|fun| fun.name().to_string()).join(" | ")
                 )
             }
-            LintError::DotCFGSuccessorOfTerminatorIsNotLeader(node) => {
-                write!(
-                    f,
-                    "CFG node is the successor of a terminator but not a block leader: {node}"
-                )
-            }
         }
     }
 }
@@ -207,7 +199,6 @@ impl IsSomeDisplayableDiagnostic for LintError {
             LintError::OverwriteCalleeSavedRegister(_) => "overwrite-callee-saved-register",
             LintError::LostRegisterValue(_) => "lost-register-value",
             LintError::NodeInManyFunctions(_, _) => "node-in-many-functions",
-            LintError::DotCFGSuccessorOfTerminatorIsNotLeader(_) => "dot-cfg-node-no-index",
         }
     }
 
@@ -229,9 +220,6 @@ impl IsSomeDisplayableDiagnostic for LintError {
             LintError::OverwriteCalleeSavedRegister(_) => "Overwrite callee-saved register",
             LintError::LostRegisterValue(_) => "Lost register value",
             LintError::NodeInManyFunctions(_, _) => "Node in many functions",
-            LintError::DotCFGSuccessorOfTerminatorIsNotLeader(_) => {
-                "Node could not be mapped to index for DOT CFG"
-            }
         }
     }
 }
@@ -320,8 +308,7 @@ impl DiagnosticLocation for LintError {
             | LintError::InvalidStackPointer(r)
             | LintError::InvalidStackOffsetUsage(r, _)
             | LintError::NodeInManyFunctions(r, _)
-            | LintError::InvalidStackPosition(r, _)
-            | LintError::DotCFGSuccessorOfTerminatorIsNotLeader(r) => r.range(),
+            | LintError::InvalidStackPosition(r, _) => r.range(),
         }
     }
 
@@ -342,8 +329,7 @@ impl DiagnosticLocation for LintError {
             | LintError::InvalidStackPointer(r)
             | LintError::InvalidStackOffsetUsage(r, _)
             | LintError::NodeInManyFunctions(r, _)
-            | LintError::InvalidStackPosition(r, _)
-            | LintError::DotCFGSuccessorOfTerminatorIsNotLeader(r) => r.file(),
+            | LintError::InvalidStackPosition(r, _) => r.file(),
         }
     }
 
@@ -364,8 +350,7 @@ impl DiagnosticLocation for LintError {
             | LintError::InvalidStackPointer(r)
             | LintError::InvalidStackOffsetUsage(r, _)
             | LintError::NodeInManyFunctions(r, _)
-            | LintError::InvalidStackPosition(r, _)
-            | LintError::DotCFGSuccessorOfTerminatorIsNotLeader(r) => r.raw_text(),
+            | LintError::InvalidStackPosition(r, _) => r.raw_text(),
         }
     }
 }
