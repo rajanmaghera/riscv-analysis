@@ -16,31 +16,14 @@ use std::{
 // Generates a CFG in dot format
 pub struct DotCFGGenerationPass;
 impl DotCFGGenerationPass {
-    fn scan_leaders_and_calls(
-        cfg: &Cfg,
-    ) -> Result<
-        (
-            HashSet<Uuid>,
-            HashSet<Uuid>,
-            HashSet<Uuid>,
-            HashMap<Uuid, CallInfo>,
-            HashMap<Uuid, u32>,
-        ),
-        DotCFGError,
-    > {
-        // Block leaders
-        let mut leaders: HashSet<Uuid> = HashSet::new();
-        // Return addresses (cfg nodes that will be returned to after a call)
-        let mut return_addresses: HashSet<Uuid> = HashSet::new();
-        // Returns (cfg node that returns to the caller)
-        let mut returns: HashSet<Uuid> = HashSet::new();
-        // Maps each target (cfg node representing entry point of function) to the cfg nodes that call it
-        let mut target_to_callers_map: HashMap<Uuid, Vec<Rc<CfgNode>>> = HashMap::new();
-        // Maps each caller to its target, return address, and return instruction
-        let mut caller_info_map: HashMap<Uuid, CallInfo> = HashMap::new();
-        // Maps each function entry point to the number of times it is called in the code
-        let mut call_counts: HashMap<Uuid, u32> = HashMap::new();
-
+    fn scan_leaders_and_calls(cfg: &Cfg) -> Result<DotCFGGenerationPassInfo, DotCFGError> {
+        let mut info = DotCFGGenerationPassInfo::new();
+        let leaders = &mut info.leaders;
+        let return_addresses = &mut info.return_addresses;
+        let returns = &mut info.returns;
+        let target_to_callers_map = &mut info.target_to_callers_map;
+        let caller_info_map = &mut info.caller_info_map;
+        let call_counts = &mut info.call_counts;
         for node in cfg {
             let prevs = node.prevs();
             let succs = node.nexts();
@@ -134,34 +117,19 @@ impl DotCFGGenerationPass {
             }
         }
 
-        Ok((
-            leaders,
-            return_addresses,
-            returns,
-            caller_info_map,
-            call_counts,
-        ))
+        Ok(info)
     }
 
-    fn create_blocks_and_return_leaders(
+    fn identify_blocks_and_map_returns_to_leaders(
         cfg: &Cfg,
-        leaders: &HashSet<Uuid>,
-        return_addresses: &HashSet<Uuid>,
-        returns: &HashSet<Uuid>,
-    ) -> Result<
-        (
-            HashMap<Uuid, BasicBlock>,
-            HashMap<Uuid, Rc<CfgNode>>,
-            HashMap<Uuid, Rc<CfgNode>>,
-        ),
-        DotCFGError,
-    > {
-        // Maps leader ids to basic blocks
-        let mut ids_to_blocks: HashMap<Uuid, BasicBlock> = HashMap::new();
-        // Maps each return address to its block leader
-        let mut return_address_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
-        // Maps each return instruction to its block leader
-        let mut return_inst_to_leader_map: HashMap<Uuid, Rc<CfgNode>> = HashMap::new();
+        info: &mut DotCFGGenerationPassInfo,
+    ) -> Result<(), DotCFGError> {
+        let leaders = &info.leaders;
+        let return_addresses = &info.return_addresses;
+        let returns = &info.returns;
+        let ids_to_blocks = &mut info.ids_to_blocks;
+        let return_address_to_leader_map = &mut info.return_address_to_leader_map;
+        let return_inst_to_leader_map = &mut info.return_inst_to_leader_map;
 
         let mut current_block = BasicBlock::new_empty(); // need to initialize here to make compiler happy
         for node in cfg {
@@ -200,23 +168,21 @@ impl DotCFGGenerationPass {
             ids_to_blocks.insert(current_block.id(), current_block);
         }
 
-        Ok((
-            ids_to_blocks,
-            return_address_to_leader_map,
-            return_inst_to_leader_map,
-        ))
+        Ok(())
     }
 
     fn write_cfg_as_dot(
         cfg: &Cfg,
         dot_cfg_file: &mut File,
-        leaders: &HashSet<Uuid>,
-        ids_to_blocks: &HashMap<Uuid, BasicBlock>,
-        call_counts: &mut HashMap<Uuid, u32>,
-        caller_info_map: &HashMap<Uuid, CallInfo>,
-        return_inst_to_leader_map: &HashMap<Uuid, Rc<CfgNode>>,
-        return_address_to_leader_map: &HashMap<Uuid, Rc<CfgNode>>,
+        info: &mut DotCFGGenerationPassInfo,
     ) -> Result<(), DotCFGError> {
+        let leaders = &info.leaders;
+        let ids_to_blocks = &info.ids_to_blocks;
+        let caller_info_map = &info.caller_info_map;
+        let call_counts = &mut info.call_counts;
+        let return_inst_to_leader_map = &info.return_inst_to_leader_map;
+        let return_address_to_leader_map = &info.return_address_to_leader_map;
+
         // Begin DOT graph and set node style
         writeln!(dot_cfg_file, "digraph cfg {{").map_err(|_| DotCFGError::FileWriteError)?;
         writeln!(dot_cfg_file, "\tnode [shape=record, fontname=\"Courier\"];")
@@ -323,25 +289,9 @@ impl DotCFGGenerationPass {
         let mut dot_cfg_file = File::create(dot_cfg_path)
             .map_err(|_| DotCFGError::FailedToCreateFile(dot_cfg_path.clone()))?;
 
-        let (leaders, return_addresses, returns, caller_info_map, mut call_counts) =
-            DotCFGGenerationPass::scan_leaders_and_calls(cfg)?;
-        let (ids_to_blocks, return_address_to_leader_map, return_inst_to_leader_map) =
-            DotCFGGenerationPass::create_blocks_and_return_leaders(
-                cfg,
-                &leaders,
-                &return_addresses,
-                &returns,
-            )?;
-        DotCFGGenerationPass::write_cfg_as_dot(
-            cfg,
-            &mut dot_cfg_file,
-            &leaders,
-            &ids_to_blocks,
-            &mut call_counts,
-            &caller_info_map,
-            &return_inst_to_leader_map,
-            &return_address_to_leader_map,
-        )
+        let mut info = DotCFGGenerationPass::scan_leaders_and_calls(cfg)?;
+        DotCFGGenerationPass::identify_blocks_and_map_returns_to_leaders(cfg, &mut info)?;
+        DotCFGGenerationPass::write_cfg_as_dot(cfg, &mut dot_cfg_file, &mut info)
     }
 }
 impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
@@ -378,6 +328,42 @@ impl DotCFGGenerationPassConfiguration {
 
     pub fn set_dot_cfg_path(&mut self, dot_cfg_path: PathBuf) {
         self.dot_cfg_path = dot_cfg_path;
+    }
+}
+
+struct DotCFGGenerationPassInfo {
+    /// Block leaders
+    leaders: HashSet<Uuid>,
+    /// Return addresses (cfg nodes that will be returned to after a call)
+    return_addresses: HashSet<Uuid>,
+    /// Returns (cfg node that returns to the caller)
+    returns: HashSet<Uuid>,
+    /// Maps each target (cfg node representing entry point of function) to the cfg nodes that call it
+    target_to_callers_map: HashMap<Uuid, Vec<Rc<CfgNode>>>,
+    /// Maps each caller to its target, return address, and return instruction
+    caller_info_map: HashMap<Uuid, CallInfo>,
+    /// Maps each function entry point to the number of times it is called in the code
+    call_counts: HashMap<Uuid, u32>,
+    /// Maps leader ids to basic blocks
+    ids_to_blocks: HashMap<Uuid, BasicBlock>,
+    /// Maps each return address to its block leader
+    return_address_to_leader_map: HashMap<Uuid, Rc<CfgNode>>,
+    /// Maps each return instruction to its block leader
+    return_inst_to_leader_map: HashMap<Uuid, Rc<CfgNode>>,
+}
+impl DotCFGGenerationPassInfo {
+    fn new() -> Self {
+        DotCFGGenerationPassInfo {
+            leaders: HashSet::new(),
+            return_addresses: HashSet::new(),
+            returns: HashSet::new(),
+            target_to_callers_map: HashMap::new(),
+            caller_info_map: HashMap::new(),
+            call_counts: HashMap::new(),
+            ids_to_blocks: HashMap::new(),
+            return_address_to_leader_map: HashMap::new(),
+            return_inst_to_leader_map: HashMap::new(),
+        }
     }
 }
 
