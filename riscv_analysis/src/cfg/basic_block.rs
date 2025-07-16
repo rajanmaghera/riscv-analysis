@@ -106,18 +106,6 @@ impl BasicBlock {
         self.node_ids.contains(node_id)
     }
 
-    /// Get the id of the basic block.
-    ///
-    /// This is the same as the id of its leader (unique for each block),
-    /// or `Uuid::nil()` if the basic block is empty.
-    #[must_use]
-    pub fn id(&self) -> Uuid {
-        let Some(leader) = self.leader() else {
-            return Uuid::nil();
-        };
-        leader.id()
-    }
-
     /// Get an iterator over the nodes in this block.
     pub fn iter(&self) -> impl Iterator<Item = &Rc<CfgNode>> {
         self.nodes.iter()
@@ -165,7 +153,7 @@ impl BasicBlock {
     /// See the DOT [language reference](https://graphviz.org/doc/info/lang.html).
     /// Record-based nodes are described [here](https://graphviz.org/doc/info/shapes.html#record).
     #[must_use]
-    pub fn dot_str(&self) -> String {
+    pub fn dot_str(&self, fill_color: Option<&str>) -> String {
         let instruction_string = self
             .iter()
             .filter(|n| n.is_instruction())
@@ -179,21 +167,15 @@ impl BasicBlock {
             .replace('|', "\\|")
             .replace('<', "\\<")
             .replace('>', "\\>");
-
-        match self.canonical_label() {
-            Some(label) => format!(
-                "\"{}\" [label=\"{{{}:\\l|{}\\l}}\"]",
-                self.id(),
-                label,
-                instruction_string
-            ),
-            None => format!(
-                "\"{}\" [label=\"{{{}\\l}}\"]",
-                self.id(),
-                instruction_string
-            ),
-        }
-        
+        let fill = match fill_color {
+            Some(c) => format!("style=\"filled\", fillcolor=\"#{c}\", "),
+            None => String::new(),
+        };
+        let label = match self.canonical_label() {
+            Some(label) => format!("label=\"{{{label}:\\l|{instruction_string}\\l}}\""),
+            None => format!("label=\"{{{instruction_string}\\l}}\""),
+        };
+        format!("\"{}\" [{fill}{label}]", self.id())
     }
 }
 
@@ -204,5 +186,17 @@ impl std::fmt::Display for BasicBlock {
             .filter(|n| n.is_instruction())
             .try_for_each(|n| writeln!(f, "{}", n.raw_text()))?;
         Ok(())
+    }
+}
+impl HasIdentity for BasicBlock {
+    /// Get the id of the basic block.
+    ///
+    /// This is the same as the id of its leader (unique for each block),
+    /// or `Uuid::nil()` if the basic block is empty.
+    fn id(&self) -> Uuid {
+        let Some(leader) = self.leader() else {
+            return Uuid::nil();
+        };
+        leader.id()
     }
 }

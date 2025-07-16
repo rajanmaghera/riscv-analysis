@@ -182,6 +182,12 @@ impl DotCFGGenerationPass {
         let call_counts = &mut info.call_counts;
         let return_inst_to_leader_map = &info.return_inst_to_leader_map;
         let return_address_to_leader_map = &info.return_address_to_leader_map;
+        let function_to_color_map: HashMap<Uuid, &'static str> = cfg
+            .functions()
+            .values()
+            .enumerate()
+            .map(|(f_num, f)| (f.id(), DotCFGGenerationPass::get_function_color(f_num)))
+            .collect();
 
         // Begin DOT graph and set node style
         writeln!(dot_cfg_file, "digraph cfg {{").map_err(|_| DotCFGError::FileWriteError)?;
@@ -206,8 +212,18 @@ impl DotCFGGenerationPass {
             })?;
             let terminator_id = terminator.id();
 
-            writeln!(dot_cfg_file, "\t{}", current_block.dot_str())
-                .map_err(|_| DotCFGError::FileWriteError)?;
+            if let Some(function) = leader.functions().iter().next() {
+                let fill_color = function_to_color_map.get(&function.id()).ok_or_else(|| {
+                    DotCFGError::FunctionLeaderNotInFunctionToColorMap(leader.node())
+                })?;
+                let dot_cfg_string = current_block.dot_str(Some(fill_color));
+                writeln!(dot_cfg_file, "\t{dot_cfg_string}")
+                    .map_err(|_| DotCFGError::FileWriteError)?;
+            } else {
+                let dot_cfg_string = current_block.dot_str(None);
+                writeln!(dot_cfg_file, "\t{dot_cfg_string}")
+                    .map_err(|_| DotCFGError::FileWriteError)?;
+            }
 
             // Print call and return as dashed edges in DOT format
             if let Some(CallInfo {
@@ -223,7 +239,7 @@ impl DotCFGGenerationPass {
 
                 writeln!(
                     dot_cfg_file,
-                    "\t\"{}\" -> \"{}\"[style=\"dashed\", label=\"call from site {}\"]",
+                    "\t\"{}\" -> \"{}\"[style=\"dashed\", label=\"call from site {}\"];",
                     current_block.id(),
                     target.id(),
                     call_count,
@@ -292,6 +308,24 @@ impl DotCFGGenerationPass {
         let mut info = DotCFGGenerationPass::scan_leaders_and_calls(cfg)?;
         DotCFGGenerationPass::identify_blocks_and_map_returns_to_leaders(cfg, &mut info)?;
         DotCFGGenerationPass::write_cfg_as_dot(cfg, &mut dot_cfg_file, &mut info)
+    }
+
+    /// Get a color string for a function given its number.
+    /// Just round-robin selects from a list of colors.
+    ///
+    /// Rust translation of the [corresponding LLVM function](https://github.com/llvm/llvm-project/blob/968d38d1d7d9de2d5717457876bba2663b36f620/llvm/lib/Support/GraphWriter.cpp#L91).
+    fn get_function_color(function_number: usize) -> &'static str {
+        const NUM_COLORS: usize = 20;
+        const COLORS: [&str; NUM_COLORS] = [
+            "aaaaaa", "aa0000", "00aa00", "aa5500", "0055ff", "aa00aa", "00aaaa", "555555",
+            "ff5555", "55ff55", "ffff55", "5555ff", "ff55ff", "55ffff", "ffaaaa", "aaffaa",
+            "ffffaa", "aaaaff", "ffaaff", "aaffff",
+        ];
+        #[allow(
+            clippy::indexing_slicing,
+            reason = "function number is non-negative and NUM_COLORS = COLORS.len()"
+        )]
+        COLORS[function_number % NUM_COLORS]
     }
 }
 impl LintPass<DotCFGGenerationPassConfiguration> for DotCFGGenerationPass {
@@ -397,6 +431,7 @@ enum DotCFGError {
     CallTargetNotInCallCountMap(ParserNode),
     FailedToCreateFile(PathBuf),
     FileWriteError,
+    FunctionLeaderNotInFunctionToColorMap(ParserNode),
     LeaderNotInLeadersToBlocksMap(ParserNode),
     MissingBlockLeader(BasicBlock),
     MissingCallTargetLabel(ParserNode),
@@ -451,6 +486,12 @@ impl std::fmt::Display for DotCFGError {
             }
             DotCFGError::FileWriteError => {
                 write!(f, "Failed to write to file")
+            }
+            DotCFGError::FunctionLeaderNotInFunctionToColorMap(node) => {
+                write!(
+                    f,
+                    "Function leader is not in the function -> color map: {node}",
+                )
             }
             DotCFGError::LeaderNotInLeadersToBlocksMap(node) => {
                 write!(f, "Leader is not in the leaders -> blocks map: {node}")
