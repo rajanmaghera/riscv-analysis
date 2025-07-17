@@ -192,7 +192,6 @@ impl DotCFGGenerationPass {
         for node in cfg {
             let node_id = node.id();
             let current_block = info.get_block_containing_node_with_id(&node_id)?;
-            let current_block_id = current_block.id();
 
             if interprocedural_enabled {
                 // If interprocedural_enabled is true and node is call:
@@ -218,23 +217,33 @@ impl DotCFGGenerationPass {
                     };
 
                     // Write dashed edge from current block to call target block
-                    let target_block_id = info.get_block_containing_node_with_id(&target_id)?.id();
+                    let target_block_heading = info
+                        .get_block_containing_node_with_id(&target_id)?
+                        .heading();
+                    let current_block_heading = current_block.heading();
                     writeln!(
                         dot_cfg_file,
-                        "\t\"{current_block_id}\":p -> \"{target_block_id}\":p[style=\"dashed\", label=\"call from site {call_site_num}\"];"
+                        "\t\"{current_block_heading}\":p -> \"{target_block_heading}\":p \
+                        [style=\"dashed\", \
+                        label=\"call from site {call_site_num}\", \
+                        tooltip=\"call to \\\"{target_block_heading}\\\" from site {call_site_num} (in \\\"{current_block_heading}\\\")\"];",
                     )
                     .map_err(|_| DotCFGError::FileWriteError)?;
 
                     // Write dashed edge from block containing return instruction to block containing return address
-                    let return_inst_block_id = info
+                    let return_inst_block_heading = info
                         .get_block_containing_node_with_id(&return_inst_id)?
-                        .id();
-                    let return_address_block_id = info
+                        .heading();
+                    let return_address_block_heading = info
                         .get_block_containing_node_with_id(&return_address_id)?
-                        .id();
+                        .heading();
                     writeln!(
                         dot_cfg_file,
-                        "\t\"{return_inst_block_id}\":p -> \"{return_address_block_id}\":p[style=\"dashed\", label=\"return after call site {call_site_num}\"];"
+                        "\t\"{return_inst_block_heading}\":p -> \"{return_address_block_heading}\":p \
+                        [style=\"dashed\", \
+                        label=\"return after call site {call_site_num}\", \
+                        tooltip=\"return to \\\"{return_address_block_heading}\\\" from \\\"{return_inst_block_heading}\\\" after call to \
+                        \\\"{target_block_heading}\\\" from site {call_site_num} (in \\\"{current_block_heading}\\\")\"];",
                     )
                     .map_err(|_| DotCFGError::FileWriteError)?;
                 }
@@ -275,13 +284,12 @@ impl DotCFGGenerationPass {
             .ok_or_else(|| DotCFGError::BlockWithLeaderMissingTerminator(block.clone()))?;
         terminator.nexts().iter().try_for_each(|succ| {
             if let Some(succ_block) = info.leader_ids_to_blocks.get(&succ.id()) {
+                let block_heading = block.heading();
+                let succ_block_heading = succ_block.heading();
                 writeln!(
                     file,
-                    "{indent_str}\"{}\":p -> \"{}\":p [tooltip=\"{} -> {}\"];",
-                    block.id(),
-                    succ_block.id(),
-                    block.heading(),
-                    succ_block.heading()
+                    "{indent_str}\"{block_heading}\":p -> \"{succ_block_heading}\":p \
+                    [tooltip=\"\\\"{block_heading}\\\" -> \\\"{succ_block_heading}\\\"\"];",
                 )
                 .map_err(|_| DotCFGError::FileWriteError)?;
                 Ok(())

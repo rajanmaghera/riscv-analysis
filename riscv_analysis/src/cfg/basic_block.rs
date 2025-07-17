@@ -168,10 +168,20 @@ impl BasicBlock {
             None => String::new(),
         };
         let label = match self.canonical_label() {
-            Some(label) => format!("tooltip={label}, label=<<TABLE{bg_color}{TABLE_STYLE}><TR><TD{LABEL_CELL_STYLE}>{label}:</TD></TR><TR><TD{INSTRUCTION_CELL_STYLE}>{instruction_string}</TD></TR></TABLE>>"),
-            None => format!("label=<<TABLE{bg_color}{TABLE_STYLE}><TR><TD{INSTRUCTION_CELL_STYLE}>{instruction_string}</TD></TR></TABLE>>"),
+            Some(label) => format!(
+                "tooltip={label}, \
+                label=<<TABLE{bg_color}{TABLE_STYLE}>\
+                <TR><TD{LABEL_CELL_STYLE}>{label}:</TD></TR>\
+                <TR><TD{INSTRUCTION_CELL_STYLE}>{instruction_string}</TD></TR>\
+                </TABLE>>"
+            ),
+            None => format!(
+                "label=<<TABLE{bg_color}{TABLE_STYLE}>\
+                <TR><TD{INSTRUCTION_CELL_STYLE}>{instruction_string}</TD></TR>\
+                </TABLE>>"
+            ),
         };
-        format!("\"{}\" [{label}]", self.id())
+        format!("\"{}\" [{label}]", self.heading())
     }
 }
 
