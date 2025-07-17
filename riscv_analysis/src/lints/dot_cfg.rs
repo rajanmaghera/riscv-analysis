@@ -16,7 +16,10 @@ use std::{
 // Generates a CFG in dot format
 pub struct DotCFGGenerationPass;
 impl DotCFGGenerationPass {
-    fn scan_leaders_and_calls(cfg: &Cfg) -> Result<DotCFGGenerationPassInfo, DotCFGError> {
+    fn scan_leaders_and_calls(
+        cfg: &Cfg,
+        interprocedural_enabled: bool,
+    ) -> Result<DotCFGGenerationPassInfo, DotCFGError> {
         let mut info = DotCFGGenerationPassInfo::new();
         let leaders = &mut info.leaders;
         let return_addresses = &mut info.return_addresses;
@@ -47,50 +50,54 @@ impl DotCFGGenerationPass {
                 node_is_terminator = true;
             }
 
-            // If node has call target:
+            // If interprocedural_enabled is true and node has call target:
             // - node is terminator
             // - target is leader
             // Note: call targets are not considered successors
-            let call_target = node.calls_to();
-            if let Some(label_string) = call_target {
-                node_is_terminator = true;
+            if interprocedural_enabled {
+                let call_target = node.calls_to();
+                if let Some(label_string) = call_target {
+                    node_is_terminator = true;
 
-                let call_target_instruction = cfg
-                    .label_node_map
-                    .get(label_string.as_str())
-                    .ok_or_else(|| DotCFGError::CallTargetLabelNotInLabelNodeMap(label_string))?;
-                leaders.insert(call_target_instruction.id());
+                    let call_target_instruction = cfg
+                        .label_node_map
+                        .get(label_string.as_str())
+                        .ok_or_else(|| {
+                            DotCFGError::CallTargetLabelNotInLabelNodeMap(label_string)
+                        })?;
+                    leaders.insert(call_target_instruction.id());
 
-                // Node should have one successor: the next instruction after the call
-                // The call target is not considered a successor
-                if succs.len() > 1 {
-                    return Err(DotCFGError::CallHasMoreThanOneSuccessor(node.node()));
+                    // Node should have one successor: the next instruction after the call
+                    // The call target is not considered a successor
+                    if succs.len() > 1 {
+                        return Err(DotCFGError::CallHasMoreThanOneSuccessor(node.node()));
+                    }
+                    let return_address: &Rc<CfgNode> = succs
+                        .iter()
+                        .next()
+                        .ok_or_else(|| DotCFGError::CallHasNoSuccessors(node.node()))?;
+
+                    // Update return_addresses, returns, and caller_info_map
+                    return_addresses.insert(return_address.id());
+                    let target = Rc::clone(call_target_instruction);
+                    let return_address = Rc::clone(return_address);
+
+                    let target_label = target
+                        .labels()
+                        .iter()
+                        .next()
+                        .ok_or_else(|| DotCFGError::MissingCallTargetLabel(target.node()))?
+                        .to_owned();
+                    let called_function = Rc::clone(
+                        cfg.functions()
+                            .get(&target_label)
+                            .ok_or_else(|| DotCFGError::CallTargetIsNotFunction(target.node()))?,
+                    );
+                    let called_function_return = called_function.exit().clone();
+                    returns.insert(called_function_return.id());
+                    let call_info = CallInfo::new(target, return_address, called_function_return);
+                    caller_info_map.insert(node.id(), call_info);
                 }
-                let return_address: &Rc<CfgNode> = succs
-                    .iter()
-                    .next()
-                    .ok_or_else(|| DotCFGError::CallHasNoSuccessors(node.node()))?;
-
-                // Update return_addresses, returns, and caller_info_map
-                return_addresses.insert(return_address.id());
-                let target = Rc::clone(call_target_instruction);
-                let return_address = Rc::clone(return_address);
-
-                let target_label = target
-                    .labels()
-                    .iter()
-                    .next()
-                    .ok_or_else(|| DotCFGError::MissingCallTargetLabel(target.node()))?
-                    .to_owned();
-                let called_function = Rc::clone(
-                    cfg.functions()
-                        .get(&target_label)
-                        .ok_or_else(|| DotCFGError::CallTargetIsNotFunction(target.node()))?,
-                );
-                let called_function_return = called_function.exit().clone();
-                returns.insert(called_function_return.id());
-                let call_info = CallInfo::new(target, return_address, called_function_return);
-                caller_info_map.insert(node.id(), call_info);
             }
 
             if node_is_leader {
@@ -141,6 +148,7 @@ impl DotCFGGenerationPass {
         cfg: &Cfg,
         dot_cfg_file: &mut File,
         info: &DotCFGGenerationPassInfo,
+        interprocedural_enabled: bool,
     ) -> Result<(), DotCFGError> {
         let leaders = &info.leaders;
         let caller_info_map = &info.caller_info_map;
@@ -170,45 +178,50 @@ impl DotCFGGenerationPass {
             let current_block = info.get_block_containing_node_with_id(&node_id)?;
             let current_block_id = current_block.id();
 
-            if let Some(CallInfo {
-                target,
-                return_address,
-                return_inst,
-            }) = caller_info_map.get(&node_id)
-            {
-                let target_id = target.id();
-                let return_address_id = return_address.id();
-                let return_inst_id = return_inst.id();
+            if interprocedural_enabled {
+                // If interprocedural_enabled is true and node is call:
+                // - Write dashed edge from current block to call target block
+                // - Write dashed edge from block containing return instruction to block containing return address
+                if let Some(CallInfo {
+                    target,
+                    return_address,
+                    return_inst,
+                }) = caller_info_map.get(&node_id)
+                {
+                    let target_id = target.id();
+                    let return_address_id = return_address.id();
+                    let return_inst_id = return_inst.id();
 
-                // Increment or initialize call_site_num (starts at 1)
-                let call_site_num = if let Some(n) = call_site_nums.get_mut(&target_id) {
-                    *n += 1;
-                    *n
-                } else {
-                    call_site_nums.insert(target_id, 1);
-                    1
-                };
+                    // Increment or initialize call_site_num (starts at 1)
+                    let call_site_num = if let Some(n) = call_site_nums.get_mut(&target_id) {
+                        *n += 1;
+                        *n
+                    } else {
+                        call_site_nums.insert(target_id, 1);
+                        1
+                    };
 
-                // Write dashed edge from current block to call target block
-                let target_block_id = info.get_block_containing_node_with_id(&target_id)?.id();
-                writeln!(
-                    dot_cfg_file,
-                    "\t\"{current_block_id}\":p -> \"{target_block_id}\":p[style=\"dashed\", label=\"call from site {call_site_num}\"];"
-                )
-                .map_err(|_| DotCFGError::FileWriteError)?;
+                    // Write dashed edge from current block to call target block
+                    let target_block_id = info.get_block_containing_node_with_id(&target_id)?.id();
+                    writeln!(
+                        dot_cfg_file,
+                        "\t\"{current_block_id}\":p -> \"{target_block_id}\":p[style=\"dashed\", label=\"call from site {call_site_num}\"];"
+                    )
+                    .map_err(|_| DotCFGError::FileWriteError)?;
 
-                // Write dashed edge from block containing return instruction to block containing return address
-                let return_inst_block_id = info
-                    .get_block_containing_node_with_id(&return_inst_id)?
-                    .id();
-                let return_address_block_id = info
-                    .get_block_containing_node_with_id(&return_address_id)?
-                    .id();
-                writeln!(
-                    dot_cfg_file,
-                    "\t\"{return_inst_block_id}\":p -> \"{return_address_block_id}\":p[style=\"dashed\", label=\"return after call site {call_site_num}\"];"
-                )
-                .map_err(|_| DotCFGError::FileWriteError)?;
+                    // Write dashed edge from block containing return instruction to block containing return address
+                    let return_inst_block_id = info
+                        .get_block_containing_node_with_id(&return_inst_id)?
+                        .id();
+                    let return_address_block_id = info
+                        .get_block_containing_node_with_id(&return_address_id)?
+                        .id();
+                    writeln!(
+                        dot_cfg_file,
+                        "\t\"{return_inst_block_id}\":p -> \"{return_address_block_id}\":p[style=\"dashed\", label=\"return after call site {call_site_num}\"];"
+                    )
+                    .map_err(|_| DotCFGError::FileWriteError)?;
+                }
             }
 
             // If node is not leader, skip it
@@ -266,8 +279,8 @@ impl DotCFGGenerationPass {
         let escaped: String = chars
             .map(|c| {
                 match c {
-                    '\n' => String::from("\\n"), // escape
-                    '"' => String::from("\\\""), // escape
+                    '\n' => String::from("\\n"),  // escape
+                    '"' => String::from("\\\""),  // escape
                     '\\' => String::from("\\\\"), // escape
                     other => String::from(other), // preserve other chars
                 }
@@ -325,14 +338,20 @@ impl DotCFGGenerationPass {
         let mut dot_cfg_file = File::create(dot_cfg_path)
             .map_err(|_| DotCFGError::FailedToCreateFile(dot_cfg_path.clone()))?;
 
-        let mut info = DotCFGGenerationPass::scan_leaders_and_calls(cfg)?;
+        let mut info =
+            DotCFGGenerationPass::scan_leaders_and_calls(cfg, config.interprocedural_enabled)?;
         DotCFGGenerationPass::create_blocks(
             cfg,
             &info.leaders,
             &mut info.leader_ids_to_blocks,
             &mut info.node_ids_to_leader_ids,
         );
-        DotCFGGenerationPass::write_cfg_as_dot(cfg, &mut dot_cfg_file, &info)
+        DotCFGGenerationPass::write_cfg_as_dot(
+            cfg,
+            &mut dot_cfg_file,
+            &info,
+            config.interprocedural_enabled,
+        )
     }
 
     /// Get a color string for a function given its number.
@@ -342,9 +361,9 @@ impl DotCFGGenerationPass {
     fn get_function_color(function_number: usize) -> &'static str {
         const NUM_COLORS: usize = 20;
         const COLORS: [&str; NUM_COLORS] = [
-            "aaaaaa7f", "aa00007f", "00aa007f", "aa55007f", "0055ff7f", "aa00aa7f", "00aaaa7f", "5555557f",
-            "ff55557f", "55ff557f", "ffff557f", "5555ff7f", "ff55ff7f", "55ffff7f", "ffaaaa7f", "aaffaa7f",
-            "ffffaa7f", "aaaaff7f", "ffaaff7f", "aaffff7f",
+            "aaaaaa7f", "aa00007f", "00aa007f", "aa55007f", "0055ff7f", "aa00aa7f", "00aaaa7f",
+            "5555557f", "ff55557f", "55ff557f", "ffff557f", "5555ff7f", "ff55ff7f", "55ffff7f",
+            "ffaaaa7f", "aaffaa7f", "ffffaa7f", "aaaaff7f", "ffaaff7f", "aaffff7f",
         ]; // Colors in RGBA
         #[allow(
             clippy::indexing_slicing,
@@ -369,6 +388,9 @@ pub struct DotCFGGenerationPassConfiguration {
     enabled: bool,
     /// The path of the file to write the CFG to
     dot_cfg_path: PathBuf,
+    /// Should the graph terminate basic blocks after calls
+    /// and include dashed edges for function calls/returns?
+    interprocedural_enabled: bool,
 }
 impl PassConfiguration for DotCFGGenerationPassConfiguration {
     fn get_enabled(&self) -> bool {
@@ -387,6 +409,15 @@ impl DotCFGGenerationPassConfiguration {
 
     pub fn set_dot_cfg_path(&mut self, dot_cfg_path: PathBuf) {
         self.dot_cfg_path = dot_cfg_path;
+    }
+
+    #[must_use]
+    pub fn get_interprocedural_enabled(&self) -> bool {
+        self.interprocedural_enabled
+    }
+
+    pub fn set_interprocedural_enabled(&mut self, interprocedural_enabled: bool) {
+        self.interprocedural_enabled = interprocedural_enabled;
     }
 }
 

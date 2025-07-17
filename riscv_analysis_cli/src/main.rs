@@ -65,18 +65,37 @@ struct Lint {
     /// Display errors from all files
     #[clap(long)]
     all_files: bool,
-    /// Optionally output a CFG to a file in dot format
+    /// Output a CFG to a file in DOT format (see https://graphviz.org/doc/info/lang.html)
+    ///
+    /// The graph will be written to the file path passed to this argument.
     #[clap(long)]
     dot_cfg: Option<PathBuf>,
+    /// Boolean flag to generate an interprocedural CFG
+    ///
+    /// The difference from the default (intraprocedural) CFG
+    /// is that, in the interprocedural CFG, function calls
+    /// terminate basic blocks and dashed edges are drawn
+    /// for function calls/returns.
+    ///
+    /// If the --dot-cfg flag is not used, the DOT CFG generation
+    /// pass does not run and this option has no effect.
+    #[clap(long, action)]
+    dot_cfg_enable_interprocedural: bool,
 }
 
 impl ToManagerConfiguration for Lint {
     fn to_manager_configuration(&self) -> ManagerConfiguration {
         let mut config = ManagerConfiguration::default();
+        // Configure DOT CFG pass if it is enabled
         if let Some(dot_cfg_path) = &self.dot_cfg {
             let dot_cfg_config = config.get_mut_dot_cfg_generation_pass_config();
+            // Enable the pass
             dot_cfg_config.set_enabled(true);
+            // Set the DOT CFG path to the value passed to --dot-cfg in the CLI
             dot_cfg_config.set_dot_cfg_path(dot_cfg_path.clone());
+            // Set interprocedural_enabled
+            // It is a boolean flag: true if --dot-cfg-enable-interprocedural was passed in the CLI, false otherwise
+            dot_cfg_config.set_interprocedural_enabled(self.dot_cfg_enable_interprocedural);
         }
         config
     }
