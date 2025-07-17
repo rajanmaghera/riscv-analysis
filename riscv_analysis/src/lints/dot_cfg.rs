@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use uuid::Uuid;
 
 use crate::{
@@ -151,7 +150,7 @@ impl DotCFGGenerationPass {
 
         // Begin DOT graph and set node style
         writeln!(dot_cfg_file, "digraph cfg {{").map_err(|_| DotCFGError::FileWriteError)?;
-        writeln!(dot_cfg_file, "\tnode [shape=record, fontname=\"Courier\"];")
+        writeln!(dot_cfg_file, "\tnode [shape=none, fontname=\"Courier\"];")
             .map_err(|_| DotCFGError::FileWriteError)?;
 
         // Write all functions (including internal edges) as subgraphs
@@ -190,15 +189,15 @@ impl DotCFGGenerationPass {
                     1
                 };
 
-                // Write dotted edge from current block to call target block
+                // Write dashed edge from current block to call target block
                 let target_block_id = info.get_block_containing_node_with_id(&target_id)?.id();
                 writeln!(
                     dot_cfg_file,
-                    "\t\"{current_block_id}\" -> \"{target_block_id}\"[style=\"dashed\", label=\"call from site {call_site_num}\"];"
+                    "\t\"{current_block_id}\":p -> \"{target_block_id}\":p[style=\"dashed\", label=\"call from site {call_site_num}\"];"
                 )
                 .map_err(|_| DotCFGError::FileWriteError)?;
 
-                // Write dotted edge from block containing return instruction to block containing return address
+                // Write dashed edge from block containing return instruction to block containing return address
                 let return_inst_block_id = info
                     .get_block_containing_node_with_id(&return_inst_id)?
                     .id();
@@ -207,7 +206,7 @@ impl DotCFGGenerationPass {
                     .id();
                 writeln!(
                     dot_cfg_file,
-                    "\t\"{return_inst_block_id}\" -> \"{return_address_block_id}\"[style=\"dashed\", label=\"return after call site {call_site_num}\"];"
+                    "\t\"{return_inst_block_id}\":p -> \"{return_address_block_id}\":p[style=\"dashed\", label=\"return after call site {call_site_num}\"];"
                 )
                 .map_err(|_| DotCFGError::FileWriteError)?;
             }
@@ -247,8 +246,13 @@ impl DotCFGGenerationPass {
             .ok_or_else(|| DotCFGError::BlockWithLeaderMissingTerminator(block.clone()))?;
         terminator.nexts().iter().try_for_each(|succ| {
             if info.leaders.contains(&succ.id()) {
-                writeln!(file, "{indent_str}\"{}\" -> \"{}\";", block.id(), succ.id())
-                    .map_err(|_| DotCFGError::FileWriteError)?;
+                writeln!(
+                    file,
+                    "{indent_str}\"{}\":p -> \"{}\":p;",
+                    block.id(),
+                    succ.id()
+                )
+                .map_err(|_| DotCFGError::FileWriteError)?;
                 Ok(())
             } else {
                 Err(DotCFGError::SuccessorOfTerminatorIsNotLeader(succ.node()))
@@ -259,29 +263,16 @@ impl DotCFGGenerationPass {
 
     fn escape_dot_str(str: &str) -> String {
         let chars = str.chars();
-        let mut escaped: String = chars
-            .tuple_windows()
-            .map(|(cur, next)| {
-                match cur {
+        let escaped: String = chars
+            .map(|c| {
+                match c {
                     '\n' => String::from("\\n"), // escape
-                    '\t' => String::from("\\t"), // escape
-                    '{' => String::from("\\{"),  // escape
-                    '}' => String::from("\\}"),  // escape
-                    '|' => String::from("\\|"),  // escape
                     '"' => String::from("\\\""), // escape
-                    '\\' => match next {
-                        'l' => String::from("\\"), // preserve \l
-                        _ => String::from("\\\\"), // escape
-                    },
+                    '\\' => String::from("\\\\"), // escape
                     other => String::from(other), // preserve other chars
                 }
             })
             .collect();
-        // Because the window takes two chars at once, cur never gets the last char
-        // So, we need to append it manually afterwards
-        if let Some(last) = str.chars().last() {
-            escaped.push(last);
-        }
         escaped
     }
 
@@ -302,11 +293,6 @@ impl DotCFGGenerationPass {
             .map_err(|_| DotCFGError::FileWriteError)?;
         writeln!(dot_cfg_file, "\t\tcluster=true;").map_err(|_| DotCFGError::FileWriteError)?;
         writeln!(dot_cfg_file, "\t\tfontsize=\"28\";").map_err(|_| DotCFGError::FileWriteError)?;
-        writeln!(
-            dot_cfg_file,
-            "\t\tnode [style=filled, fillcolor=\"#{func_color}\"];"
-        )
-        .map_err(|_| DotCFGError::FileWriteError)?;
         for node in func.nodes().iter() {
             // If node is not leader, skip it
             if !leaders.contains(&node.id()) {
@@ -316,7 +302,7 @@ impl DotCFGGenerationPass {
             // Identify the block and print it in DOT format
             let leader = node;
             let current_block = info.get_block_containing_node_with_id(&leader.id())?;
-            let dot_cfg_string = current_block.dot_str(None);
+            let dot_cfg_string = current_block.dot_str(Some(func_color));
             writeln!(dot_cfg_file, "\t\t{dot_cfg_string};")
                 .map_err(|_| DotCFGError::FileWriteError)?;
 
@@ -356,10 +342,10 @@ impl DotCFGGenerationPass {
     fn get_function_color(function_number: usize) -> &'static str {
         const NUM_COLORS: usize = 20;
         const COLORS: [&str; NUM_COLORS] = [
-            "aaaaaa", "aa0000", "00aa00", "aa5500", "0055ff", "aa00aa", "00aaaa", "555555",
-            "ff5555", "55ff55", "ffff55", "5555ff", "ff55ff", "55ffff", "ffaaaa", "aaffaa",
-            "ffffaa", "aaaaff", "ffaaff", "aaffff",
-        ];
+            "aaaaaa7f", "aa00007f", "00aa007f", "aa55007f", "0055ff7f", "aa00aa7f", "00aaaa7f", "5555557f",
+            "ff55557f", "55ff557f", "ffff557f", "5555ff7f", "ff55ff7f", "55ffff7f", "ffaaaa7f", "aaffaa7f",
+            "ffffaa7f", "aaaaff7f", "ffaaff7f", "aaffff7f",
+        ]; // Colors in RGBA
         #[allow(
             clippy::indexing_slicing,
             reason = "function number is non-negative and NUM_COLORS = COLORS.len()"

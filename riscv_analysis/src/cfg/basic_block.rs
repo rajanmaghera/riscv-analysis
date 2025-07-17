@@ -148,34 +148,30 @@ impl BasicBlock {
         }
     }
 
-    /// Get a string that represents this basic block as a record-based node in DOT format.
+    /// Get a string that represents this basic block as an HTML-based node in DOT format.
     ///
     /// See the DOT [language reference](https://graphviz.org/doc/info/lang.html).
-    /// Record-based nodes are described [here](https://graphviz.org/doc/info/shapes.html#record).
+    /// HTML-like labels are described [here](https://graphviz.org/doc/info/shapes.html#html).
     #[must_use]
-    pub fn dot_str(&self, fill_color: Option<&str>) -> String {
+    pub fn dot_str(&self, bg_color: Option<&str>) -> String {
+        const TABLE_STYLE: &str = " PORT=\"p\" BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\"";
+        const LABEL_CELL_STYLE: &str = " ALIGN=\"LEFT\"";
+        const INSTRUCTION_CELL_STYLE: &str = " ALIGN=\"LEFT\" BALIGN=\"LEFT\"";
         let instruction_string = self
             .iter()
             .filter(|n| n.is_instruction())
             .map(|n| n.raw_text())
             .collect::<Vec<String>>()
-            .join("\\l")
-            // square brackets, vertical bars, and angle brackets must be escaped
-            // see the [record-based node docs](https://graphviz.org/doc/info/shapes.html#record)
-            .replace('[', "\\[")
-            .replace(']', "\\]")
-            .replace('|', "\\|")
-            .replace('<', "\\<")
-            .replace('>', "\\>");
-        let fill = match fill_color {
-            Some(c) => format!("style=\"filled\", fillcolor=\"#{c}\", "),
+            .join("<BR/>");
+        let bg_color = match bg_color {
+            Some(c) => format!(" BGCOLOR=\"#{c}\""),
             None => String::new(),
         };
         let label = match self.canonical_label() {
-            Some(label) => format!("label=\"{{{label}:\\l|{instruction_string}\\l}}\""),
-            None => format!("label=\"{{{instruction_string}\\l}}\""),
+            Some(label) => format!("label=<<TABLE{bg_color}{TABLE_STYLE}><TR><TD{LABEL_CELL_STYLE}>{label}:</TD></TR><TR><TD{INSTRUCTION_CELL_STYLE}>{instruction_string}</TD></TR></TABLE>>"),
+            None => format!("label=<<TABLE{bg_color}{TABLE_STYLE}><TR><TD{INSTRUCTION_CELL_STYLE}>{instruction_string}</TD></TR></TABLE>>"),
         };
-        format!("\"{}\" [{fill}{label}]", self.id())
+        format!("\"{}\" [{label}]", self.id())
     }
 }
 
