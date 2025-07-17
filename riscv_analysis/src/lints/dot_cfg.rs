@@ -149,6 +149,7 @@ impl DotCFGGenerationPass {
         dot_cfg_file: &mut File,
         info: &DotCFGGenerationPassInfo,
         interprocedural_enabled: bool,
+        analyzed_file_name: &str,
     ) -> Result<(), DotCFGError> {
         let leaders = &info.leaders;
         let caller_info_map = &info.caller_info_map;
@@ -156,10 +157,25 @@ impl DotCFGGenerationPass {
         // This is used for uniquely numbering call sites on a per-function basis
         let mut call_site_nums: HashMap<Uuid, u32> = HashMap::new();
 
-        // Begin DOT graph and set node style
-        writeln!(dot_cfg_file, "digraph cfg {{").map_err(|_| DotCFGError::FileWriteError)?;
+        // Set title
+        let analyzed_file_name = DotCFGGenerationPass::escape_dot_str(analyzed_file_name);
+        let graph_title = if interprocedural_enabled {
+            format!("Interprocedural CFG for \\\"{analyzed_file_name}\\\"")
+        } else {
+            format!("CFG for \\\"{analyzed_file_name}\\\"")
+        };
+        writeln!(dot_cfg_file, "digraph \"{graph_title}\" {{")
+            .map_err(|_| DotCFGError::FileWriteError)?;
+        // Set node style
         writeln!(dot_cfg_file, "\tnode [shape=none, fontname=\"Courier\"];")
             .map_err(|_| DotCFGError::FileWriteError)?;
+        // Set label for entire graph
+        writeln!(dot_cfg_file, "\tlabel=\"{graph_title}\";")
+            .map_err(|_| DotCFGError::FileWriteError)?;
+        // Position it at the top of the graph
+        writeln!(dot_cfg_file, "\tlabelloc=\"t\";").map_err(|_| DotCFGError::FileWriteError)?;
+        // Set label font size to 36
+        writeln!(dot_cfg_file, "\tfontsize=\"36\";").map_err(|_| DotCFGError::FileWriteError)?;
 
         // Write all functions (including internal edges) as subgraphs
         for (func_num, (label, func)) in cfg.functions().iter().enumerate() {
@@ -258,12 +274,14 @@ impl DotCFGGenerationPass {
             .terminator()
             .ok_or_else(|| DotCFGError::BlockWithLeaderMissingTerminator(block.clone()))?;
         terminator.nexts().iter().try_for_each(|succ| {
-            if info.leaders.contains(&succ.id()) {
+            if let Some(succ_block) = info.leader_ids_to_blocks.get(&succ.id()) {
                 writeln!(
                     file,
-                    "{indent_str}\"{}\":p -> \"{}\":p;",
+                    "{indent_str}\"{}\":p -> \"{}\":p [tooltip=\"{} -> {}\"];",
                     block.id(),
-                    succ.id()
+                    succ_block.id(),
+                    block.heading(),
+                    succ_block.heading()
                 )
                 .map_err(|_| DotCFGError::FileWriteError)?;
                 Ok(())
@@ -302,7 +320,11 @@ impl DotCFGGenerationPass {
         let label = DotCFGGenerationPass::escape_dot_str(label.as_str());
         writeln!(dot_cfg_file, "\tsubgraph \"{label}\" {{")
             .map_err(|_| DotCFGError::FileWriteError)?;
-        writeln!(dot_cfg_file, "\t\tlabel=\"function \\\"{label}\\\"\"")
+
+        let function_title = format!("function \\\"{label}\\\"");
+        writeln!(dot_cfg_file, "\t\tlabel=\"{function_title}\";")
+            .map_err(|_| DotCFGError::FileWriteError)?;
+        writeln!(dot_cfg_file, "\t\ttooltip=\"{function_title}\";")
             .map_err(|_| DotCFGError::FileWriteError)?;
         writeln!(dot_cfg_file, "\t\tcluster=true;").map_err(|_| DotCFGError::FileWriteError)?;
         writeln!(dot_cfg_file, "\t\tfontsize=\"28\";").map_err(|_| DotCFGError::FileWriteError)?;
@@ -351,6 +373,7 @@ impl DotCFGGenerationPass {
             &mut dot_cfg_file,
             &info,
             config.interprocedural_enabled,
+            &config.analyzed_file_name,
         )
     }
 
@@ -391,6 +414,9 @@ pub struct DotCFGGenerationPassConfiguration {
     /// Should the graph terminate basic blocks after calls
     /// and include dashed edges for function calls/returns?
     interprocedural_enabled: bool,
+    /// The file name of the analyzed file as a string
+    /// This is used for the title label of the CFG
+    analyzed_file_name: String,
 }
 impl PassConfiguration for DotCFGGenerationPassConfiguration {
     fn get_enabled(&self) -> bool {
@@ -418,6 +444,15 @@ impl DotCFGGenerationPassConfiguration {
 
     pub fn set_interprocedural_enabled(&mut self, interprocedural_enabled: bool) {
         self.interprocedural_enabled = interprocedural_enabled;
+    }
+
+    #[must_use]
+    pub fn get_analyzed_file_name(&self) -> &String {
+        &self.analyzed_file_name
+    }
+
+    pub fn set_analyzed_file_name(&mut self, analyzed_file_name: String) {
+        self.analyzed_file_name = analyzed_file_name;
     }
 }
 

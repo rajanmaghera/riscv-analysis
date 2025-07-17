@@ -93,6 +93,12 @@ impl ToManagerConfiguration for Lint {
             dot_cfg_config.set_enabled(true);
             // Set the DOT CFG path to the value passed to --dot-cfg in the CLI
             dot_cfg_config.set_dot_cfg_path(dot_cfg_path.clone());
+            // Set the analyzed file name (used for the graph title)
+            let file_name = match self.path.file_name() {
+                Some(f) => f.to_string_lossy().into_owned(),
+                None => String::from("<unknown>"), // TODO not sure what to do here
+            };
+            dot_cfg_config.set_analyzed_file_name(file_name);
             // Set interprocedural_enabled
             // It is a boolean flag: true if --dot-cfg-enable-interprocedural was passed in the CLI, false otherwise
             dot_cfg_config.set_interprocedural_enabled(self.dot_cfg_enable_interprocedural);
