@@ -221,12 +221,14 @@ impl DotCFGGenerationPass {
                         .get_block_containing_node_with_id(&target_id)?
                         .heading();
                     let current_block_heading = current_block.heading();
+                    let call_tooltip = format!("call to \\\"{target_block_heading}\\\" from site {call_site_num} (in \\\"{current_block_heading}\\\")");
                     writeln!(
                         dot_cfg_file,
                         "\t\"{current_block_heading}\":p -> \"{target_block_heading}\":p \
                         [style=\"dashed\", \
                         label=\"call from site {call_site_num}\", \
-                        tooltip=\"call to \\\"{target_block_heading}\\\" from site {call_site_num} (in \\\"{current_block_heading}\\\")\"];",
+                        tooltip=\"{call_tooltip}\", \
+                        labeltooltip=\"{call_tooltip}\"];",
                     )
                     .map_err(|_| DotCFGError::FileWriteError)?;
 
@@ -237,13 +239,17 @@ impl DotCFGGenerationPass {
                     let return_address_block_heading = info
                         .get_block_containing_node_with_id(&return_address_id)?
                         .heading();
+                    let return_tooltip = format!(
+                        "return to \\\"{return_address_block_heading}\\\" from \\\"{return_inst_block_heading}\\\" after call to \
+                        \\\"{target_block_heading}\\\" from site {call_site_num} (in \\\"{current_block_heading}\\\")"
+                    );
                     writeln!(
                         dot_cfg_file,
                         "\t\"{return_inst_block_heading}\":p -> \"{return_address_block_heading}\":p \
                         [style=\"dashed\", \
                         label=\"return after call site {call_site_num}\", \
-                        tooltip=\"return to \\\"{return_address_block_heading}\\\" from \\\"{return_inst_block_heading}\\\" after call to \
-                        \\\"{target_block_heading}\\\" from site {call_site_num} (in \\\"{current_block_heading}\\\")\"];",
+                        tooltip=\"{return_tooltip}\", \
+                        labeltooltip=\"{return_tooltip}\"];",
                     )
                     .map_err(|_| DotCFGError::FileWriteError)?;
                 }
@@ -255,9 +261,10 @@ impl DotCFGGenerationPass {
                 continue;
             }
 
-            // If node is leader, write the block
+            // Otherwise, node is leader of block that is not in a function
+            // So, write the block
             let dot_cfg_string = current_block.dot_str(None);
-            writeln!(dot_cfg_file, "\t{dot_cfg_string}")
+            writeln!(dot_cfg_file, "\t{dot_cfg_string};")
                 .map_err(|_| DotCFGError::FileWriteError)?;
             DotCFGGenerationPass::write_outgoing_edges_as_dot(
                 current_block,
@@ -282,21 +289,86 @@ impl DotCFGGenerationPass {
         let terminator = block
             .terminator()
             .ok_or_else(|| DotCFGError::BlockWithLeaderMissingTerminator(block.clone()))?;
-        terminator.nexts().iter().try_for_each(|succ| {
-            if let Some(succ_block) = info.leader_ids_to_blocks.get(&succ.id()) {
+        match terminator.node() {
+            ParserNode::Branch(x) => {
+                let branch_target_label = x.name;
+                let nexts = terminator.nexts();
+
+                if nexts.len() != 2 {
+                    return Err(DotCFGError::BranchDoesNotHaveExactlyTwoSuccessors(
+                        nexts.len(),
+                        terminator.node(),
+                    ));
+                }
+
+                let taken_target = nexts
+                    .iter()
+                    .find(|succ| succ.labels().contains(&branch_target_label))
+                    .ok_or_else(|| {
+                        DotCFGError::BranchTakenTargetNotFound(
+                            branch_target_label.clone(),
+                            terminator.node(),
+                        )
+                    })?;
+                let not_taken_target = nexts
+                    .iter()
+                    .find(|succ| !succ.labels().contains(&branch_target_label))
+                    .ok_or_else(|| {
+                        DotCFGError::BranchNotTakenTargetNotFound(
+                            branch_target_label.clone(),
+                            terminator.node(),
+                        )
+                    })?;
+
+                let taken_target_block = info
+                    .leader_ids_to_blocks
+                    .get(&taken_target.id())
+                    .ok_or_else(|| {
+                        DotCFGError::SuccessorOfTerminatorIsNotLeader(taken_target.node())
+                    })?;
+                let not_taken_target_block = info
+                    .leader_ids_to_blocks
+                    .get(&not_taken_target.id())
+                    .ok_or_else(|| {
+                        DotCFGError::SuccessorOfTerminatorIsNotLeader(not_taken_target.node())
+                    })?;
+
                 let block_heading = block.heading();
-                let succ_block_heading = succ_block.heading();
+
+                let taken_target_block_heading = taken_target_block.heading();
                 writeln!(
                     file,
-                    "{indent_str}\"{block_heading}\":p -> \"{succ_block_heading}\":p \
-                    [tooltip=\"\\\"{block_heading}\\\" -> \\\"{succ_block_heading}\\\"\"];",
+                    "{indent_str}\"{block_heading}\":t -> \"{taken_target_block_heading}\":p \
+                    [tooltip=\"\\\"{block_heading}\\\" (branch taken) -> \\\"{taken_target_block_heading}\\\"\"];",
+                )
+                .map_err(|_| DotCFGError::FileWriteError)?;
+
+                let not_taken_target_block_heading = not_taken_target_block.heading();
+                writeln!(
+                    file,
+                    "{indent_str}\"{block_heading}\":f -> \"{not_taken_target_block_heading}\":p \
+                    [tooltip=\"\\\"{block_heading}\\\" (branch not taken) -> \\\"{not_taken_target_block_heading}\\\"\"];",
                 )
                 .map_err(|_| DotCFGError::FileWriteError)?;
                 Ok(())
-            } else {
-                Err(DotCFGError::SuccessorOfTerminatorIsNotLeader(succ.node()))
             }
-        })?;
+            _ => terminator.nexts().iter().try_for_each(|succ| {
+                if let Some(succ_block) = info.leader_ids_to_blocks.get(&succ.id()) {
+                    let block_heading = block.heading();
+                    let succ_block_heading = succ_block.heading();
+                    writeln!(
+                        file,
+                        "{indent_str}\"{block_heading}\":p -> \"{succ_block_heading}\":p \
+                            [tooltip=\"\\\"{block_heading}\\\" -> \\\"{succ_block_heading}\\\"\"];",
+                    )
+                    .map_err(|_| DotCFGError::FileWriteError)?;
+                    Ok(())
+                } else {
+                    Err(DotCFGError::SuccessorOfTerminatorIsNotLeader(succ.node()))
+                }
+            }),
+        }?;
+
         Ok(())
     }
 
@@ -527,6 +599,9 @@ impl CallInfo {
 #[derive(Debug)]
 enum DotCFGError {
     BlockWithLeaderMissingTerminator(BasicBlock),
+    BranchDoesNotHaveExactlyTwoSuccessors(usize, ParserNode),
+    BranchNotTakenTargetNotFound(With<LabelString>, ParserNode),
+    BranchTakenTargetNotFound(With<LabelString>, ParserNode),
     CallHasMoreThanOneSuccessor(ParserNode),
     CallHasNoSuccessors(ParserNode),
     CallTargetIsNotFunction(ParserNode),
@@ -546,6 +621,24 @@ impl std::fmt::Display for DotCFGError {
                 write!(
                     f,
                     "Block has leader, so it is nonempty, but has no terminator:\n{block}"
+                )
+            }
+            DotCFGError::BranchDoesNotHaveExactlyTwoSuccessors(num_succs, node) => {
+                write!(
+                    f,
+                    "Expecting 2 successors for branch, found {num_succs}:\n{node}"
+                )
+            }
+            DotCFGError::BranchTakenTargetNotFound(label, node) => {
+                write!(
+                    f,
+                    "No taken target (successor with label {label}) found for branch targeting {label}:\n{node}"
+                )
+            }
+            DotCFGError::BranchNotTakenTargetNotFound(label, node) => {
+                write!(
+                    f,
+                    "No not taken target (successor without label {label}) found for branch targeting {label}:\n{node}"
                 )
             }
             DotCFGError::CallHasMoreThanOneSuccessor(node) => {

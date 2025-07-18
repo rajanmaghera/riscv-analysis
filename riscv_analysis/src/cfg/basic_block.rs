@@ -4,7 +4,7 @@ use std::rc::Rc;
 use uuid::Uuid;
 
 use crate::cfg::CfgNode;
-use crate::parser::{HasIdentity, InstructionProperties, LabelString, With};
+use crate::parser::{HasIdentity, InstructionProperties, LabelString, ParserNode, With};
 use crate::passes::DiagnosticLocation;
 
 #[derive(Clone, Debug)]
@@ -154,31 +154,54 @@ impl BasicBlock {
     /// HTML-like labels are described [here](https://graphviz.org/doc/info/shapes.html#html).
     #[must_use]
     pub fn dot_str(&self, bg_color: Option<&str>) -> String {
-        const TABLE_STYLE: &str = " PORT=\"p\" BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\"";
-        const LABEL_CELL_STYLE: &str = " ALIGN=\"LEFT\"";
-        const INSTRUCTION_CELL_STYLE: &str = " ALIGN=\"LEFT\" BALIGN=\"LEFT\"";
+        const TABLE_STYLE: &str = " port=\"p\" border=\"0\" cellborder=\"1\" cellspacing=\"0\"";
+        // use colspan of 2 for label and instruction cells in case node is a branch and
+        // has additional row at bottom with two cells for branch taken/not taken
+        const LABEL_CELL_STYLE: &str = " align=\"left\" colspan=\"2\"";
+        const INSTRUCTION_CELL_STYLE: &str = " align=\"left\" balign=\"left\" colspan=\"2\"";
+        const BRANCH_TAKEN_STYLE: &str = " port=\"t\"";
+        const BRANCH_NOT_TAKEN_STYLE: &str = " port=\"f\"";
         let instruction_string = self
             .iter()
             .filter(|n| n.is_instruction())
             .map(|n| n.raw_text())
             .collect::<Vec<String>>()
-            .join("<BR/>");
+            .join("<br/>");
         let bg_color = match bg_color {
-            Some(c) => format!(" BGCOLOR=\"#{c}\""),
+            Some(c) => format!(" bgcolor=\"#{c}\""),
             None => String::new(),
         };
+
+        let branch_row = if let Some(terminator) = self.terminator() {
+            match terminator.node() {
+                ParserNode::Branch(_) => {
+                    format!(
+                        "<tr>\
+                        <td{BRANCH_TAKEN_STYLE}>T</td>\
+                        <td{BRANCH_NOT_TAKEN_STYLE}>F</td>\
+                        </tr>"
+                    )
+                }
+                _ => String::new(),
+            }
+        } else {
+            String::new()
+        };
+
         let label = match self.canonical_label() {
             Some(label) => format!(
                 "tooltip={label}, \
-                label=<<TABLE{bg_color}{TABLE_STYLE}>\
-                <TR><TD{LABEL_CELL_STYLE}>{label}:</TD></TR>\
-                <TR><TD{INSTRUCTION_CELL_STYLE}>{instruction_string}</TD></TR>\
-                </TABLE>>"
+                label=<<table{bg_color}{TABLE_STYLE}>\
+                <tr><td{LABEL_CELL_STYLE}>{label}:</td></tr>\
+                <tr><td{INSTRUCTION_CELL_STYLE}>{instruction_string}</td></tr>\
+                {branch_row}\
+                </table>>"
             ),
             None => format!(
-                "label=<<TABLE{bg_color}{TABLE_STYLE}>\
-                <TR><TD{INSTRUCTION_CELL_STYLE}>{instruction_string}</TD></TR>\
-                </TABLE>>"
+                "label=<<table{bg_color}{TABLE_STYLE}>\
+                <tr><td{INSTRUCTION_CELL_STYLE}>{instruction_string}</td></tr>\
+                {branch_row}\
+                </table>>"
             ),
         };
         format!("\"{}\" [{label}]", self.heading())
