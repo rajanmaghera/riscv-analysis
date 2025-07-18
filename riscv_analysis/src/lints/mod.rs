@@ -1,11 +1,35 @@
-mod checks;
-pub use checks::*;
+mod callee_saved_garbage_read;
+pub use callee_saved_garbage_read::*;
+
+mod callee_saved_register;
+pub use callee_saved_register::*;
+
+mod control_flow;
+pub use control_flow::*;
+
+mod dead_value;
+pub use dead_value::*;
+
+mod dot_cfg;
+pub use dot_cfg::*;
+
+mod ecall;
+pub use ecall::*;
+
+mod garbage_input_value;
+pub use garbage_input_value::*;
 
 mod instruction_in_text;
 pub use instruction_in_text::*;
 
+mod lost_callee_saved_register;
+pub use lost_callee_saved_register::*;
+
 mod overlapping_function;
 pub use overlapping_function::*;
 
-mod control_flow;
-pub use control_flow::*;
+mod save_to_zero;
+pub use save_to_zero::*;
+
+mod stack;
+pub use stack::*;

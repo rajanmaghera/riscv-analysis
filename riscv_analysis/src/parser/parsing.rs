@@ -8,7 +8,7 @@ use crate::parser::{DataType, RawToken, Register};
 use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{DirectiveType, ParserNode};
 use crate::parser::{Lexer, TokenType};
-use crate::passes::{DiagnosticItem, DiagnosticLocation, Manager};
+use crate::passes::{DiagnosticItem, DiagnosticLocation, Manager, ManagerConfiguration};
 use crate::reader::FileReader;
 use serde::Deserialize;
 use std::iter::Peekable;
@@ -55,15 +55,14 @@ where
 }
 
 impl<T: FileReader> RVParser<T> {
-    pub fn run(&mut self, base: &str) -> Vec<DiagnosticItem> {
+    pub fn run(&mut self, base: &str, config: &ManagerConfiguration) -> Vec<DiagnosticItem> {
         let mut diags = Vec::new();
         let parsed = self.parse_from_file(base, false);
         parsed
             .1
             .iter()
             .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
-
-        let res = Manager::run(parsed.0);
+        let res = Manager::run(parsed.0, config); // TODO make this configurable
         match res {
             Ok(lints) => {
                 lints
@@ -74,6 +73,10 @@ impl<T: FileReader> RVParser<T> {
         }
         diags.sort();
         diags
+    }
+
+    pub fn run_with_default_config(&mut self, base: &str) -> Vec<DiagnosticItem> {
+        self.run(base, &ManagerConfiguration::default())
     }
 
     pub fn new(reader: T) -> RVParser<T> {

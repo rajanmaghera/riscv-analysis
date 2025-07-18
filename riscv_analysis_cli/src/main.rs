@@ -4,25 +4,23 @@ use printer::*;
 mod pretty_print_options;
 
 use std::fmt::Display;
-#[cfg(feature = "fixes")]
-use std::io::Write;
 use std::{collections::HashMap, str::FromStr};
 
 #[cfg(feature = "fixes")]
 use colored::Colorize;
 #[cfg(feature = "fixes")]
 use riscv_analysis::fix::Manipulation;
-use riscv_analysis::passes::DiagnosticItem;
+#[cfg(feature = "fixes")]
+use std::io::Write;
+
+use clap::{Args, Parser, Subcommand};
+use riscv_analysis::passes::{
+    DiagnosticItem, Manager, ManagerConfiguration, PassConfiguration, ToManagerConfiguration,
+};
+use riscv_analysis::reader::{FileReader, FileReaderError};
 use riscv_analysis::{parser::RVParser, passes::DiagnosticManager};
 use std::path::PathBuf;
 use uuid::Uuid;
-
-#[cfg(feature = "analysis_debugger")]
-use riscv_analysis::passes::DiagnosticLocation;
-use riscv_analysis::passes::Manager;
-
-use clap::{Args, Parser, Subcommand};
-use riscv_analysis::reader::{FileReader, FileReaderError};
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -67,6 +65,46 @@ struct Lint {
     /// Display errors from all files
     #[clap(long)]
     all_files: bool,
+    /// Output a CFG to a file in DOT format (see https://graphviz.org/doc/info/lang.html)
+    ///
+    /// The graph will be written to the file path passed to this argument.
+    #[clap(long)]
+    dot_cfg: Option<PathBuf>,
+    /// Boolean flag to generate an interprocedural CFG
+    ///
+    /// The difference from the default (intraprocedural) CFG
+    /// is that, in the interprocedural CFG, function calls
+    /// terminate basic blocks and dashed edges are drawn
+    /// for function calls/returns.
+    ///
+    /// If the --dot-cfg flag is not used, the DOT CFG generation
+    /// pass does not run and this option has no effect.
+    #[clap(long, action)]
+    dot_cfg_enable_interprocedural: bool,
+}
+
+impl ToManagerConfiguration for Lint {
+    fn to_manager_configuration(&self) -> ManagerConfiguration {
+        let mut config = ManagerConfiguration::default();
+        // Configure DOT CFG pass if it is enabled
+        if let Some(dot_cfg_path) = &self.dot_cfg {
+            let dot_cfg_config = config.get_mut_dot_cfg_generation_pass_config();
+            // Enable the pass
+            dot_cfg_config.set_enabled(true);
+            // Set the DOT CFG path to the value passed to --dot-cfg in the CLI
+            dot_cfg_config.set_dot_cfg_path(dot_cfg_path.clone());
+            // Set the analyzed file name (used for the graph title)
+            let file_name = match self.path.file_name() {
+                Some(f) => f.to_string_lossy().into_owned(),
+                None => String::from("<unknown>"), // TODO not sure what to do here
+            };
+            dot_cfg_config.set_analyzed_file_name(file_name);
+            // Set interprocedural_enabled
+            // It is a boolean flag: true if --dot-cfg-enable-interprocedural was passed in the CLI, false otherwise
+            dot_cfg_config.set_interprocedural_enabled(self.dot_cfg_enable_interprocedural);
+        }
+        config
+    }
 }
 
 #[cfg(feature = "fixes")]
@@ -319,8 +357,11 @@ fn main() {
                     } else if lint.debug {
                         println!("{}", full_cfg);
                     }
+                    // convert Lint arguments to ManagerConfiguration
+                    let manager_config = lint.to_manager_configuration();
                     let mut errs = DiagnosticManager::new();
-                    Manager::run_diagnostics(&full_cfg, &mut errs);
+                    // run diagnostic passes using the ManagerConfiguration
+                    Manager::run_diagnostics(&full_cfg, &mut errs, &manager_config);
                     errs.iter()
                         .for_each(|x| diags.push(DiagnosticItem::from_displayable(x.as_ref())));
                 }
