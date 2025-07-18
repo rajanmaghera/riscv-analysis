@@ -63,19 +63,21 @@ impl DotCFGGenerationPass {
                         .label_node_map
                         .get(label_string.as_str())
                         .ok_or_else(|| {
-                            DotCFGError::CallTargetLabelNotInLabelNodeMap(label_string)
+                            DotCFGError::CallTargetLabelNotInLabelNodeMap(Box::new(label_string))
                         })?;
                     leaders.insert(call_target_instruction.id());
 
                     // Node should have one successor: the next instruction after the call
                     // The call target is not considered a successor
                     if succs.len() > 1 {
-                        return Err(DotCFGError::CallHasMoreThanOneSuccessor(node.node()));
+                        return Err(DotCFGError::CallHasMoreThanOneSuccessor(Box::new(
+                            node.node(),
+                        )));
                     }
                     let return_address: &Rc<CfgNode> = succs
                         .iter()
                         .next()
-                        .ok_or_else(|| DotCFGError::CallHasNoSuccessors(node.node()))?;
+                        .ok_or_else(|| DotCFGError::CallHasNoSuccessors(Box::new(node.node())))?;
 
                     // Update return_addresses, returns, and caller_info_map
                     return_addresses.insert(return_address.id());
@@ -86,13 +88,14 @@ impl DotCFGGenerationPass {
                         .labels()
                         .iter()
                         .next()
-                        .ok_or_else(|| DotCFGError::MissingCallTargetLabel(target.node()))?
+                        .ok_or_else(|| {
+                            DotCFGError::MissingCallTargetLabel(Box::new(target.node()))
+                        })?
                         .to_owned();
-                    let called_function = Rc::clone(
-                        cfg.functions()
-                            .get(&target_label)
-                            .ok_or_else(|| DotCFGError::CallTargetIsNotFunction(target.node()))?,
-                    );
+                    let called_function =
+                        Rc::clone(cfg.functions().get(&target_label).ok_or_else(|| {
+                            DotCFGError::CallTargetIsNotFunction(Box::new(target.node()))
+                        })?);
                     let called_function_return = called_function.exit().clone();
                     returns.insert(called_function_return.id());
                     let call_info = CallInfo::new(target, return_address, called_function_return);
@@ -286,9 +289,9 @@ impl DotCFGGenerationPass {
         info: &DotCFGGenerationPassInfo,
         indent_str: &str,
     ) -> Result<(), DotCFGError> {
-        let terminator = block
-            .terminator()
-            .ok_or_else(|| DotCFGError::BlockWithLeaderMissingTerminator(block.clone()))?;
+        let terminator = block.terminator().ok_or_else(|| {
+            DotCFGError::BlockWithLeaderMissingTerminator(Box::new(block.clone()))
+        })?;
         match terminator.node() {
             ParserNode::Branch(x) => {
                 let branch_target_label = x.name;
@@ -297,7 +300,7 @@ impl DotCFGGenerationPass {
                 if nexts.len() != 2 {
                     return Err(DotCFGError::BranchDoesNotHaveExactlyTwoSuccessors(
                         nexts.len(),
-                        terminator.node(),
+                        Box::new(terminator.node()),
                     ));
                 }
 
@@ -306,8 +309,8 @@ impl DotCFGGenerationPass {
                     .find(|succ| succ.labels().contains(&branch_target_label))
                     .ok_or_else(|| {
                         DotCFGError::BranchTakenTargetNotFound(
-                            branch_target_label.clone(),
-                            terminator.node(),
+                            Box::new(branch_target_label.clone()),
+                            Box::new(terminator.node()),
                         )
                     })?;
                 let not_taken_target = nexts
@@ -315,8 +318,8 @@ impl DotCFGGenerationPass {
                     .find(|succ| !succ.labels().contains(&branch_target_label))
                     .ok_or_else(|| {
                         DotCFGError::BranchNotTakenTargetNotFound(
-                            branch_target_label.clone(),
-                            terminator.node(),
+                            Box::new(branch_target_label.clone()),
+                            Box::new(terminator.node()),
                         )
                     })?;
 
@@ -324,13 +327,15 @@ impl DotCFGGenerationPass {
                     .leader_ids_to_blocks
                     .get(&taken_target.id())
                     .ok_or_else(|| {
-                        DotCFGError::SuccessorOfTerminatorIsNotLeader(taken_target.node())
+                        DotCFGError::SuccessorOfTerminatorIsNotLeader(Box::new(taken_target.node()))
                     })?;
                 let not_taken_target_block = info
                     .leader_ids_to_blocks
                     .get(&not_taken_target.id())
                     .ok_or_else(|| {
-                        DotCFGError::SuccessorOfTerminatorIsNotLeader(not_taken_target.node())
+                        DotCFGError::SuccessorOfTerminatorIsNotLeader(Box::new(
+                            not_taken_target.node(),
+                        ))
                     })?;
 
                 let block_heading = block.heading();
@@ -364,7 +369,9 @@ impl DotCFGGenerationPass {
                     .map_err(|_| DotCFGError::FileWriteError)?;
                     Ok(())
                 } else {
-                    Err(DotCFGError::SuccessorOfTerminatorIsNotLeader(succ.node()))
+                    Err(DotCFGError::SuccessorOfTerminatorIsNotLeader(Box::new(
+                        succ.node(),
+                    )))
                 }
             }),
         }?;
@@ -598,20 +605,20 @@ impl CallInfo {
 
 #[derive(Debug)]
 enum DotCFGError {
-    BlockWithLeaderMissingTerminator(BasicBlock),
-    BranchDoesNotHaveExactlyTwoSuccessors(usize, ParserNode),
-    BranchNotTakenTargetNotFound(With<LabelString>, ParserNode),
-    BranchTakenTargetNotFound(With<LabelString>, ParserNode),
-    CallHasMoreThanOneSuccessor(ParserNode),
-    CallHasNoSuccessors(ParserNode),
-    CallTargetIsNotFunction(ParserNode),
-    CallTargetLabelNotInLabelNodeMap(With<LabelString>),
+    BlockWithLeaderMissingTerminator(Box<BasicBlock>),
+    BranchDoesNotHaveExactlyTwoSuccessors(usize, Box<ParserNode>),
+    BranchNotTakenTargetNotFound(Box<With<LabelString>>, Box<ParserNode>),
+    BranchTakenTargetNotFound(Box<With<LabelString>>, Box<ParserNode>),
+    CallHasMoreThanOneSuccessor(Box<ParserNode>),
+    CallHasNoSuccessors(Box<ParserNode>),
+    CallTargetIsNotFunction(Box<ParserNode>),
+    CallTargetLabelNotInLabelNodeMap(Box<With<LabelString>>),
     FailedToCreateFile(PathBuf),
     FileWriteError,
     LeaderIdNotInLeaderIdsToBlocksMap(Uuid),
-    MissingCallTargetLabel(ParserNode),
+    MissingCallTargetLabel(Box<ParserNode>),
     NodeIdNotInNodeIdsToLeaderIdsMap(Uuid),
-    SuccessorOfTerminatorIsNotLeader(ParserNode),
+    SuccessorOfTerminatorIsNotLeader(Box<ParserNode>),
 }
 
 impl std::fmt::Display for DotCFGError {
