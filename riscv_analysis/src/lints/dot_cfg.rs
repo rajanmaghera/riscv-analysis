@@ -633,7 +633,7 @@ impl std::fmt::Display for DotCFGError {
             DotCFGError::BranchDoesNotHaveExactlyTwoSuccessors(num_succs, node) => {
                 write!(
                     f,
-                    "Expecting 2 successors for branch, found {num_succs}:\n{node}"
+                    "Expected 2 successors for branch, found {num_succs}:\n{node}"
                 )
             }
             DotCFGError::BranchTakenTargetNotFound(label, node) => {
