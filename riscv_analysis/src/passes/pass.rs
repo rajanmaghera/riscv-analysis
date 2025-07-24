@@ -11,7 +11,7 @@ pub trait AssertionPass {
 }
 
 pub trait LintPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager);
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager);
 
     /// Run a single pass along a set of `ParserNode`s and return the errors.
     ///
@@ -24,8 +24,13 @@ pub trait LintPass {
     /// use riscv_analysis::cfg::Cfg;
     ///
     /// struct MyPass;
+    /// impl MyPass {
+    ///     fn new() -> Self {
+    ///         Self {}
+    ///     }
+    /// }
     /// impl LintPass for MyPass {
-    ///    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    ///    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
     ///       for node in cfg {
     ///         errors.push(LintError::InvalidStackPointer(node.node()));
     ///      }
@@ -33,20 +38,20 @@ pub trait LintPass {
     /// }
     ///
     /// let nodes = &[iarith!(Addi X1 X0 0)];
-    /// let errors = MyPass::run_single_pass_along_nodes(nodes);
+    /// let errors = MyPass::new().run_single_pass_along_nodes(nodes);
     /// assert_eq!(errors.len(), 1);
     /// assert_eq!(errors[0].get_error_code(), "invalid-stack-pointer");
     /// ```
     #[must_use]
-    fn run_single_pass_along_nodes(nodes: &[ParserNode]) -> DiagnosticManager {
+    fn run_single_pass_along_nodes(&self, nodes: &[ParserNode]) -> DiagnosticManager {
         let cfg = Cfg::new(nodes.into()).unwrap();
-        Self::run_single_pass_along_cfg(&cfg)
+        self.run_single_pass_along_cfg(&cfg)
     }
 
     #[must_use]
-    fn run_single_pass_along_cfg(cfg: &Cfg) -> DiagnosticManager {
+    fn run_single_pass_along_cfg(&self, cfg: &Cfg) -> DiagnosticManager {
         let mut errors = DiagnosticManager::new();
-        Self::run(cfg, &mut errors);
+        self.run(cfg, &mut errors);
         errors
     }
 }

@@ -12,9 +12,22 @@ use uuid::Uuid;
 /// doesn't generally occur in canonical code. Instead, the existence of
 /// overlapping functions usually indicates a mistaken jump to the middle of a
 /// function.
+#[non_exhaustive]
 pub struct OverlappingFunctionPass;
+impl OverlappingFunctionPass {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for OverlappingFunctionPass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LintPass for OverlappingFunctionPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // Capture entry points that are part of more than one function
             // NOTE: We only give an error for the first line of a function,
@@ -56,7 +69,7 @@ mod tests {
         assert_eq!(error.len(), 0);
 
         let cfg = Manager::gen_full_cfg(nodes).unwrap(); // Need fn annotations
-        OverlappingFunctionPass::run_single_pass_along_cfg(&cfg)
+        OverlappingFunctionPass::new().run_single_pass_along_cfg(&cfg)
     }
 
     #[test]
