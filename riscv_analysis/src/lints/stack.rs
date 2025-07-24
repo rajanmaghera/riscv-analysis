@@ -1,14 +1,18 @@
 use crate::analysis::AvailableValue;
 use crate::cfg::Cfg;
 use crate::parser::{InstructionProperties, Register};
-use crate::passes::{DiagnosticManager, LintError, LintPass};
+use crate::passes::{DiagnosticManager, LintError, LintPass, LintPassDefaultOptions};
 
 // Check that we know the stack position at every point in the program (aka. within scopes)
 #[non_exhaustive]
-pub struct StackPass;
+pub struct StackPass {
+    default_options: LintPassDefaultOptions,
+}
 impl StackPass {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
     }
 }
 
@@ -19,6 +23,13 @@ impl Default for StackPass {
 }
 
 impl LintPass for StackPass {
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         // PASS 1
         // check that we know the stack position at every point in the program

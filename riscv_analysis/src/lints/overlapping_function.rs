@@ -1,3 +1,4 @@
+use crate::passes::LintPassDefaultOptions;
 use crate::{
     cfg::Cfg,
     parser::{Label, ParserNode},
@@ -13,10 +14,14 @@ use uuid::Uuid;
 /// overlapping functions usually indicates a mistaken jump to the middle of a
 /// function.
 #[non_exhaustive]
-pub struct OverlappingFunctionPass;
+pub struct OverlappingFunctionPass {
+    default_options: LintPassDefaultOptions,
+}
 impl OverlappingFunctionPass {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
     }
 }
 
@@ -27,6 +32,13 @@ impl Default for OverlappingFunctionPass {
 }
 
 impl LintPass for OverlappingFunctionPass {
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // Capture entry points that are part of more than one function
