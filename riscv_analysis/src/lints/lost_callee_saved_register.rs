@@ -6,9 +6,9 @@ use crate::passes::{DiagnosticManager, LintError, LintPass};
 // Check if the value of a calle-saved register is ever "lost" (aka. overwritten without being restored)
 // This provides a more detailed image compared to above, and could be turned into extra
 // diagnostic information in the future.
-pub struct LostCalleeSavedRegisterCheck;
+pub struct LostCalleeSavedRegisterPass;
 
-impl LintPass for LostCalleeSavedRegisterCheck {
+impl LintPass for LostCalleeSavedRegisterPass {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             let callee = Register::saved_set();
