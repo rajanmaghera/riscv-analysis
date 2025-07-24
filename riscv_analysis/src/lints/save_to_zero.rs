@@ -2,10 +2,22 @@ use crate::cfg::Cfg;
 use crate::parser::{InstructionProperties, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass};
 
+#[non_exhaustive]
 pub struct SaveToZeroPass;
+impl SaveToZeroPass {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for SaveToZeroPass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl LintPass for SaveToZeroPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if let Some(register) = node.writes_to() {
                 if register == Register::X0 && !node.can_skip_save_checks() {

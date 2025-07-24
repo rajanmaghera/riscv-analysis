@@ -47,17 +47,17 @@ impl Manager {
         Ok(cfg)
     }
     pub fn run_diagnostics(cfg: &Cfg, errors: &mut DiagnosticManager) {
-        SaveToZeroPass::run(cfg, errors);
-        DeadValuePass::run(cfg, errors);
-        InstructionInTextPass::run(cfg, errors);
-        EcallPass::run(cfg, errors);
-        ControlFlowPass::run(cfg, errors);
-        GarbageInputValuePass::run(cfg, errors);
-        StackPass::run(cfg, errors);
-        CalleeSavedRegisterPass::run(cfg, errors);
-        CalleeSavedGarbageReadPass::run(cfg, errors);
-        LostCalleeSavedRegisterPass::run(cfg, errors);
-        OverlappingFunctionPass::run(cfg, errors);
+        SaveToZeroPass::new().run(cfg, errors);
+        DeadValuePass::new().run(cfg, errors);
+        InstructionInTextPass::new().run(cfg, errors);
+        EcallPass::new().run(cfg, errors);
+        ControlFlowPass::new().run(cfg, errors);
+        GarbageInputValuePass::new().run(cfg, errors);
+        StackPass::new().run(cfg, errors);
+        CalleeSavedRegisterPass::new().run(cfg, errors);
+        CalleeSavedGarbageReadPass::new().run(cfg, errors);
+        LostCalleeSavedRegisterPass::new().run(cfg, errors);
+        OverlappingFunctionPass::new().run(cfg, errors);
     }
     pub fn run(cfg: Vec<ParserNode>) -> Result<DiagnosticManager, Box<CfgError>> {
         let mut errors = DiagnosticManager::new();

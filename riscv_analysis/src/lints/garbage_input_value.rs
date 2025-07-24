@@ -7,9 +7,22 @@ use crate::{
 // TODO deprecate
 // Check if there are any in values to the start of functions that are not args or saved registers
 // Check if there are any in values at the start of a program
+#[non_exhaustive]
 pub struct GarbageInputValuePass;
+impl GarbageInputValuePass {
+    pub fn new() -> GarbageInputValuePass {
+        GarbageInputValuePass {}
+    }
+}
+
+impl Default for GarbageInputValuePass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LintPass for GarbageInputValuePass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_program_entry() {
                 // get registers

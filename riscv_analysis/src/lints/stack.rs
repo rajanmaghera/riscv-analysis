@@ -4,9 +4,22 @@ use crate::parser::{InstructionProperties, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass};
 
 // Check that we know the stack position at every point in the program (aka. within scopes)
+#[non_exhaustive]
 pub struct StackPass;
+impl StackPass {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for StackPass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LintPass for StackPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         // PASS 1
         // check that we know the stack position at every point in the program
         // check that the stack is never in an invalid position
