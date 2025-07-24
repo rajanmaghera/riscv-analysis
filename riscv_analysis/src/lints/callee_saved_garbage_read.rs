@@ -3,8 +3,8 @@ use crate::parser::{HasRegisterSets, InstructionProperties, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass};
 
 // check if the value of a calle-saved register is read as its original value
-pub struct CalleeSavedGarbageReadCheck;
-impl LintPass for CalleeSavedGarbageReadCheck {
+pub struct CalleeSavedGarbageReadPass;
+impl LintPass for CalleeSavedGarbageReadPass {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             for read in node.reads_from() {

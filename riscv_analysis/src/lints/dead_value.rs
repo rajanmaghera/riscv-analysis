@@ -6,8 +6,8 @@ use crate::{
     passes::{DiagnosticManager, LintError, LintPass},
 };
 
-pub struct DeadValueCheck;
-impl LintPass for DeadValueCheck {
+pub struct DeadValuePass;
+impl LintPass for DeadValuePass {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // check the out of the node for any uses that

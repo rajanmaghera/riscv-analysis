@@ -10,8 +10,8 @@ use crate::{
 /// doesn't generally occur in canonical code. Instead, the existence of
 /// overlapping functions usually indicates a mistaken jump to the middle of a
 /// function.
-pub struct OverlappingFunctionCheck;
-impl LintPass for OverlappingFunctionCheck {
+pub struct OverlappingFunctionPass;
+impl LintPass for OverlappingFunctionPass {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // Capture entry points that are part of more than one function
@@ -30,7 +30,7 @@ impl LintPass for OverlappingFunctionCheck {
 
 #[cfg(test)]
 mod tests {
-    use crate::lints::OverlappingFunctionCheck;
+    use crate::lints::OverlappingFunctionPass;
     use crate::parser::{ProgramEntryType, RVStringParser};
     use crate::passes::{DiagnosticManager, LintPass, Manager};
 
@@ -41,7 +41,7 @@ mod tests {
 
         let cfg = Manager::gen_full_cfg(parser_output, None, &ProgramEntryType::FirstInstruction)
             .unwrap(); // Need fn annotations
-        OverlappingFunctionCheck::run_single_pass_along_cfg(&cfg)
+        OverlappingFunctionPass::run_single_pass_along_cfg(&cfg)
     }
 
     #[test]
