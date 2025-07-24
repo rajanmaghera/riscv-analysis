@@ -22,6 +22,10 @@ impl Default for CalleeSavedGarbageReadPass {
 }
 
 impl LintPass for CalleeSavedGarbageReadPass {
+    fn get_pass_name(&self) -> &'static str {
+        "callee-saved-garbage-read"
+    }
+
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }

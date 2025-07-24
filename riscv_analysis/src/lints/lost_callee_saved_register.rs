@@ -25,6 +25,9 @@ impl Default for LostCalleeSavedRegisterPass {
 }
 
 impl LintPass for LostCalleeSavedRegisterPass {
+    fn get_pass_name(&self) -> &'static str {
+        "lost-called-saved-register"
+    }
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }

@@ -30,6 +30,9 @@ impl Default for InstructionInTextPass {
 }
 
 impl LintPass for InstructionInTextPass {
+    fn get_pass_name(&self) -> &'static str {
+        "instruction-in-text"
+    }
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }

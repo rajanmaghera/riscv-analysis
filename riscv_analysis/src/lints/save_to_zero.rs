@@ -21,6 +21,10 @@ impl Default for SaveToZeroPass {
 }
 
 impl LintPass for SaveToZeroPass {
+    fn get_pass_name(&self) -> &'static str {
+        "save-to-zero"
+    }
+
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }

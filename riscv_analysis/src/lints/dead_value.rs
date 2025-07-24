@@ -26,6 +26,9 @@ impl Default for DeadValuePass {
 }
 
 impl LintPass for DeadValuePass {
+    fn get_pass_name(&self) -> &'static str {
+        "dead-value"
+    }
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }

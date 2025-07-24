@@ -30,6 +30,9 @@ impl Default for ControlFlowPass {
 }
 
 impl LintPass for ControlFlowPass {
+    fn get_pass_name(&self) -> &'static str {
+        "control-flow"
+    }
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }

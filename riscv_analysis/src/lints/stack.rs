@@ -23,6 +23,9 @@ impl Default for StackPass {
 }
 
 impl LintPass for StackPass {
+    fn get_pass_name(&self) -> &'static str {
+        "stack"
+    }
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }

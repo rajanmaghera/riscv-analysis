@@ -23,6 +23,9 @@ impl Default for CalleeSavedRegisterPass {
 }
 
 impl LintPass for CalleeSavedRegisterPass {
+    fn get_pass_name(&self) -> &'static str {
+        "callee-saved-register"
+    }
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }
