@@ -40,15 +40,15 @@ impl Cfg {
     /// Get an iterator over the `Cfg` nodes that are reachable using the
     /// nexts of `node`.
     #[must_use]
-    pub fn iter_nexts(&self, node: Rc<CfgNode>) -> CfgNextsIterator {
-        CfgNextsIterator::new(node)
+    pub fn iter_nexts<'a>(&'a self, node: &'a Rc<CfgNode>) -> CfgNextsIterator<'a> {
+        CfgNextsIterator::new(self, node)
     }
 
     /// Get an iterator over the `Cfg` nodes that are reachable using the
     /// prevs of `node`.
     #[must_use]
-    pub fn iter_prevs(&self, node: Rc<CfgNode>) -> CfgPrevsIterator {
-        CfgPrevsIterator::new(node)
+    pub fn iter_prevs<'a>(&'a self, node: &'a Rc<CfgNode>) -> CfgPrevsIterator<'a> {
+        CfgPrevsIterator::new(self, node)
     }
 
     /// Get the functions of the CFG.
@@ -71,7 +71,7 @@ impl Cfg {
 
 impl<'a> IntoIterator for &'a Cfg {
     type IntoIter = CfgIterator<'a>;
-    type Item = Rc<CfgNode>;
+    type Item = &'a Rc<CfgNode>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()

@@ -60,7 +60,7 @@ mod test {
         assert_eq!(error.len(), 0);
         let mut cfg = Cfg::new(nodes).unwrap();
         NodeDirectionPass::run(&mut cfg)?;
-        Ok(cfg.iter().collect())
+        Ok(cfg.iter().cloned().collect())
     }
 
     #[test]
