@@ -24,3 +24,6 @@ pub use callee_saved_garbage_read::*;
 
 mod callee_saved_register;
 pub use callee_saved_register::*;
+
+mod lost_callee_saved_register;
+pub use lost_callee_saved_register::*;
