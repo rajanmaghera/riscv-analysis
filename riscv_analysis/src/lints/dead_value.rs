@@ -6,9 +6,23 @@ use crate::{
     passes::{DiagnosticManager, LintError, LintPass},
 };
 
+#[non_exhaustive]
 pub struct DeadValuePass;
+impl DeadValuePass {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for DeadValuePass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LintPass for DeadValuePass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // check the out of the node for any uses that
             // should not be there (temporaries)
