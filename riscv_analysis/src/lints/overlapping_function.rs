@@ -32,6 +32,9 @@ impl Default for OverlappingFunctionPass {
 }
 
 impl LintPass for OverlappingFunctionPass {
+    fn get_pass_name(&self) -> &'static str {
+        "overlapping-function"
+    }
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }

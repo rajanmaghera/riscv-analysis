@@ -42,6 +42,9 @@ pub trait LintPass {
     ///     }
     /// }
     /// impl LintPass for MyPass {
+    ///    fn get_pass_name(&self) -> &'static str {
+    ///       "my-pass"
+    ///    }
     ///    fn get_default_options(&self) -> &LintPassDefaultOptions {
     ///       &self.default_options
     ///    }
@@ -64,6 +67,8 @@ pub trait LintPass {
 
     fn get_default_options(&self) -> &LintPassDefaultOptions;
     fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions;
+
+    fn get_pass_name(&self) -> &'static str;
 
     fn get_enabled(&self) -> bool {
         self.get_default_options().enabled

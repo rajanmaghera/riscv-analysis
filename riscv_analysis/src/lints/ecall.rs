@@ -26,6 +26,9 @@ impl Default for EcallPass {
 }
 
 impl LintPass for EcallPass {
+    fn get_pass_name(&self) -> &'static str {
+        "ecall"
+    }
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }

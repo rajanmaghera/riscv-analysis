@@ -27,6 +27,9 @@ impl Default for GarbageInputValuePass {
 }
 
 impl LintPass for GarbageInputValuePass {
+    fn get_pass_name(&self) -> &'static str {
+        "garbage-input-value"
+    }
     fn get_default_options(&self) -> &LintPassDefaultOptions {
         &self.default_options
     }
