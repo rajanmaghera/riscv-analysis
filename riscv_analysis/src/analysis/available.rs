@@ -206,7 +206,7 @@ impl GenerationPass for AvailableValuePass {
                 changed |= node.set_memory_values_out(out_memory_n);
 
                 // Add node to visited
-                visited.insert(Rc::clone(&node));
+                visited.insert(Rc::clone(node));
             }
         }
         Ok(())

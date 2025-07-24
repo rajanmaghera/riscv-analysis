@@ -20,9 +20,9 @@ impl FunctionMarkupPass {
         let mut instructions = Vec::new();
 
         // Traverse the CFG for all nodes reachable from the entry point
-        for node in cfg.iter_nexts(Rc::clone(entry)) {
+        for node in cfg.iter_nexts(entry) {
             // Mark the node as being a part of the given function
-            instructions.push(Rc::clone(&node));
+            instructions.push(Rc::clone(node));
             node.insert_function(Rc::clone(func));
 
             // Collect any registers written to by the node
@@ -32,7 +32,7 @@ impl FunctionMarkupPass {
 
             // Collect return instructions
             if node.is_return() {
-                returns.push(Rc::clone(&node));
+                returns.push(Rc::clone(node));
             }
         }
 
@@ -56,14 +56,14 @@ impl GenerationPass for FunctionMarkupPass {
             let labels = entry.labels().iter().cloned().collect::<Vec<_>>();
 
             // Insert a new function into the CFG
-            let func = Rc::new(Function::new(labels.clone(), vec![], Rc::clone(&entry)));
+            let func = Rc::new(Function::new(labels.clone(), vec![], Rc::clone(entry)));
 
             for label in &labels {
                 cfg.insert_function(label.clone(), Rc::clone(&func));
             }
 
             // Mark all CFG nodes that are reachable from this entry point
-            let data = Self::mark_reachable(cfg, &entry, &Rc::clone(&func));
+            let data = Self::mark_reachable(cfg, entry, &Rc::clone(&func));
             #[allow(unused_must_use)]
             func.set_defs(data.found);
             #[allow(unused_must_use)]

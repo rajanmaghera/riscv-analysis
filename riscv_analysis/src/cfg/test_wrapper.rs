@@ -108,7 +108,7 @@ pub struct CfgWrapper(Vec<NodeWrapper>);
 
 impl From<&Cfg> for CfgWrapper {
     fn from(cfg: &Cfg) -> Self {
-        CfgWrapper(cfg.iter().map(|x| NodeWrapper::from(&x, cfg)).collect())
+        CfgWrapper(cfg.iter().map(|x| NodeWrapper::from(x, cfg)).collect())
     }
 }
 

@@ -9,7 +9,7 @@ impl GenerationPass for EcallTerminationPass {
         for node in cfg.iter() {
             if node.is_program_exit() {
                 for temp_node in cfg.get_nexts(node.as_ref()) {
-                    edges_to_remove.push((Rc::clone(&node), Rc::clone(temp_node)));
+                    edges_to_remove.push((Rc::clone(node), Rc::clone(temp_node)));
                 }
             }
         }

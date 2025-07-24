@@ -23,19 +23,19 @@ impl GenerationPass for NodeDirectionPass {
                     .iter()
                     .find(|n| n.labels().contains(&label))
                     .ok_or_else(|| CfgError::UnexpectedError)?;
-                edges_to_insert.push((Rc::clone(&node), Rc::clone(&jump_to_node)));
+                edges_to_insert.push((Rc::clone(node), Rc::clone(jump_to_node)));
             }
 
             // Linearly scan for nexts and prevs
             if let Some(p) = prev {
-                edges_to_insert.push((Rc::clone(&p), Rc::clone(&node)));
+                edges_to_insert.push((Rc::clone(&p), Rc::clone(node)));
             }
 
             // Set previous node to current node, if it is not a return
             prev = if node.is_return() || node.is_unconditional_jump() {
                 None
             } else {
-                Some(Rc::clone(&node))
+                Some(Rc::clone(node))
             }
         }
         for (from, to) in edges_to_insert {

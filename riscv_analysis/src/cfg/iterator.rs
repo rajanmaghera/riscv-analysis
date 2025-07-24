@@ -41,8 +41,8 @@ impl<'a> CfgIterator<'a> {
     }
 }
 
-impl Iterator for CfgIterator<'_> {
-    type Item = Rc<CfgNode>;
+impl<'a> Iterator for CfgIterator<'a> {
+    type Item = &'a Rc<CfgNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if !self.in_bounds() {
@@ -52,7 +52,7 @@ impl Iterator for CfgIterator<'_> {
         // Return the next node, if there is one
         if let Some(node) = self.nodes.get(self.start) {
             self.start += 1;
-            return Some(Rc::clone(node));
+            return Some(node);
         }
 
         None
@@ -65,7 +65,7 @@ impl DoubleEndedIterator for CfgIterator<'_> {
             return None;
         }
 
-        let result = self.nodes.get(self.end).map(Rc::clone);
+        let result = self.nodes.get(self.end);
 
         if self.end == 0 {
             self.end_final = true;
@@ -81,16 +81,16 @@ impl DoubleEndedIterator for CfgIterator<'_> {
 ///
 /// If there are multiple files, nodes in the same file will be grouped, but
 /// the files will not be given in any particular order.
-pub struct CfgSourceIterator {
-    nodes: Vec<Rc<CfgNode>>,
+pub struct CfgSourceIterator<'a> {
+    nodes: Vec<&'a Rc<CfgNode>>,
     start: usize,
 }
 
-impl CfgSourceIterator {
+impl<'a> CfgSourceIterator<'a> {
     /// Create a new source order iterator
     #[must_use]
-    pub fn new(cfg: &Cfg) -> Self {
-        let mut nodes = cfg.nodes().clone();
+    pub fn new(cfg: &'a Cfg) -> Self {
+        let mut nodes = cfg.nodes().iter().collect::<Vec<_>>();
 
         // Sort by location
         nodes.sort_by(|a, b| {
@@ -111,14 +111,14 @@ impl CfgSourceIterator {
     }
 }
 
-impl Iterator for CfgSourceIterator {
-    type Item = Rc<CfgNode>;
+impl<'a> Iterator for CfgSourceIterator<'a> {
+    type Item = &'a Rc<CfgNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Return the next node, if there is one
         if let Some(node) = self.nodes.get(self.start) {
             self.start += 1;
-            return Some(Rc::clone(node));
+            return Some(node);
         }
 
         None
@@ -134,14 +134,14 @@ impl Iterator for CfgSourceIterator {
 /// You must not modify the key of any CFG node during the traversal.
 pub struct CfgNextsIterator<'a> {
     cfg: &'a Cfg,
-    queue: Vec<Rc<CfgNode>>,      // Nodes we have seen but not visited yet
-    visted: HashSet<Rc<CfgNode>>, // Nodes we have visited
+    queue: Vec<&'a Rc<CfgNode>>, // Nodes we have seen but not visited yet
+    visted: HashSet<&'a Rc<CfgNode>>, // Nodes we have visited
 }
 
 impl<'a> CfgNextsIterator<'a> {
     /// Create a new iterator over all nodes reachable from `start`.
     #[must_use]
-    pub fn new(cfg: &'a Cfg, start: Rc<CfgNode>) -> Self {
+    pub fn new(cfg: &'a Cfg, start: &'a Rc<CfgNode>) -> Self {
         Self {
             cfg,
             queue: vec![start],
@@ -150,23 +150,23 @@ impl<'a> CfgNextsIterator<'a> {
     }
 }
 
-impl Iterator for CfgNextsIterator<'_> {
-    type Item = Rc<CfgNode>;
+impl<'a> Iterator for CfgNextsIterator<'a> {
+    type Item = &'a Rc<CfgNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // If the queue runs out, there are no more nodes that are reachable
         while let Some(node) = self.queue.pop() {
             // Skip over nodes we have already visited
-            if self.visted.contains(&node) {
+            if self.visted.contains(node) {
                 continue;
             }
 
             // Mark this node as visited
-            self.visted.insert(Rc::clone(&node));
+            self.visted.insert(node);
 
             // Add all successor nodes to the queue
-            for suc in self.cfg.get_nexts(node.as_ref()) {
-                self.queue.push(Rc::clone(suc));
+            for suc in self.cfg.get_nexts(node) {
+                self.queue.push(suc);
             }
 
             return Some(node);
@@ -185,14 +185,14 @@ impl Iterator for CfgNextsIterator<'_> {
 /// You must not modify the key of any CFG node during the traversal.
 pub struct CfgPrevsIterator<'a> {
     cfg: &'a Cfg,
-    queue: Vec<Rc<CfgNode>>,      // Nodes we have seen but not visited yet
-    visted: HashSet<Rc<CfgNode>>, // Nodes we have visited
+    queue: Vec<&'a Rc<CfgNode>>, // Nodes we have seen but not visited yet
+    visted: HashSet<&'a Rc<CfgNode>>, // Nodes we have visited
 }
 
 impl<'a> CfgPrevsIterator<'a> {
     /// Create a new iterator over all nodes reachable from `start`.
     #[must_use]
-    pub fn new(cfg: &'a Cfg, start: Rc<CfgNode>) -> Self {
+    pub fn new(cfg: &'a Cfg, start: &'a Rc<CfgNode>) -> Self {
         Self {
             cfg,
             queue: vec![start],
@@ -201,8 +201,8 @@ impl<'a> CfgPrevsIterator<'a> {
     }
 }
 
-impl Iterator for CfgPrevsIterator<'_> {
-    type Item = Rc<CfgNode>;
+impl<'a> Iterator for CfgPrevsIterator<'a> {
+    type Item = &'a Rc<CfgNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // If the queue runs out, there are no more nodes that are reachable
@@ -213,11 +213,11 @@ impl Iterator for CfgPrevsIterator<'_> {
             }
 
             // Mark this node as visited
-            self.visted.insert(Rc::clone(&node));
+            self.visted.insert(node);
 
             // Add all successor nodes to the queue
-            for suc in self.cfg.get_prevs(node.as_ref()) {
-                self.queue.push(Rc::clone(suc));
+            for suc in self.cfg.get_prevs(node) {
+                self.queue.push(suc);
             }
 
             return Some(node);

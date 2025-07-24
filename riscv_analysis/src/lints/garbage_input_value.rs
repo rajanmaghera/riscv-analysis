@@ -34,7 +34,7 @@ impl LintPass for GarbageInputValuePass {
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
-                        let mut ranges_tmp = cfg.error_ranges_for_first_usage(&node, reg);
+                        let mut ranges_tmp = cfg.error_ranges_for_first_usage(node, reg);
                         ranges.append(&mut ranges_tmp);
                     }
                     for range in ranges {
@@ -47,7 +47,7 @@ impl LintPass for GarbageInputValuePass {
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
-                        let mut ranges_tmp = cfg.error_ranges_for_first_usage(&node, reg);
+                        let mut ranges_tmp = cfg.error_ranges_for_first_usage(node, reg);
                         ranges.append(&mut ranges_tmp);
                     }
                     for range in ranges {

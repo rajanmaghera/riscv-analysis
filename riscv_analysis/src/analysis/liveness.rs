@@ -50,7 +50,7 @@ impl GenerationPass for LivenessPass {
                     // has to come from the function.
                     let u_def = (cfg
                         .get_prevs(node.as_ref())
-                        .filter(|x| visited.contains(x.as_ref()))
+                        .filter(|x| visited.contains(x))
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default()
@@ -77,7 +77,7 @@ impl GenerationPass for LivenessPass {
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - caller-saved | ecall_returns
                     let u_def = (cfg
                         .get_prevs(node.as_ref())
-                        .filter(|x| visited.contains(x.as_ref()))
+                        .filter(|x| visited.contains(x))
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default()
@@ -104,7 +104,7 @@ impl GenerationPass for LivenessPass {
                     // u_def[n] = AND u_def[s] for all s in prev[n] | kill[n]
                     let u_def = (cfg
                         .get_prevs(node.as_ref())
-                        .filter(|x| visited.contains(x.as_ref()))
+                        .filter(|x| visited.contains(x))
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default())

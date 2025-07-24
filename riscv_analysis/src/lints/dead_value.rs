@@ -40,7 +40,7 @@ impl LintPass for DeadValuePass {
                 // that item is found
                 let mut ranges = Vec::new();
                 for item in &out {
-                    ranges.append(&mut cfg.error_ranges_for_first_usage(&node, item));
+                    ranges.append(&mut cfg.error_ranges_for_first_usage(node, item));
                 }
                 for item in ranges {
                     errors.push(LintError::InvalidUseAfterCall(

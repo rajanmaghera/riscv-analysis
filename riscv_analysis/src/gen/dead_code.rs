@@ -63,6 +63,6 @@ mod test {
         let mut cfg = Cfg::new(parser_output, None, &ProgramEntryType::FirstInstruction).unwrap();
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
-        Ok(cfg.iter().collect())
+        Ok(cfg.iter().cloned().collect())
     }
 }

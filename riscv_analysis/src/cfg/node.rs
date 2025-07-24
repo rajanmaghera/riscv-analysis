@@ -1,3 +1,10 @@
+use super::environment_in_outs;
+use super::AvailableValueMap;
+use super::Cfg;
+use super::Function;
+use super::RefCellReplacement;
+use super::RegisterSet;
+use super::Segment;
 use crate::analysis::AvailableValue;
 use crate::analysis::MemoryLocation;
 use crate::parser::InstructionProperties;
@@ -9,14 +16,6 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::rc::Rc;
-
-use super::environment_in_outs;
-use super::AvailableValueMap;
-use super::Cfg;
-use super::Function;
-use super::RefCellReplacement;
-use super::RegisterSet;
-use super::Segment;
 
 #[derive(Debug)]
 pub struct CfgNode {
