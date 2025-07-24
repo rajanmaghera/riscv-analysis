@@ -9,3 +9,6 @@ pub use overlapping_function::*;
 
 mod control_flow;
 pub use control_flow::*;
+
+mod ecall;
+pub use ecall::*;
