@@ -23,7 +23,7 @@ impl Cfg {
     /// This function works by traversing the previous nodes until it finds a node that stores to the given register.
     /// This is used to correctly mark up the first store to a register that might
     /// have been incorrect.
-    fn error_ranges_for_first_store(node: &Rc<CfgNode>, item: Register) -> Vec<RegisterToken> {
+    pub fn error_ranges_for_first_store(node: &Rc<CfgNode>, item: Register) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the previous nodes onto the queue
@@ -165,36 +165,6 @@ impl LintPass for StackCheckPass {
 }
 
 // TODO check if the stack is ever stored at 0 or what not
-
-// Check if the values of callee-saved registers are restored to the original value at the end of the function
-pub struct CalleeSavedRegisterCheck;
-impl LintPass for CalleeSavedRegisterCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for func in cfg.functions().values() {
-            let exit_vals = func.exit().reg_values_in();
-            for reg in &Register::callee_saved_set() {
-                match exit_vals.get(&reg) {
-                    Some(AvailableValue::OriginalRegisterWithScalar(reg2, offset))
-                        if reg2 == &reg && offset == &0 =>
-                    {
-                        // GOOD!
-                    }
-                    _ => {
-                        // TODO combine with lost register check
-
-                        // This means that we are overwriting a callee-saved register
-                        // We will traverse the function to find the first time
-                        // from the return point that that register was overwritten.
-                        let ranges = Cfg::error_ranges_for_first_store(&func.exit(), reg);
-                        for range in ranges {
-                            errors.push(LintError::OverwriteCalleeSavedRegister(range));
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 // Check if the value of a calle-saved register is ever "lost" (aka. overwritten without being restored)
 // This provides a more detailed image compared to above, and could be turned into extra

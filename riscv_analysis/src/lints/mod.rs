@@ -21,3 +21,6 @@ pub use garbage_input_value::*;
 
 mod callee_saved_garbage_read;
 pub use callee_saved_garbage_read::*;
+
+mod callee_saved_register;
+pub use callee_saved_register::*;
