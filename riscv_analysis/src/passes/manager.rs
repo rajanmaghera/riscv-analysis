@@ -6,9 +6,9 @@ use crate::{
         NodeDirectionPass,
     },
     lints::{
-        CalleeSavedGarbageReadCheck, CalleeSavedRegisterCheck, ControlFlowCheck, DeadValueCheck,
-        EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck,
-        OverlappingFunctionCheck, SaveToZeroCheck, StackCheckPass,
+        CalleeSavedGarbageReadPass, CalleeSavedRegisterPass, ControlFlowPass, DeadValuePass,
+        EcallPass, GarbageInputValuePass, InstructionInTextPass, LostCalleeSavedRegisterPass,
+        OverlappingFunctionPass, SaveToZeroPass, StackPass,
     },
     parser::ParserNode,
 };
@@ -47,17 +47,17 @@ impl Manager {
         Ok(cfg)
     }
     pub fn run_diagnostics(cfg: &Cfg, errors: &mut DiagnosticManager) {
-        SaveToZeroCheck::run(cfg, errors);
-        DeadValueCheck::run(cfg, errors);
-        InstructionInTextCheck::run(cfg, errors);
-        EcallCheck::run(cfg, errors);
-        ControlFlowCheck::run(cfg, errors);
-        GarbageInputValueCheck::run(cfg, errors);
-        StackCheckPass::run(cfg, errors);
-        CalleeSavedRegisterCheck::run(cfg, errors);
-        CalleeSavedGarbageReadCheck::run(cfg, errors);
-        LostCalleeSavedRegisterCheck::run(cfg, errors);
-        OverlappingFunctionCheck::run(cfg, errors);
+        SaveToZeroPass::run(cfg, errors);
+        DeadValuePass::run(cfg, errors);
+        InstructionInTextPass::run(cfg, errors);
+        EcallPass::run(cfg, errors);
+        ControlFlowPass::run(cfg, errors);
+        GarbageInputValuePass::run(cfg, errors);
+        StackPass::run(cfg, errors);
+        CalleeSavedRegisterPass::run(cfg, errors);
+        CalleeSavedGarbageReadPass::run(cfg, errors);
+        LostCalleeSavedRegisterPass::run(cfg, errors);
+        OverlappingFunctionPass::run(cfg, errors);
     }
     pub fn run(cfg: Vec<ParserNode>) -> Result<DiagnosticManager, Box<CfgError>> {
         let mut errors = DiagnosticManager::new();
