@@ -2,15 +2,16 @@
 // ========================
 
 use std::collections::HashSet;
-use std::hash::Hash;
+use std::hash::{self, Hash};
 use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::cfg::AvailableValueMap;
+use crate::cfg::{AvailableValueMap, MathOp};
+use crate::lints::InstructionInTextCheck;
 use crate::parser::{
-    CsrImm, HasRegisterSets, InstructionProperties, LabelString, LabelStringToken,
-    RegisterProperties,
+    CsrImm, HasRegisterSets, IArith, IArithType, InstructionProperties, LabelString,
+    LabelStringToken, RegisterProperties,
 };
 use crate::parser::{ParserNode, Register};
 use crate::passes::{CfgError, GenerationPass};
@@ -18,6 +19,7 @@ use crate::passes::{CfgError, GenerationPass};
 use super::memory_location::MemoryLocation;
 use super::{HasGenKillInfo, HasGenValueInfo};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+// TODO: Add any type to available value
 
 /// A value that is available at some point in the program.
 ///
@@ -78,6 +80,89 @@ pub enum AvailableValue {
     /// Value at memory location of value in CSR register.
     #[serde(rename = "mc")]
     MemoryAtCsr(CsrImm, i32),
+}
+
+impl AvailableValue {
+    fn op(&self, other: AvailableValue, operation: MathOp) -> Option<AvailableValue> {
+        match (self, other) {
+            (Constant(a), Constant(b)) => Some(Constant(operation.operate(a, b)),
+            _ => todo!(),
+        }
+    }
+}
+
+fn perform_math_operation(
+    available_reg: &AvailableValueMap<Register>,
+    instruction: &IArith,
+) -> Option<AvailableValue> {
+    // TODO: add differentiation between TOP and BOTTOM
+    let a = available_reg.get(instruction.rs1.get())?;
+    match instruction.inst.get() {
+        IArithType::Addi => todo!(),
+        IArithType::Addiw => todo!(),
+        IArithType::Andi => todo!(),
+        IArithType::Ori => todo!(),
+        IArithType::Slli => todo!(),
+        IArithType::Slliw => todo!(),
+        IArithType::Slti => todo!(),
+        IArithType::Sltiu => todo!(),
+        IArithType::Srai => todo!(),
+        IArithType::Sraiw => todo!(),
+        IArithType::Srli => todo!(),
+        IArithType::Srliw => todo!(),
+        IArithType::Xori => todo!(),
+        IArithType::Auipc => todo!(),
+        IArithType::Lui => todo!(),
+    }
+}
+
+trait ISA {
+    type RegisterType: std::hash::Hash + std::cmp::Eq;
+    type LocationType: std::hash::Hash + std::cmp::Eq;
+    type InstructionType: InstructionProperties;
+
+    /// Perform a symbolic operation on values.
+    ///
+    /// This MUST be a monotonic operation, otherwise the worklist
+    /// algorithm might not terminate. It will not be verified that
+    /// this is will perform as expected.
+    fn perform_symbolic_operation(
+        available_reg: &mut AvailableValueMap<Self::RegisterType>,
+        available_mem: &mut AvailableValueMap<Self::LocationType>,
+        instruction: &Self::InstructionType,
+    );
+    // TODO: combine two maps into one
+}
+
+struct RiscvISA;
+impl ISA for RiscvISA {
+    type RegisterType = Register;
+    type LocationType = MemoryLocation;
+    type InstructionType = ParserNode;
+
+    fn perform_symbolic_operation(
+        available_reg: &mut AvailableValueMap<Self::RegisterType>,
+        available_mem: &mut AvailableValueMap<Self::LocationType>,
+        instruction: &Self::InstructionType,
+    ) {
+        match instruction {
+            ParserNode::ProgramEntry(program_entry) => todo!(),
+            ParserNode::FuncEntry(func_entry) => todo!(),
+            ParserNode::Arith(arith) => todo!(),
+            ParserNode::IArith(iarith) => todo!(),
+            ParserNode::Label(label) => todo!(),
+            ParserNode::JumpLink(jump_link) => todo!(),
+            ParserNode::JumpLinkR(jump_link_r) => todo!(),
+            ParserNode::Basic(basic) => todo!(),
+            ParserNode::Directive(directive) => todo!(),
+            ParserNode::Branch(branch) => todo!(),
+            ParserNode::Store(store) => todo!(),
+            ParserNode::Load(load) => todo!(),
+            ParserNode::LoadAddr(load_addr) => todo!(),
+            ParserNode::Csr(csr) => todo!(),
+            ParserNode::CsrI(csr_i) => todo!(),
+        }
+    }
 }
 
 /// Performs the available value analysis on the graph.
