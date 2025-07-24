@@ -1,3 +1,4 @@
+use crate::passes::LintPassDefaultOptions;
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
@@ -7,10 +8,14 @@ use crate::{
 // Check if every ecall has a known call number
 // Check if there are any instructions after an ecall to terminate the program
 #[non_exhaustive]
-pub struct EcallPass;
+pub struct EcallPass {
+    default_options: LintPassDefaultOptions,
+}
 impl EcallPass {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
     }
 }
 
@@ -21,6 +26,13 @@ impl Default for EcallPass {
 }
 
 impl LintPass for EcallPass {
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_ecall() && node.known_ecall().is_none() {

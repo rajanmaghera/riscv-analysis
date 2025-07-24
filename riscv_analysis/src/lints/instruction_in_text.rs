@@ -1,3 +1,4 @@
+use crate::passes::LintPassDefaultOptions;
 use crate::{
     cfg::{Cfg, Segment},
     parser::InstructionProperties,
@@ -11,10 +12,14 @@ use crate::{
 /// the text segment. Instructions in other locations is
 /// behaviour that we do not handle.
 #[non_exhaustive]
-pub struct InstructionInTextPass;
+pub struct InstructionInTextPass {
+    default_options: LintPassDefaultOptions,
+}
 impl InstructionInTextPass {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
     }
 }
 
@@ -25,6 +30,13 @@ impl Default for InstructionInTextPass {
 }
 
 impl LintPass for InstructionInTextPass {
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_instruction() && node.segment() != Segment::Text {

@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::passes::LintPassDefaultOptions;
 use crate::{
     cfg::Cfg,
     parser::{HasRegisterSets, InstructionProperties, Register},
@@ -7,10 +8,14 @@ use crate::{
 };
 
 #[non_exhaustive]
-pub struct DeadValuePass;
+pub struct DeadValuePass {
+    default_options: LintPassDefaultOptions,
+}
 impl DeadValuePass {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
     }
 }
 
@@ -21,6 +26,13 @@ impl Default for DeadValuePass {
 }
 
 impl LintPass for DeadValuePass {
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // check the out of the node for any uses that

@@ -1,10 +1,10 @@
+use crate::passes::LintPassDefaultOptions;
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
     passes::{DiagnosticBuilder, DiagnosticManager, LintError, LintPass},
 };
 use std::rc::Rc;
-
 // TODO fix for program entry
 
 /// This pass checks for the following control flow issues:
@@ -12,10 +12,14 @@ use std::rc::Rc;
 /// - A function is entered through an jump that is not a function call.
 /// - Any code that has no previous nodes, i.e. is unreachable.
 #[non_exhaustive]
-pub struct ControlFlowPass;
+pub struct ControlFlowPass {
+    default_options: LintPassDefaultOptions,
+}
 impl ControlFlowPass {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
     }
 }
 
@@ -26,6 +30,13 @@ impl Default for ControlFlowPass {
 }
 
 impl LintPass for ControlFlowPass {
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in &cfg.clone() {
             if node.is_function_entry() {

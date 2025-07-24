@@ -1,14 +1,18 @@
 use crate::analysis::AvailableValue;
 use crate::cfg::Cfg;
 use crate::parser::{HasRegisterSets, Register};
-use crate::passes::{DiagnosticManager, LintError, LintPass};
+use crate::passes::{DiagnosticManager, LintError, LintPass, LintPassDefaultOptions};
 
 // Check if the values of callee-saved registers are restored to the original value at the end of the function
 #[non_exhaustive]
-pub struct CalleeSavedRegisterPass;
+pub struct CalleeSavedRegisterPass {
+    default_options: LintPassDefaultOptions,
+}
 impl CalleeSavedRegisterPass {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
     }
 }
 
@@ -19,6 +23,13 @@ impl Default for CalleeSavedRegisterPass {
 }
 
 impl LintPass for CalleeSavedRegisterPass {
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for func in cfg.functions().values() {
             let exit_vals = func.exit().reg_values_in();
