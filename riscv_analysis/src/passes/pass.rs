@@ -11,8 +11,6 @@ pub trait AssertionPass {
 }
 
 pub trait LintPass {
-    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager);
-
     /// Run a single pass along a set of `ParserNode`s and return the errors.
     ///
     /// # Example
@@ -26,7 +24,7 @@ pub trait LintPass {
     /// struct MyPass;
     /// impl MyPass {
     ///     fn new() -> Self {
-    ///         Self {}
+    ///         Self
     ///     }
     /// }
     /// impl LintPass for MyPass {
@@ -45,6 +43,8 @@ pub trait LintPass {
     /// assert_eq!(errors.len(), 1);
     /// assert_eq!(errors[0].get_error_code(), "invalid-stack-pointer");
     /// ```
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager);
+
     fn get_pass_name(&self) -> &'static str;
 
     #[must_use]

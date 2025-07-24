@@ -364,7 +364,9 @@ fn main() {
                         println!("{}", full_cfg);
                     }
                     let mut errs = DiagnosticManager::new();
-                    Manager::run_diagnostics(&full_cfg, &mut errs);
+                    let mut manager = Manager::new();
+                    manager.register_and_enable_built_in_passes();
+                    manager.run_diagnostics(&full_cfg, &mut errs);
                     errs.iter()
                         .for_each(|x| diags.push(DiagnosticItem::from_displayable(x.as_ref())));
                 }
