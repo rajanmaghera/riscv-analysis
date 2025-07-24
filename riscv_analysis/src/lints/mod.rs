@@ -15,3 +15,6 @@ pub use ecall::*;
 
 mod dead_value;
 pub use dead_value::*;
+
+mod garbage_input_value;
+pub use garbage_input_value::*;
