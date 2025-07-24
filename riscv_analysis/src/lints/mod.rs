@@ -12,3 +12,6 @@ pub use control_flow::*;
 
 mod ecall;
 pub use ecall::*;
+
+mod dead_value;
+pub use dead_value::*;
