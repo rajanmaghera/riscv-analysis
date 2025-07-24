@@ -7,7 +7,7 @@ use std::{
 };
 use uuid::Uuid;
 
-use crate::parser::{HasRegisterSets, LabelString, LabelStringToken, Register};
+use crate::parser::{HasIdentity, HasRegisterSets, LabelString, LabelStringToken, Register};
 
 use super::{CfgNode, RegisterSet};
 
@@ -124,5 +124,11 @@ impl Function {
     #[must_use]
     pub fn set_exit(&self, node: Rc<CfgNode>) -> bool {
         self.exit.replace_if_changed(node)
+    }
+}
+impl HasIdentity for Function {
+    /// Get the id of the function.
+    fn id(&self) -> Uuid {
+        self.uuid
     }
 }
