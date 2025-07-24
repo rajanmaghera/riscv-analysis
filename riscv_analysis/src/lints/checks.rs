@@ -4,9 +4,6 @@ use crate::cfg::CfgNode;
 use crate::parser::InstructionProperties;
 use crate::parser::Register;
 use crate::parser::RegisterToken;
-use crate::passes::DiagnosticManager;
-use crate::passes::LintError;
-use crate::passes::LintPass;
 use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;
 
@@ -98,18 +95,4 @@ impl Cfg {
 
 // Checks are passes that occur after the CFG is built. As much data as possible is collected
 // during the CFG build. Then, the data is applied via a check.
-
-pub struct SaveToZeroCheck;
-impl LintPass for SaveToZeroCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg {
-            if let Some(register) = node.writes_to() {
-                if register == Register::X0 && !node.can_skip_save_checks() {
-                    errors.push(LintError::SaveToZero(register.clone()));
-                }
-            }
-        }
-    }
-}
-
 // TODO check if the stack is ever stored at 0 or what not
