@@ -25,6 +25,7 @@
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::missing_errors_doc)]
+#![feature(generic_const_exprs)]
 
 pub mod analysis;
 pub mod cfg;
@@ -32,6 +33,7 @@ pub mod fix;
 pub mod gen;
 pub mod helpers;
 pub mod lints;
+pub mod new_impl;
 pub mod parser;
 pub mod passes;
 pub mod reader;
