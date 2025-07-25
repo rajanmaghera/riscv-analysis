@@ -414,6 +414,7 @@ dependencies = [
  "serde",
  "serde_repr",
  "serde_yaml",
+ "splitmut",
  "uuid",
 ]
 
@@ -516,6 +517,12 @@ dependencies = [
  "serde",
  "unsafe-libyaml",
 ]
+
+[[package]]
+name = "splitmut"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c85070f382340e8b23a75808e83573ddf65f9ad9143df9573ca37c1ed2ee956a"
 
 [[package]]
 name = "strsim"
