@@ -11,8 +11,8 @@ use std::rc::Rc;
 /// - A function is entered through the first line of code (Why?).
 /// - A function is entered through an jump that is not a function call.
 /// - Any code that has no previous nodes, i.e. is unreachable.
-pub struct ControlFlowCheck;
-impl LintPass for ControlFlowCheck {
+pub struct ControlFlowPass;
+impl LintPass for ControlFlowPass {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in &cfg.clone() {
             if node.is_function_entry() {
@@ -63,7 +63,7 @@ mod tests {
         assert_eq!(error.len(), 0);
 
         let cfg = Manager::gen_full_cfg(nodes).unwrap();
-        ControlFlowCheck::run_single_pass_along_cfg(&cfg)
+        ControlFlowPass::run_single_pass_along_cfg(&cfg)
     }
 
     #[test]

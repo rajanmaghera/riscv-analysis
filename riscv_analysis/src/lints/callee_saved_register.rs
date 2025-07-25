@@ -4,8 +4,8 @@ use crate::parser::{HasRegisterSets, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass};
 
 // Check if the values of callee-saved registers are restored to the original value at the end of the function
-pub struct CalleeSavedRegisterCheck;
-impl LintPass for CalleeSavedRegisterCheck {
+pub struct CalleeSavedRegisterPass;
+impl LintPass for CalleeSavedRegisterPass {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for func in cfg.functions().values() {
             let exit_vals = func.exit().reg_values_in();

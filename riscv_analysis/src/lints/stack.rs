@@ -4,8 +4,8 @@ use crate::parser::{InstructionProperties, Register};
 use crate::passes::{DiagnosticManager, LintError, LintPass};
 
 // Check that we know the stack position at every point in the program (aka. within scopes)
-pub struct StackCheckPass;
-impl LintPass for StackCheckPass {
+pub struct StackPass;
+impl LintPass for StackPass {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         // PASS 1
         // check that we know the stack position at every point in the program
