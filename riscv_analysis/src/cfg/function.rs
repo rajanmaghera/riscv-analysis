@@ -7,13 +7,13 @@ use std::{
 };
 use uuid::Uuid;
 
-use crate::parser::{HasRegisterSets, LabelString, LabelStringToken, Register};
+use crate::parser::{HasIdentity, HasRegisterSets, LabelString, LabelStringToken, Register};
 
 use super::{CfgNode, RegisterSet};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function {
-    uuid: Uuid,
+    id: Uuid,
 
     /// Labels for the entry point of this function
     labels: HashSet<LabelStringToken>,
@@ -34,7 +34,7 @@ pub struct Function {
 
 impl Hash for Function {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.uuid.hash(state);
+        self.id.hash(state);
     }
 }
 impl Function {
@@ -57,7 +57,7 @@ impl Function {
         exit: Rc<CfgNode>,
     ) -> Self {
         Function {
-            uuid: Uuid::new_v4(),
+            id: Uuid::new_v4(),
             labels: labels.into_iter().collect::<HashSet<_>>(),
             nodes: RefCell::new(nodes),
             entry,
@@ -124,5 +124,11 @@ impl Function {
     #[must_use]
     pub fn set_exit(&self, node: Rc<CfgNode>) -> bool {
         self.exit.replace_if_changed(node)
+    }
+}
+impl HasIdentity for Function {
+    /// Get the id of the function.
+    fn id(&self) -> Uuid {
+        self.id
     }
 }

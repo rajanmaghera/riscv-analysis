@@ -36,6 +36,9 @@ mod interrupt_handler;
 mod ref_cell_replacement;
 pub use ref_cell_replacement::*;
 
+mod basic_block;
+pub use basic_block::*;
+
 mod node_diagnostic_location;
 mod node_gen_kill;
 mod node_has_identity;
