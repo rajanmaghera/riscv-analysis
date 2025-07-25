@@ -10,22 +10,48 @@ pub trait AssertionPass {
     fn run(cfg: &Cfg) -> Result<(), Box<CfgError>>;
 }
 
-pub trait LintPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager);
+pub struct LintPassDefaultOptions {
+    enabled: bool,
+}
 
+impl Default for LintPassDefaultOptions {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
+pub trait LintPass {
     /// Run a single pass along a set of `ParserNode`s and return the errors.
     ///
     /// # Example
     ///
     /// ```
-    /// use riscv_analysis::passes::{LintPass, LintError, DiagnosticManager};
+    /// use riscv_analysis::passes::{LintPass, LintError, DiagnosticManager, LintPassDefaultOptions};
     /// use riscv_analysis::parser::ParserNode;
     /// use riscv_analysis::{arith, iarith};
     /// use riscv_analysis::cfg::Cfg;
     ///
-    /// struct MyPass;
+    /// struct MyPass {
+    ///     default_options: LintPassDefaultOptions
+    /// }
+    /// impl MyPass {
+    ///     fn new() -> Self {
+    ///         Self {
+    ///             default_options: LintPassDefaultOptions::default()
+    ///         }
+    ///     }
+    /// }
     /// impl LintPass for MyPass {
-    ///    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    ///    fn get_pass_name(&self) -> &'static str {
+    ///       "my-pass"
+    ///    }
+    ///    fn get_default_options(&self) -> &LintPassDefaultOptions {
+    ///       &self.default_options
+    ///    }
+    ///    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+    ///       &mut self.default_options
+    ///    }
+    ///    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
     ///       for node in cfg {
     ///         errors.push(LintError::InvalidStackPointer(node.node()));
     ///      }
@@ -33,20 +59,35 @@ pub trait LintPass {
     /// }
     ///
     /// let nodes = &[iarith!(Addi X1 X0 0)];
-    /// let errors = MyPass::run_single_pass_along_nodes(nodes);
+    /// let errors = MyPass::new().run_single_pass_along_nodes(nodes);
     /// assert_eq!(errors.len(), 1);
     /// assert_eq!(errors[0].get_error_code(), "invalid-stack-pointer");
     /// ```
-    #[must_use]
-    fn run_single_pass_along_nodes(nodes: &[ParserNode]) -> DiagnosticManager {
-        let cfg = Cfg::new(nodes.into()).unwrap();
-        Self::run_single_pass_along_cfg(&cfg)
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager);
+
+    fn get_default_options(&self) -> &LintPassDefaultOptions;
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions;
+
+    fn get_pass_name(&self) -> &'static str;
+
+    fn get_enabled(&self) -> bool {
+        self.get_default_options().enabled
+    }
+
+    fn set_enabled(&mut self) {
+        self.get_default_options_mut().enabled = true;
     }
 
     #[must_use]
-    fn run_single_pass_along_cfg(cfg: &Cfg) -> DiagnosticManager {
+    fn run_single_pass_along_nodes(&self, nodes: &[ParserNode]) -> DiagnosticManager {
+        let cfg = Cfg::new(nodes.into()).unwrap();
+        self.run_single_pass_along_cfg(&cfg)
+    }
+
+    #[must_use]
+    fn run_single_pass_along_cfg(&self, cfg: &Cfg) -> DiagnosticManager {
         let mut errors = DiagnosticManager::new();
-        Self::run(cfg, &mut errors);
+        self.run(cfg, &mut errors);
         errors
     }
 }

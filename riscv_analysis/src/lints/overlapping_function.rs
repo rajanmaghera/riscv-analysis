@@ -1,3 +1,4 @@
+use crate::passes::LintPassDefaultOptions;
 use crate::{
     cfg::Cfg,
     parser::{Label, ParserNode},
@@ -12,9 +13,36 @@ use uuid::Uuid;
 /// doesn't generally occur in canonical code. Instead, the existence of
 /// overlapping functions usually indicates a mistaken jump to the middle of a
 /// function.
-pub struct OverlappingFunctionPass;
+#[non_exhaustive]
+pub struct OverlappingFunctionPass {
+    default_options: LintPassDefaultOptions,
+}
+impl OverlappingFunctionPass {
+    pub fn new() -> Self {
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
+    }
+}
+
+impl Default for OverlappingFunctionPass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LintPass for OverlappingFunctionPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    fn get_pass_name(&self) -> &'static str {
+        "overlapping-function"
+    }
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // Capture entry points that are part of more than one function
             // NOTE: We only give an error for the first line of a function,
@@ -56,7 +84,7 @@ mod tests {
         assert_eq!(error.len(), 0);
 
         let cfg = Manager::gen_full_cfg(nodes).unwrap(); // Need fn annotations
-        OverlappingFunctionPass::run_single_pass_along_cfg(&cfg)
+        OverlappingFunctionPass::new().run_single_pass_along_cfg(&cfg)
     }
 
     #[test]

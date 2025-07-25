@@ -1,3 +1,10 @@
+use super::environment_in_outs;
+use super::AvailableValueMap;
+use super::Cfg;
+use super::Function;
+use super::RefCellReplacement;
+use super::RegisterSet;
+use super::Segment;
 use crate::analysis::AvailableValue;
 use crate::analysis::MemoryLocation;
 use crate::parser::InstructionProperties;
@@ -9,14 +16,6 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::rc::Rc;
-
-use super::environment_in_outs;
-use super::AvailableValueMap;
-use super::Cfg;
-use super::Function;
-use super::RefCellReplacement;
-use super::RegisterSet;
-use super::Segment;
 
 #[derive(Debug)]
 pub struct CfgNode {
@@ -114,8 +113,30 @@ impl CfgNode {
         self.nexts.borrow()
     }
 
+    pub fn iter_nexts<'a>(&self, cfg: &'a Cfg) -> impl Iterator<Item = &'a Rc<CfgNode>> {
+        // Hack to get an iterator of borrowed values that matches the lifetime of the
+        // upper CFG struct: map each item in nexts to the reference in the original Cfg
+        self.nexts
+            .borrow()
+            .iter()
+            .map(|x| cfg.iter().find(|y| x == *y).unwrap())
+            .collect::<HashSet<_>>()
+            .into_iter()
+    }
+
     pub fn prevs(&self) -> Ref<HashSet<Rc<CfgNode>>> {
         self.prevs.borrow()
+    }
+
+    pub fn iter_prevs<'a>(&self, cfg: &'a Cfg) -> impl Iterator<Item = &'a Rc<CfgNode>> {
+        // Hack to get an iterator of borrowed values that matches the lifetime of the
+        // upper CFG struct: map each item in nexts to the reference in the original Cfg
+        self.prevs
+            .borrow()
+            .iter()
+            .map(|x| cfg.iter().find(|y| x == *y).unwrap())
+            .collect::<HashSet<_>>()
+            .into_iter()
     }
 
     /// Return the functions that this node belongs to.

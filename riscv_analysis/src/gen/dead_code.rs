@@ -64,7 +64,7 @@ mod test {
         let mut cfg = Cfg::new(nodes).unwrap();
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
-        Ok(cfg.iter().collect())
+        Ok(cfg.iter().cloned().collect())
     }
 
     #[test]

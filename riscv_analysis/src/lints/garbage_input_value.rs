@@ -1,3 +1,4 @@
+use crate::passes::LintPassDefaultOptions;
 use crate::{
     cfg::Cfg,
     parser::{HasRegisterSets, InstructionProperties, Register},
@@ -7,9 +8,36 @@ use crate::{
 // TODO deprecate
 // Check if there are any in values to the start of functions that are not args or saved registers
 // Check if there are any in values at the start of a program
-pub struct GarbageInputValuePass;
+#[non_exhaustive]
+pub struct GarbageInputValuePass {
+    default_options: LintPassDefaultOptions,
+}
+impl GarbageInputValuePass {
+    pub fn new() -> Self {
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
+    }
+}
+
+impl Default for GarbageInputValuePass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LintPass for GarbageInputValuePass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    fn get_pass_name(&self) -> &'static str {
+        "garbage-input-value"
+    }
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_program_entry() {
                 // get registers

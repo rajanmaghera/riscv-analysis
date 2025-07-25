@@ -1,19 +1,46 @@
+use crate::passes::LintPassDefaultOptions;
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
     passes::{DiagnosticBuilder, DiagnosticManager, LintError, LintPass},
 };
 use std::rc::Rc;
-
 // TODO fix for program entry
 
 /// This pass checks for the following control flow issues:
 /// - A function is entered through the first line of code (Why?).
 /// - A function is entered through an jump that is not a function call.
 /// - Any code that has no previous nodes, i.e. is unreachable.
-pub struct ControlFlowPass;
+#[non_exhaustive]
+pub struct ControlFlowPass {
+    default_options: LintPassDefaultOptions,
+}
+impl ControlFlowPass {
+    pub fn new() -> Self {
+        Self {
+            default_options: LintPassDefaultOptions::default(),
+        }
+    }
+}
+
+impl Default for ControlFlowPass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LintPass for ControlFlowPass {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
+    fn get_pass_name(&self) -> &'static str {
+        "control-flow"
+    }
+    fn get_default_options(&self) -> &LintPassDefaultOptions {
+        &self.default_options
+    }
+
+    fn get_default_options_mut(&mut self) -> &mut LintPassDefaultOptions {
+        &mut self.default_options
+    }
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in &cfg.clone() {
             if node.is_function_entry() {
                 // If the previous nodes set is not empty
@@ -63,7 +90,7 @@ mod tests {
         assert_eq!(error.len(), 0);
 
         let cfg = Manager::gen_full_cfg(nodes).unwrap();
-        ControlFlowPass::run_single_pass_along_cfg(&cfg)
+        ControlFlowPass::new().run_single_pass_along_cfg(&cfg)
     }
 
     #[test]
