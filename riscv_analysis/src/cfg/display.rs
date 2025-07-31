@@ -3,9 +3,9 @@ use std::{
     fmt::Display,
 };
 
-use itertools::Itertools;
-
 use super::{Cfg, CfgNode};
+use crate::passes::DiagnosticLocation;
+use itertools::Itertools;
 
 pub trait SetListString {
     fn str(&self) -> String;
@@ -51,7 +51,12 @@ impl Display for CfgNode {
                 .join(" | "),
         };
 
-        f.write_fmt(format_args!("{}\n", self.node()))?;
+        f.write_fmt(format_args!(
+            "{} -- line {}: \"{}\"\n",
+            self.node(),
+            self.node().token().range().start().one_idx_line(),
+            self.node().token().raw_text()
+        ))?;
         f.write_fmt(format_args!("  | LIVI | {}\n", self.live_in()))?;
         f.write_fmt(format_args!("  | LIVO | {}\n", self.live_out()))?;
         f.write_fmt(format_args!("  | VALO | {}\n", self.reg_values_out()))?;
