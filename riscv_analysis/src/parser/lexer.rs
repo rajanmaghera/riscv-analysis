@@ -321,35 +321,6 @@ impl Iterator for Lexer {
                     self.source_id,
                 ))
             }
-            Some('.') => {
-                // directive
-                let start = self.get_pos();
-                let mut dir_str: String = String::new();
-
-                while let Some(current) = self.current() {
-                    dir_str.push(current);
-                    if let Some(next) = self.peek(1) {
-                        if !Self::is_symbol_char(next) {
-                            break;
-                        }
-                    }
-                    self.consume_char();
-                }
-
-                let end = self.get_pos();
-                self.consume_char();
-
-                if dir_str == "." {
-                    return self.next();
-                }
-
-                Some(Token::new(
-                    TokenType::Directive(dir_str.clone()),
-                    dir_str,
-                    Range::new(start, end),
-                    self.source_id,
-                ))
-            }
             Some('#') => {
                 // Convert comments to token
                 let start = self.get_pos();
@@ -478,7 +449,7 @@ impl Iterator for Lexer {
                 ));
             }
             _ => {
-                // symbol
+                // directive or symbol
                 let start = self.get_pos();
                 let mut symbol_str: String = String::new();
 
@@ -516,12 +487,25 @@ impl Iterator for Lexer {
                 let end = self.get_pos();
                 self.consume_char();
 
-                Some(Token::new(
-                    TokenType::Symbol(symbol_str.clone()),
-                    symbol_str,
-                    Range::new(start, end),
-                    self.source_id,
-                ))
+                // If the string begins with a period, it is a directive
+                if symbol_str == "." {
+                    return self.next();
+                }
+                if symbol_str.starts_with('.') {
+                    Some(Token::new(
+                        TokenType::Directive(symbol_str.clone()),
+                        symbol_str,
+                        Range::new(start, end),
+                        self.source_id,
+                    ))
+                } else {
+                    Some(Token::new(
+                        TokenType::Symbol(symbol_str.clone()),
+                        symbol_str,
+                        Range::new(start, end),
+                        self.source_id,
+                    ))
+                }
             }
         };
 
