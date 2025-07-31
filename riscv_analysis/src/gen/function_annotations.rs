@@ -144,7 +144,7 @@ mod tests {
     fn gen_cfg(input: &str) -> Cfg {
         let (nodes, error) = RVStringParser::parse_from_text(input);
         assert_eq!(error.len(), 0);
-        Manager::gen_full_cfg(nodes).unwrap()
+        Manager::gen_full_cfg(nodes, None).unwrap()
     }
 
     /// Map string labels to functions.

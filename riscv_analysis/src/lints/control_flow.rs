@@ -62,7 +62,7 @@ mod tests {
         let (nodes, error) = RVStringParser::parse_from_text(input);
         assert_eq!(error.len(), 0);
 
-        let cfg = Manager::gen_full_cfg(nodes).unwrap();
+        let cfg = Manager::gen_full_cfg(nodes, None).unwrap();
         ControlFlowCheck::run_single_pass_along_cfg(&cfg)
     }
 

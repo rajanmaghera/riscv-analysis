@@ -16,21 +16,27 @@ impl GenerationPass for LivenessPass {
         while changed {
             changed = false;
             for node in cfg.iter().rev() {
-                // live_out[n] = U live_in[s] for all s in next[n]
-                let live_out = node
-                    .nexts()
-                    .clone()
-                    .into_iter()
-                    .map(|x| x.live_in())
-                    .reduce(|acc, x| acc | x)
-                    .unwrap_or_default();
-                changed |= node.set_live_out(live_out);
+                if node.is_return() {
+                    let live_out = node.live_out() & Register::return_set();
+                    changed |= node.set_live_out(live_out);
+                } else {
+                    // live_out[n] = U live_in[s] for all s in next[n]
+                    let live_out = node
+                        .nexts()
+                        .clone()
+                        .into_iter()
+                        .map(|x| x.live_in())
+                        .reduce(|acc, x| acc | x)
+                        .unwrap_or_default();
+                    changed |= node.set_live_out(live_out);
+                }
 
                 if let Some((func, _)) = node.calls_to_from_cfg(cfg) {
-                    // live_in[F_exit] = live_in[F_exit] U gen[F_exit] U live_out[n]
-                    // We take the union of the existing live_in to match multiple call sites
-                    let func_exit_live_in = (node.live_out()) | func.exit().live_in();
-                    changed |= func.exit().set_live_in(func_exit_live_in);
+                    // live_out[F_exit] = live_in[F_exit] U (live_out[n] & return-registers)
+                    // We take the union of the existing live_out to match multiple call sites
+                    let func_exit_live_out =
+                        (node.live_out() & Register::return_set()) | func.exit().live_out();
+                    changed |= func.exit().set_live_out(func_exit_live_out);
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - kill[n] | (u_def[F_exit] AND return-registers)
                     // kill[n] = caller-saved
@@ -82,21 +88,6 @@ impl GenerationPass for LivenessPass {
                         | Register::ecall_always_argument_set()
                         | args;
                     changed |= node.set_live_in(live_in);
-                    changed |= node.set_u_def(u_def);
-                } else if node.is_return() {
-                    // live_in[n] = live_in[n] U gen[n]
-                    let live_in = node.live_in() | node.gen_reg();
-                    changed |= node.set_live_in(live_in);
-
-                    // u_def[n] = AND u_def[s] for all s in prev[n]
-                    let u_def = node
-                        .prevs()
-                        .clone()
-                        .into_iter()
-                        .filter(|x| visited.contains(x))
-                        .map(|x| x.u_def())
-                        .reduce(|acc, x| acc & x)
-                        .unwrap_or_default();
                     changed |= node.set_u_def(u_def);
                 } else if node.is_function_entry() {
                     // live_in[n] = gen[n] U (live_out[n] - kill[n])

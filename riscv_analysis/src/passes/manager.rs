@@ -1,5 +1,5 @@
 use super::{CfgError, DiagnosticManager, GenerationPass, LintPass};
-use crate::parser::DirectiveType;
+use crate::parser::{DirectiveType, LabelString, Register, With};
 use crate::{
     analysis::{AvailableValuePass, LivenessPass},
     cfg::Cfg,
@@ -14,6 +14,7 @@ use crate::{
     },
     parser::ParserNode,
 };
+use std::collections::HashSet;
 
 #[derive(Default)]
 pub struct DebugInfo {
@@ -23,7 +24,10 @@ pub struct DebugInfo {
 
 pub struct Manager;
 impl Manager {
-    pub fn gen_full_cfg(nodes: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
+    pub fn gen_full_cfg(
+        nodes: Vec<ParserNode>,
+        additional_function_information: Option<Vec<(String, HashSet<Register>)>>,
+    ) -> Result<Cfg, Box<CfgError>> {
         // Stage 1: Generate names of interrupt handler functions
         let mut predefined = {
             let mut cfg = Cfg::new(nodes.clone())?;
@@ -41,8 +45,14 @@ impl Manager {
             _ => None,
         });
 
-        // Combine interrupt call names
+        // Combine interrupt call names and input function call names
         predefined.extend(globl_names);
+        let injected = additional_function_information
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(name, regs)| (With::blank(LabelString::new(name)), regs))
+            .collect::<Vec<_>>();
+        predefined.extend(injected.iter().map(|(name, _)| name.clone()));
 
         // Stage 2: Generate full CFG
         let mut cfg = Cfg::new_with_predefined_call_names(nodes, &Some(predefined))?;
@@ -73,7 +83,7 @@ impl Manager {
     }
     pub fn run(cfg: Vec<ParserNode>) -> Result<DiagnosticManager, Box<CfgError>> {
         let mut errors = DiagnosticManager::new();
-        let cfg = Self::gen_full_cfg(cfg)?;
+        let cfg = Self::gen_full_cfg(cfg, None)?;
         Self::run_diagnostics(&cfg, &mut errors);
         Ok(errors)
     }
