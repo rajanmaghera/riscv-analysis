@@ -1,3 +1,5 @@
+use super::{CfgError, DiagnosticManager, GenerationPass, LintPass};
+use crate::parser::DirectiveType;
 use crate::{
     analysis::{AvailableValuePass, LivenessPass},
     cfg::Cfg,
@@ -13,8 +15,6 @@ use crate::{
     parser::ParserNode,
 };
 
-use super::{CfgError, DiagnosticManager, GenerationPass, LintPass};
-
 #[derive(Default)]
 pub struct DebugInfo {
     pub output: bool,
@@ -25,15 +25,27 @@ pub struct Manager;
 impl Manager {
     pub fn gen_full_cfg(nodes: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
         // Stage 1: Generate names of interrupt handler functions
-        let interrupt_call_names = {
+        let mut predefined = {
             let mut cfg = Cfg::new(nodes.clone())?;
             NodeDirectionPass::run(&mut cfg)?;
             AvailableValuePass::run(&mut cfg)?;
             cfg.get_names_of_interrupt_handler_functions()
         };
 
+        // Stage 1a: Get globl definitions as predefined call names
+        let globl_names = nodes.iter().filter_map(|x| match x {
+            ParserNode::Directive(d) => match &d.dir {
+                DirectiveType::Global(g) => Some(g.clone()),
+                _ => None,
+            },
+            _ => None,
+        });
+
+        // Combine interrupt call names
+        predefined.extend(globl_names);
+
         // Stage 2: Generate full CFG
-        let mut cfg = Cfg::new_with_predefined_call_names(nodes, &Some(interrupt_call_names))?;
+        let mut cfg = Cfg::new_with_predefined_call_names(nodes, &Some(predefined))?;
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
         AvailableValuePass::run(&mut cfg)?;
