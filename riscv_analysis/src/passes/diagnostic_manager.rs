@@ -39,6 +39,13 @@ impl DiagnosticManager {
     pub fn iter(&self) -> std::slice::Iter<Box<dyn IsSomeDisplayableDiagnostic>> {
         self.diagnostics.iter()
     }
+
+    pub fn retain<F>(&mut self, f: F)
+    where
+        F: FnMut(&Box<dyn IsSomeDisplayableDiagnostic>) -> bool,
+    {
+        self.diagnostics.retain(f);
+    }
 }
 
 // implement indexing for DiagnosticManager
