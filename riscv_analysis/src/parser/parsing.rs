@@ -1040,12 +1040,16 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                         DirectiveToken::EndMacro => {
                             Err(LexError::IgnoredWithWarning(Box::new(next_node)))
                         }
-                        DirectiveToken::Section
-                        | DirectiveToken::Extern
-                        | DirectiveToken::Eqv
-                        | DirectiveToken::Global
-                        | DirectiveToken::Globl => {
+                        DirectiveToken::Section | DirectiveToken::Extern | DirectiveToken::Eqv => {
                             Err(LexError::UnsupportedDirective(Box::new(next_node)))
+                        }
+                        DirectiveToken::Global | DirectiveToken::Globl => {
+                            let label = lex.get_label()?;
+                            Ok(ParserNode::new_directive(
+                                With::new(directive, next_node.clone()),
+                                DirectiveType::Global(label),
+                                lex.raw_token,
+                            ))
                         }
                         DirectiveToken::Include => {
                             let filename = lex.get_string()?;

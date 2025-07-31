@@ -141,11 +141,15 @@ pub enum DirectiveType {
     TextSection,
     Data(DataType, Vec<With<Imm>>),
     Space(With<Imm>),
+    Global(LabelStringToken),
+    Other,
 }
 
 impl Display for DirectiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DirectiveType::Other => write!(f, "directive"),
+            DirectiveType::Global(s) => write!(f, "global {s}"),
             DirectiveType::Include(s) => write!(f, "include {s}"),
             DirectiveType::Align(i) => write!(f, "align {}", i.get().value()),
             DirectiveType::Ascii { text, .. } => {
