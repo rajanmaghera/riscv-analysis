@@ -111,7 +111,12 @@ impl Lexer {
     /// This function will return true if the current character is a lowercase
     /// or uppercase letter, an underscore, or a dash.
     fn is_symbol_char(ch: char) -> bool {
-        ch.is_ascii_lowercase() || ch.is_ascii_uppercase() || ch == '_' || ch == '-'
+        ch.is_ascii_lowercase()
+            || ch.is_ascii_uppercase()
+            || ch == '_'
+            || ch == '-'
+            || ch == '.'
+            || ch == '@'
     }
 
     /// Check if the given character is a character usable in a symbol
