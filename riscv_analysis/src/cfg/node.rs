@@ -22,14 +22,14 @@ use super::Segment;
 pub struct CfgNode {
     /// Parser node that this CFG node is wrapping.
     node: RefCell<ParserNode>,
-    /// Any labels that refer to this instruction.
-    pub labels: HashSet<LabelStringToken>,
-    /// Which segment is this node in?
-    segment: Segment,
     /// CFG nodes that come after this one (forward edges).
     nexts: RefCell<HashSet<Rc<CfgNode>>>,
     /// CFG nodes that come before this one (backward edges).
     prevs: RefCell<HashSet<Rc<CfgNode>>>,
+    /// Is this node used as a function entry point?
+    is_function_entry: bool,
+    /// Is program entry
+    is_program_entry: bool,
     /// Which functions, if any, is this node a part of.
     ///
     /// Note that a node could be a part of 0, 1 or more functions.
@@ -83,11 +83,11 @@ pub struct CfgNode {
 
 impl CfgNode {
     #[must_use]
-    pub fn new(node: ParserNode, labels: HashSet<LabelStringToken>, segment: Segment) -> Self {
+    pub fn new(node: ParserNode, is_function_entry: bool, is_program_entry: bool) -> Self {
         CfgNode {
             node: RefCell::new(node),
-            labels,
-            segment,
+            is_function_entry,
+            is_program_entry,
             nexts: RefCell::new(HashSet::new()),
             prevs: RefCell::new(HashSet::new()),
             function: RefCell::new(HashSet::new()),
@@ -99,6 +99,21 @@ impl CfgNode {
             live_out: RefCell::new(RegisterSet::new()),
             u_def: RefCell::new(RegisterSet::new()),
         }
+    }
+
+    #[must_use]
+    pub fn is_program_entry(&self) -> bool {
+        self.is_program_entry
+    }
+
+    #[must_use]
+    pub fn is_function_entry(&self) -> bool {
+        self.is_function_entry
+    }
+
+    #[must_use]
+    pub fn is_any_entry(&self) -> bool {
+        self.is_function_entry() || self.is_program_entry()
     }
 
     #[must_use]
@@ -264,11 +279,11 @@ impl CfgNode {
 
     /// Return true if this node is part of a function.
     pub fn is_part_of_some_function(&self) -> bool {
-        return !self.functions().is_empty();
+        !self.functions().is_empty()
     }
 
     pub fn labels(&self) -> HashSet<LabelStringToken> {
-        self.labels.clone()
+        self.node().label_names().cloned().collect()
     }
 
     /// Get the segment that this node is in.
@@ -276,7 +291,7 @@ impl CfgNode {
     /// The segment is the section of the program that this node is in.
     /// For example, the `.text` section or the `.data` section.
     pub fn segment(&self) -> Segment {
-        self.segment
+        self.node().segment()
     }
 }
 

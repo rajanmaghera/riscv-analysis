@@ -1,13 +1,14 @@
+use std::collections::HashSet;
 use std::fmt::Display;
-
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use super::{
     ArithType, BasicType, BranchType, CsrIType, CsrImm, CsrType, DirectiveToken, IArithType,
     IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelStringToken, LoadType, PseudoType, RawToken,
     Register, StoreType, With,
 };
+use crate::cfg::Segment;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Arith {
@@ -19,6 +20,8 @@ pub struct Arith {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,6 +34,8 @@ pub struct IArith {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +45,8 @@ pub struct Label {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JumpLink {
@@ -50,6 +57,8 @@ pub struct JumpLink {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +71,8 @@ pub struct JumpLinkR {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,6 +82,8 @@ pub struct Basic {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,6 +96,8 @@ pub struct Branch {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,6 +110,8 @@ pub struct Load {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,6 +124,8 @@ pub struct Store {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize)]
@@ -189,6 +208,8 @@ pub struct Csr {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -201,6 +222,8 @@ pub struct CsrI {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -221,6 +244,8 @@ pub struct LoadAddr {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -233,6 +258,8 @@ pub struct FuncEntry {
     pub token: RawToken,
     #[serde(skip)]
     pub is_interrupt_handler: bool,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -243,4 +270,6 @@ pub struct ProgramEntry {
     pub key: Uuid,
     #[serde(skip)]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }

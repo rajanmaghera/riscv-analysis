@@ -123,7 +123,7 @@ impl GenerationPass for AvailableValuePass {
             changed = false;
             for node in cfg.iter() {
                 // in[n] = AND out[p] for all p in prev[n]
-                let in_reg_n = node
+                let mut in_reg_n = node
                     .prevs()
                     .clone()
                     .into_iter()
@@ -134,7 +134,6 @@ impl GenerationPass for AvailableValuePass {
                         acc
                     })
                     .unwrap_or_default();
-                changed |= node.set_reg_values_in(in_reg_n);
 
                 // in_memory[n] = AND out_memory[p] for all p in prev[n]
                 let in_memory_n = node
@@ -148,6 +147,15 @@ impl GenerationPass for AvailableValuePass {
                         acc
                     })
                     .unwrap_or_default();
+
+                if node.is_function_entry() {
+                    in_reg_n.extend(Register::callee_saved_set().into_available_values());
+                }
+                if node.is_program_entry() {
+                    in_reg_n.extend(Register::sp_ra_set().into_available_values());
+                }
+
+                changed |= node.set_reg_values_in(in_reg_n);
                 changed |= node.set_memory_values_in(in_memory_n);
 
                 // out[n] = gen[n] U (in[n] - kill[n]) U (callee_saved if n is entry)
@@ -159,33 +167,19 @@ impl GenerationPass for AvailableValuePass {
                 if let Some((reg, reg_value)) = node.gen_reg_value() {
                     out_reg_n.insert(reg, reg_value);
                 }
-                if node.is_handler_function_entry() {
-                    out_reg_n.extend(Register::all_writable_set().into_available_values());
-                }
-                if node.is_function_entry() {
-                    out_reg_n.extend(Register::callee_saved_set().into_available_values());
-                }
-                if node.is_program_entry() {
-                    out_reg_n.extend(Register::sp_ra_set().into_available_values());
-                }
 
                 // out_memory[n] = (gen_memory[n] if we know the location of the stack pointer) U in_memory[n]
                 // (There is no kill_stacks[n])
-                let mut out_memory_n = if node.is_any_entry() {
-                    AvailableValueMap::new()
-                } else {
-                    let mut map = node.memory_values_in();
-                    if let Some((MemoryLocation::StackOffset(offset), value)) =
-                        node.gen_memory_value()
-                    {
-                        if let Some(curr_stack) = node.reg_values_in().stack_offset() {
-                            map.insert(MemoryLocation::StackOffset(curr_stack + offset), value);
-                        }
-                    } else if let Some((memory, value)) = node.gen_memory_value() {
-                        map.insert(memory, value);
+                let mut out_memory_n = node.memory_values_in();
+                if let Some((MemoryLocation::StackOffset(offset), value)) = node.gen_memory_value()
+                {
+                    if let Some(curr_stack) = node.reg_values_in().stack_offset() {
+                        out_memory_n
+                            .insert(MemoryLocation::StackOffset(curr_stack + offset), value);
                     }
-                    map
-                };
+                } else if let Some((memory, value)) = node.gen_memory_value() {
+                    out_memory_n.insert(memory, value);
+                }
 
                 // AVAILABLE VALUE/STACK ESTIMATION
                 // ================================

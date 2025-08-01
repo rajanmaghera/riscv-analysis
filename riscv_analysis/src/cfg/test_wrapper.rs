@@ -57,7 +57,7 @@ impl NodeWrapper {
         NodeWrapper {
             node: node.node(),
             labels: node
-                .labels
+                .labels()
                 .iter()
                 .map(std::string::ToString::to_string)
                 .collect(),

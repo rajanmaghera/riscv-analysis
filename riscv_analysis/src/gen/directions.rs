@@ -19,7 +19,7 @@ impl GenerationPass for NodeDirectionPass {
             if let Some(label) = node.jumps_to() {
                 let jump_to_node = cfg
                     .iter()
-                    .find(|n| n.labels.contains(&label))
+                    .find(|n| n.labels().contains(&label))
                     .ok_or_else(|| CfgError::UnexpectedError)?;
 
                 node.insert_next(Rc::clone(&jump_to_node));
@@ -56,9 +56,9 @@ mod test {
     };
 
     fn run_pass(text: &str) -> Result<Vec<Rc<CfgNode>>, Box<CfgError>> {
-        let (nodes, error) = RVStringParser::parse_from_text(text);
-        assert_eq!(error.len(), 0);
-        let mut cfg = Cfg::new(nodes).unwrap();
+        let parser_output = RVStringParser::parse_from_text(text);
+        assert_eq!(parser_output.errors.len(), 0);
+        let mut cfg = Cfg::new_with_predefined_call_names(parser_output, None).unwrap();
         NodeDirectionPass::run(&mut cfg)?;
         Ok(cfg.iter().collect())
     }
@@ -70,12 +70,15 @@ mod test {
             li a7, 10   \n\
             ecall       \n";
         let cfg = run_pass(input).unwrap();
-        assert_eq!(cfg.len(), 3);
+        assert_eq!(cfg.len(), 2);
+        assert_eq!(cfg[0].labels().len(), 1);
+        assert_eq!(
+            cfg[0].labels().iter().next().unwrap().get().as_str(),
+            "main"
+        );
         assert!(cfg[0].prevs().is_empty());
         assert!(cfg[0].nexts().len() == 1);
         assert!(cfg[1].prevs().len() == 1);
-        assert!(cfg[1].nexts().len() == 1);
-        assert!(cfg[2].prevs().len() == 1);
-        assert!(cfg[2].nexts().is_empty());
+        assert!(cfg[1].nexts().is_empty());
     }
 }

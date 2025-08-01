@@ -39,6 +39,19 @@ macro_rules! arith {
             $crate::parser::With::blank($crate::parser::Register::$rs1),
             $crate::parser::With::blank($crate::parser::Register::$rs2),
             $crate::parser::RawToken::blank(),
+            $crate::cfg::Segment::Text,
+            std::collections::HashSet::new(),
+        )
+    };
+    ($inst:ident $rd:ident $rs1:ident $rs2:ident => $seg:ident) => {
+        $crate::parser::ParserNode::new_arith(
+            $crate::parser::With::blank($crate::parser::ArithType::$inst),
+            $crate::parser::With::blank($crate::parser::Register::$rd),
+            $crate::parser::With::blank($crate::parser::Register::$rs1),
+            $crate::parser::With::blank($crate::parser::Register::$rs2),
+            $crate::parser::RawToken::blank(),
+            $crate::cfg::Segment::$seg,
+            std::collections::HashSet::new(),
         )
     };
 }
@@ -52,6 +65,19 @@ macro_rules! iarith {
             $crate::parser::With::blank($crate::parser::Register::$rs1),
             $crate::parser::With::blank($crate::parser::Imm::new($imm)),
             $crate::parser::RawToken::blank(),
+            $crate::cfg::Segment::Text,
+            std::collections::HashSet::new(),
+        )
+    };
+    ($inst:ident $rd:ident $rs1:ident $imm:expr => $seg:ident) => {
+        $crate::parser::ParserNode::new_iarith(
+            $crate::parser::With::blank($crate::parser::IArithType::$inst),
+            $crate::parser::With::blank($crate::parser::Register::$rd),
+            $crate::parser::With::blank($crate::parser::Register::$rs1),
+            $crate::parser::With::blank($crate::parser::Imm::new($imm)),
+            $crate::parser::RawToken::blank(),
+            $crate::cfg::Segment::$seg,
+            std::collections::HashSet::new(),
         )
     };
 }
@@ -63,19 +89,23 @@ macro_rules! directive {
             $crate::parser::With::blank($crate::parser::DirectiveToken::$dir_token),
             $crate::parser::DirectiveType::$dir_type,
             $crate::parser::RawToken::blank(),
+            $crate::cfg::Segment::Text,
+            std::collections::HashSet::new(),
         )
     };
 }
 
 #[macro_export]
 macro_rules! load {
-    ($inst:ident $rd:ident $rs1:ident $imm:expr ) => {
+    ($inst:ident $rd:ident $rs1:ident $imm:expr => $seg:ident) => {
         $crate::parser::ParserNode::new_load(
             $crate::parser::With::blank($crate::parser::LoadType::$inst),
             $crate::parser::With::blank($crate::parser::Register::$rd),
             $crate::parser::With::blank($crate::parser::Register::$rs1),
             $crate::parser::With::blank($crate::parser::Imm($imm)),
             $crate::parser::RawToken::blank(),
+            $crate::cfg::Segment::$seg,
+            std::collections::HashSet::new(),
         )
     };
 }
@@ -89,6 +119,8 @@ macro_rules! store {
             $crate::parser::With::blank($crate::parser::Register::$rs1),
             $crate::parser::With::blank($crate::parser::Imm($imm)),
             $crate::parser::RawToken::blank(),
+            $crate::cfg::Segment::Text,
+            std::collections::HashSet::new(),
         )
     };
 }

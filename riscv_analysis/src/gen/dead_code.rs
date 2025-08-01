@@ -59,28 +59,11 @@ mod test {
     };
 
     fn run_pass(text: &str) -> Result<Vec<Rc<CfgNode>>, Box<CfgError>> {
-        let (nodes, error) = RVStringParser::parse_from_text(text);
-        assert_eq!(error.len(), 0);
-        let mut cfg = Cfg::new(nodes).unwrap();
+        let parser_output = RVStringParser::parse_from_text(text);
+        assert_eq!(parser_output.errors.len(), 0);
+        let mut cfg = Cfg::new_with_predefined_call_names(parser_output, None).unwrap();
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
         Ok(cfg.iter().collect())
-    }
-
-    #[test]
-    fn test_immediate_exit() {
-        let input = "\
-            main:
-            li a7, 10
-            ecall
-            ";
-        let cfg = run_pass(input).unwrap();
-        assert_eq!(cfg.len(), 3);
-        assert!(cfg[0].prevs().is_empty());
-        assert!(cfg[0].nexts().len() == 1);
-        assert!(cfg[1].prevs().len() == 1);
-        assert!(cfg[1].nexts().len() == 1);
-        assert!(cfg[2].prevs().len() == 1);
-        assert!(cfg[2].nexts().is_empty());
     }
 }

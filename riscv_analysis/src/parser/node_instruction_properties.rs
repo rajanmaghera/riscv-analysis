@@ -52,9 +52,7 @@ impl InstructionProperties for ParserNode {
     fn can_skip_save_checks(&self) -> bool {
         matches!(
             self,
-            ParserNode::ProgramEntry(_)
-                | ParserNode::FuncEntry(_)
-                | ParserNode::JumpLink(_)
+            ParserNode::JumpLink(_)
                 | ParserNode::JumpLinkR(_)
                 | ParserNode::Csr(_)
                 | ParserNode::CsrI(_)
@@ -88,22 +86,6 @@ impl InstructionProperties for ParserNode {
             ParserNode::LoadAddr(x) => Some(x.name.clone()),
             _ => None,
         }
-    }
-
-    fn is_any_entry(&self) -> bool {
-        matches!(self, ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_))
-    }
-
-    fn is_function_entry(&self) -> bool {
-        matches!(self, ParserNode::FuncEntry(_))
-    }
-
-    fn is_handler_function_entry(&self) -> bool {
-        matches!(self, ParserNode::FuncEntry(x) if x.is_interrupt_handler)
-    }
-
-    fn is_program_entry(&self) -> bool {
-        matches!(self, ParserNode::ProgramEntry(_))
     }
 
     fn is_instruction(&self) -> bool {
@@ -164,13 +146,7 @@ impl InstructionProperties for ParserNode {
             ParserNode::JumpLinkR(jump_link_r) => Some(jump_link_r.rd.clone()),
             ParserNode::Csr(csr) => Some(csr.rd.clone()),
             ParserNode::CsrI(csri) => Some(csri.rd.clone()),
-            ParserNode::ProgramEntry(_)
-            | ParserNode::FuncEntry(_)
-            | ParserNode::Label(_)
-            | ParserNode::Basic(_)
-            | ParserNode::Directive(_)
-            | ParserNode::Branch(_)
-            | ParserNode::Store(_) => None,
+            ParserNode::Basic(_) | ParserNode::Branch(_) | ParserNode::Store(_) => None,
         }
     }
 
@@ -183,12 +159,8 @@ impl InstructionProperties for ParserNode {
             ParserNode::Store(x) => vec![x.rs1.clone(), x.rs2.clone()],
             ParserNode::Load(x) => vec![x.rs1.clone()],
             ParserNode::Csr(x) => vec![x.rs1.clone()],
-            ParserNode::ProgramEntry(_)
-            | ParserNode::FuncEntry(_)
-            | ParserNode::Label(_)
-            | ParserNode::JumpLink(_)
+            ParserNode::JumpLink(_)
             | ParserNode::Basic(_)
-            | ParserNode::Directive(_)
             | ParserNode::LoadAddr(_)
             | ParserNode::CsrI(_) => vec![],
         };

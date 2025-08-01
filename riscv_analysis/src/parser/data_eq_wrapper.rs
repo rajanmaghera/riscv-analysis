@@ -14,15 +14,12 @@ pub struct ParserNodeDataWrapper(pub ParserNode);
 impl PartialEq for ParserNodeDataWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
-            (ParserNode::FuncEntry(_), ParserNode::FuncEntry(_)) => true,
-            (ParserNode::ProgramEntry(_a), ParserNode::ProgramEntry(_b)) => true,
             (ParserNode::Arith(a), ParserNode::Arith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
             }
             (ParserNode::IArith(a), ParserNode::IArith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
             }
-            (ParserNode::Label(a), ParserNode::Label(b)) => a.name == b.name,
             (ParserNode::JumpLink(a), ParserNode::JumpLink(b)) => {
                 a.inst == b.inst && a.name == b.name
             }
@@ -30,7 +27,6 @@ impl PartialEq for ParserNodeDataWrapper {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
             }
             (ParserNode::Basic(a), ParserNode::Basic(b)) => a.inst == b.inst,
-            (ParserNode::Directive(a), ParserNode::Directive(b)) => a.dir == b.dir,
             (ParserNode::Branch(a), ParserNode::Branch(b)) => {
                 a.inst == b.inst && a.rs1 == b.rs1 && a.rs2 == b.rs2 && a.name == b.name
             }

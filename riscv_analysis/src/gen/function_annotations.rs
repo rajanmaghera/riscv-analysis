@@ -1,13 +1,10 @@
-use std::{rc::Rc, vec};
-
 use crate::{
     cfg::{Cfg, CfgNode, Function, RegisterSet},
-    parser::{
-        InstructionProperties, JumpLinkType, LabelString, ParserNode, Register, Token, TokenType,
-        With,
-    },
-    passes::{CfgError, DiagnosticLocation, GenerationPass},
+    parser::InstructionProperties,
+    passes::{CfgError, GenerationPass},
 };
+use std::collections::HashSet;
+use std::{rc::Rc, vec};
 
 struct MarkData {
     pub found: RegisterSet,
@@ -91,9 +88,9 @@ mod tests {
 
     /// Generate the complete CFG from an input string.
     fn gen_cfg(input: &str) -> Cfg {
-        let (nodes, error) = RVStringParser::parse_from_text(input);
-        assert_eq!(error.len(), 0);
-        Manager::gen_full_cfg(nodes, None).unwrap()
+        let parser_output = RVStringParser::parse_from_text(input);
+        assert_eq!(parser_output.errors.len(), 0);
+        Manager::gen_full_cfg(parser_output, None).unwrap()
     }
 
     /// Map string labels to functions.

@@ -1,6 +1,6 @@
 use super::{CfgError, DiagnosticManager, GenerationPass, LintPass};
 use crate::cfg::RegisterSet;
-use crate::parser::{DirectiveType, LabelString, Register, With};
+use crate::parser::{LabelString, RVParserOutput, With};
 use crate::{
     analysis::{AvailableValuePass, LivenessPass},
     cfg::Cfg,
@@ -13,9 +13,7 @@ use crate::{
         EcallCheck, GarbageInputValueCheck, InstructionInTextCheck, LostCalleeSavedRegisterCheck,
         OverlappingFunctionCheck, SaveToZeroCheck, StackCheckPass,
     },
-    parser::ParserNode,
 };
-use std::collections::HashSet;
 
 #[derive(Default)]
 pub struct DebugInfo {
@@ -26,37 +24,28 @@ pub struct DebugInfo {
 pub struct Manager;
 impl Manager {
     pub fn gen_full_cfg(
-        nodes: Vec<ParserNode>,
+        parser_output: RVParserOutput,
         additional_function_information: Option<Vec<(String, RegisterSet)>>,
     ) -> Result<Cfg, Box<CfgError>> {
         // Stage 1: Generate names of interrupt handler functions
         let mut predefined = {
-            let mut cfg = Cfg::new(nodes.clone())?;
+            let mut cfg = Cfg::new(parser_output.clone())?;
             NodeDirectionPass::run(&mut cfg)?;
             AvailableValuePass::run(&mut cfg)?;
             cfg.get_names_of_interrupt_handler_functions()
         };
 
-        // Stage 1a: Get globl definitions as predefined call names
-        let globl_names = nodes.iter().filter_map(|x| match x {
-            ParserNode::Directive(d) => match &d.dir {
-                DirectiveType::Global(g) => Some(g.clone()),
-                _ => None,
-            },
-            _ => None,
-        });
-
         // Combine interrupt call names and input function call names
-        predefined.extend(globl_names);
+        predefined.extend(parser_output.extra_labels.clone());
         let injected = additional_function_information
             .unwrap_or_default()
             .into_iter()
             .map(|(name, regs)| (With::blank(LabelString::new(name)), regs))
-            .collect::<Vec<_>>();
+            .collect::<Vec<(With<LabelString>, RegisterSet)>>();
         predefined.extend(injected.iter().map(|(name, _)| name.clone()));
 
         // Stage 2: Generate full CFG
-        let mut cfg = Cfg::new_with_predefined_call_names(nodes, &Some(predefined))?;
+        let mut cfg = Cfg::new_with_predefined_call_names(parser_output, Some(&predefined))?;
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
         AvailableValuePass::run(&mut cfg)?;
@@ -83,9 +72,9 @@ impl Manager {
         LostCalleeSavedRegisterCheck::run(cfg, errors);
         OverlappingFunctionCheck::run(cfg, errors);
     }
-    pub fn run(cfg: Vec<ParserNode>) -> Result<DiagnosticManager, Box<CfgError>> {
+    pub fn run(parser_output: RVParserOutput) -> Result<DiagnosticManager, Box<CfgError>> {
         let mut errors = DiagnosticManager::new();
-        let cfg = Self::gen_full_cfg(cfg, None)?;
+        let cfg = Self::gen_full_cfg(parser_output, None)?;
         Self::run_diagnostics(&cfg, &mut errors);
         Ok(errors)
     }

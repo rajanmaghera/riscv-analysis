@@ -1,6 +1,6 @@
-use crate::{cfg::Cfg, parser::ParserNode};
-
 use super::{CfgError, DiagnosticManager};
+use crate::parser::RVParserOutput;
+use crate::{cfg::Cfg, parser::ParserNode};
 
 pub trait GenerationPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>>;
@@ -39,7 +39,11 @@ pub trait LintPass {
     /// ```
     #[must_use]
     fn run_single_pass_along_nodes(nodes: &[ParserNode]) -> DiagnosticManager {
-        let cfg = Cfg::new(nodes.into()).unwrap();
+        let cfg = Cfg::new(RVParserOutput {
+            nodes: nodes.into(),
+            ..Default::default()
+        })
+        .unwrap();
         Self::run_single_pass_along_cfg(&cfg)
     }
 

@@ -306,11 +306,11 @@ fn main() {
                 false,
             );
             parsed
-                .1
+                .errors
                 .iter()
                 .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
 
-            match Manager::gen_full_cfg(parsed.0, None) {
+            match Manager::gen_full_cfg(parsed, None) {
                 Ok(full_cfg) => {
                     // if debug, print out the cfg
                     if lint.yaml {
@@ -404,7 +404,7 @@ mod tests {
 
                 let parsed = parser.parse_from_file(filename, false);
 
-                let res: Cfg = Manager::gen_full_cfg(parsed.0, None).unwrap();
+                let res: Cfg = Manager::gen_full_cfg(parsed, None).unwrap();
                 let res = CfgWrapper::from(&res);
 
                 // deserialize the yaml file

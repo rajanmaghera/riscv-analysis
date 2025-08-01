@@ -24,7 +24,7 @@ impl LintPass for InstructionInTextCheck {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{arith, directive, iarith};
+    use crate::{arith, iarith};
 
     #[test]
     fn default_segment_is_text() {
@@ -35,7 +35,7 @@ mod tests {
 
     #[test]
     fn explicit_text_segment_is_allowed() {
-        let nodes = &[directive!(Text, TextSection), iarith!(Addi X1 X0 0)];
+        let nodes = &[iarith!(Addi X1 X0 0 => Text)];
         let errors = InstructionInTextCheck::run_single_pass_along_nodes(nodes);
         assert_eq!(errors.len(), 0);
     }
@@ -45,10 +45,8 @@ mod tests {
         let nodes = &[
             iarith!(Addi X1 X0 0),
             arith!(Add X1 X0 X20),
-            directive!(Data, DataSection),
-            iarith!(Addi X1 X0 0),
-            arith!(Sub X1 X0 X20),
-            directive!(Text, TextSection),
+            iarith!(Addi X1 X0 0 => Data),
+            arith!(Sub X1 X0 X20 => Data),
             iarith!(Andi X1 X0 0),
         ];
         let errors = InstructionInTextCheck::run_single_pass_along_nodes(nodes);
@@ -60,16 +58,11 @@ mod tests {
     #[test]
     fn can_get_error_if_data_segment_is_first() {
         let nodes = &[
-            directive!(Data, DataSection),
-            iarith!(Addi X1 X0 0),
-            arith!(Add X1 X0 X20),
-            iarith!(Addi X1 X0 0),
-            directive!(Text, TextSection),
+            iarith!(Addi X1 X0 0 => Data),
+            arith!(Add X1 X0 X20 => Data),
+            iarith!(Addi X1 X0 0 => Data),
             iarith!(Addi X1 X0 0),
             arith!(Sub X1 X0 X20),
-            directive!(Text, TextSection),
-            directive!(Data, DataSection),
-            directive!(Text, TextSection),
             iarith!(Andi X1 X0 0),
         ];
         let errors = InstructionInTextCheck::run_single_pass_along_nodes(nodes);

@@ -4,15 +4,13 @@ use super::CfgNode;
 use super::CfgPrevsIterator;
 use super::CfgSourceIterator;
 use super::Function;
-use super::Segment;
 use crate::analysis::HasGenKillInfo;
 use crate::parser;
-use crate::parser::InstructionProperties;
 use crate::parser::LabelStringToken;
 use crate::parser::ParserNode;
-use crate::parser::{DirectiveType, Register, RegisterToken};
+use crate::parser::{Register, RegisterToken};
+use crate::parser::{InstructionProperties, RVParserOutput};
 use crate::passes::CfgError;
-use crate::passes::DiagnosticLocation;
 use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
@@ -81,7 +79,6 @@ impl<'a> IntoIterator for &'a Cfg {
 trait BaseCfgGen {
     fn call_names(&self) -> HashSet<LabelStringToken>;
     fn jump_names(&self) -> HashSet<LabelStringToken>;
-    fn label_names(&self) -> HashSet<LabelStringToken>;
     fn load_names(&self) -> HashSet<LabelStringToken>;
 }
 
@@ -103,139 +100,79 @@ impl BaseCfgGen for Vec<ParserNode> {
             .filter_map(parser::ParserNode::reads_address_of)
             .collect()
     }
-
-    fn label_names(&self) -> HashSet<LabelStringToken> {
-        self.iter()
-            .filter_map(|x| match x {
-                ParserNode::Label(s) => Some(s.name.clone()),
-                _ => None,
-            })
-            .collect()
-    }
 }
 impl Cfg {
-    pub fn new(old_nodes: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
-        Cfg::new_with_predefined_call_names(old_nodes, &None)
+    pub fn new(parser_output: RVParserOutput) -> Result<Cfg, Box<CfgError>> {
+        Cfg::new_with_predefined_call_names(parser_output, None)
     }
 
     pub fn new_with_predefined_call_names(
-        old_nodes: Vec<ParserNode>,
-        predefined_call_names: &Option<HashSet<LabelStringToken>>,
+        parser_output: RVParserOutput,
+        predefined_call_names: Option<&HashSet<LabelStringToken>>,
     ) -> Result<Cfg, Box<CfgError>> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
-        let mut current_labels = HashSet::new();
-        let mut all_labels = HashSet::new();
 
-        let label_names = old_nodes.label_names();
+        let defined_labels = parser_output.all_defined_labels;
         let call_names = {
-            let mut set = old_nodes.call_names();
-            if let Some(new_set) = predefined_call_names.clone() {
-                set.extend(new_set);
+            let mut set = parser_output.nodes.call_names();
+            if let Some(new_set) = predefined_call_names {
+                set.extend(new_set.clone());
             }
             set
         };
-        let jump_names = old_nodes.jump_names();
-        let load_names = old_nodes.load_names();
+        let jump_names = parser_output.nodes.jump_names();
+        let load_names = parser_output.nodes.load_names();
 
         // Check if any call or jump names are not defined
-        let undefined_labels = call_names
-            .union(&jump_names)
+        let all_label_targets: HashSet<_> = call_names
+            .iter()
+            .chain(jump_names.iter())
+            .chain(load_names.iter())
             .cloned()
-            .collect::<HashSet<_>>()
-            .union(&load_names)
-            .filter(|x| !label_names.contains(x))
+            .collect();
+        let undefined_labels: HashSet<_> = all_label_targets
+            .difference(&defined_labels)
             .cloned()
-            .collect::<HashSet<LabelStringToken>>();
+            .collect();
 
         if !undefined_labels.is_empty() {
             return Err(Box::new(CfgError::LabelsNotDefined(undefined_labels)));
         }
 
-        // Code always begins in the text segment if it is not defined.
-        let mut segment = Segment::Text;
-        // PASS 1:
-        // --------------------
-        // Add nodes to graph
+        // For now, the first instruction is the program entry
+        let mut is_program_entry = true;
 
-        for node in old_nodes {
-            match node {
-                ParserNode::Label(s) => {
-                    current_labels.insert(s.name.clone());
-
-                    // Check for duplicate labels
-                    if !all_labels.insert(s.name.clone()) {
-                        return Err(Box::new(CfgError::DuplicateLabel(s.name)));
-                    }
-                }
-                ParserNode::Directive(x) if x.dir == DirectiveType::DataSection => {
-                    segment = Segment::Data;
-                }
-                ParserNode::Directive(x) if x.dir == DirectiveType::TextSection => {
-                    segment = Segment::Text;
-                }
-                // Ignore other types of directives
-                ParserNode::Directive(_) => {}
-                _ => {
-                    // If any of the labels are a function call, add a function entry node
-                    if current_labels
-                        .clone()
-                        .intersection(&call_names)
-                        .next()
-                        .is_some()
-                    {
-                        let is_interrupt = if let Some(ref p_call_names) = predefined_call_names {
-                            // If any of the current_labels are in the predefined call names, then we need to add
-                            // a boolean switch
-                            current_labels
-                                .clone()
-                                .intersection(p_call_names)
-                                .next()
-                                .is_some()
-                        } else {
-                            false
-                        };
-
-                        let rc_node = Rc::new(CfgNode::new(
-                            ParserNode::new_func_entry(
-                                node.file(),
-                                node.token().clone(),
-                                is_interrupt,
-                            ),
-                            current_labels.clone(),
-                            segment,
-                        ));
-
-                        // Add the node to the graph
-                        nodes.push(Rc::clone(&rc_node));
-
-                        // Add the node to the labels map
-                        for label in current_labels.clone() {
-                            labels.insert(label.to_string(), Rc::clone(&rc_node));
-                        }
-
-                        // Clear the current labels
-                        current_labels.clear();
-
-                        // Add the node to the graph
-                        nodes.push(Rc::new(CfgNode::new(node, HashSet::new(), segment)));
-                    } else {
-                        let rc_node =
-                            Rc::new(CfgNode::new(node.clone(), current_labels.clone(), segment));
-
-                        // Add the node to the graph
-                        nodes.push(Rc::clone(&rc_node));
-
-                        // Add the node to the labels map
-                        for label in current_labels.clone() {
-                            labels.insert(label.to_string(), Rc::clone(&rc_node));
-                        }
-
-                        // Clear the current labels
-                        current_labels.clear();
-                    }
+        for node in parser_output.nodes {
+            // Check if this node's label has already been defined
+            for label in node.label_names() {
+                if labels.keys().any(|x| x == label.as_str()) {
+                    return Err(Box::new(CfgError::DuplicateLabel(label.clone())));
                 }
             }
+
+            // If any of the labels are a function call, add a function entry node
+            let is_function_call = node
+                .label_names()
+                .cloned()
+                .collect::<HashSet<_>>()
+                .intersection(&call_names)
+                .next()
+                .is_some();
+
+            // Get a copy of the node's labels
+            let current_labels = node.label_names().cloned().collect::<HashSet<_>>();
+
+            // Create the new node
+            let new_node = Rc::new(CfgNode::new(node, is_function_call, is_program_entry));
+
+            // Add the node to the labels map
+            for label in current_labels {
+                labels.insert(label.to_string(), Rc::clone(&new_node));
+            }
+
+            nodes.push(new_node);
+            is_program_entry = false;
         }
 
         Ok(Cfg {

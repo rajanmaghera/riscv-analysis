@@ -1,6 +1,6 @@
 use crate::{
     cfg::Cfg,
-    parser::{HasRegisterSets, InstructionProperties, Register},
+    parser::{HasRegisterSets, Register},
     passes::{DiagnosticManager, LintError, LintPass},
 };
 

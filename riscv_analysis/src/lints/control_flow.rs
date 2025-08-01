@@ -16,20 +16,21 @@ impl LintPass for ControlFlowCheck {
     fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in &cfg.clone() {
             if node.is_function_entry() {
-                // If the previous nodes set is not empty
-                // Note: this also accounts for functions being at the beginning
-                // of a program, as the ProgEntry node will be the previous node
-                for prev_node in node.prevs().iter() {
-                    for function in node.functions().iter() {
-                        if prev_node.is_program_entry() {
-                            errors.push(LintError::FirstInstructionIsFunction(
-                                node.node().clone(),
-                                Rc::clone(function),
-                            ));
-                        }
+                for function in node.functions().iter() {
+                    // If the previous nodes set is not empty
+                    // Note: this also accounts for functions being at the beginning
+                    // of a program, as the ProgEntry node will be the previous node
+                    if node.is_program_entry() {
+                        errors.push(LintError::FirstInstructionIsFunction(
+                            node.node().clone(),
+                            Rc::clone(function),
+                        ));
+                        continue;
+                    }
+                    for prev_node in node.prevs().iter() {
                         // Jumps (J not JAL) to the start of recognized
                         // functions are errors
-                        else if prev_node.is_unconditional_jump() {
+                        if prev_node.is_unconditional_jump() {
                             errors.push(LintError::InvalidJumpToFunction(
                                 node.node().clone(),
                                 prev_node.node().clone(),
@@ -59,10 +60,9 @@ mod tests {
     use crate::passes::Manager;
 
     fn run_pass(input: &str) -> DiagnosticManager {
-        let (nodes, error) = RVStringParser::parse_from_text(input);
-        assert_eq!(error.len(), 0);
-
-        let cfg = Manager::gen_full_cfg(nodes, None).unwrap();
+        let parser_output = RVStringParser::parse_from_text(input);
+        assert_eq!(parser_output.errors.len(), 0);
+        let cfg = Manager::gen_full_cfg(parser_output, None).unwrap();
         ControlFlowCheck::run_single_pass_along_cfg(&cfg)
     }
 

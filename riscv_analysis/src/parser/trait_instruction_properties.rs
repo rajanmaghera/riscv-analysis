@@ -41,18 +41,6 @@ pub trait InstructionProperties {
     #[must_use]
     fn jumps_to(&self) -> Option<LabelStringToken>;
 
-    #[must_use]
-    fn is_any_entry(&self) -> bool;
-
-    #[must_use]
-    fn is_function_entry(&self) -> bool;
-
-    #[must_use]
-    fn is_handler_function_entry(&self) -> bool;
-
-    #[must_use]
-    fn is_program_entry(&self) -> bool;
-
     /// Check if a node is an instruction.
     #[must_use]
     fn is_instruction(&self) -> bool;

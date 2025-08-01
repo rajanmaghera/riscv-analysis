@@ -39,22 +39,6 @@ impl InstructionProperties for CfgNode {
         self.node().jumps_to()
     }
 
-    fn is_any_entry(&self) -> bool {
-        self.node().is_any_entry()
-    }
-
-    fn is_function_entry(&self) -> bool {
-        self.node().is_function_entry()
-    }
-
-    fn is_handler_function_entry(&self) -> bool {
-        self.node().is_handler_function_entry()
-    }
-
-    fn is_program_entry(&self) -> bool {
-        self.node().is_program_entry()
-    }
-
     fn is_instruction(&self) -> bool {
         self.node().is_instruction()
     }

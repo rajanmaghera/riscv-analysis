@@ -7,7 +7,7 @@ use crate::{
     reader::FileReaderError,
 };
 
-use super::{ParserNode, StringLexError, StringLexErrorType, Token, With};
+use super::{LabelString, StringLexError, StringLexErrorType, Token, With};
 
 #[derive(Debug, Clone)]
 /// Lexer error
@@ -22,11 +22,12 @@ pub enum LexError {
     IgnoredWithoutWarning,
     UnexpectedToken(Box<Token>),
     UnexpectedEOF,
-    NeedTwoNodes(Box<ParserNode>, Box<ParserNode>),
     UnexpectedError(Box<Token>),
     UnknownDirective(Box<Token>),
     UnsupportedDirective(Box<Token>),
     InvalidString(Box<Token>, Box<StringLexError>),
+    IncludeFile(Box<With<String>>),
+    GlobalDef(Box<With<LabelString>>),
 }
 
 #[derive(Debug, Clone)]

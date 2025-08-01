@@ -1,45 +1,30 @@
+use std::collections::{HashSet, VecDeque};
 use uuid::Uuid;
-
-use crate::parser::inst::{
-    ArithType, BranchType, CsrIType, CsrType, IArithType, Inst, JumpLinkRType, JumpLinkType,
-    PseudoType, Type,
-};
-use crate::parser::{DataType, RawToken, Register};
-use crate::parser::{DirectiveToken, LexError};
-use crate::parser::{DirectiveType, ParserNode};
-use crate::parser::{Lexer, TokenType};
-use crate::passes::{DiagnosticItem, DiagnosticLocation, Manager};
-use crate::reader::FileReader;
-use serde::Deserialize;
-use std::iter::Peekable;
-use std::str::FromStr;
 
 use super::imm::{CsrImm, Imm};
 use super::token::Token;
 use super::{ExpectedType, LabelString, LabelStringToken, ParseError, Range, RegisterToken, With};
+use crate::cfg::Segment;
+use crate::parser::inst::{
+    ArithType, BranchType, CsrIType, CsrType, IArithType, Inst, JumpLinkRType, JumpLinkType,
+    PseudoType, Type,
+};
+use crate::parser::ParserNode;
+use crate::parser::{DirectiveToken, LexError};
+use crate::parser::{Lexer, TokenType};
+use crate::parser::{RawToken, Register};
+use crate::passes::{DiagnosticItem, DiagnosticLocation, Manager};
+use crate::reader::FileReader;
+use itertools::Itertools;
+use serde::Deserialize;
+use std::iter::Peekable;
+use std::mem;
+use std::str::FromStr;
 
 #[derive(Deserialize, Clone)]
 pub struct RVDocument {
     pub uri: String,
     pub text: String,
-}
-
-impl ParserNode {
-    /// Return a string inside a `.include` directive, if it is a `.include` directive.
-    ///
-    /// This function returns the token representing the path that is
-    /// written in a `.include` directive. If the directive is not a `.include`
-    /// directive, it will return `None`. This path is the path used to
-    /// read from another file.
-    fn get_include_path(&self) -> Option<&With<String>> {
-        match self {
-            ParserNode::Directive(d) => match &d.dir {
-                DirectiveType::Include(path) => Some(path),
-                _ => None,
-            },
-            _ => None,
-        }
-    }
 }
 
 pub trait CanGetURIString: FileReader {
@@ -50,20 +35,30 @@ pub struct RVParser<T>
 where
     T: FileReader,
 {
-    lexer_stack: Vec<Peekable<Lexer>>,
+    lexer_stack: Vec<AnnotatedLexer>,
     pub reader: T,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct RVParserOutput {
+    pub nodes: Vec<ParserNode>,
+    pub all_defined_labels: HashSet<LabelStringToken>,
+    pub errors: Vec<ParseError>,
+    pub extra_labels: HashSet<LabelStringToken>,
+    pub include_strings: HashSet<With<String>>,
 }
 
 impl<T: FileReader> RVParser<T> {
     pub fn run(&mut self, base: &str) -> Vec<DiagnosticItem> {
-        let mut diags = Vec::new();
         let parsed = self.parse_from_file(base, false);
-        parsed
-            .1
+        let mut diags = parsed
+            .errors
             .iter()
-            .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
+            .cloned()
+            .map_into()
+            .collect::<Vec<DiagnosticItem>>();
 
-        let res = Manager::run(parsed.0);
+        let res = Manager::run(parsed);
         match res {
             Ok(lints) => {
                 lints
@@ -90,7 +85,7 @@ impl<T: FileReader> RVParser<T> {
     fn recover_from_parse_error(&mut self) {
         let lexer = self.lexer();
         if let Some(x) = lexer {
-            for token in x.by_ref().flatten() {
+            for token in x.lexer.by_ref().flatten() {
                 if token == TokenType::Newline {
                     break;
                 }
@@ -101,93 +96,97 @@ impl<T: FileReader> RVParser<T> {
     /// Parse files
     ///
     /// This function is responsible for parsing the file. It will continue until no imports are left.
-    pub fn parse_from_file(
-        &mut self,
-        base: &str,
-        ignore_imports: bool,
-    ) -> (Vec<ParserNode>, Vec<ParseError>) {
+    pub fn parse_from_file(&mut self, base: &str, ignore_imports: bool) -> RVParserOutput {
         let mut nodes = Vec::new();
-        let mut parse_errors = Vec::new();
+        let mut all_defined_labels = HashSet::new();
+        let mut errors = Vec::new();
+        let mut extra_labels = HashSet::new();
+        let mut include_strings = HashSet::new();
 
         // import base lexer
         let lexer = match self.reader.import_file(base, None) {
             Ok(x) => Lexer::new(x.1, x.0),
             Err(e) => {
-                parse_errors.push(e.to_parse_error(With::new(base.to_owned(), Token::default())));
-                return (nodes, parse_errors);
+                errors.push(e.to_parse_error(With::new(base.to_owned(), Token::default())));
+                return RVParserOutput {
+                    nodes,
+                    all_defined_labels: HashSet::new(),
+                    errors,
+                    extra_labels,
+                    include_strings,
+                };
             }
         };
-        let first_uuid = lexer.source_id;
-        self.lexer_stack.push(lexer.peekable());
-
-        // Add program entry node
-        nodes.push(ParserNode::new_program_entry(
-            first_uuid,
-            RawToken::new(String::new(), Range::default(), first_uuid),
-        ));
+        self.lexer_stack.push(AnnotatedLexer::new(lexer));
 
         while let Some(l) = self.lexer() {
             let node = ParserNode::try_from(l);
 
             match node {
                 Ok(x) => {
-                    if !ignore_imports {
-                        if let Some(path) = x.get_include_path() {
-                            match self.reader.import_file(path.get(), Some(path.file())) {
-                                Ok((new_uuid, new_text)) => {
-                                    self.lexer_stack
-                                        .push(Lexer::new(new_text, new_uuid).peekable());
-                                }
-                                Err(error) => {
-                                    parse_errors.push(error.to_parse_error(path.clone()));
-                                }
-                            }
-                            continue;
-                        }
-                    }
                     nodes.push(x);
                 }
                 Err(x) => match x {
                     LexError::Expected(ex, got) => {
-                        parse_errors.push(ParseError::Expected(ex, got));
+                        errors.push(ParseError::Expected(ex, got));
                         self.recover_from_parse_error();
                     }
-                    LexError::IsNewline(_) => {}
                     LexError::UnexpectedToken(got) => {
-                        parse_errors.push(ParseError::UnexpectedToken(got));
+                        errors.push(ParseError::UnexpectedToken(got));
                         self.recover_from_parse_error();
                     }
                     LexError::UnexpectedEOF => {
-                        self.lexer_stack.pop();
-                    }
-                    LexError::NeedTwoNodes(n1, n2) => {
-                        nodes.push(*n1);
-                        nodes.push(*n2);
+                        if let Some(lex) = self.lexer_stack.pop() {
+                            all_defined_labels.extend(lex.all_defined_labels);
+                        }
                     }
                     LexError::UnexpectedError(x) => {
-                        parse_errors.push(ParseError::UnexpectedError(x));
+                        errors.push(ParseError::UnexpectedError(x));
                         self.recover_from_parse_error();
                     }
                     LexError::UnknownDirective(y) => {
-                        parse_errors.push(ParseError::UnknownDirective(y));
+                        errors.push(ParseError::UnknownDirective(y));
                         self.recover_from_parse_error();
                     }
                     LexError::IgnoredWithWarning(y) | LexError::UnsupportedDirective(y) => {
-                        parse_errors.push(ParseError::Unsupported(y));
+                        errors.push(ParseError::Unsupported(y));
                         self.recover_from_parse_error();
                     }
-                    LexError::IgnoredWithoutWarning => (),
                     LexError::InvalidString(info, err) => {
-                        parse_errors.push(ParseError::InvalidString(info, err));
+                        errors.push(ParseError::InvalidString(info, err));
                         self.recover_from_parse_error();
                     }
+                    LexError::GlobalDef(label) => {
+                        extra_labels.insert(*label);
+                    }
+                    LexError::IncludeFile(path) => {
+                        include_strings.insert(*path.clone());
+                        if !ignore_imports {
+                            match self.reader.import_file(path.get(), Some(path.file())) {
+                                Ok((new_uuid, new_text)) => {
+                                    self.lexer_stack
+                                        .push(AnnotatedLexer::new(Lexer::new(new_text, new_uuid)));
+                                }
+                                Err(error) => {
+                                    errors.push(error.to_parse_error(*path));
+                                }
+                            }
+                        }
+                    }
+                    LexError::IgnoredWithoutWarning | LexError::IsNewline(_) => (),
                 },
             }
         }
-        (nodes, parse_errors)
+        RVParserOutput {
+            nodes,
+            all_defined_labels,
+            errors,
+            extra_labels,
+            include_strings,
+        }
     }
 
-    fn lexer(&mut self) -> Option<&mut Peekable<Lexer>> {
+    fn lexer(&mut self) -> Option<&mut AnnotatedLexer> {
         self.lexer_stack.last_mut()
     }
 }
@@ -249,7 +248,7 @@ impl Token {
     }
 }
 
-impl AnnotatedLexer<'_> {
+impl AnnotatedLexer {
     fn _expect_lparen(&mut self) -> Result<(), LexError> {
         self.get_any()?.as_lparen()
     }
@@ -302,25 +301,42 @@ impl AnnotatedLexer<'_> {
     }
 }
 
-struct AnnotatedLexer<'a> {
-    lexer: &'a mut Peekable<Lexer>,
+struct AnnotatedLexer {
+    lexer: Peekable<Lexer>,
+    all_defined_labels: HashSet<LabelStringToken>,
     raw_token: RawToken,
+    current_segment: Segment,
+    current_labels: HashSet<LabelStringToken>,
+    queue: VecDeque<ParserNode>,
 }
-impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
+
+impl AnnotatedLexer {
+    pub fn new(lexer: Lexer) -> AnnotatedLexer {
+        Self {
+            lexer: lexer.peekable(),
+            all_defined_labels: HashSet::new(),
+            raw_token: RawToken::default(),
+            current_segment: Segment::Text,
+            current_labels: HashSet::new(),
+            queue: VecDeque::new(),
+        }
+    }
+}
+
+impl TryFrom<&mut AnnotatedLexer> for ParserNode {
     type Error = LexError;
 
     // TODO enforce that all "missing" values for With<> resolve to the token
     // of the instruction
 
     #[allow(clippy::too_many_lines)]
-    fn try_from(val: &mut Peekable<Lexer>) -> Result<Self, Self::Error> {
-        use LexError::{Expected, IgnoredWithWarning, IsNewline, NeedTwoNodes};
+    fn try_from(lex: &mut AnnotatedLexer) -> Result<Self, Self::Error> {
+        use LexError::{Expected, IgnoredWithWarning, IsNewline};
+        if let Some(node) = lex.queue.pop_front() {
+            return Ok(node);
+        }
 
-        let mut lex = AnnotatedLexer {
-            lexer: val,
-            raw_token: RawToken::default(),
-        };
-
+        lex.raw_token = RawToken::default();
         let next_node = lex.get_any()?;
         match next_node.token_type() {
             TokenType::Symbol(s) => {
@@ -335,7 +351,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 rd,
                                 csr,
                                 imm,
-                                lex.raw_token,
+                                mem::take(&mut lex.raw_token),
+                                lex.current_segment,
+                                mem::take(&mut lex.current_labels),
                             ))
                         }
                         Type::Csr(inst) => {
@@ -347,7 +365,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 rd,
                                 csr,
                                 rs1,
-                                lex.raw_token,
+                                mem::take(&mut lex.raw_token),
+                                lex.current_segment,
+                                mem::take(&mut lex.current_labels),
                             ))
                         }
                         Type::UpperArith(inst) => {
@@ -361,7 +381,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 rd,
                                 With::new(Register::X0, next_node),
                                 imm,
-                                lex.raw_token,
+                                mem::take(&mut lex.raw_token),
+                                lex.current_segment,
+                                mem::take(&mut lex.current_labels),
                             ))
                         }
                         Type::Arith(inst) => {
@@ -373,7 +395,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 rd,
                                 rs1,
                                 rs2,
-                                lex.raw_token,
+                                mem::take(&mut lex.raw_token),
+                                lex.current_segment,
+                                mem::take(&mut lex.current_labels),
                             ))
                         }
                         Type::IArith(inst) => {
@@ -385,7 +409,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 rd,
                                 rs1,
                                 imm,
-                                lex.raw_token,
+                                mem::take(&mut lex.raw_token),
+                                lex.current_segment,
+                                mem::take(&mut lex.current_labels),
                             ))
                         }
 
@@ -398,14 +424,18 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(inst, next_node),
                                     reg,
                                     name,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             } else if let Ok(name) = next.as_label() {
                                 Ok(ParserNode::new_jump_link(
                                     With::new(inst, next_node.clone()),
                                     With::new(Register::X1, next_node),
                                     name,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             } else {
                                 Err(Expected(
@@ -424,7 +454,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     reg1,
                                     rs1,
                                     imm,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             } else if let Ok(imm) = next.as_imm() {
                                 if let Ok(()) = lex.peek_any()?.as_lparen() {
@@ -436,7 +468,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         reg1,
                                         rs1,
                                         imm,
-                                        lex.raw_token,
+                                        mem::take(&mut lex.raw_token),
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
                                     ))
                                 } else {
                                     Ok(ParserNode::new_jump_link_r(
@@ -444,7 +478,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         With::new(Register::X1, next_node),
                                         reg1,
                                         imm,
-                                        lex.raw_token,
+                                        mem::take(&mut lex.raw_token),
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
                                     ))
                                 }
                             } else if let Ok(()) = next.as_lparen() {
@@ -455,7 +491,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     reg1,
                                     rs1,
                                     With::new(Imm::new(0), next_node),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             } else {
                                 Ok(ParserNode::new_jump_link_r(
@@ -463,7 +501,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X1, next_node.clone()),
                                     reg1,
                                     With::new(Imm::new(0), next_node),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             };
                         }
@@ -480,7 +520,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         rd,
                                         rs1,
                                         imm,
-                                        lex.raw_token,
+                                        mem::take(&mut lex.raw_token),
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
                                     ))
                                 } else {
                                     Ok(ParserNode::new_load(
@@ -488,24 +530,28 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         rd,
                                         With::new(Register::X0, next_node),
                                         imm,
-                                        lex.raw_token,
+                                        mem::take(&mut lex.raw_token),
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
                                     ))
                                 }
                             } else if let Ok(label) = next.as_label() {
-                                Err(NeedTwoNodes(
-                                    Box::new(ParserNode::new_load_addr(
-                                        With::new(PseudoType::La, next_node.clone()),
-                                        rd.clone(),
-                                        label,
-                                        lex.raw_token.clone(),
-                                    )),
-                                    Box::new(ParserNode::new_load(
-                                        With::new(inst, next_node.clone()),
-                                        rd.clone(),
-                                        rd,
-                                        With::new(Imm::new(0), next_node),
-                                        lex.raw_token,
-                                    )),
+                                lex.queue.push_back(ParserNode::new_load(
+                                    With::new(inst, next_node.clone()),
+                                    rd.clone(),
+                                    rd.clone(),
+                                    With::new(Imm::new(0), next_node.clone()),
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
+                                ));
+                                Ok(ParserNode::new_load_addr(
+                                    With::new(PseudoType::La, next_node.clone()),
+                                    rd.clone(),
+                                    label,
+                                    lex.raw_token.clone(),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             } else if let Ok(()) = next.as_lparen() {
                                 let rs1 = lex.get_reg()?;
@@ -515,7 +561,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     rs1,
                                     With::new(Imm::new(0), next_node),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             } else {
                                 Err(Expected(
@@ -542,25 +590,29 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         rs1,
                                         rs2,
                                         imm,
-                                        lex.raw_token,
+                                        mem::take(&mut lex.raw_token),
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
                                     ))
                                 } else if let Ok(tmp) = lex.peek_any()?.as_reg() {
                                     lex.get_any()?;
-                                    Err(LexError::NeedTwoNodes(
-                                        Box::new(ParserNode::new_iarith(
-                                            With::new(IArithType::Addi, next_node.clone()),
-                                            tmp.clone(),
-                                            With::new(Register::X0, next_node.clone()),
-                                            imm,
-                                            lex.raw_token.clone(),
-                                        )),
-                                        Box::new(ParserNode::new_store(
-                                            With::new(inst, next_node.clone()),
-                                            tmp,
-                                            rs2,
-                                            With::new(Imm::new(0), next_node),
-                                            lex.raw_token,
-                                        )),
+                                    lex.queue.push_back(ParserNode::new_store(
+                                        With::new(inst, next_node.clone()),
+                                        tmp.clone(),
+                                        rs2,
+                                        With::new(Imm::new(0), next_node.clone()),
+                                        mem::take(&mut lex.raw_token),
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ));
+                                    Ok(ParserNode::new_iarith(
+                                        With::new(IArithType::Addi, next_node.clone()),
+                                        tmp.clone(),
+                                        With::new(Register::X0, next_node.clone()),
+                                        imm,
+                                        lex.raw_token.clone(),
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
                                     ))
                                 } else {
                                     Ok(ParserNode::new_store(
@@ -568,25 +620,29 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                         With::new(Register::X0, next_node),
                                         rs2,
                                         imm,
-                                        lex.raw_token,
+                                        mem::take(&mut lex.raw_token),
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
                                     ))
                                 }
                             } else if let Ok(label) = next.as_label() {
                                 let temp_reg = lex.get_reg()?;
-                                Err(NeedTwoNodes(
-                                    Box::new(ParserNode::new_load_addr(
-                                        With::new(PseudoType::La, next_node.clone()),
-                                        temp_reg.clone(),
-                                        label,
-                                        lex.raw_token.clone(),
-                                    )),
-                                    Box::new(ParserNode::new_store(
-                                        With::new(inst, next_node.clone()),
-                                        temp_reg,
-                                        rs2,
-                                        With::new(Imm::new(0), next_node),
-                                        lex.raw_token,
-                                    )),
+                                lex.queue.push_back(ParserNode::new_store(
+                                    With::new(inst, next_node.clone()),
+                                    temp_reg.clone(),
+                                    rs2.clone(),
+                                    With::new(Imm::new(0), next_node.clone()),
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
+                                ));
+                                Ok(ParserNode::new_load_addr(
+                                    With::new(PseudoType::La, next_node.clone()),
+                                    temp_reg.clone(),
+                                    label,
+                                    lex.raw_token.clone(),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             } else if let Ok(()) = next.as_lparen() {
                                 let rs1 = lex.get_reg()?;
@@ -596,7 +652,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rs1,
                                     rs2,
                                     With::new(Imm::new(0), next_node),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             } else {
                                 Err(Expected(
@@ -618,13 +676,17 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 rs1,
                                 rs2,
                                 label,
-                                lex.raw_token,
+                                mem::take(&mut lex.raw_token),
+                                lex.current_segment,
+                                mem::take(&mut lex.current_labels),
                             ))
                         }
                         Type::Ignore(_) => Err(IgnoredWithWarning(Box::new(next_node))),
                         Type::Basic(inst) => Ok(ParserNode::new_basic(
                             With::new(inst, next_node),
-                            lex.raw_token,
+                            mem::take(&mut lex.raw_token),
+                            lex.current_segment,
+                            mem::take(&mut lex.current_labels),
                         )),
                         Type::Pseudo(inst) => match inst {
                             PseudoType::Ret => {
@@ -633,7 +695,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     With::new(Register::X1, next_node.clone()),
                                     With::new(Imm::new(0), next_node.clone()),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ))
                             }
                             PseudoType::Mv => {
@@ -644,7 +708,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Li => {
@@ -655,7 +721,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     With::new(Register::X0, imm.token().clone()),
                                     imm,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::La => {
@@ -665,7 +733,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(PseudoType::La, next_node.clone()),
                                     rd,
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::J | PseudoType::B => {
@@ -674,7 +744,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(JumpLinkType::Jal, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Jr => {
@@ -684,7 +756,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     rs1,
                                     With::new(Imm::new(0), next_node.clone()),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Beqz => {
@@ -695,7 +769,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Bnez => {
@@ -706,7 +782,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Bltz | PseudoType::Bgtz => {
@@ -717,7 +795,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Neg => {
@@ -728,7 +808,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     With::new(Register::X0, next_node.clone()),
                                     rs1,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Not => {
@@ -739,7 +821,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     rs1,
                                     With::new(Imm::new(-1), next_node.clone()),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Seqz => {
@@ -750,7 +834,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     rs1,
                                     With::new(Imm::new(1), next_node.clone()),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Snez => {
@@ -761,7 +847,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     rs1,
                                     With::new(Imm::new(0), next_node.clone()),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Nop => {
@@ -770,7 +858,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     With::new(Register::X0, next_node.clone()),
                                     With::new(Imm::new(0), next_node.clone()),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Bgez | PseudoType::Blez => {
@@ -781,7 +871,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Sgtz => {
@@ -792,7 +884,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     With::new(Register::X0, next_node.clone()),
                                     rs1,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Sltz => {
@@ -803,7 +897,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     rs1,
                                     With::new(Register::X0, next_node.clone()),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Sgez => {
@@ -814,7 +910,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     rs1,
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Call => {
@@ -823,7 +921,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(JumpLinkType::Jal, next_node.clone()),
                                     With::new(Register::X1, next_node.clone()),
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Bgt => {
@@ -835,7 +935,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rs2,
                                     rs1,
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Ble => {
@@ -847,7 +949,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rs2,
                                     rs1,
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Bgtu => {
@@ -859,7 +963,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rs2,
                                     rs1,
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Bleu => {
@@ -871,7 +977,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rs2,
                                     rs1,
                                     label,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Csrci | PseudoType::Csrsi | PseudoType::Csrwi => {
@@ -892,7 +1000,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     csr,
                                     imm,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Csrc | PseudoType::Csrs | PseudoType::Csrw => {
@@ -913,7 +1023,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     With::new(Register::X0, next_node.clone()),
                                     csr,
                                     rs1,
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                             PseudoType::Csrr => {
@@ -924,7 +1036,9 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                     rd,
                                     csr,
                                     With::new(Register::X0, next_node.clone()),
-                                    lex.raw_token,
+                                    mem::take(&mut lex.raw_token),
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
                                 ));
                             }
                         },
@@ -936,47 +1050,27 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                     Box::new(next_node.clone()),
                 ))
             }
-            TokenType::Label(s) => Ok(ParserNode::new_label(
-                With::new(
+            TokenType::Label(s) => {
+                let label = With::new(
                     LabelString::from_str(s).map_err(|()| {
                         LexError::Expected(vec![ExpectedType::Label], Box::new(next_node.clone()))
                     })?,
                     next_node,
-                ),
-                lex.raw_token,
-            )),
+                );
+                lex.current_labels.insert(label.clone());
+                lex.all_defined_labels.insert(label);
+                Err(LexError::IgnoredWithoutWarning)
+            }
             TokenType::Directive(dir) => {
                 if let Ok(directive) = DirectiveToken::from_str(dir) {
                     match directive {
                         DirectiveToken::Align => {
-                            let imm = lex.get_imm()?;
-                            Ok(ParserNode::new_directive(
-                                With::new(directive, next_node.clone()),
-                                DirectiveType::Align(imm),
-                                lex.raw_token,
-                            ))
+                            let _ = lex.get_imm()?;
+                            Err(LexError::IgnoredWithoutWarning)
                         }
-                        DirectiveToken::Ascii => {
-                            let string = lex.get_string()?;
-                            Ok(ParserNode::new_directive(
-                                With::new(directive, next_node.clone()),
-                                DirectiveType::Ascii {
-                                    text: string,
-                                    null_term: false,
-                                },
-                                lex.raw_token,
-                            ))
-                        }
-                        DirectiveToken::Asciz | DirectiveToken::String => {
-                            let string = lex.get_string()?;
-                            Ok(ParserNode::new_directive(
-                                With::new(directive, next_node.clone()),
-                                DirectiveType::Ascii {
-                                    text: string,
-                                    null_term: true,
-                                },
-                                lex.raw_token,
-                            ))
+                        DirectiveToken::Ascii | DirectiveToken::Asciz | DirectiveToken::String => {
+                            let _ = lex.get_string()?;
+                            Err(LexError::IgnoredWithoutWarning)
                         }
                         DirectiveToken::Byte
                         | DirectiveToken::Double
@@ -984,16 +1078,6 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                         | DirectiveToken::Float
                         | DirectiveToken::Word
                         | DirectiveToken::Half => {
-                            let data_type = match directive {
-                                DirectiveToken::Byte => DataType::Byte,
-                                DirectiveToken::Double => DataType::Double,
-                                DirectiveToken::Dword => DataType::Dword,
-                                DirectiveToken::Float => DataType::Float,
-                                DirectiveToken::Word => DataType::Word,
-                                DirectiveToken::Half => DataType::Half,
-                                _ => return Err(LexError::UnexpectedError(Box::new(next_node))),
-                            };
-
                             // keep looping through values until immediate or nl is
                             // not found
                             let mut values = Vec::new();
@@ -1011,20 +1095,15 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                                 }
                             }
 
-                            Ok(ParserNode::new_directive(
-                                With::new(directive, next_node.clone()),
-                                DirectiveType::Data(data_type, values),
-                                lex.raw_token,
-                            ))
+                            Err(LexError::IgnoredWithoutWarning)
                         }
-                        DirectiveToken::Data => Ok(ParserNode::new_directive(
-                            With::new(directive, next_node.clone()),
-                            DirectiveType::DataSection,
-                            lex.raw_token,
-                        )),
+                        DirectiveToken::Data => {
+                            lex.current_segment = Segment::Data;
+                            Err(LexError::IgnoredWithoutWarning)
+                        }
                         DirectiveToken::Macro => {
                             // macros are unsupported
-                            // we will just ignore them until the we reach endmacro
+                            // we will just ignore them until we reach endmacro
                             loop {
                                 let next = lex.get_any()?;
                                 if let TokenType::Directive(dir2) = next.token_type() {
@@ -1045,33 +1124,20 @@ impl TryFrom<&mut Peekable<Lexer>> for ParserNode {
                         }
                         DirectiveToken::Global | DirectiveToken::Globl => {
                             let label = lex.get_label()?;
-                            Ok(ParserNode::new_directive(
-                                With::new(directive, next_node.clone()),
-                                DirectiveType::Global(label),
-                                lex.raw_token,
-                            ))
+                            Err(LexError::GlobalDef(Box::new(label)))
                         }
                         DirectiveToken::Include => {
                             let filename = lex.get_string()?;
-                            Ok(ParserNode::new_directive(
-                                With::new(directive, next_node.clone()),
-                                DirectiveType::Include(filename),
-                                lex.raw_token,
-                            ))
+                            Err(LexError::IncludeFile(Box::new(filename)))
                         }
                         DirectiveToken::Space => {
-                            let imm = lex.get_imm()?;
-                            Ok(ParserNode::new_directive(
-                                With::new(directive, next_node.clone()),
-                                DirectiveType::Space(imm),
-                                lex.raw_token,
-                            ))
+                            let _ = lex.get_imm()?;
+                            Err(LexError::IgnoredWithoutWarning)
                         }
-                        DirectiveToken::Text => Ok(ParserNode::new_directive(
-                            With::new(directive, next_node.clone()),
-                            DirectiveType::TextSection,
-                            lex.raw_token,
-                        )),
+                        DirectiveToken::Text => {
+                            lex.current_segment = Segment::Text;
+                            Err(LexError::IgnoredWithoutWarning)
+                        }
                     }
                 } else {
                     Err(LexError::UnknownDirective(Box::new(next_node.clone())))

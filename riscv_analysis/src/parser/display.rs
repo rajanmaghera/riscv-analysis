@@ -7,8 +7,6 @@ use super::ParserNode;
 impl Display for ParserNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParserNode::ProgramEntry(_) => write!(f, "--- [PROGRAM ENTRY] ---"),
-            ParserNode::FuncEntry(_) => write!(f, "--- FUNCTION ENTRY ---"),
             ParserNode::Arith(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
                 write!(f, "{inst} {} <- {}, {}", x.rd, x.rs1, x.rs2)
@@ -17,7 +15,6 @@ impl Display for ParserNode {
                 let inst: Inst = Inst::from(x.inst.get());
                 write!(f, "{inst} {} <- {}, {}", x.rd, x.rs1, x.imm.get().value())
             }
-            ParserNode::Label(x) => write!(f, "---[{}]---", x.name),
             ParserNode::JumpLink(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
                 write!(f, "{inst} [{}] | {} <- PC", x.name, x.rd)
@@ -29,9 +26,6 @@ impl Display for ParserNode {
             ParserNode::Basic(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
                 write!(f, "{inst}")
-            }
-            ParserNode::Directive(x) => {
-                write!(f, "-<{}>-", x.dir)
             }
             ParserNode::Branch(x) => {
                 let inst: Inst = Inst::from(x.inst.get());

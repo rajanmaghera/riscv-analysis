@@ -4,29 +4,25 @@ use crate::parser::inst::{
     ArithType, BasicType, BranchType, CsrIType, CsrType, IArithType, JumpLinkRType, JumpLinkType,
     LoadType, PseudoType, StoreType,
 };
+use std::collections::HashSet;
 
 use std::hash::{Hash, Hasher};
 
+use super::{
+    Arith, Basic, Branch, Csr, CsrI, HasIdentity, IArith, JumpLink, JumpLinkR, LabelStringToken,
+    Load, LoadAddr, RawToken, RegisterToken, Store, With,
+};
+use crate::cfg::Segment;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{
-    Arith, Basic, Branch, Csr, CsrI, Directive, DirectiveToken, DirectiveType, FuncEntry,
-    HasIdentity, IArith, JumpLink, JumpLinkR, Label, LabelStringToken, Load, LoadAddr,
-    ProgramEntry, RawToken, RegisterToken, Store, With,
-};
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParserNode {
-    ProgramEntry(ProgramEntry),
-    FuncEntry(FuncEntry),
     Arith(Arith),
     IArith(IArith),
-    Label(Label),
     JumpLink(JumpLink),
     JumpLinkR(JumpLinkR),
     Basic(Basic),
-    Directive(Directive),
     Branch(Branch),
     Store(Store),       // Stores
     Load(Load),         // Loads, are actually mostly ITypes
@@ -36,24 +32,54 @@ pub enum ParserNode {
 }
 
 impl ParserNode {
+    /// Get the labels that refer to this node.
+    pub fn label_names(&self) -> impl Iterator<Item = &LabelStringToken> {
+        match self {
+            ParserNode::Arith(x) => x.labels.iter(),
+            ParserNode::IArith(x) => x.labels.iter(),
+            ParserNode::JumpLink(x) => x.labels.iter(),
+            ParserNode::JumpLinkR(x) => x.labels.iter(),
+            ParserNode::Basic(x) => x.labels.iter(),
+            ParserNode::Branch(x) => x.labels.iter(),
+            ParserNode::Store(x) => x.labels.iter(),
+            ParserNode::Load(x) => x.labels.iter(),
+            ParserNode::Csr(x) => x.labels.iter(),
+            ParserNode::CsrI(x) => x.labels.iter(),
+            ParserNode::LoadAddr(x) => x.labels.iter(),
+        }
+    }
+
+    #[must_use]
+    pub fn segment(&self) -> Segment {
+        match self {
+            ParserNode::Arith(x) => x.segment,
+            ParserNode::IArith(x) => x.segment,
+            ParserNode::JumpLink(x) => x.segment,
+            ParserNode::JumpLinkR(x) => x.segment,
+            ParserNode::Basic(x) => x.segment,
+            ParserNode::Branch(x) => x.segment,
+            ParserNode::Store(x) => x.segment,
+            ParserNode::Load(x) => x.segment,
+            ParserNode::Csr(x) => x.segment,
+            ParserNode::CsrI(x) => x.segment,
+            ParserNode::LoadAddr(x) => x.segment,
+        }
+    }
+
     #[must_use]
     pub fn token(&self) -> &RawToken {
         match self {
             ParserNode::Arith(x) => &x.token,
             ParserNode::IArith(x) => &x.token,
-            ParserNode::Label(x) => &x.token,
             ParserNode::JumpLink(x) => &x.token,
             ParserNode::JumpLinkR(x) => &x.token,
             ParserNode::Basic(x) => &x.token,
-            ParserNode::Directive(x) => &x.token,
             ParserNode::Branch(x) => &x.token,
             ParserNode::Store(x) => &x.token,
             ParserNode::Load(x) => &x.token,
             ParserNode::Csr(x) => &x.token,
             ParserNode::CsrI(x) => &x.token,
             ParserNode::LoadAddr(x) => &x.token,
-            ParserNode::ProgramEntry(x) => &x.token,
-            ParserNode::FuncEntry(x) => &x.token,
         }
     }
 }
@@ -85,10 +111,6 @@ impl ParserNode {
             ParserNode::Csr(x) => (x.inst.get()).into(),
             ParserNode::CsrI(x) => (x.inst.get()).into(),
             ParserNode::LoadAddr(_) => Inst::La,
-            ParserNode::Label(_)
-            | ParserNode::Directive(_)
-            | ParserNode::FuncEntry(_)
-            | ParserNode::ProgramEntry(_) => Inst::Nop,
         }
     }
 
@@ -99,6 +121,8 @@ impl ParserNode {
         rs1: RegisterToken,
         rs2: RegisterToken,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::Arith(Arith {
             inst,
@@ -107,6 +131,8 @@ impl ParserNode {
             rs2,
             key: Uuid::new_v4(),
             token,
+            segment,
+            labels,
         })
     }
 
@@ -117,6 +143,8 @@ impl ParserNode {
         rs1: RegisterToken,
         imm: With<Imm>,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::IArith(IArith {
             inst,
@@ -125,6 +153,8 @@ impl ParserNode {
             imm,
             key: Uuid::new_v4(),
             token,
+            segment,
+            labels,
         })
     }
 
@@ -134,6 +164,8 @@ impl ParserNode {
         rd: RegisterToken,
         name: LabelStringToken,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::JumpLink(JumpLink {
             inst,
@@ -141,6 +173,8 @@ impl ParserNode {
             name,
             key: Uuid::new_v4(),
             token,
+            segment,
+            labels,
         })
     }
 
@@ -151,6 +185,8 @@ impl ParserNode {
         rs1: RegisterToken,
         imm: With<Imm>,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::JumpLinkR(JumpLinkR {
             inst,
@@ -159,29 +195,24 @@ impl ParserNode {
             imm,
             key: Uuid::new_v4(),
             token,
+            segment,
+            labels,
         })
     }
 
     #[must_use]
-    pub fn new_basic(inst: With<BasicType>, token: RawToken) -> ParserNode {
+    pub fn new_basic(
+        inst: With<BasicType>,
+        token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
+    ) -> ParserNode {
         ParserNode::Basic(Basic {
             inst,
             key: Uuid::new_v4(),
             token,
-        })
-    }
-
-    #[must_use]
-    pub fn new_directive(
-        dir_token: With<DirectiveToken>,
-        dir: DirectiveType,
-        token: RawToken,
-    ) -> ParserNode {
-        ParserNode::Directive(Directive {
-            dir_token,
-            dir,
-            key: Uuid::new_v4(),
-            token,
+            segment,
+            labels,
         })
     }
 
@@ -192,6 +223,8 @@ impl ParserNode {
         rs2: RegisterToken,
         name: LabelStringToken,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::Branch(Branch {
             inst,
@@ -200,6 +233,8 @@ impl ParserNode {
             name,
             key: Uuid::new_v4(),
             token,
+            segment,
+            labels,
         })
     }
 
@@ -210,6 +245,8 @@ impl ParserNode {
         rs2: RegisterToken,
         imm: With<Imm>,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::Store(Store {
             inst,
@@ -218,6 +255,8 @@ impl ParserNode {
             imm,
             key: Uuid::new_v4(),
             token,
+            segment,
+            labels,
         })
     }
 
@@ -228,6 +267,8 @@ impl ParserNode {
         rs1: RegisterToken,
         imm: With<Imm>,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::Load(Load {
             inst,
@@ -236,6 +277,8 @@ impl ParserNode {
             imm,
             key: Uuid::new_v4(),
             token,
+            segment,
+            labels,
         })
     }
 
@@ -246,6 +289,8 @@ impl ParserNode {
         csr: With<CsrImm>,
         rs1: RegisterToken,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::Csr(Csr {
             inst,
@@ -254,25 +299,8 @@ impl ParserNode {
             csr,
             key: Uuid::new_v4(),
             token,
-        })
-    }
-
-    #[must_use]
-    pub fn new_func_entry(file: Uuid, token: RawToken, is_interrupt_handler: bool) -> ParserNode {
-        ParserNode::FuncEntry(FuncEntry {
-            key: Uuid::new_v4(),
-            file,
-            token,
-            is_interrupt_handler,
-        })
-    }
-
-    #[must_use]
-    pub fn new_program_entry(file: Uuid, token: RawToken) -> ParserNode {
-        ParserNode::ProgramEntry(ProgramEntry {
-            key: Uuid::new_v4(),
-            file,
-            token,
+            segment,
+            labels,
         })
     }
 
@@ -283,6 +311,8 @@ impl ParserNode {
         csr: With<CsrImm>,
         imm: With<Imm>,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::CsrI(CsrI {
             inst,
@@ -291,15 +321,8 @@ impl ParserNode {
             csr,
             key: Uuid::new_v4(),
             token,
-        })
-    }
-
-    #[must_use]
-    pub fn new_label(name: LabelStringToken, token: RawToken) -> ParserNode {
-        ParserNode::Label(Label {
-            name,
-            key: Uuid::new_v4(),
-            token,
+            segment,
+            labels,
         })
     }
 
@@ -309,6 +332,8 @@ impl ParserNode {
         rd: RegisterToken,
         name: LabelStringToken,
         token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
     ) -> ParserNode {
         ParserNode::LoadAddr(LoadAddr {
             inst,
@@ -316,6 +341,8 @@ impl ParserNode {
             name,
             key: Uuid::new_v4(),
             token,
+            segment,
+            labels,
         })
     }
 }
