@@ -1,4 +1,5 @@
 use super::{CfgError, DiagnosticManager, GenerationPass, LintPass};
+use crate::cfg::RegisterSet;
 use crate::parser::{DirectiveType, LabelString, Register, With};
 use crate::{
     analysis::{AvailableValuePass, LivenessPass},
@@ -26,7 +27,7 @@ pub struct Manager;
 impl Manager {
     pub fn gen_full_cfg(
         nodes: Vec<ParserNode>,
-        additional_function_information: Option<Vec<(String, HashSet<Register>)>>,
+        additional_function_information: Option<Vec<(String, RegisterSet)>>,
     ) -> Result<Cfg, Box<CfgError>> {
         // Stage 1: Generate names of interrupt handler functions
         let mut predefined = {
@@ -65,6 +66,7 @@ impl Manager {
         AvailableValuePass::run(&mut cfg)?;
         EcallTerminationPass::run(&mut cfg)?;
         // EliminateDeadCodeDirectionsPass::run(&mut cfg)?; // to eliminate ecall terminated code
+        LivenessPass::inject_return_registers_into_function(&mut cfg, injected.into_iter());
         LivenessPass::run(&mut cfg)?;
         Ok(cfg)
     }

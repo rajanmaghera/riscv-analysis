@@ -1,10 +1,11 @@
+use super::HasGenKillInfo;
+use crate::cfg::{Cfg, RegisterSet};
+use crate::parser::LabelStringToken;
 use crate::{
     parser::{HasRegisterSets, InstructionProperties, Register},
     passes::{CfgError, GenerationPass},
 };
 use std::collections::HashSet;
-
-use super::HasGenKillInfo;
 
 pub struct LivenessPass;
 impl GenerationPass for LivenessPass {
@@ -120,5 +121,29 @@ impl GenerationPass for LivenessPass {
             }
         }
         Ok(())
+    }
+}
+
+impl LivenessPass {
+    /// Given external information about a function's return registers, insert that information
+    /// into the liveness passes.
+    ///
+    /// Some functions may be called externally, such as a "main" function. In order to ensure
+    /// liveness analysis can correctly run, this function allows the user to insert extra information
+    /// about the liveness of the return registers at the function's exit.
+    ///
+    /// Liveness analysis is a backwards analysis, that is it propagates information from the bottom
+    /// to the top. Thus, it only needs return information and not argument registers.
+    pub fn inject_return_registers_into_function(
+        cfg: &mut Cfg,
+        function_name_return: impl Iterator<Item = (LabelStringToken, RegisterSet)>,
+    ) {
+        // For each given function, union the live_out set to the input list of Registers
+        for (func_name, registers) in function_name_return {
+            if let Some(func) = cfg.functions().get(&func_name) {
+                #[allow(unused_must_use)]
+                func.exit().set_live_out(func.exit().live_out() | registers);
+            }
+        }
     }
 }
