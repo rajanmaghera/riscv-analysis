@@ -31,7 +31,7 @@ impl LintPass for OverlappingFunctionCheck {
 #[cfg(test)]
 mod tests {
     use crate::lints::OverlappingFunctionCheck;
-    use crate::parser::RVStringParser;
+    use crate::parser::{ProgramEntryType, RVStringParser};
     use crate::passes::{DiagnosticManager, LintPass, Manager};
 
     /// Compute the lints for a given input
@@ -39,7 +39,8 @@ mod tests {
         let parser_output = RVStringParser::parse_from_text(input);
         assert_eq!(parser_output.errors.len(), 0);
 
-        let cfg = Manager::gen_full_cfg(parser_output, None).unwrap(); // Need fn annotations
+        let cfg = Manager::gen_full_cfg(parser_output, None, &ProgramEntryType::FirstInstruction)
+            .unwrap(); // Need fn annotations
         OverlappingFunctionCheck::run_single_pass_along_cfg(&cfg)
     }
 

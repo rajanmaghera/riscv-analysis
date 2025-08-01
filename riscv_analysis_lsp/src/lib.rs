@@ -1,7 +1,7 @@
 mod lsp;
 use lsp::{LSPDiag, LSPFileReader, LSPRVDiagnostic, LSPRVSingleDiagnostic, RVCompletionItem};
 use lsp_types::Diagnostic;
-use riscv_analysis::parser::{CanGetURIString, RVDocument, RVParser};
+use riscv_analysis::parser::{CanGetURIString, ProgramEntryType, RVDocument, RVParser};
 use riscv_analysis::reader::FileReader;
 use serde_wasm_bindgen::to_value;
 use std::collections::{HashMap, HashSet};
@@ -77,7 +77,7 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
     let errs = to_parse
         .flat_map(|f| {
             let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
-            let items = parser.run(&f.uri);
+            let items = parser.run(&f.uri, &ProgramEntryType::FirstInstruction);
             items
                 .into_iter()
                 .map(|f| f.to_lsp_diag(&parser))

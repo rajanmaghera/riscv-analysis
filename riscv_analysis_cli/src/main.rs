@@ -22,7 +22,7 @@ use riscv_analysis::passes::DiagnosticLocation;
 use riscv_analysis::passes::Manager;
 
 use clap::{Args, Parser, Subcommand};
-use riscv_analysis::parser::Register;
+use riscv_analysis::parser::{ProgramEntryType, Register};
 use riscv_analysis::reader::{FileReader, FileReaderError};
 
 #[derive(Parser)]
@@ -94,6 +94,12 @@ struct Lint {
     /// Inject functions and their return argument registers
     #[clap(long, value_delimiter = ';', num_args = 1.., value_name = "FUNCTION_DEF")]
     function_names: Option<Vec<FunctionDef>>,
+    /// Do not use the first instruction as the program entry
+    #[clap(long)]
+    no_program_entry_at_start: bool,
+    /// Use a specific label as the program entry
+    #[clap(long)]
+    program_entry_label: Option<String>,
 }
 
 #[cfg(feature = "fixes")]
@@ -323,6 +329,12 @@ fn main() {
     match args.command {
         Commands::Lint(lint) => {
             let reader = IOFileReader::new();
+            let program_entry_type =
+                match (lint.no_program_entry_at_start, lint.program_entry_label) {
+                    (_, Some(label)) => ProgramEntryType::LookForLabel(label),
+                    (false, None) => ProgramEntryType::FirstInstruction,
+                    (true, None) => ProgramEntryType::None,
+                };
             let mut parser = RVParser::new(reader);
 
             let mut diags = Vec::new();
@@ -341,6 +353,7 @@ fn main() {
                         .map(|item| (item.name, item.ret_registers.into_iter().collect()))
                         .collect()
                 }),
+                &program_entry_type,
             ) {
                 Ok(full_cfg) => {
                     // if debug, print out the cfg
@@ -415,7 +428,7 @@ mod tests {
     use crate::IOFileReader;
     use riscv_analysis::cfg::Cfg;
     use riscv_analysis::cfg::CfgWrapper;
-    use riscv_analysis::parser::RVParser;
+    use riscv_analysis::parser::{ProgramEntryType, RVParser};
     use riscv_analysis::passes::Manager;
 
     macro_rules! file_name {
@@ -435,7 +448,9 @@ mod tests {
 
                 let parsed = parser.parse_from_file(filename, false);
 
-                let res: Cfg = Manager::gen_full_cfg(parsed, None).unwrap();
+                let res: Cfg =
+                    Manager::gen_full_cfg(parsed, None, &ProgramEntryType::FirstInstruction)
+                        .unwrap();
                 let res = CfgWrapper::from(&res);
 
                 // deserialize the yaml file

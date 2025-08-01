@@ -61,7 +61,7 @@ mod test {
 
     #[test]
     fn can_emit_error_on_self_reference() {
-        let text = format!(".include \"{}\"\n", EmptyFileReader::get_file_path());
+        let text = format!(".include \"{}\"\n", EmptyFileReader::get_file_path(),);
         let parser_output = RVStringParser::parse_from_text(&text);
         assert_eq!(parser_output.nodes.len(), 0);
         assert_eq!(parser_output.errors.len(), 1);

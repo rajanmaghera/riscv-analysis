@@ -56,13 +56,14 @@ impl LintPass for ControlFlowCheck {
 mod tests {
 
     use super::*;
-    use crate::parser::RVStringParser;
+    use crate::parser::{ProgramEntryType, RVStringParser};
     use crate::passes::Manager;
 
     fn run_pass(input: &str) -> DiagnosticManager {
         let parser_output = RVStringParser::parse_from_text(input);
         assert_eq!(parser_output.errors.len(), 0);
-        let cfg = Manager::gen_full_cfg(parser_output, None).unwrap();
+        let cfg = Manager::gen_full_cfg(parser_output, None, &ProgramEntryType::FirstInstruction)
+            .unwrap();
         ControlFlowCheck::run_single_pass_along_cfg(&cfg)
     }
 

@@ -3,7 +3,6 @@ use crate::{
     parser::InstructionProperties,
     passes::{CfgError, GenerationPass},
 };
-use std::collections::HashSet;
 use std::{rc::Rc, vec};
 
 struct MarkData {
@@ -83,14 +82,14 @@ mod tests {
     use std::rc::Rc;
 
     use crate::cfg::{Cfg, Function};
-    use crate::parser::RVStringParser;
+    use crate::parser::{ProgramEntryType, RVStringParser};
     use crate::passes::{DiagnosticLocation, Manager};
 
     /// Generate the complete CFG from an input string.
     fn gen_cfg(input: &str) -> Cfg {
         let parser_output = RVStringParser::parse_from_text(input);
         assert_eq!(parser_output.errors.len(), 0);
-        Manager::gen_full_cfg(parser_output, None).unwrap()
+        Manager::gen_full_cfg(parser_output, None, &ProgramEntryType::FirstInstruction).unwrap()
     }
 
     /// Map string labels to functions.

@@ -226,13 +226,18 @@ impl Iterator for CfgPrevsIterator {
 #[cfg(test)]
 mod tests {
     use crate::cfg::Cfg;
-    use crate::parser::RVStringParser;
+    use crate::parser::{ProgramEntryType, RVStringParser};
 
     /// Generate the complete CFG from an input string.
     fn gen_cfg(input: &str) -> Cfg {
         let parser_output = RVStringParser::parse_from_text(input);
         assert_eq!(parser_output.errors.len(), 0);
-        Cfg::new_with_predefined_call_names(parser_output, None).unwrap()
+        Cfg::new_with_predefined_call_names(
+            parser_output,
+            None,
+            &ProgramEntryType::FirstInstruction,
+        )
+        .unwrap()
     }
 
     #[test]

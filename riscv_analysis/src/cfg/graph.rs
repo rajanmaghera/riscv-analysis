@@ -6,11 +6,12 @@ use super::CfgSourceIterator;
 use super::Function;
 use crate::analysis::HasGenKillInfo;
 use crate::parser;
-use crate::parser::LabelStringToken;
 use crate::parser::ParserNode;
-use crate::parser::{Register, RegisterToken};
 use crate::parser::{InstructionProperties, RVParserOutput};
+use crate::parser::{LabelString, LabelStringToken, ProgramEntryType, With};
+use crate::parser::{Register, RegisterToken};
 use crate::passes::CfgError;
+use itertools::Itertools;
 use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
@@ -102,13 +103,17 @@ impl BaseCfgGen for Vec<ParserNode> {
     }
 }
 impl Cfg {
-    pub fn new(parser_output: RVParserOutput) -> Result<Cfg, Box<CfgError>> {
-        Cfg::new_with_predefined_call_names(parser_output, None)
+    pub fn new(
+        parser_output: RVParserOutput,
+        program_entry: &ProgramEntryType,
+    ) -> Result<Cfg, Box<CfgError>> {
+        Cfg::new_with_predefined_call_names(parser_output, None, program_entry)
     }
 
     pub fn new_with_predefined_call_names(
         parser_output: RVParserOutput,
         predefined_call_names: Option<&HashSet<LabelStringToken>>,
+        program_entry: &ProgramEntryType,
     ) -> Result<Cfg, Box<CfgError>> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
@@ -140,10 +145,23 @@ impl Cfg {
             return Err(Box::new(CfgError::LabelsNotDefined(undefined_labels)));
         }
 
-        // For now, the first instruction is the program entry
-        let mut is_program_entry = true;
+        // If the program entry is a label, return an error if the label does not exist
+        if let ProgramEntryType::LookForLabel(name) = &program_entry {
+            let label = With::blank(LabelString::new(name));
+            if !defined_labels.contains(&label) {
+                return Err(Box::new(CfgError::LabelsNotDefined(HashSet::from([label]))));
+            }
+        }
 
-        for node in parser_output.nodes {
+        for (idx, node) in parser_output.nodes.into_iter().enumerate() {
+            let is_program_entry = match &program_entry {
+                ProgramEntryType::LookForLabel(l) => node
+                    .label_names()
+                    .contains(&With::blank(LabelString::new(l))),
+                ProgramEntryType::FirstInstruction => idx == 0,
+                ProgramEntryType::None => false,
+            };
+
             // Check if this node's label has already been defined
             for label in node.label_names() {
                 if labels.keys().any(|x| x == label.as_str()) {
@@ -172,7 +190,6 @@ impl Cfg {
             }
 
             nodes.push(new_node);
-            is_program_entry = false;
         }
 
         Ok(Cfg {

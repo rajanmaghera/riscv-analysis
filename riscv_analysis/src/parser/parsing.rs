@@ -30,6 +30,20 @@ pub struct RVDocument {
 pub trait CanGetURIString: FileReader {
     fn get_uri_string(&self, uuid: Uuid) -> RVDocument;
 }
+
+/// The behaviour that the parser should
+/// find the program entry with
+#[derive(Deserialize, Clone)]
+pub enum ProgramEntryType {
+    /// Look for a label with this name. If it isn't found,
+    /// return an error.
+    LookForLabel(String),
+    /// Use the first instruction.
+    FirstInstruction,
+    /// Do not have any program entry
+    None,
+}
+
 /// Parser for RISC-V assembly
 pub struct RVParser<T>
 where
@@ -49,7 +63,7 @@ pub struct RVParserOutput {
 }
 
 impl<T: FileReader> RVParser<T> {
-    pub fn run(&mut self, base: &str) -> Vec<DiagnosticItem> {
+    pub fn run(&mut self, base: &str, program_entry: &ProgramEntryType) -> Vec<DiagnosticItem> {
         let parsed = self.parse_from_file(base, false);
         let mut diags = parsed
             .errors
@@ -58,7 +72,7 @@ impl<T: FileReader> RVParser<T> {
             .map_into()
             .collect::<Vec<DiagnosticItem>>();
 
-        let res = Manager::run(parsed);
+        let res = Manager::run(parsed, program_entry);
         match res {
             Ok(lints) => {
                 lints
