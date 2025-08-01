@@ -3,18 +3,18 @@ use pretty_print_options::PrettyPrintOptions;
 use printer::*;
 mod pretty_print_options;
 
-use std::fmt::Display;
-#[cfg(feature = "fixes")]
-use std::io::Write;
-use std::{collections::HashMap, str::FromStr};
-
 #[cfg(feature = "fixes")]
 use colored::Colorize;
 #[cfg(feature = "fixes")]
 use riscv_analysis::fix::Manipulation;
 use riscv_analysis::passes::DiagnosticItem;
 use riscv_analysis::{parser::RVParser, passes::DiagnosticManager};
+use std::collections::HashSet;
+use std::fmt::Display;
+#[cfg(feature = "fixes")]
+use std::io::Write;
 use std::path::PathBuf;
+use std::{collections::HashMap, str::FromStr};
 use uuid::Uuid;
 
 #[cfg(feature = "analysis_debugger")]
@@ -22,6 +22,7 @@ use riscv_analysis::passes::DiagnosticLocation;
 use riscv_analysis::passes::Manager;
 
 use clap::{Args, Parser, Subcommand};
+use riscv_analysis::parser::Register;
 use riscv_analysis::reader::{FileReader, FileReaderError};
 
 #[derive(Parser)]
@@ -40,6 +41,29 @@ enum Commands {
     #[cfg(feature = "analysis_debugger")]
     #[clap(name = "debug_parse")]
     DebugParse(DebugParse),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct FunctionDef {
+    name: String,
+    ret_registers: HashSet<Register>,
+}
+
+impl FromStr for FunctionDef {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let error_msg = "function name not in format \"func_name:a0,a1\"";
+        // Example strings; _main:a0,a1;
+        let (name, args_s) = s.split_once(":").ok_or(error_msg)?;
+
+        Ok(Self {
+            name: name.to_string(),
+            ret_registers: args_s
+                .split(",")
+                .map(|x| Register::from_str(x).map_err(|_| error_msg))
+                .collect::<Result<HashSet<_>, _>>()?,
+        })
+    }
 }
 
 #[derive(Args)]
@@ -67,6 +91,9 @@ struct Lint {
     /// Display errors from all files
     #[clap(long)]
     all_files: bool,
+    /// Inject functions and their return argument registers
+    #[clap(long, value_delimiter = ';', num_args = 1.., value_name = "FUNCTION_DEF")]
+    function_names: Option<Vec<FunctionDef>>,
 }
 
 #[cfg(feature = "fixes")]
@@ -305,12 +332,16 @@ fn main() {
                     .expect("unable to convert path to string"),
                 false,
             );
-            parsed
-                .errors
-                .iter()
-                .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
+            diags.extend(parsed.errors.iter().cloned().map(DiagnosticItem::from));
 
-            match Manager::gen_full_cfg(parsed, None) {
+            match Manager::gen_full_cfg(
+                parsed,
+                lint.function_names.map(|x| {
+                    x.into_iter()
+                        .map(|item| (item.name, item.ret_registers.into_iter().collect()))
+                        .collect()
+                }),
+            ) {
                 Ok(full_cfg) => {
                     // if debug, print out the cfg
                     if lint.yaml {
@@ -348,7 +379,7 @@ fn main() {
                     );
                     printer.display_errors(&parser);
                     #[cfg(feature = "c229")]
-                    println!("You are using an alpha version of this software. Please report any bugs to the developers.");
+                    println ! ("You are using an alpha version of this software. Please report any bugs to the developers.");
                 }
             }
         }
@@ -388,13 +419,13 @@ mod tests {
     use riscv_analysis::passes::Manager;
 
     macro_rules! file_name {
-        ($fname:expr) => {
+        ( $ fname: expr) => {
             concat!(env!("CARGO_MANIFEST_DIR"), "/resources/test/", $fname) // assumes Linux ('/')!
         };
     }
 
     macro_rules! file_test_case {
-        ($fname:ident) => {
+        ( $ fname: ident) => {
             #[test]
             fn $fname() {
                 let filename = concat!(file_name!(stringify!($fname)), "/code.s");
