@@ -62,7 +62,6 @@ impl Display for CfgNode {
         f.write_fmt(format_args!("  | VALO | {}\n", self.reg_values_out()))?;
         f.write_fmt(format_args!("  | STCK | {}\n", self.memory_values_out()))?;
         f.write_fmt(format_args!("  | UDEF | {}\n", self.u_def()))?;
-        f.write_fmt(format_args!("  | NEXT | {}\n", self.nexts().len()))?;
         f.write_fmt(format_args!("  | FN   | {fn_label}\n"))?;
 
         Ok(())

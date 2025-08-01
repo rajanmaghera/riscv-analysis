@@ -23,7 +23,7 @@ impl LintPass for CalleeSavedRegisterCheck {
                             // This means that we are overwriting a callee-saved register
                             // We will traverse the function to find the first time
                             // from the return point that that register was overwritten.
-                            let ranges = Cfg::error_ranges_for_first_store(exit, reg);
+                            let ranges = cfg.error_ranges_for_first_store(exit, reg);
                             for range in ranges {
                                 errors.push(LintError::OverwriteCalleeSavedRegister(range));
                             }

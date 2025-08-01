@@ -23,10 +23,8 @@ impl GenerationPass for LivenessPass {
                     changed |= node.set_live_out(live_out);
                 } else {
                     // live_out[n] = U live_in[s] for all s in next[n]
-                    let live_out = node
-                        .nexts()
-                        .clone()
-                        .into_iter()
+                    let live_out = cfg
+                        .get_nexts(node.as_ref())
                         .map(|x| x.live_in())
                         .reduce(|acc, x| acc | x)
                         .unwrap_or_default();
@@ -50,11 +48,9 @@ impl GenerationPass for LivenessPass {
                     // a garbage value.
                     // TLDR: udef -> return values are a safeguard that the value
                     // has to come from the function.
-                    let u_def = (node
-                        .prevs()
-                        .clone()
-                        .into_iter()
-                        .filter(|x| visited.contains(x))
+                    let u_def = (cfg
+                        .get_prevs(node.as_ref())
+                        .filter(|x| visited.contains(x.as_ref()))
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default()
@@ -79,11 +75,9 @@ impl GenerationPass for LivenessPass {
                     let (args, rets) = node.known_ecall_signature().unwrap_or_default();
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - caller-saved | ecall_returns
-                    let u_def = (node
-                        .prevs()
-                        .clone()
-                        .into_iter()
-                        .filter(|x| visited.contains(x))
+                    let u_def = (cfg
+                        .get_prevs(node.as_ref())
+                        .filter(|x| visited.contains(x.as_ref()))
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default()
@@ -108,11 +102,9 @@ impl GenerationPass for LivenessPass {
                     changed |= node.set_u_def(u_def);
                 } else {
                     // u_def[n] = AND u_def[s] for all s in prev[n] | kill[n]
-                    let u_def = (node
-                        .prevs()
-                        .clone()
-                        .into_iter()
-                        .filter(|x| visited.contains(x))
+                    let u_def = (cfg
+                        .get_prevs(node.as_ref())
+                        .filter(|x| visited.contains(x.as_ref()))
                         .map(|x| x.u_def())
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default())

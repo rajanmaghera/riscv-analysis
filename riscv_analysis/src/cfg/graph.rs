@@ -6,7 +6,7 @@ use super::CfgSourceIterator;
 use super::Function;
 use crate::analysis::HasGenKillInfo;
 use crate::parser;
-use crate::parser::ParserNode;
+use crate::parser::{HasIdentity, ParserNode};
 use crate::parser::{InstructionProperties, RVParserOutput};
 use crate::parser::{LabelString, LabelStringToken, ProgramEntryType, With};
 use crate::parser::{Register, RegisterToken};
@@ -15,10 +15,13 @@ use itertools::Itertools;
 use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
+use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Cfg {
     nodes: Vec<Rc<CfgNode>>,
+    nexts: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
+    prevs: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
     pub label_node_map: HashMap<String, Rc<CfgNode>>,
     label_function_map: HashMap<LabelStringToken, Rc<Function>>,
 }
@@ -40,14 +43,14 @@ impl Cfg {
     /// nexts of `node`.
     #[must_use]
     pub fn iter_nexts(&self, node: Rc<CfgNode>) -> CfgNextsIterator {
-        CfgNextsIterator::new(node)
+        CfgNextsIterator::new(self, node)
     }
 
     /// Get an iterator over the `Cfg` nodes that are reachable using the
     /// prevs of `node`.
     #[must_use]
     pub fn iter_prevs(&self, node: Rc<CfgNode>) -> CfgPrevsIterator {
-        CfgPrevsIterator::new(node)
+        CfgPrevsIterator::new(self, node)
     }
 
     /// Get the functions of the CFG.
@@ -192,8 +195,13 @@ impl Cfg {
             nodes.push(new_node);
         }
 
+        let nexts = nodes.iter().map(|x| (x.id(), HashSet::new())).collect();
+        let prevs = nodes.iter().map(|x| (x.id(), HashSet::new())).collect();
+
         Ok(Cfg {
             nodes,
+            nexts,
+            prevs,
             label_function_map: HashMap::new(),
             label_node_map: labels,
         })
@@ -210,11 +218,15 @@ impl Cfg {
     /// know their ranges. This function will take a register and return the ranges
     /// that need to be annotated. If it cannot find any, then it will return the original
     /// node's range.
-    pub fn error_ranges_for_first_store(node: &Rc<CfgNode>, item: Register) -> Vec<RegisterToken> {
+    pub fn error_ranges_for_first_store(
+        &self,
+        node: &Rc<CfgNode>,
+        item: Register,
+    ) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the previous nodes onto the queue
-        queue.extend(node.prevs().clone());
+        queue.extend(self.get_prevs(node.as_ref()).cloned());
 
         // keep track of visited nodes
         #[allow(clippy::mutable_key_type)]
@@ -235,19 +247,23 @@ impl Cfg {
                     continue;
                 }
             }
-            queue.extend(prev.prevs().clone().into_iter());
+            queue.extend(self.get_prevs(prev.as_ref()).cloned());
         }
         ranges
     }
 
     // TODO move to a more appropriate place
     // TODO make better, what even is this?
-    pub fn error_ranges_for_first_usage(node: &Rc<CfgNode>, item: Register) -> Vec<RegisterToken> {
+    pub fn error_ranges_for_first_usage(
+        &self,
+        node: &Rc<CfgNode>,
+        item: Register,
+    ) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the next nodes onto the queue
 
-        queue.extend(node.nexts().clone());
+        queue.extend(self.get_nexts(node.as_ref()).cloned());
 
         // keep track of visited nodes
         #[allow(clippy::mutable_key_type)]
@@ -279,8 +295,59 @@ impl Cfg {
                 break;
             }
 
-            queue.extend(next.nexts().clone().into_iter());
+            queue.extend(self.get_nexts(next.as_ref()).cloned());
         }
         ranges
+    }
+
+    /// Get the successors of a given node.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the node does not exist on this CFG.
+    pub fn get_nexts<'a>(
+        &'a self,
+        node: &'a CfgNode,
+    ) -> impl ExactSizeIterator<Item = &'a Rc<CfgNode>> + 'a {
+        self.nexts.get(&node.id()).unwrap().iter()
+    }
+
+    /// Get the predecessors of a given node.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the node does not exist on this CFG.
+    pub fn get_prevs<'a>(
+        &'a self,
+        node: &'a CfgNode,
+    ) -> impl ExactSizeIterator<Item = &'a Rc<CfgNode>> + 'a {
+        self.prevs.get(&node.id()).unwrap().iter()
+    }
+
+    /// Insert an edge from one node to another.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the nodes `from` and `to` do not exist on this CFG.
+    pub fn insert_edge(&mut self, from: &Rc<CfgNode>, to: &Rc<CfgNode>) {
+        self.nexts
+            .get_mut(&from.id())
+            .unwrap()
+            .insert(Rc::clone(to));
+        self.prevs
+            .get_mut(&to.id())
+            .unwrap()
+            .insert(Rc::clone(from));
+    }
+
+    /// Remove an edge from one node to another.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the nodes `from` and `to` do not exist on this CFG.
+    pub fn remove_edge(&mut self, from: &CfgNode, to: &CfgNode) -> bool {
+        let res_1 = self.nexts.get_mut(&from.id()).unwrap().remove(to);
+        let res_2 = self.prevs.get_mut(&to.id()).unwrap().remove(from);
+        res_1 | res_2
     }
 }

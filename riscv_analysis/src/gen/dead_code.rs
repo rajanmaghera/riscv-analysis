@@ -3,6 +3,7 @@ use crate::{
     parser::InstructionProperties,
     passes::{CfgError, GenerationPass},
 };
+use std::rc::Rc;
 
 pub struct EliminateDeadCodeDirectionsPass;
 impl GenerationPass for EliminateDeadCodeDirectionsPass {
@@ -11,33 +12,30 @@ impl GenerationPass for EliminateDeadCodeDirectionsPass {
         // --------------------
         // Eliminate nexts and prevs for dead code
 
-        let nodes = cfg.nodes();
         let mut changed = true;
         while changed {
             changed = false;
-            let old = nodes.clone();
-            for node in nodes {
+            let mut edges_to_remove = Vec::new();
+            for node in cfg.nodes() {
                 if node.is_return() || node.is_any_entry() || node.might_terminate() {
                     continue;
                 }
                 // If the node has no nexts, remove it from the prevs of all its prevs
-                if node.nexts().is_empty() {
-                    for prev in node.prevs().clone() {
-                        prev.remove_next(node);
+                if cfg.get_nexts(node.as_ref()).len() == 0 {
+                    for prev in cfg.get_prevs(node.as_ref()) {
+                        edges_to_remove.push((Rc::clone(prev), Rc::clone(node)));
                     }
-                    node.clear_prevs();
                 }
 
                 // If the node has no prevs, remove it from the nexts of all its nexts
-                if node.prevs().is_empty() {
-                    for next in node.nexts().clone() {
-                        next.remove_prev(node);
+                if cfg.get_prevs(node.as_ref()).len() == 0 {
+                    for next in cfg.get_nexts(node.as_ref()) {
+                        edges_to_remove.push((Rc::clone(node), Rc::clone(next)));
                     }
-                    node.clear_nexts();
                 }
             }
-            if &old != nodes {
-                changed = true;
+            for (from, to) in edges_to_remove {
+                changed |= cfg.remove_edge(from.as_ref(), to.as_ref());
             }
         }
 

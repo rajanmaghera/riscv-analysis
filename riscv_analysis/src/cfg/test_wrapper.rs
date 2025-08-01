@@ -84,14 +84,12 @@ impl NodeWrapper {
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
-            nexts: node
-                .nexts()
-                .iter()
+            nexts: cfg
+                .get_nexts(node)
                 .map(|x| cfg.iter().position(|y| x.id() == y.id()).unwrap())
                 .collect(),
-            prevs: node
-                .prevs()
-                .iter()
+            prevs: cfg
+                .get_prevs(node)
                 .map(|x| cfg.iter().position(|y| x.id() == y.id()).unwrap())
                 .collect(),
             reg_values_in: node.reg_values_in(),

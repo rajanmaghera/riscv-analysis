@@ -123,11 +123,9 @@ impl GenerationPass for AvailableValuePass {
             changed = false;
             for node in cfg.iter() {
                 // in[n] = AND out[p] for all p in prev[n]
-                let mut in_reg_n = node
-                    .prevs()
-                    .clone()
-                    .into_iter()
-                    .filter(|x| visited.contains(x))
+                let mut in_reg_n = cfg
+                    .get_prevs(node.as_ref())
+                    .filter(|x| visited.contains(x.as_ref()))
                     .map(|x| x.reg_values_out())
                     .reduce(|mut acc, x| {
                         acc &= &x;
@@ -136,11 +134,9 @@ impl GenerationPass for AvailableValuePass {
                     .unwrap_or_default();
 
                 // in_memory[n] = AND out_memory[p] for all p in prev[n]
-                let in_memory_n = node
-                    .prevs()
-                    .clone()
-                    .into_iter()
-                    .filter(|x| visited.contains(x))
+                let in_memory_n = cfg
+                    .get_prevs(node.as_ref())
+                    .filter(|x| visited.contains(x.as_ref()))
                     .map(|x| x.memory_values_out())
                     .reduce(|mut acc, x| {
                         acc &= &x;

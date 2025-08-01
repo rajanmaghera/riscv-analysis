@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::cfg::CfgNode;
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
@@ -13,7 +14,8 @@ use crate::{
 pub struct NodeDirectionPass;
 impl GenerationPass for NodeDirectionPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
-        let mut prev = None;
+        let mut prev: Option<Rc<CfgNode>> = None;
+        let mut edges_to_insert = Vec::new();
         for node in cfg.iter() {
             // If node jumps to another node, add it to the nexts of the current node and the prevs of the node it jumps to.
             if let Some(label) = node.jumps_to() {
@@ -21,15 +23,12 @@ impl GenerationPass for NodeDirectionPass {
                     .iter()
                     .find(|n| n.labels().contains(&label))
                     .ok_or_else(|| CfgError::UnexpectedError)?;
-
-                node.insert_next(Rc::clone(&jump_to_node));
-                jump_to_node.insert_prev(Rc::clone(&node));
+                edges_to_insert.push((Rc::clone(&node), Rc::clone(&jump_to_node)));
             }
 
             // Linearly scan for nexts and prevs
-            if let Some(prev) = prev {
-                node.insert_prev(Rc::clone(&prev));
-                prev.insert_next(Rc::clone(&node));
+            if let Some(p) = prev {
+                edges_to_insert.push((Rc::clone(&p), Rc::clone(&node)));
             }
 
             // Set previous node to current node, if it is not a return
@@ -39,6 +38,9 @@ impl GenerationPass for NodeDirectionPass {
                 Some(Rc::clone(&node))
             }
         }
+        for (from, to) in edges_to_insert {
+            cfg.insert_edge(&from, &to);
+        }
 
         Ok(())
     }
@@ -46,17 +48,15 @@ impl GenerationPass for NodeDirectionPass {
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
-
     use super::*;
     use crate::parser::ProgramEntryType;
     use crate::{
-        cfg::CfgNode,
         parser::RVStringParser,
         passes::{CfgError, GenerationPass},
     };
+    use itertools::Itertools;
 
-    fn run_pass(text: &str) -> Result<Vec<Rc<CfgNode>>, Box<CfgError>> {
+    fn run_pass(text: &str) -> Result<Cfg, Box<CfgError>> {
         let parser_output = RVStringParser::parse_from_text(text);
         assert_eq!(parser_output.errors.len(), 0);
         let mut cfg = Cfg::new_with_predefined_call_names(
@@ -66,7 +66,7 @@ mod test {
         )
         .unwrap();
         NodeDirectionPass::run(&mut cfg)?;
-        Ok(cfg.iter().collect())
+        Ok(cfg)
     }
 
     #[test]
@@ -76,15 +76,16 @@ mod test {
             li a7, 10   \n\
             ecall       \n";
         let cfg = run_pass(input).unwrap();
-        assert_eq!(cfg.len(), 2);
-        assert_eq!(cfg[0].labels().len(), 1);
+        let nodes = cfg.nodes();
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].labels().len(), 1);
         assert_eq!(
-            cfg[0].labels().iter().next().unwrap().get().as_str(),
+            nodes[0].labels().iter().next().unwrap().get().as_str(),
             "main"
         );
-        assert!(cfg[0].prevs().is_empty());
-        assert!(cfg[0].nexts().len() == 1);
-        assert!(cfg[1].prevs().len() == 1);
-        assert!(cfg[1].nexts().is_empty());
+        assert!(cfg.get_prevs(nodes[0].as_ref()).len() == 0);
+        assert!(cfg.get_nexts(nodes[0].as_ref()).len() == 1);
+        assert!(cfg.get_prevs(nodes[1].as_ref()).len() == 1);
+        assert!(cfg.get_nexts(nodes[1].as_ref()).len() == 0);
     }
 }

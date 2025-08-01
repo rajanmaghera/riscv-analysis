@@ -22,10 +22,6 @@ use super::Segment;
 pub struct CfgNode {
     /// Parser node that this CFG node is wrapping.
     node: RefCell<ParserNode>,
-    /// CFG nodes that come after this one (forward edges).
-    nexts: RefCell<HashSet<Rc<CfgNode>>>,
-    /// CFG nodes that come before this one (backward edges).
-    prevs: RefCell<HashSet<Rc<CfgNode>>>,
     /// Is this node used as a function entry point?
     is_function_entry: bool,
     /// Is program entry
@@ -88,8 +84,6 @@ impl CfgNode {
             node: RefCell::new(node),
             is_function_entry,
             is_program_entry,
-            nexts: RefCell::new(HashSet::new()),
-            prevs: RefCell::new(HashSet::new()),
             function: RefCell::new(HashSet::new()),
             reg_values_in: RefCell::new(AvailableValueMap::new()),
             reg_values_out: RefCell::new(AvailableValueMap::new()),
@@ -123,14 +117,6 @@ impl CfgNode {
 
     pub fn node(&self) -> ParserNode {
         self.node.borrow().clone()
-    }
-
-    pub fn nexts(&self) -> Ref<HashSet<Rc<CfgNode>>> {
-        self.nexts.borrow()
-    }
-
-    pub fn prevs(&self) -> Ref<HashSet<Rc<CfgNode>>> {
-        self.prevs.borrow()
     }
 
     /// Return the functions that this node belongs to.
@@ -240,30 +226,6 @@ impl CfgNode {
 
     pub fn is_program_exit(&self) -> bool {
         self.known_ecall() == Some(10) || self.known_ecall() == Some(93)
-    }
-
-    pub fn insert_next(&self, next: Rc<CfgNode>) {
-        self.nexts.borrow_mut().insert(next);
-    }
-
-    pub fn remove_next(&self, next: &Rc<CfgNode>) {
-        self.nexts.borrow_mut().remove(next);
-    }
-
-    pub fn clear_nexts(&self) {
-        self.nexts.borrow_mut().clear();
-    }
-
-    pub fn insert_prev(&self, prev: Rc<CfgNode>) {
-        self.prevs.borrow_mut().insert(prev);
-    }
-
-    pub fn remove_prev(&self, prev: &Rc<CfgNode>) {
-        self.prevs.borrow_mut().remove(prev);
-    }
-
-    pub fn clear_prevs(&self) {
-        self.prevs.borrow_mut().clear();
     }
 
     /// If this node is an entry point, return the corresponding function.

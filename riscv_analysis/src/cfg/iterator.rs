@@ -132,23 +132,25 @@ impl Iterator for CfgSourceIterator {
 /// over.
 ///
 /// You must not modify the key of any CFG node during the traversal.
-pub struct CfgNextsIterator {
+pub struct CfgNextsIterator<'a> {
+    cfg: &'a Cfg,
     queue: Vec<Rc<CfgNode>>,      // Nodes we have seen but not visited yet
     visted: HashSet<Rc<CfgNode>>, // Nodes we have visited
 }
 
-impl CfgNextsIterator {
+impl<'a> CfgNextsIterator<'a> {
     /// Create a new iterator over all nodes reachable from `start`.
     #[must_use]
-    pub fn new(start: Rc<CfgNode>) -> Self {
+    pub fn new(cfg: &'a Cfg, start: Rc<CfgNode>) -> Self {
         Self {
+            cfg,
             queue: vec![start],
             visted: HashSet::new(),
         }
     }
 }
 
-impl Iterator for CfgNextsIterator {
+impl Iterator for CfgNextsIterator<'_> {
     type Item = Rc<CfgNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -163,7 +165,7 @@ impl Iterator for CfgNextsIterator {
             self.visted.insert(Rc::clone(&node));
 
             // Add all successor nodes to the queue
-            for suc in node.nexts().iter() {
+            for suc in self.cfg.get_nexts(node.as_ref()) {
                 self.queue.push(Rc::clone(suc));
             }
 
@@ -181,23 +183,25 @@ impl Iterator for CfgNextsIterator {
 /// over.
 ///
 /// You must not modify the key of any CFG node during the traversal.
-pub struct CfgPrevsIterator {
+pub struct CfgPrevsIterator<'a> {
+    cfg: &'a Cfg,
     queue: Vec<Rc<CfgNode>>,      // Nodes we have seen but not visited yet
     visted: HashSet<Rc<CfgNode>>, // Nodes we have visited
 }
 
-impl CfgPrevsIterator {
+impl<'a> CfgPrevsIterator<'a> {
     /// Create a new iterator over all nodes reachable from `start`.
     #[must_use]
-    pub fn new(start: Rc<CfgNode>) -> Self {
+    pub fn new(cfg: &'a Cfg, start: Rc<CfgNode>) -> Self {
         Self {
+            cfg,
             queue: vec![start],
             visted: HashSet::new(),
         }
     }
 }
 
-impl Iterator for CfgPrevsIterator {
+impl Iterator for CfgPrevsIterator<'_> {
     type Item = Rc<CfgNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -212,7 +216,7 @@ impl Iterator for CfgPrevsIterator {
             self.visted.insert(Rc::clone(&node));
 
             // Add all successor nodes to the queue
-            for suc in node.prevs().iter() {
+            for suc in self.cfg.get_prevs(node.as_ref()) {
                 self.queue.push(Rc::clone(suc));
             }
 

@@ -27,7 +27,7 @@ impl LintPass for ControlFlowCheck {
                         ));
                         continue;
                     }
-                    for prev_node in node.prevs().iter() {
+                    for prev_node in cfg.get_prevs(node.as_ref()) {
                         // Jumps (J not JAL) to the start of recognized
                         // functions are errors
                         if prev_node.is_unconditional_jump() {
@@ -41,7 +41,7 @@ impl LintPass for ControlFlowCheck {
                         }
                     }
                 }
-            } else if !node.is_program_entry() && node.prevs().is_empty() {
+            } else if !node.is_program_entry() && cfg.get_prevs(node.as_ref()).len() == 0 {
                 errors.push_real(
                     DiagnosticBuilder::new("unreachable-code", "Unreachable line of code")
                         .description("There is no path to this instruction.")
@@ -57,7 +57,7 @@ mod tests {
 
     use super::*;
     use crate::parser::{ProgramEntryType, RVStringParser};
-    use crate::passes::Manager;
+    use crate::passes::{DiagnosticLocation, Manager};
 
     fn run_pass(input: &str) -> DiagnosticManager {
         let parser_output = RVStringParser::parse_from_text(input);
