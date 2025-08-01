@@ -26,7 +26,7 @@ pub struct Function {
 
     /// Exit node of the function. Multiple exit points will be converted to a
     /// single exit point.
-    exit: RefCell<Rc<CfgNode>>,
+    exits: RefCell<Vec<Rc<CfgNode>>>,
 
     /// The registers that are set ever in the function
     defs: RefCell<RegisterSet>,
@@ -50,18 +50,13 @@ impl Function {
         )
     }
 
-    pub fn new(
-        labels: Vec<LabelStringToken>,
-        nodes: Vec<Rc<CfgNode>>,
-        entry: Rc<CfgNode>,
-        exit: Rc<CfgNode>,
-    ) -> Self {
+    pub fn new(labels: Vec<LabelStringToken>, nodes: Vec<Rc<CfgNode>>, entry: Rc<CfgNode>) -> Self {
         Function {
             id: Uuid::new_v4(),
             labels: labels.into_iter().collect::<HashSet<_>>(),
             nodes: RefCell::new(nodes),
             entry,
-            exit: RefCell::new(exit),
+            exits: RefCell::new(Vec::new()),
             defs: RefCell::new(RegisterSet::new()),
         }
     }
@@ -78,7 +73,11 @@ impl Function {
 
     #[must_use]
     pub fn returns(&self) -> RegisterSet {
-        self.exit().live_in() & Register::return_set()
+        self.exits()
+            .iter()
+            .map(|x| x.live_out() & Register::return_set())
+            .reduce(|acc, x| acc | x)
+            .unwrap_or_default()
     }
 
     /// Set the registers used by this function.
@@ -116,14 +115,14 @@ impl Function {
 
     /// Return the exit node of this function. In general, this corresponds to a
     /// `ret` instruction.
-    pub fn exit(&self) -> Ref<Rc<CfgNode>> {
-        self.exit.borrow()
+    pub fn exits(&self) -> Ref<Vec<Rc<CfgNode>>> {
+        self.exits.borrow()
     }
 
     /// Set the exit node of this function.
     #[must_use]
-    pub fn set_exit(&self, node: Rc<CfgNode>) -> bool {
-        self.exit.replace_if_changed(node)
+    pub fn set_exits(&self, nodes: Vec<Rc<CfgNode>>) -> bool {
+        self.exits.replace_if_changed(nodes)
     }
 }
 impl HasIdentity for Function {

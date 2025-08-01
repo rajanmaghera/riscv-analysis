@@ -293,7 +293,7 @@
   - bar
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   nexts:
   - 12
@@ -379,7 +379,7 @@
     imm: -4
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   nexts:
   - 13
@@ -514,7 +514,7 @@
     imm: 0
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   nexts:
   - 14
@@ -652,7 +652,7 @@
     imm: 4
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   nexts:
   - 15
@@ -795,7 +795,7 @@
     imm: 2
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   nexts:
   - 16
@@ -938,7 +938,7 @@
     name: foo
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   nexts:
   - 17
@@ -1076,7 +1076,7 @@
     imm: 0
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   nexts:
   - 18
@@ -1214,7 +1214,7 @@
     imm: 4
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   nexts:
   - 19
@@ -1359,7 +1359,7 @@
     imm: 4
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   nexts:
   - 20
@@ -1507,7 +1507,7 @@
     imm: 0
   func_entry:
   - 11
-  func_exit:
+  func_exits:
   - 20
   prevs:
   - 19
@@ -1636,7 +1636,7 @@
   - foo
   func_entry:
   - 21
-  func_exit:
+  func_exits:
   - 23
   nexts:
   - 22
@@ -1722,7 +1722,7 @@
     rs2: 11
   func_entry:
   - 21
-  func_exit:
+  func_exits:
   - 23
   nexts:
   - 23
@@ -1856,7 +1856,7 @@
     imm: 0
   func_entry:
   - 21
-  func_exit:
+  func_exits:
   - 23
   prevs:
   - 22

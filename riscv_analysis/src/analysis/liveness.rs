@@ -18,6 +18,7 @@ impl GenerationPass for LivenessPass {
             changed = false;
             for node in cfg.iter().rev() {
                 if node.is_return() {
+                    // live_out[F_exit] = live_out[F_exit] & return-registers
                     let live_out = node.live_out() & Register::return_set();
                     changed |= node.set_live_out(live_out);
                 } else {
@@ -33,11 +34,12 @@ impl GenerationPass for LivenessPass {
                 }
 
                 if let Some((func, _)) = node.calls_to_from_cfg(cfg) {
-                    // live_out[F_exit] = live_in[F_exit] U (live_out[n] & return-registers)
-                    // We take the union of the existing live_out to match multiple call sites
-                    let func_exit_live_out =
-                        (node.live_out() & Register::return_set()) | func.exit().live_out();
-                    changed |= func.exit().set_live_out(func_exit_live_out);
+                    for exit in func.exits().iter() {
+                        // live_out[F_exit] = live_out[F_exit] U (live_out[n] & return-registers)
+                        let func_exit_live_out =
+                            (node.live_out() & Register::return_set()) | exit.live_out();
+                        changed |= exit.set_live_out(func_exit_live_out);
+                    }
 
                     // u_def[n] = (AND u_def[s] for all s in prev[n]) - kill[n] | (u_def[F_exit] AND return-registers)
                     // kill[n] = caller-saved
@@ -57,10 +59,15 @@ impl GenerationPass for LivenessPass {
                         .reduce(|acc, x| acc & x)
                         .unwrap_or_default()
                         - Register::caller_saved_set())
-                        | (func.exit().u_def() & Register::return_set());
+                        | (func
+                            .exits()
+                            .iter()
+                            .map(|x| x.u_def())
+                            .reduce(|acc, x| acc & x)
+                            .unwrap_or_default()
+                            & Register::return_set());
 
-                    // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - kill[n])
-                    // kill[n] = caller-saved
+                    // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - caller-saved registers)
                     let live_in_temp = node.live_out() - node.kill_reg();
                     let live_in = (func.entry().live_out() & Register::argument_set())
                         | live_in_temp
@@ -141,8 +148,10 @@ impl LivenessPass {
         // For each given function, union the live_out set to the input list of Registers
         for (func_name, registers) in function_name_return {
             if let Some(func) = cfg.functions().get(&func_name) {
-                #[allow(unused_must_use)]
-                func.exit().set_live_out(func.exit().live_out() | registers);
+                for exit_node in func.exits().iter() {
+                    #[allow(unused_must_use)]
+                    exit_node.set_live_out(exit_node.live_out() | registers);
+                }
             }
         }
     }

@@ -224,7 +224,7 @@
   - func1
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 10
@@ -309,7 +309,7 @@
     imm: -4
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 11
@@ -442,7 +442,7 @@
     imm: 0
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 12
@@ -578,7 +578,7 @@
     imm: 32
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 13
@@ -719,7 +719,7 @@
   - L1
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 14
@@ -851,7 +851,7 @@
     imm: -4
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 15
@@ -979,7 +979,7 @@
     imm: 0
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 16
@@ -1109,7 +1109,7 @@
     imm: 64
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 17
@@ -1241,7 +1241,7 @@
     imm: 39
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 18
@@ -1375,7 +1375,7 @@
     rs2: 8
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 19
@@ -1510,7 +1510,7 @@
     rs2: 10
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 20
@@ -1643,7 +1643,7 @@
     imm: 0
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 21
@@ -1779,7 +1779,7 @@
     imm: 4
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 22
@@ -1919,7 +1919,7 @@
     imm: -1
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 23
@@ -2058,7 +2058,7 @@
     name: L1
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 13
@@ -2200,7 +2200,7 @@
   - L2
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 25
@@ -2329,7 +2329,7 @@
     imm: 0
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 26
@@ -2462,7 +2462,7 @@
     imm: 4
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   nexts:
   - 27
@@ -2599,7 +2599,7 @@
     imm: 0
   func_entry:
   - 9
-  func_exit:
+  func_exits:
   - 27
   prevs:
   - 26

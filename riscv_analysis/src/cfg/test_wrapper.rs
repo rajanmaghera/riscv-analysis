@@ -23,7 +23,7 @@ pub struct NodeWrapper {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub func_entry: Vec<usize>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub func_exit: Vec<usize>,
+    pub func_exits: Vec<usize>,
     #[serde(
         default,
         skip_serializing_if = "HashSet::is_empty",
@@ -70,13 +70,18 @@ impl NodeWrapper {
                         .unwrap()
                 })
                 .collect::<Vec<_>>(),
-            func_exit: node
+            func_exits: node
                 .functions()
                 .iter()
-                .map(|func| {
-                    cfg.iter()
-                        .position(|other| func.exit().id() == other.id())
-                        .unwrap()
+                .flat_map(|func| {
+                    func.exits()
+                        .iter()
+                        .map(|exit| {
+                            cfg.iter()
+                                .position(|other| exit.id() == other.id())
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
             nexts: node

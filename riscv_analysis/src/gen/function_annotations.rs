@@ -12,20 +12,16 @@ use crate::{
 struct MarkData {
     pub found: RegisterSet,
     pub instructions: Vec<Rc<CfgNode>>,
-    pub returns: Rc<CfgNode>,
+    pub returns: Vec<Rc<CfgNode>>,
 }
 
 pub struct FunctionMarkupPass;
 
 impl FunctionMarkupPass {
-    fn mark_reachable(
-        cfg: &Cfg,
-        entry: &Rc<CfgNode>,
-        func: &Rc<Function>,
-    ) -> Result<MarkData, Box<CfgError>> {
+    fn mark_reachable(cfg: &Cfg, entry: &Rc<CfgNode>, func: &Rc<Function>) -> MarkData {
         let mut defs = RegisterSet::new(); // Registers this function writes to
-        let mut returns = None; // Return instructions in this function
-        let mut instructions = vec![];
+        let mut returns = Vec::new(); // Return instructions in this function
+        let mut instructions = Vec::new();
 
         // Traverse the CFG for all nodes reachable from the entry point
         for node in cfg.iter_nexts(Rc::clone(entry)) {
@@ -40,49 +36,14 @@ impl FunctionMarkupPass {
 
             // Collect return instructions
             if node.is_return() {
-                // Set the newly found return to be an jump to the previously
-                // found return.
-                if let Some(ref prev_ret) = returns {
-                    let found_ret = Rc::clone(&node);
-
-                    // Fix the prevs & nexts of both returns
-                    found_ret.clear_nexts();
-                    found_ret.insert_next(Rc::clone(prev_ret));
-                    prev_ret.insert_prev(Rc::clone(&found_ret));
-
-                    // Convert the found return into a jump
-                    let info = Token::new(
-                        TokenType::Symbol("return".to_string()),
-                        found_ret.raw_text(),
-                        found_ret.range(),
-                        found_ret.file(),
-                    );
-
-                    let inst = With::new(JumpLinkType::Jal, info.clone());
-                    let rd = With::new(Register::X0, info.clone());
-                    let name = With::new(LabelString::new("__return__"), info.clone());
-                    let new_node =
-                        ParserNode::new_jump_link(inst, rd, name, prev_ret.node().token().clone());
-                    #[allow(unused_must_use)]
-                    found_ret.set_node(new_node);
-                }
-                // If this is the first return node, save it
-                else {
-                    returns = Some(Rc::clone(&node));
-                }
+                returns.push(Rc::clone(&node));
             }
         }
 
-        if let Some(ret) = returns {
-            Ok(MarkData {
-                found: defs,
-                instructions,
-                returns: ret,
-            })
-        }
-        // TODO: Handle functions with no return statements
-        else {
-            Err(Box::new(CfgError::UnexpectedError))
+        MarkData {
+            found: defs,
+            instructions,
+            returns,
         }
     }
 }
@@ -99,32 +60,20 @@ impl GenerationPass for FunctionMarkupPass {
             let labels = entry.labels().iter().cloned().collect::<Vec<_>>();
 
             // Insert a new function into the CFG
-            let func = Rc::new(Function::new(
-                labels.clone(),
-                vec![],
-                Rc::clone(&entry),
-                Rc::clone(&entry),
-            ));
+            let func = Rc::new(Function::new(labels.clone(), vec![], Rc::clone(&entry)));
 
             for label in &labels {
                 cfg.insert_function(label.clone(), Rc::clone(&func));
             }
 
             // Mark all CFG nodes that are reachable from this entry point
-            // FIXME: What to do if there is more than one return
-            match Self::mark_reachable(cfg, &entry, &Rc::clone(&func)) {
-                Ok(data) => {
-                    #[allow(unused_must_use)]
-                    func.set_defs(data.found);
-                    #[allow(unused_must_use)]
-                    func.set_nodes(data.instructions);
-                    #[allow(unused_must_use)]
-                    func.set_exit(data.returns);
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
+            let data = Self::mark_reachable(cfg, &entry, &Rc::clone(&func));
+            #[allow(unused_must_use)]
+            func.set_defs(data.found);
+            #[allow(unused_must_use)]
+            func.set_nodes(data.instructions);
+            #[allow(unused_must_use)]
+            func.set_exits(data.returns);
         }
 
         Ok(())

@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 /// Enum representing the different segments of a RISC-V binary.
 ///
 /// The segments are:
@@ -7,7 +9,7 @@
 /// All instructions must be in the `.text` segment, and all data
 /// must be in the `.data` segment. Jumping to instructions in
 /// the `.data` segment is highly unlikely.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Segment {
     /// The `.text` segment containing the instructions
     Text,
