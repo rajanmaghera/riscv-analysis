@@ -461,7 +461,7 @@ mod tests {
                 let res = serde_yaml::to_string(&res).unwrap();
                 let res: CfgWrapper = serde_yaml::from_str(&res).unwrap();
 
-                assert_eq!(res, compare);
+                assert!(res == compare, "file {} does not match expected output, this happens when internal node information behaviour is updated, use \"./generate-full-test-cases.sh\" to update test case outputs to match", filename);
             }
         };
     }
