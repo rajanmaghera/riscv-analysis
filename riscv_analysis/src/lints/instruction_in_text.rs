@@ -26,6 +26,9 @@ impl Default for InstructionInTextPass {
 }
 
 impl LintPass for InstructionInTextPass {
+    fn get_pass_name(&self) -> &'static str {
+        "instruction-in-text"
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_instruction() && node.segment() != Segment::Text {

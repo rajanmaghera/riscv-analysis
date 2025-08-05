@@ -22,6 +22,9 @@ impl Default for EcallPass {
 }
 
 impl LintPass for EcallPass {
+    fn get_pass_name(&self) -> &'static str {
+        "ecall"
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_ecall() && node.known_ecall().is_none() {

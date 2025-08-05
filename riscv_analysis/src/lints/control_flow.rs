@@ -4,7 +4,6 @@ use crate::{
     passes::{DiagnosticBuilder, DiagnosticManager, LintError, LintPass},
 };
 use std::rc::Rc;
-
 // TODO fix for program entry
 
 /// This pass checks for the following control flow issues:
@@ -27,6 +26,9 @@ impl Default for ControlFlowPass {
 }
 
 impl LintPass for ControlFlowPass {
+    fn get_pass_name(&self) -> &'static str {
+        "control-flow"
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in &cfg.clone() {
             if node.is_function_entry() {

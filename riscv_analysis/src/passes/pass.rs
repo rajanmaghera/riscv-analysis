@@ -30,6 +30,9 @@ pub trait LintPass {
     ///     }
     /// }
     /// impl LintPass for MyPass {
+    ///    fn get_pass_name(&self) -> &'static str {
+    ///       "my-pass"
+    ///    }
     ///    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
     ///       for node in cfg {
     ///         errors.push(LintError::InvalidStackPointer(node.node()));
@@ -42,6 +45,8 @@ pub trait LintPass {
     /// assert_eq!(errors.len(), 1);
     /// assert_eq!(errors[0].get_error_code(), "invalid-stack-pointer");
     /// ```
+    fn get_pass_name(&self) -> &'static str;
+
     #[must_use]
     fn run_single_pass_along_nodes(&self, nodes: &[ParserNode]) -> DiagnosticManager {
         let cfg = Cfg::new(

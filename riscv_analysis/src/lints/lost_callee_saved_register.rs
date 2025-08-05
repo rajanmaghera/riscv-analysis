@@ -11,7 +11,7 @@ pub struct LostCalleeSavedRegisterPass;
 impl LostCalleeSavedRegisterPass {
     #[must_use]
     pub fn new() -> Self {
-        Self
+        Self {}
     }
 }
 
@@ -22,6 +22,9 @@ impl Default for LostCalleeSavedRegisterPass {
 }
 
 impl LintPass for LostCalleeSavedRegisterPass {
+    fn get_pass_name(&self) -> &'static str {
+        "lost-called-saved-register"
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             let callee = Register::saved_set();

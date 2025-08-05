@@ -20,6 +20,10 @@ impl Default for CalleeSavedRegisterPass {
 }
 
 impl LintPass for CalleeSavedRegisterPass {
+    fn get_pass_name(&self) -> &'static str {
+        "callee-saved-register"
+    }
+
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for func in cfg.functions().values() {
             for exit in func.exits().iter() {

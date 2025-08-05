@@ -22,6 +22,9 @@ impl Default for DeadValuePass {
 }
 
 impl LintPass for DeadValuePass {
+    fn get_pass_name(&self) -> &'static str {
+        "dead-value"
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // check the out of the node for any uses that

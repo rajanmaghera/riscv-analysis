@@ -18,6 +18,9 @@ impl Default for SaveToZeroPass {
 }
 
 impl LintPass for SaveToZeroPass {
+    fn get_pass_name(&self) -> &'static str {
+        "save-to-zero"
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if let Some(register) = node.writes_to() {

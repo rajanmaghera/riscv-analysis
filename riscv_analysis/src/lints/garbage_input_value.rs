@@ -11,8 +11,8 @@ use crate::{
 pub struct GarbageInputValuePass;
 impl GarbageInputValuePass {
     #[must_use]
-    pub fn new() -> GarbageInputValuePass {
-        GarbageInputValuePass {}
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
@@ -23,6 +23,9 @@ impl Default for GarbageInputValuePass {
 }
 
 impl LintPass for GarbageInputValuePass {
+    fn get_pass_name(&self) -> &'static str {
+        "garbage-input-value"
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             if node.is_program_entry() {

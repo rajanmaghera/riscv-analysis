@@ -19,6 +19,10 @@ impl Default for CalleeSavedGarbageReadPass {
 }
 
 impl LintPass for CalleeSavedGarbageReadPass {
+    fn get_pass_name(&self) -> &'static str {
+        "callee-saved-garbage-read"
+    }
+
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             for read in node.reads_from() {

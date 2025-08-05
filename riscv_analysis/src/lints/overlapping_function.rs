@@ -26,6 +26,9 @@ impl Default for OverlappingFunctionPass {
 }
 
 impl LintPass for OverlappingFunctionPass {
+    fn get_pass_name(&self) -> &'static str {
+        "overlapping-function"
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg {
             // Capture entry points that are part of more than one function

@@ -20,6 +20,9 @@ impl Default for StackPass {
 }
 
 impl LintPass for StackPass {
+    fn get_pass_name(&self) -> &'static str {
+        "stack"
+    }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         // PASS 1
         // check that we know the stack position at every point in the program
