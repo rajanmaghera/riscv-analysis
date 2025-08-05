@@ -20,7 +20,7 @@ impl FunctionMarkupPass {
         let mut instructions = Vec::new();
 
         // Traverse the CFG for all nodes reachable from the entry point
-        for node in cfg.iter_nexts(entry) {
+        for node in cfg.iter_breadth_first(entry) {
             // Mark the node as being a part of the given function
             instructions.push(Rc::clone(node));
             node.insert_function(Rc::clone(func));

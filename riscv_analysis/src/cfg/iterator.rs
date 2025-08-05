@@ -132,13 +132,13 @@ impl<'a> Iterator for CfgSourceIterator<'a> {
 /// over.
 ///
 /// You must not modify the key of any CFG node during the traversal.
-pub struct CfgNextsIterator<'a> {
+pub struct CfgBreadthFirstIterator<'a> {
     cfg: &'a Cfg,
     queue: Vec<&'a Rc<CfgNode>>, // Nodes we have seen but not visited yet
     visted: HashSet<&'a Rc<CfgNode>>, // Nodes we have visited
 }
 
-impl<'a> CfgNextsIterator<'a> {
+impl<'a> CfgBreadthFirstIterator<'a> {
     /// Create a new iterator over all nodes reachable from `start`.
     #[must_use]
     pub fn new(cfg: &'a Cfg, start: &'a Rc<CfgNode>) -> Self {
@@ -150,7 +150,7 @@ impl<'a> CfgNextsIterator<'a> {
     }
 }
 
-impl<'a> Iterator for CfgNextsIterator<'a> {
+impl<'a> Iterator for CfgBreadthFirstIterator<'a> {
     type Item = &'a Rc<CfgNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -166,57 +166,6 @@ impl<'a> Iterator for CfgNextsIterator<'a> {
 
             // Add all successor nodes to the queue
             for suc in self.cfg.get_nexts(node) {
-                self.queue.push(suc);
-            }
-
-            return Some(node);
-        }
-
-        None
-    }
-}
-
-/// Iterate over all CFG nodes reachable from some start node, using the prevs.
-///
-/// This iterator uses the `prevs()` functions of each CFG node. Thus if the
-/// `NodeDirectionPass` has not run yet, only the start node will be iterated
-/// over.
-///
-/// You must not modify the key of any CFG node during the traversal.
-pub struct CfgPrevsIterator<'a> {
-    cfg: &'a Cfg,
-    queue: Vec<&'a Rc<CfgNode>>, // Nodes we have seen but not visited yet
-    visted: HashSet<&'a Rc<CfgNode>>, // Nodes we have visited
-}
-
-impl<'a> CfgPrevsIterator<'a> {
-    /// Create a new iterator over all nodes reachable from `start`.
-    #[must_use]
-    pub fn new(cfg: &'a Cfg, start: &'a Rc<CfgNode>) -> Self {
-        Self {
-            cfg,
-            queue: vec![start],
-            visted: HashSet::new(),
-        }
-    }
-}
-
-impl<'a> Iterator for CfgPrevsIterator<'a> {
-    type Item = &'a Rc<CfgNode>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // If the queue runs out, there are no more nodes that are reachable
-        while let Some(node) = self.queue.pop() {
-            // Skip over nodes we have already visited
-            if self.visted.contains(&node) {
-                continue;
-            }
-
-            // Mark this node as visited
-            self.visted.insert(node);
-
-            // Add all successor nodes to the queue
-            for suc in self.cfg.get_prevs(node) {
                 self.queue.push(suc);
             }
 
