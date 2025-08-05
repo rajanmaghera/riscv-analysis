@@ -1,5 +1,4 @@
 use super::CfgBreadthFirstIterator;
-use super::CfgIterator;
 use super::CfgNode;
 use super::CfgSourceIterator;
 use super::Function;
@@ -26,15 +25,9 @@ pub struct Cfg {
 }
 
 impl Cfg {
-    /// Get an iterator over the `Cfg` nodes.
-    #[must_use]
-    pub fn iter(&self) -> CfgIterator {
-        CfgIterator::new(self)
-    }
-
     /// Get an iterator over the `Cfg` nodes in source order.
     #[must_use]
-    pub fn iter_source(&self) -> CfgSourceIterator {
+    pub fn iter_source(&self) -> CfgSourceIterator<'_> {
         CfgSourceIterator::new(self)
     }
 
@@ -60,15 +53,6 @@ impl Cfg {
     #[must_use]
     pub fn nodes(&self) -> &Vec<Rc<CfgNode>> {
         &self.nodes
-    }
-}
-
-impl<'a> IntoIterator for &'a Cfg {
-    type IntoIter = CfgIterator<'a>;
-    type Item = &'a Rc<CfgNode>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
     }
 }
 

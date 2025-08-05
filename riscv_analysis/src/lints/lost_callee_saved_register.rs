@@ -26,7 +26,7 @@ impl LintPass for LostCalleeSavedRegisterPass {
         "lost-called-saved-register"
     }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg {
+        for node in cfg.iter_source() {
             let callee = Register::saved_set();
 
             // If: within a function, node stores to a saved register,

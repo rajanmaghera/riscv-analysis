@@ -65,7 +65,7 @@ impl NodeWrapper {
                 .functions()
                 .iter()
                 .map(|func| {
-                    cfg.iter()
+                    cfg.iter_source()
                         .position(|other| func.entry().id() == other.id())
                         .unwrap()
                 })
@@ -77,7 +77,7 @@ impl NodeWrapper {
                     func.exits()
                         .iter()
                         .map(|exit| {
-                            cfg.iter()
+                            cfg.iter_source()
                                 .position(|other| exit.id() == other.id())
                                 .unwrap()
                         })
@@ -86,11 +86,11 @@ impl NodeWrapper {
                 .collect::<Vec<_>>(),
             nexts: cfg
                 .get_nexts(node)
-                .map(|x| cfg.iter().position(|y| x.id() == y.id()).unwrap())
+                .map(|x| cfg.iter_source().position(|y| x.id() == y.id()).unwrap())
                 .collect(),
             prevs: cfg
                 .get_prevs(node)
-                .map(|x| cfg.iter().position(|y| x.id() == y.id()).unwrap())
+                .map(|x| cfg.iter_source().position(|y| x.id() == y.id()).unwrap())
                 .collect(),
             reg_values_in: node.reg_values_in(),
             reg_values_out: node.reg_values_out(),
@@ -108,7 +108,11 @@ pub struct CfgWrapper(Vec<NodeWrapper>);
 
 impl From<&Cfg> for CfgWrapper {
     fn from(cfg: &Cfg) -> Self {
-        CfgWrapper(cfg.iter().map(|x| NodeWrapper::from(x, cfg)).collect())
+        CfgWrapper(
+            cfg.iter_source()
+                .map(|x| NodeWrapper::from(x, cfg))
+                .collect(),
+        )
     }
 }
 

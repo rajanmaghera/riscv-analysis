@@ -29,7 +29,7 @@ impl LintPass for StackPass {
         // check that the stack is never in an invalid position
         // TODO check that the stack stores always happen to a place that is negative
         // TODO move to impl methods
-        'outer: for node in cfg {
+        'outer: for node in cfg.iter_source() {
             let values = node.reg_values_out();
             match values.get(&Register::X2) {
                 None => {

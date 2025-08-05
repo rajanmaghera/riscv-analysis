@@ -16,11 +16,11 @@ impl GenerationPass for NodeDirectionPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
         let mut prev: Option<Rc<CfgNode>> = None;
         let mut edges_to_insert = Vec::new();
-        for node in cfg.iter() {
+        for node in cfg.iter_source() {
             // If node jumps to another node, add it to the nexts of the current node and the prevs of the node it jumps to.
             if let Some(label) = node.jumps_to() {
                 let jump_to_node = cfg
-                    .iter()
+                    .iter_source()
                     .find(|n| n.labels().contains(&label))
                     .ok_or_else(|| CfgError::UnexpectedError)?;
                 edges_to_insert.push((Rc::clone(node), Rc::clone(jump_to_node)));

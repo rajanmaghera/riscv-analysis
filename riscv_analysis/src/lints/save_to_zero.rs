@@ -22,7 +22,7 @@ impl LintPass for SaveToZeroPass {
         "save-to-zero"
     }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg {
+        for node in cfg.iter_source() {
             if let Some(register) = node.writes_to() {
                 if register == Register::X0 && !node.can_skip_save_checks() {
                     errors.push(LintError::SaveToZero(register.clone()));

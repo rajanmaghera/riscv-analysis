@@ -32,7 +32,7 @@ pub trait LintPass {
     ///       "my-pass"
     ///    }
     ///    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-    ///       for node in cfg {
+    ///       for node in cfg.iter_source() {
     ///         errors.push(LintError::InvalidStackPointer(node.node()));
     ///      }
     ///   }

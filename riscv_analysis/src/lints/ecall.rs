@@ -26,7 +26,7 @@ impl LintPass for EcallPass {
         "ecall"
     }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg {
+        for node in cfg.iter_source() {
             if node.is_ecall() && node.known_ecall().is_none() {
                 errors.push(LintError::UnknownEcall(node.node().clone()));
             }

@@ -46,7 +46,8 @@ impl FunctionMarkupPass {
 
 impl GenerationPass for FunctionMarkupPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
-        for entry in &cfg.clone() {
+        let mut functions_to_insert = Vec::new();
+        for entry in cfg.clone().iter_source() {
             // Skip all nodes that are not entry points
             if !entry.is_function_entry() {
                 continue;
@@ -59,17 +60,21 @@ impl GenerationPass for FunctionMarkupPass {
             let func = Rc::new(Function::new(labels.clone(), vec![], Rc::clone(entry)));
 
             for label in &labels {
-                cfg.insert_function(label.clone(), Rc::clone(&func));
+                functions_to_insert.push((label.clone(), Rc::clone(&func)));
             }
 
             // Mark all CFG nodes that are reachable from this entry point
-            let data = Self::mark_reachable(cfg, entry, &Rc::clone(&func));
+            let data = Self::mark_reachable(cfg, entry, &func);
             #[allow(unused_must_use)]
             func.set_defs(data.found);
             #[allow(unused_must_use)]
             func.set_nodes(data.instructions);
             #[allow(unused_must_use)]
             func.set_exits(data.returns);
+        }
+
+        for (label, func) in functions_to_insert {
+            cfg.insert_function(label, func);
         }
 
         Ok(())
@@ -128,7 +133,7 @@ mod tests {
         assert_eq!(funcs.len(), 0);
 
         // All nodes should have no function annotations
-        for node in &cfg {
+        for node in cfg.iter_source() {
             assert_eq!(node.functions().len(), 0);
         }
     }

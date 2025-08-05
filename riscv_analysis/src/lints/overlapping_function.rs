@@ -30,7 +30,7 @@ impl LintPass for OverlappingFunctionPass {
         "overlapping-function"
     }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg {
+        for node in cfg.iter_source() {
             // Capture entry points that are part of more than one function
             // NOTE: We only give an error for the first line of a function,
             //       even though there may be many overlapping instructions.

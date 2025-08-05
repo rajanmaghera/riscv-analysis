@@ -16,7 +16,7 @@ impl GenerationPass for LivenessPass {
         let mut visited = HashSet::new();
         while changed {
             changed = false;
-            for node in cfg.iter().rev() {
+            for node in cfg.iter_source().rev() {
                 if node.is_return() {
                     // live_out[F_exit] = live_out[F_exit] & return-registers
                     let live_out = node.live_out() & Register::return_set();

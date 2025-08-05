@@ -27,7 +27,7 @@ impl LintPass for GarbageInputValuePass {
         "garbage-input-value"
     }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg {
+        for node in cfg.iter_source() {
             if node.is_program_entry() {
                 // get registers
                 let garbage = node.live_in() - Register::program_args_set();

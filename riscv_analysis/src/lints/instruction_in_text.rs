@@ -30,7 +30,7 @@ impl LintPass for InstructionInTextPass {
         "instruction-in-text"
     }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg {
+        for node in cfg.iter_source() {
             if node.is_instruction() && node.segment() != Segment::Text {
                 errors.push(LintError::InvalidSegment(node.node().clone()));
             }

@@ -86,7 +86,7 @@ impl Cfg {
         let mut interrupt_handler_names = HashSet::new();
 
         // Look for names of labels that are set to the interrupt vector CSR.
-        for node in self {
+        for node in self.iter_source() {
             if let Some((csr, Some(AvailableValue::Address(label)))) = node.sets_csr_to_value() {
                 if csr.is_interrupt_vector() {
                     interrupt_handler_names.insert(label);

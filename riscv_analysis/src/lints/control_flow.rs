@@ -30,7 +30,7 @@ impl LintPass for ControlFlowPass {
         "control-flow"
     }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in &cfg.clone() {
+        for node in cfg.iter_source() {
             if node.is_function_entry() {
                 for function in node.functions().iter() {
                     // If the previous nodes set is not empty
