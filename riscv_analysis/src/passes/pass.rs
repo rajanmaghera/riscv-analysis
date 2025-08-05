@@ -44,6 +44,7 @@ pub trait LintPass {
                 nodes: nodes.into(),
                 ..Default::default()
             },
+            None,
             &ProgramEntryType::FirstInstruction,
         )
         .unwrap();

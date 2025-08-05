@@ -108,13 +108,6 @@ impl BaseCfgGen for Vec<ParserNode> {
 impl Cfg {
     pub fn new(
         parser_output: RVParserOutput,
-        program_entry: &ProgramEntryType,
-    ) -> Result<Cfg, Box<CfgError>> {
-        Cfg::new_with_predefined_call_names(parser_output, None, program_entry)
-    }
-
-    pub fn new_with_predefined_call_names(
-        parser_output: RVParserOutput,
         predefined_call_names: Option<&HashSet<LabelStringToken>>,
         program_entry: &ProgramEntryType,
     ) -> Result<Cfg, Box<CfgError>> {

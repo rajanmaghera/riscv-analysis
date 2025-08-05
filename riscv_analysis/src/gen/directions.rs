@@ -59,12 +59,7 @@ mod test {
     fn run_pass(text: &str) -> Result<Cfg, Box<CfgError>> {
         let parser_output = RVStringParser::parse_from_text(text);
         assert_eq!(parser_output.errors.len(), 0);
-        let mut cfg = Cfg::new_with_predefined_call_names(
-            parser_output,
-            None,
-            &ProgramEntryType::FirstInstruction,
-        )
-        .unwrap();
+        let mut cfg = Cfg::new(parser_output, None, &ProgramEntryType::FirstInstruction).unwrap();
         NodeDirectionPass::run(&mut cfg)?;
         Ok(cfg)
     }

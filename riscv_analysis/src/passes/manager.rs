@@ -30,7 +30,7 @@ impl Manager {
     ) -> Result<Cfg, Box<CfgError>> {
         // Stage 1: Generate names of interrupt handler functions
         let mut predefined = {
-            let mut cfg = Cfg::new(parser_output.clone(), program_entry)?;
+            let mut cfg = Cfg::new(parser_output.clone(), None, program_entry)?;
             NodeDirectionPass::run(&mut cfg)?;
             AvailableValuePass::run(&mut cfg)?;
             cfg.get_names_of_interrupt_handler_functions()
@@ -46,8 +46,7 @@ impl Manager {
         predefined.extend(injected.iter().map(|(name, _)| name.clone()));
 
         // Stage 2: Generate full CFG
-        let mut cfg =
-            Cfg::new_with_predefined_call_names(parser_output, Some(&predefined), program_entry)?;
+        let mut cfg = Cfg::new(parser_output, Some(&predefined), program_entry)?;
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
         AvailableValuePass::run(&mut cfg)?;
