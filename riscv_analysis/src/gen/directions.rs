@@ -54,7 +54,6 @@ mod test {
         parser::RVStringParser,
         passes::{CfgError, GenerationPass},
     };
-    use itertools::Itertools;
 
     fn run_pass(text: &str) -> Result<Cfg, Box<CfgError>> {
         let parser_output = RVStringParser::parse_from_text(text);

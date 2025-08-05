@@ -8,11 +8,11 @@ use riscv_analysis::passes::DiagnosticItem;
 use riscv_analysis::passes::SeverityLevel;
 use riscv_analysis::reader::{FileReader, FileReaderError};
 use std::collections::HashMap;
+use std::str::FromStr;
 
 mod completion;
 pub use completion::*;
 use serde::{Deserialize, Serialize};
-use url::Url;
 use uuid::Uuid;
 
 trait RangeInto {
@@ -68,7 +68,7 @@ impl LSPDiag for DiagnosticItem {
                     f.into_iter()
                         .map(|f1| DiagnosticRelatedInformation {
                             location: Location {
-                                uri: Url::parse(
+                                uri: lsp_types::Uri::from_str(
                                     &parser.reader.get_filename(f1.file).unwrap_or_default(), // Empty string by default
                                 )
                                 .unwrap(),
@@ -125,12 +125,12 @@ impl FileReader for LSPFileReader {
         let fulluri = match parent_file {
             Some(uuid) => {
                 let doc = self.file_uris.get(&uuid).unwrap();
-                let uri = lsp_types::Url::parse(&doc.uri).unwrap();
-                let fileuri = uri.join(path).unwrap();
-                fileuri.to_string()
+                lsp_types::Uri::from_str(&(doc.uri.to_owned() + path))
+                    .unwrap()
+                    .to_string()
             }
             // otherwise, this is the full path to the file, denoted by its uri
-            None => lsp_types::Url::parse(path).unwrap().to_string(),
+            None => lsp_types::Uri::from_str(path).unwrap().to_string(),
         };
 
         // find file in values of hashmap

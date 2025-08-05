@@ -73,7 +73,7 @@ mod tests {
 
     use super::*;
     use crate::parser::{ProgramEntryType, RVStringParser};
-    use crate::passes::{DiagnosticLocation, Manager};
+    use crate::passes::Manager;
 
     fn run_pass(input: &str) -> DiagnosticManager {
         let parser_output = RVStringParser::parse_from_text(input);

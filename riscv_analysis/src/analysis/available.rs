@@ -73,7 +73,7 @@ pub enum AvailableValue {
     #[serde(rename = "omr")]
     MemoryAtOriginalRegister(Register, i32), // Actual bit of memory + offset (ex. lw ___), where we are sure it is the same as the original
     /// The value inside of a CSR register.
-    #[serde(rename = "c")]
+    #[serde(rename = "csr")]
     ValueInCsr(CsrImm),
     /// Value at memory location of value in CSR register.
     #[serde(rename = "mc")]

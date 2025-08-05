@@ -5,7 +5,6 @@ use riscv_analysis::parser::{CanGetURIString, ProgramEntryType, RVDocument, RVPa
 use riscv_analysis::reader::FileReader;
 use serde_wasm_bindgen::to_value;
 use std::collections::{HashMap, HashSet};
-use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 
 // WASM MODULES
@@ -26,7 +25,6 @@ pub fn riscv_get_uncond_completions() -> JsValue {
 }
 
 trait FileReading {
-    fn get_full_url(&mut self, path: &str, uuid: Uuid) -> String;
     fn get_imports(&mut self, base: &str) -> HashSet<String>;
 }
 
@@ -34,13 +32,6 @@ impl<T> FileReading for RVParser<T>
 where
     T: CanGetURIString + Clone + FileReader,
 {
-    fn get_full_url(&mut self, path: &str, uuid: Uuid) -> String {
-        let doc = self.reader.get_uri_string(uuid);
-        let uri = lsp_types::Url::parse(&doc.uri).unwrap();
-        let fileuri = uri.join(path).unwrap();
-        fileuri.to_string()
-    }
-
     /// Return the imported files of a file
     fn get_imports(&mut self, base: &str) -> HashSet<String> {
         self.parse_from_file(base, true)

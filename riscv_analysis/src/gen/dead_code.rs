@@ -42,27 +42,3 @@ impl GenerationPass for EliminateDeadCodeDirectionsPass {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod test {
-
-    use std::rc::Rc;
-
-    use super::*;
-    use crate::parser::ProgramEntryType;
-    use crate::{
-        cfg::CfgNode,
-        gen::NodeDirectionPass,
-        parser::RVStringParser,
-        passes::{CfgError, GenerationPass},
-    };
-
-    fn run_pass(text: &str) -> Result<Vec<Rc<CfgNode>>, Box<CfgError>> {
-        let parser_output = RVStringParser::parse_from_text(text);
-        assert_eq!(parser_output.errors.len(), 0);
-        let mut cfg = Cfg::new(parser_output, None, &ProgramEntryType::FirstInstruction).unwrap();
-        NodeDirectionPass::run(&mut cfg)?;
-        EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
-        Ok(cfg.iter_source().cloned().collect())
-    }
-}
