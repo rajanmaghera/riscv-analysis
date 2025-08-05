@@ -43,7 +43,7 @@ impl DoubleEndedIterator for CfgSourceIterator<'_> {
 pub struct CfgBreadthFirstIterator<'a> {
     cfg: &'a Cfg,
     queue: Vec<&'a Rc<CfgNode>>, // Nodes we have seen but not visited yet
-    visted: HashSet<&'a Rc<CfgNode>>, // Nodes we have visited
+    visited: HashSet<&'a Rc<CfgNode>>, // Nodes we have visited
 }
 
 impl<'a> CfgBreadthFirstIterator<'a> {
@@ -53,7 +53,7 @@ impl<'a> CfgBreadthFirstIterator<'a> {
         Self {
             cfg,
             queue: vec![start],
-            visted: HashSet::new(),
+            visited: HashSet::new(),
         }
     }
 }
@@ -65,12 +65,12 @@ impl<'a> Iterator for CfgBreadthFirstIterator<'a> {
         // If the queue runs out, there are no more nodes that are reachable
         while let Some(node) = self.queue.pop() {
             // Skip over nodes we have already visited
-            if self.visted.contains(node) {
+            if self.visited.contains(node) {
                 continue;
             }
 
             // Mark this node as visited
-            self.visted.insert(node);
+            self.visited.insert(node);
 
             // Add all successor nodes to the queue
             for suc in self.cfg.get_nexts(node) {
