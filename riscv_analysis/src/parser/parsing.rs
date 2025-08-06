@@ -1182,7 +1182,14 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                         DirectiveToken::EndMacro => {
                             Err(LexError::IgnoredWithWarning(Box::new(next_node)))
                         }
-                        DirectiveToken::Section | DirectiveToken::Extern | DirectiveToken::Eqv => {
+                        DirectiveToken::Section => {
+                            // We have jumped to an unknown section.
+                            // For our purposes, we will skip until we reach a directive token
+                            // we care about.
+                            lex.current_segment = Segment::Unknown;
+                            Err(LexError::IgnoredWithoutWarning)
+                        }
+                        DirectiveToken::Extern | DirectiveToken::Eqv => {
                             Err(LexError::UnsupportedDirective(Box::new(next_node)))
                         }
                         DirectiveToken::Global | DirectiveToken::Globl => {

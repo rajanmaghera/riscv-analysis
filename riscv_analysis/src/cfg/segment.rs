@@ -15,4 +15,6 @@ pub enum Segment {
     Text,
     /// The `.data` segment containing binary data
     Data,
+    /// Any `.section` segment that we do not care about
+    Unknown,
 }
