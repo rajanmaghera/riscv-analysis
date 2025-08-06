@@ -155,7 +155,7 @@ impl<T: FileReader> RVParser<T> {
                         self.recover_from_parse_error();
                     }
                     LexError::UnknownDirective(y) => {
-                        errors.push(ParseError::UnknownDirective(y));
+                        // errors.push(ParseError::UnknownDirective(y));
                         self.recover_from_parse_error();
                     }
                     LexError::IgnoredWithWarning(y) | LexError::UnsupportedDirective(y) => {
@@ -955,15 +955,31 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                                         mem::take(&mut lex.current_labels),
                                     ))
                                 }
-                                PseudoType::Sgez => {
+                                PseudoType::Sgt => {
+                                    let rd = lex.get_reg()?;
                                     let rs1 = lex.get_reg()?;
-                                    let label = lex.get_label()?;
+                                    let rs2 = lex.get_reg()?;
                                     let raw_token = lex.take_raw_token()?;
-                                    Ok(ParserNode::new_branch(
-                                        With::new(BranchType::Bge, next_node.clone()),
-                                        With::new(Register::X0, next_node.clone()),
+                                    Ok(ParserNode::new_arith(
+                                        With::new(ArithType::Slt, next_node.clone()),
+                                        rd,
+                                        rs2,
                                         rs1,
-                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Sgtu => {
+                                    let rd = lex.get_reg()?;
+                                    let rs1 = lex.get_reg()?;
+                                    let rs2 = lex.get_reg()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_arith(
+                                        With::new(ArithType::Sltu, next_node.clone()),
+                                        rd,
+                                        rs2,
+                                        rs1,
                                         raw_token,
                                         lex.current_segment,
                                         mem::take(&mut lex.current_labels),
