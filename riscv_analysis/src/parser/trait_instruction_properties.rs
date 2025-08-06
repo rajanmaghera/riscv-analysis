@@ -63,7 +63,7 @@ pub trait InstructionProperties {
 
     /// Checks whether this instruction writes to a register, and which register it writes to.
     #[must_use]
-    fn writes_to(&self) -> Option<RegisterToken>;
+    fn writes_to(&self) -> HashSet<RegisterToken>;
 
     /// Checks whether this instruction reads from a register, and which registers it reads from.
     #[must_use]

@@ -53,9 +53,11 @@ impl LintPass for DeadValuePass {
             // Check for any assignments that don't make it
             // to the end of the node. These assignments are not
             // used.
-            else if let Some(def) = node.writes_to() {
-                if !node.live_out().contains(def.get()) && !node.can_skip_save_checks() {
-                    errors.push(LintError::DeadAssignment(def));
+            else {
+                for def in node.writes_to() {
+                    if !node.live_out().contains(def.get()) && !node.can_skip_save_checks() {
+                        errors.push(LintError::DeadAssignment(def.clone()));
+                    }
                 }
             }
         }

@@ -136,17 +136,17 @@ impl InstructionProperties for ParserNode {
         }
     }
 
-    fn writes_to(&self) -> Option<RegisterToken> {
+    fn writes_to(&self) -> HashSet<RegisterToken> {
         match self {
-            ParserNode::Load(load) => Some(load.rd.clone()),
-            ParserNode::LoadAddr(load) => Some(load.rd.clone()),
-            ParserNode::Arith(arith) => Some(arith.rd.clone()),
-            ParserNode::IArith(iarith) => Some(iarith.rd.clone()),
-            ParserNode::JumpLink(jump_link) => Some(jump_link.rd.clone()),
-            ParserNode::JumpLinkR(jump_link_r) => Some(jump_link_r.rd.clone()),
-            ParserNode::Csr(csr) => Some(csr.rd.clone()),
-            ParserNode::CsrI(csri) => Some(csri.rd.clone()),
-            ParserNode::Basic(_) | ParserNode::Branch(_) | ParserNode::Store(_) => None,
+            ParserNode::Load(load) => [load.rd.clone()].into(),
+            ParserNode::LoadAddr(load) => [load.rd.clone()].into(),
+            ParserNode::Arith(arith) => [arith.rd.clone()].into(),
+            ParserNode::IArith(iarith) => [iarith.rd.clone()].into(),
+            ParserNode::JumpLink(jump_link) => [jump_link.rd.clone()].into(),
+            ParserNode::JumpLinkR(jump_link_r) => [jump_link_r.rd.clone()].into(),
+            ParserNode::Csr(csr) => [csr.rd.clone()].into(),
+            ParserNode::CsrI(csri) => [csri.rd.clone()].into(),
+            ParserNode::Basic(_) | ParserNode::Branch(_) | ParserNode::Store(_) => HashSet::new(),
         }
     }
 

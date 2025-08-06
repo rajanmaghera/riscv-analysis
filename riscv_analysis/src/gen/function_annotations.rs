@@ -26,7 +26,7 @@ impl FunctionMarkupPass {
             node.insert_function(Rc::clone(func));
 
             // Collect any registers written to by the node
-            if let Some(dest) = node.writes_to() {
+            for dest in node.writes_to() {
                 defs |= dest.get_cloned();
             }
 

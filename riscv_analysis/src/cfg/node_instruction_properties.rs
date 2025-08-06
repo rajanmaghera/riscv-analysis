@@ -1,4 +1,5 @@
 use crate::parser::{Imm, InstructionProperties, LabelStringToken, Register, RegisterToken};
+use std::collections::HashSet;
 
 use super::CfgNode;
 
@@ -55,7 +56,7 @@ impl InstructionProperties for CfgNode {
         self.node().is_some_jump_to_label()
     }
 
-    fn writes_to(&self) -> Option<RegisterToken> {
+    fn writes_to(&self) -> HashSet<RegisterToken> {
         self.node().writes_to()
     }
 

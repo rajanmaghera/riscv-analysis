@@ -33,7 +33,7 @@ impl LintPass for LostCalleeSavedRegisterPass {
             // and the value going in was the original value
             // We intentionally do not check for callee-saved registers
             // as the value is mean to be modified
-            if let Some(reg) = node.writes_to() {
+            for reg in node.writes_to() {
                 if callee.contains(reg.get())
                     && node.is_part_of_some_function()
                     && node.reg_values_in().get(reg.get())

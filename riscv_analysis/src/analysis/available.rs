@@ -259,7 +259,7 @@ fn rule_expand_address_for_load(
     available_out: &mut AvailableValueMap<Register>,
     available_in: &AvailableValueMap<Register>,
 ) {
-    if let Some(store_reg) = node.writes_to() {
+    for store_reg in node.writes_to() {
         if let ParserNode::Load(load) = node {
             if let Some(AvailableValue::OriginalRegisterWithScalar(reg, off)) =
                 available_in.get(load.rs1.get())
@@ -287,7 +287,7 @@ fn rule_perform_math_ops(
     available_out: &mut AvailableValueMap<Register>,
     available_in: &AvailableValueMap<Register>,
 ) {
-    if let Some(reg) = node.writes_to() {
+    for reg in node.writes_to() {
         let lhs = match node {
             ParserNode::Arith(expr) => available_in.get(expr.rs1.get()).cloned(),
             ParserNode::IArith(expr) => available_in.get(expr.rs1.get()).cloned(),
@@ -336,7 +336,7 @@ fn rule_value_from_stack(
     available_out: &mut AvailableValueMap<Register>,
     memory_in: &AvailableValueMap<MemoryLocation>,
 ) {
-    if let Some(reg) = node.writes_to() {
+    for reg in node.writes_to() {
         if let Some(AvailableValue::ValueInCsr(csr)) = available_out.get(reg.get()) {
             if let Some(csr_value) = memory_in.get(&MemoryLocation::CsrRegister(*csr)) {
                 available_out.insert(reg.get_cloned(), csr_value.clone());

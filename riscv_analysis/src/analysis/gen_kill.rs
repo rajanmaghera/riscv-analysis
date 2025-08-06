@@ -12,10 +12,8 @@ impl HasGenKillInfo for ParserNode {
     fn kill_reg(&self) -> RegisterSet {
         (if self.calls_to().is_some() {
             Register::caller_saved_set()
-        } else if let Some(stored_reg) = self.writes_to().map(|x| x.get_cloned()) {
-            RegisterSet::from_iter([stored_reg])
         } else {
-            RegisterSet::new()
+            RegisterSet::from_iter(self.writes_to().iter().map(|x| x.get_cloned()))
         }) - Register::const_zero_set()
     }
 

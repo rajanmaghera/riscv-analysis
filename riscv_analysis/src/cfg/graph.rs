@@ -209,7 +209,7 @@ impl Cfg {
                 continue;
             }
             visited.insert(Rc::clone(&prev));
-            if let Some(reg) = prev.writes_to() {
+            for reg in prev.writes_to() {
                 if *reg.get() == item {
                     ranges.push(reg);
                     continue;
