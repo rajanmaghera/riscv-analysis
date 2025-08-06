@@ -44,6 +44,7 @@ impl TryFrom<Token> for Imm {
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token_type() {
+            TokenType::PercentHigh | TokenType::PercentLow => Ok(Imm::new_unknown()),
             TokenType::Symbol(s) => Imm::from_str(s),
             TokenType::Char(c) => Ok(Imm(ImmType::Constant(*c as i32))),
             _ => Err(()),
@@ -111,6 +112,9 @@ impl FromStr for Imm {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("%") {
+            return Ok(Imm::new_unknown());
+        }
         let s = s.to_lowercase();
         let s = s.as_str();
         let s = s.trim();

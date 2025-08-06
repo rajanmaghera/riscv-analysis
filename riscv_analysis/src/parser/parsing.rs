@@ -276,21 +276,7 @@ impl AnnotatedLexer {
     }
 
     fn get_label(&mut self) -> Result<LabelStringToken, LexError> {
-        let next = self.get_any()?;
-        if *next.token_type() == TokenType::PercentHigh
-            || *next.token_type() == TokenType::PercentLow
-        {
-            self.get_any()?.as_lparen()?;
-            let item = self.get_any()?.as_label()?;
-            let mut next = self.get_any()?;
-            if let TokenType::Plus(_) = *next.token_type() {
-                next = self.get_any()?;
-            }
-            next.as_rparen()?;
-            Ok(item)
-        } else {
-            next.as_label()
-        }
+        self.get_any()?.as_label()
     }
 
     fn get_csrimm(&mut self) -> Result<With<CsrImm>, LexError> {
@@ -301,16 +287,39 @@ impl AnnotatedLexer {
         self.get_any()?.as_string()
     }
 
-    fn get_any(&mut self) -> Result<Token, LexError> {
-        let item = self.lexer.next().ok_or(LexError::UnexpectedEOF)?;
-        if let Ok(ref item) = item {
-            if let Some(ref mut raw_token) = self.raw_token.as_mut() {
-                self.lexer.extend_raw_token(raw_token, &item.clone().into());
-            } else {
-                self.raw_token = Some(item.clone().into());
-            }
+    fn lex_next(&mut self) -> Result<Token, LexError> {
+        let item = self.lexer.next().ok_or(LexError::UnexpectedEOF)??;
+        if let Some(ref mut raw_token) = self.raw_token.as_mut() {
+            self.lexer.extend_raw_token(raw_token, &item.clone().into());
+        } else {
+            self.raw_token = Some(item.clone().into());
         }
-        item
+        Ok(item)
+    }
+
+    fn get_any(&mut self) -> Result<Token, LexError> {
+        let item = self.lex_next()?;
+        if item.token_type() == &TokenType::PercentHigh
+            || item.token_type() == &TokenType::PercentLow
+        {
+            self.lex_next()?.as_lparen()?;
+            self.lex_next()?.as_label()?;
+            let mut end = self.lex_next()?;
+            if let TokenType::Plus(_) = end.token_type() {
+                end = self.lex_next()?;
+            }
+            end.as_rparen()?;
+            let mut token = item.raw_token().clone();
+            self.lexer.extend_raw_token(&mut token, end.raw_token());
+            Ok(Token::new(
+                item.token_type().clone(),
+                token.raw_text(),
+                token.range(),
+                token.file(),
+            ))
+        } else {
+            Ok(item)
+        }
     }
 
     fn peek_any(&mut self) -> Result<Token, LexError> {
