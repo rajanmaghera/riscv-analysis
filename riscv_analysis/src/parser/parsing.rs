@@ -434,6 +434,19 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                         }
 
                         Type::JumpLink(inst) => {
+                            if inst == JumpLinkType::Tail {
+                                let name = lex.get_label()?;
+                                let raw_token = lex.take_raw_token()?;
+                                return Ok(ParserNode::new_jump_link(
+                                    With::new(inst, next_node.clone()),
+                                    With::new(Register::X0, next_node),
+                                    name,
+                                    raw_token,
+                                    lex.current_segment,
+                                    mem::take(&mut lex.current_labels),
+                                ));
+                            }
+
                             let next = lex.get_any()?;
 
                             return if let Ok(reg) = next.as_reg() {

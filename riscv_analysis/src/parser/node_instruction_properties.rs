@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use crate::parser::node::ParserNode;
 
 use super::{
-    BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, LabelStringToken, Register,
-    RegisterToken,
+    BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, JumpLinkType,
+    LabelStringToken, Register, RegisterToken, With,
 };
 impl InstructionProperties for ParserNode {
     fn is_return(&self) -> bool {
@@ -142,7 +142,14 @@ impl InstructionProperties for ParserNode {
             ParserNode::LoadAddr(load) => [load.rd.clone()].into(),
             ParserNode::Arith(arith) => [arith.rd.clone()].into(),
             ParserNode::IArith(iarith) => [iarith.rd.clone()].into(),
-            ParserNode::JumpLink(jump_link) => [jump_link.rd.clone()].into(),
+            ParserNode::JumpLink(jump_link) => match jump_link.inst.get() {
+                JumpLinkType::Jal => [jump_link.rd.clone()].into(),
+                JumpLinkType::Tail => [
+                    jump_link.rd.clone(),
+                    With::new(Register::X6, jump_link.rd.token().clone()),
+                ]
+                .into(),
+            },
             ParserNode::JumpLinkR(jump_link_r) => [jump_link_r.rd.clone()].into(),
             ParserNode::Csr(csr) => [csr.rd.clone()].into(),
             ParserNode::CsrI(csri) => [csri.rd.clone()].into(),

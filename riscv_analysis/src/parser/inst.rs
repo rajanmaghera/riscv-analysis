@@ -107,6 +107,7 @@ pub enum IgnoreType {
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
 pub enum JumpLinkType {
     Jal,
+    Tail, // Tail is a "jump-and-link" for long jumps that overwrites x6 as a temp
 }
 
 #[derive(Debug, Clone, PartialEq, Copy, Serialize, Deserialize)]
@@ -184,6 +185,7 @@ pub enum Inst {
     Fencei,
     Jal,
     Jalr,
+    Tail,
     Auipc,
     Beqz,
     Bnez,
@@ -403,6 +405,7 @@ impl Display for Inst {
             Inst::Fence => write!(f, "fence"),
             Inst::Fencei => write!(f, "fencei"),
             Inst::Jal => write!(f, "jal"),
+            Inst::Tail => write!(f, "tail"),
             Inst::Jalr => write!(f, "jalr"),
             Inst::Auipc => write!(f, "auipc"),
             Inst::Beqz => write!(f, "beqz"),
@@ -569,6 +572,7 @@ impl FromStr for Inst {
             "fence" => Ok(Inst::Fence),
             "fencei" => Ok(Inst::Fencei),
             "jal" => Ok(Inst::Jal),
+            "tail" => Ok(Inst::Tail),
             "jalr" => Ok(Inst::Jalr),
             "auipc" => Ok(Inst::Auipc),
             "beqz" => Ok(Inst::Beqz),
@@ -670,6 +674,7 @@ impl From<&Inst> for Type {
             Inst::Fence => Type::Ignore(IgnoreType::Fence),
             Inst::Fencei => Type::Ignore(IgnoreType::Fencei),
             Inst::Jal => Type::JumpLink(JumpLinkType::Jal),
+            Inst::Tail => Type::JumpLink(JumpLinkType::Tail),
             Inst::Jalr => Type::JumpLinkR(JumpLinkRType::Jalr),
             Inst::Ecall => Type::Basic(BasicType::Ecall),
             Inst::Ebreak => Type::Basic(BasicType::Ebreak),
@@ -800,6 +805,7 @@ impl From<&JumpLinkType> for Inst {
     fn from(value: &JumpLinkType) -> Self {
         match value {
             JumpLinkType::Jal => Inst::Jal,
+            JumpLinkType::Tail => Inst::Tail,
         }
     }
 }
