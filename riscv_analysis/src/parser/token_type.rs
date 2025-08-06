@@ -41,6 +41,8 @@ pub enum TokenType {
     PercentHigh,
     /// Low specifier
     PercentLow,
+    /// Plus specifier
+    Plus(u32),
 }
 
 impl TokenType {
@@ -57,6 +59,7 @@ impl TokenType {
             TokenType::Comment(c) => format!("#{c}:"),
             TokenType::PercentHigh => "%hi".to_owned(),
             TokenType::PercentLow => "%lo".to_owned(),
+            TokenType::Plus(n) => format!("+{}", n),
         }
     }
 }
@@ -74,6 +77,7 @@ impl Display for TokenType {
             TokenType::RParen => write!(f, "RPAREN"),
             TokenType::PercentHigh => write!(f, "PERCENT_HIGH"),
             TokenType::PercentLow => write!(f, "PERCENT_LOW"),
+            TokenType::Plus(n) => writeln!(f, "PLUS({n})"),
         }
     }
 }

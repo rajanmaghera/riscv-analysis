@@ -282,7 +282,11 @@ impl AnnotatedLexer {
         {
             self.get_any()?.as_lparen()?;
             let item = self.get_any()?.as_label()?;
-            self.get_any()?.as_rparen()?;
+            let mut next = self.get_any()?;
+            if let TokenType::Plus(_) = *next.token_type() {
+                next = self.get_any()?;
+            }
+            next.as_rparen()?;
             Ok(item)
         } else {
             next.as_label()
@@ -1256,7 +1260,8 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
             | TokenType::String(_)
             | TokenType::Char(_)
             | TokenType::PercentHigh
-            | TokenType::PercentLow => Err(LexError::UnexpectedToken(Box::new(next_node))),
+            | TokenType::PercentLow
+            | TokenType::Plus(_) => Err(LexError::UnexpectedToken(Box::new(next_node))),
             // Skip comment token
             TokenType::Comment(_) => Err(LexError::IgnoredWithoutWarning),
         }

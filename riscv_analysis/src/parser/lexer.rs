@@ -1,6 +1,7 @@
 use crate::parser::lexer::PeekStatus::HasLookedAhead;
 use crate::parser::token::Token;
 use crate::passes::DiagnosticLocation;
+use std::str::FromStr;
 use uuid::Uuid;
 
 use super::{LexError, Position, RawToken};
@@ -562,6 +563,32 @@ impl Iterator for Lexer {
                         self.source_id,
                     )))));
                 }
+            }
+            Some('+') => {
+                // Match +xyz expressions; e.g. %hi(label+43)
+                let start = self.get_pos();
+                self.consume_char();
+                let mut number_str = String::new();
+                self.skip_ws();
+
+                while let Some(current) = self.current() {
+                    if !current.is_ascii_digit() {
+                        break;
+                    }
+                    number_str.push(current);
+                    self.consume_char();
+                }
+
+                assert!(!number_str.is_empty());
+
+                let number = u32::from_str(number_str.as_str()).unwrap();
+                let end = self.get_pos();
+                Some(Token::new(
+                    TokenType::Plus(number),
+                    self.get_between(start.raw_index(), end.raw_index())?,
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
             _ => {
                 // symbol or label
