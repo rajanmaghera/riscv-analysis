@@ -42,7 +42,7 @@ impl HasGenValueInfo for ParserNode {
             ParserNode::CsrI(expr) => match expr.inst.get() {
                 CsrIType::Csrrwi => Some((
                     MemoryLocation::CsrRegister(expr.csr.get_cloned()),
-                    AvailableValue::Constant(expr.imm.get().value()),
+                    AvailableValue::Constant(expr.imm.get().value()?),
                 )),
                 // TODO handle other CSR instructions
                 _ => None,
@@ -50,7 +50,7 @@ impl HasGenValueInfo for ParserNode {
             ParserNode::Store(expr) => {
                 if expr.rs1.get().is_stack_pointer() {
                     Some((
-                        MemoryLocation::StackOffset(expr.imm.get().value()),
+                        MemoryLocation::StackOffset(expr.imm.get().value()?),
                         AvailableValue::RegisterWithScalar(expr.rs2.get_cloned(), 0),
                     ))
                 } else {
@@ -81,7 +81,7 @@ impl HasGenValueInfo for ParserNode {
                 expr.rd.get(),
                 AvailableValue::MemoryAtRegister(
                     expr.rs1.get_cloned(),
-                    expr.imm.get_cloned().value(),
+                    expr.imm.get_cloned().value()?,
                 ),
             )),
             ParserNode::IArith(expr) => {
@@ -93,7 +93,7 @@ impl HasGenValueInfo for ParserNode {
                         | IArithType::Xori
                         | IArithType::Ori => Some((
                             expr.rd.get(),
-                            AvailableValue::Constant(expr.imm.get().value()),
+                            AvailableValue::Constant(expr.imm.get().value()?),
                         )),
                         IArithType::Andi
                         | IArithType::Slli

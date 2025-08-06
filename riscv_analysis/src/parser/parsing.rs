@@ -402,9 +402,11 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                         Type::UpperArith(inst) => {
                             let rd = lex.get_reg()?;
                             let mut imm = lex.get_imm()?;
-                            let new_imm = Imm::new(imm.get().value() << 12);
-                            // shift left by 12
-                            *imm.get_mut() = new_imm;
+                            if let Some(value) = imm.get().value() {
+                                let new_imm = Imm::new(value << 12);
+                                // shift left by 12
+                                *imm.get_mut() = new_imm;
+                            }
                             let raw_token = lex.take_raw_token()?;
                             Ok(ParserNode::new_iarith(
                                 With::new(inst, next_node.clone()),

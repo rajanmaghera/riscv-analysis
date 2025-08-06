@@ -48,11 +48,13 @@ impl LintPass for StackPass {
                         }
 
                         if let Some((reg2, off2)) = node.uses_memory_location() {
-                            if reg2 == Register::X2 && off2.value() + off >= 0 {
-                                errors.push(LintError::InvalidStackOffsetUsage(
-                                    node.node().clone(),
-                                    off2.value() + off,
-                                ));
+                            if let Some(value) = off2.value() {
+                                if reg2 == Register::X2 && value + off >= 0 {
+                                    errors.push(LintError::InvalidStackOffsetUsage(
+                                        node.node().clone(),
+                                        value + off,
+                                    ));
+                                }
                             }
                         }
                     } else {

@@ -13,7 +13,7 @@ impl Display for ParserNode {
             }
             ParserNode::IArith(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
-                write!(f, "{inst} {} <- {}, {}", x.rd, x.rs1, x.imm.get().value())
+                write!(f, "{inst} {} <- {}, {}", x.rd, x.rs1, x.imm.get())
             }
             ParserNode::JumpLink(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
@@ -33,11 +33,11 @@ impl Display for ParserNode {
             }
             ParserNode::Store(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
-                write!(f, "{inst} {} -> {}({})", x.rs2, x.imm.get().value(), x.rs1)
+                write!(f, "{inst} {} -> {}({})", x.rs2, x.imm.get(), x.rs1)
             }
             ParserNode::Load(x) => {
                 let inst: Inst = Inst::from(x.inst.get());
-                write!(f, "{inst} {} <- {}({})", x.rd, x.imm.get().value(), x.rs1)
+                write!(f, "{inst} {} <- {}({})", x.rd, x.imm.get(), x.rs1)
             }
             ParserNode::LoadAddr(x) => {
                 let inst = "la";
@@ -56,7 +56,7 @@ impl Display for ParserNode {
                     "{inst} {} <- {} <- {}",
                     x.rd,
                     x.csr.get().value(),
-                    x.imm.get().value()
+                    x.imm.get()
                 )
             }
         }

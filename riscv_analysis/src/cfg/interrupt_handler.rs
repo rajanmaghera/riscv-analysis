@@ -62,7 +62,9 @@ impl CfgNode {
     fn sets_csr_to_value(&self) -> Option<(CsrImm, Option<AvailableValue>)> {
         if let Some((csr, value)) = self.node().sets_csr() {
             match value {
-                CsrInstSource::Imm(imm) => Some((csr, Some(AvailableValue::Constant(imm.value())))),
+                CsrInstSource::Imm(imm) => {
+                    Some((csr, Some(AvailableValue::Constant(imm.value()?))))
+                }
                 CsrInstSource::Register(reg) => {
                     Some((csr, self.reg_values_in().get(&reg).cloned()))
                 }

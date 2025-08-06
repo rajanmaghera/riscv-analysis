@@ -183,7 +183,7 @@ impl Display for DirectiveType {
             DirectiveType::Other => write!(f, "directive"),
             DirectiveType::Global(s) => write!(f, "global {s}"),
             DirectiveType::Include(s) => write!(f, "include {s}"),
-            DirectiveType::Align(i) => write!(f, "align {}", i.get().value()),
+            DirectiveType::Align(i) => write!(f, "align {}", i.get()),
             DirectiveType::Ascii { text, .. } => {
                 write!(f, "ascii \"{text}\"")
             }
@@ -192,11 +192,11 @@ impl Display for DirectiveType {
             DirectiveType::Data(dt, data) => {
                 write!(f, "{dt} ")?;
                 for d in data {
-                    write!(f, "{}, ", d.get().value())?;
+                    write!(f, "{}, ", d.get())?;
                 }
                 Ok(())
             }
-            DirectiveType::Space(i) => write!(f, "space {}", i.get().value()),
+            DirectiveType::Space(i) => write!(f, "space {}", i.get()),
         }
     }
 }
