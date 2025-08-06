@@ -128,30 +128,33 @@ impl FromStr for Imm {
             Ok(Imm::new(0))
         } else if let Some(stripped) = s.strip_prefix("0x") {
             if stripped.starts_with('-') {
-                Err(())
-            } else {
-                match u32::from_str_radix(stripped, 16) {
-                    #[allow(clippy::cast_possible_wrap)]
-                    Ok(i) => Ok(Imm::new(mul * i as i32)),
-                    Err(_) => Err(()),
-                }
+                return Err(());
+            }
+            match u32::from_str_radix(stripped, 16) {
+                #[allow(clippy::cast_possible_wrap)]
+                Ok(i) => Ok(Imm::new(mul * i as i32)),
+                Err(_) => Err(()),
             }
         } else if let Some(stripped) = s.strip_prefix("0b") {
             if stripped.starts_with('-') {
-                Err(())
-            } else {
-                match u32::from_str_radix(stripped, 2) {
-                    #[allow(clippy::cast_possible_wrap)]
-                    Ok(i) => Ok(Imm::new(mul * i as i32)),
-                    Err(_) => Err(()),
-                }
+                return Err(());
+            }
+            match u32::from_str_radix(stripped, 2) {
+                #[allow(clippy::cast_possible_wrap)]
+                Ok(i) => Ok(Imm::new(mul * i as i32)),
+                Err(_) => Err(()),
             }
         } else {
             if s.starts_with('-') {
                 return Err(());
             }
-            match s.parse::<i32>() {
-                Ok(i) => Ok(Imm::new(mul * i)),
+            let mut st = String::new();
+            if mul == -1 {
+                st.push('-');
+            }
+            st.push_str(s);
+            match st.parse::<i32>() {
+                Ok(i) => Ok(Imm::new(i)),
                 Err(_) => Err(()),
             }
         }
@@ -274,5 +277,11 @@ mod test {
         assert_eq!(Imm::from_str("0b-00000001"), Err(()));
         assert_eq!(Imm::from_str("0x-00000000"), Err(()));
         assert_eq!(Imm::from_str("0b-00000000"), Err(()));
+    }
+
+    #[test]
+    fn i32_min() {
+        assert_eq!(Imm::from_str("-2147483648"), Ok(Imm::new(-2147483648)));
+        assert_eq!(Imm::from_str("0x80000000"), Ok(Imm::new(-2147483648)));
     }
 }
