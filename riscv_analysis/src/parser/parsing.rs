@@ -276,7 +276,17 @@ impl AnnotatedLexer {
     }
 
     fn get_label(&mut self) -> Result<LabelStringToken, LexError> {
-        self.get_any()?.as_label()
+        let next = self.get_any()?;
+        if *next.token_type() == TokenType::PercentHigh
+            || *next.token_type() == TokenType::PercentLow
+        {
+            self.get_any()?.as_lparen()?;
+            let item = self.get_any()?.as_label()?;
+            self.get_any()?.as_rparen()?;
+            Ok(item)
+        } else {
+            next.as_label()
+        }
     }
 
     fn get_csrimm(&mut self) -> Result<With<CsrImm>, LexError> {
@@ -1235,20 +1245,18 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                 }
             }
             TokenType::Label(s) => {
-                let label = With::new(
-                    LabelString::from_str(s).map_err(|()| {
-                        LexError::Expected(vec![ExpectedType::Label], Box::new(next_node.clone()))
-                    })?,
-                    next_node,
-                );
+                let label = With::new(LabelString::new(s), next_node);
                 lex.current_labels.insert(label.clone());
                 lex.all_defined_labels.insert(label);
                 Err(LexError::IgnoredWithoutWarning)
             }
             TokenType::Newline => Err(LexError::IsNewline(Box::new(next_node))),
-            TokenType::LParen | TokenType::RParen | TokenType::String(_) | TokenType::Char(_) => {
-                Err(LexError::UnexpectedToken(Box::new(next_node)))
-            }
+            TokenType::LParen
+            | TokenType::RParen
+            | TokenType::String(_)
+            | TokenType::Char(_)
+            | TokenType::PercentHigh
+            | TokenType::PercentLow => Err(LexError::UnexpectedToken(Box::new(next_node))),
             // Skip comment token
             TokenType::Comment(_) => Err(LexError::IgnoredWithoutWarning),
         }

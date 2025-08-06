@@ -37,6 +37,10 @@ pub enum TokenType {
     /// the assembler, but they are useful for human readers.
     /// They may be used to annotate the assembler in the future.
     Comment(String),
+    /// High specifier
+    PercentHigh,
+    /// Low specifier
+    PercentLow,
 }
 
 impl TokenType {
@@ -51,6 +55,8 @@ impl TokenType {
             TokenType::String(s) => format!("\"{s}\""),
             TokenType::Char(c) => format!("'{c}'"),
             TokenType::Comment(c) => format!("#{c}:"),
+            TokenType::PercentHigh => "%hi".to_owned(),
+            TokenType::PercentLow => "%lo".to_owned(),
         }
     }
 }
@@ -66,6 +72,8 @@ impl Display for TokenType {
             TokenType::Newline => write!(f, "NEWLINE"),
             TokenType::LParen => write!(f, "LPAREN"),
             TokenType::RParen => write!(f, "RPAREN"),
+            TokenType::PercentHigh => write!(f, "PERCENT_HIGH"),
+            TokenType::PercentLow => write!(f, "PERCENT_LOW"),
         }
     }
 }

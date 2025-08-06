@@ -529,6 +529,40 @@ impl Iterator for Lexer {
                     self.source_id,
                 ))
             }
+            Some('%') => {
+                // %hi or %lo
+                let start = self.get_pos();
+                self.consume_char();
+                if let (Some('h'), Some('i')) = (self.peek_char(0), self.peek_char(1)) {
+                    self.consume_char();
+                    self.consume_char();
+                    let end = self.get_pos();
+                    Some(Token::new(
+                        TokenType::PercentHigh,
+                        "%hi".to_string(),
+                        Range::new(start, end),
+                        self.source_id,
+                    ))
+                } else if let (Some('l'), Some('o')) = (self.peek_char(0), self.peek_char(1)) {
+                    self.consume_char();
+                    self.consume_char();
+                    let end = self.get_pos();
+                    Some(Token::new(
+                        TokenType::PercentLow,
+                        "%lo".to_string(),
+                        Range::new(start, end),
+                        self.source_id,
+                    ))
+                } else {
+                    let end = self.get_pos();
+                    return Some(Err(LexError::UnexpectedToken(Box::new(Token::new(
+                        TokenType::Symbol("%".to_string()),
+                        "&".to_string(),
+                        Range::new(start, end),
+                        self.source_id,
+                    )))));
+                }
+            }
             _ => {
                 // symbol or label
 
@@ -545,11 +579,7 @@ impl Iterator for Lexer {
                     symbol_str.push(current);
                     self.consume_char();
                 }
-
-                if symbol_str.is_empty() {
-                    // TODO return an error if not symbol item
-                    return None;
-                }
+                assert!(!symbol_str.is_empty());
 
                 // If the next char is ':', this is a label
                 if self.current() == Some(':') {
