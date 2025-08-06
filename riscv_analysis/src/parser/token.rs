@@ -50,14 +50,6 @@ impl PartialEq<TokenType> for Token {
         self.token_type == *other
     }
 }
-impl Default for Token {
-    fn default() -> Self {
-        Token {
-            token_type: TokenType::Newline,
-            raw_token: RawToken::default(),
-        }
-    }
-}
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -69,7 +61,7 @@ impl DiagnosticLocation for Token {
     fn file(&self) -> Uuid {
         self.raw_token.file()
     }
-    fn range(&self) -> super::Range {
+    fn range(&self) -> Range {
         self.raw_token.range()
     }
 

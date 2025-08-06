@@ -19,11 +19,10 @@ impl GenerationPass for NodeDirectionPass {
         for node in cfg.iter_source() {
             // If node jumps to another node, add it to the nexts of the current node and the prevs of the node it jumps to.
             if let Some(label) = node.jumps_to() {
-                let jump_to_node = cfg
-                    .iter_source()
-                    .find(|n| n.labels().contains(&label))
-                    .ok_or_else(|| CfgError::UnexpectedError)?;
-                edges_to_insert.push((Rc::clone(node), Rc::clone(jump_to_node)));
+                if let Some(jump_to_node) = cfg.iter_source().find(|n| n.labels().contains(&label))
+                {
+                    edges_to_insert.push((Rc::clone(node), Rc::clone(jump_to_node)));
+                }
             }
 
             // Linearly scan for nexts and prevs

@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-use super::{Range, RawToken, Register, Token};
+use super::{Position, Range, RawToken, Register, Token, TokenType};
 
 #[derive(Clone)]
 pub struct With<T> {
@@ -90,10 +90,15 @@ where
     T: Deserialize<'de>,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(With {
-            token: Token::default(),
-            underlying_data: T::deserialize(deserializer)?,
-        })
+        Ok(With::new(
+            T::deserialize(deserializer)?,
+            Token::new(
+                TokenType::Newline,
+                "\n".to_string(),
+                Range::new(Position::new(0, 0, 0), Position::new(0, 1, 1)),
+                Uuid::default(),
+            ),
+        ))
     }
 }
 

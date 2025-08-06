@@ -81,7 +81,7 @@ mod tests {
         assert_eq!(lints.len(), 1);
 
         assert_eq!(lints[0].get_error_code(), "node-in-many-functions");
-        assert_eq!(lints[0].raw_text(), "addi a0 a0 2",);
+        assert_eq!(lints[0].raw_text(), "addi   a0, a0, 2",);
     }
 
     #[test]
@@ -108,10 +108,10 @@ mod tests {
         assert_eq!(lints.len(), 2);
 
         assert_eq!(lints[0].get_error_code(), "node-in-many-functions");
-        assert_eq!(lints[0].raw_text(), "addi a0 a0 2");
+        assert_eq!(lints[0].raw_text(), "addi   a0, a0, 2");
 
         assert_eq!(lints[1].get_error_code(), "node-in-many-functions");
-        assert_eq!(lints[1].raw_text(), "addi a0 a0 3");
+        assert_eq!(lints[1].raw_text(), "addi   a0, a0, 3");
     }
 
     #[test]

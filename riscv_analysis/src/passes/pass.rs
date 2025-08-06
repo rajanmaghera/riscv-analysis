@@ -17,8 +17,7 @@ pub trait LintPass {
     ///
     /// ```
     /// use riscv_analysis::passes::{LintPass, LintError, DiagnosticManager};
-    /// use riscv_analysis::parser::ParserNode;
-    /// use riscv_analysis::{arith, iarith};
+    /// use riscv_analysis::parser::{ParserNode, RVStringParser};
     /// use riscv_analysis::cfg::Cfg;
     ///
     /// struct MyPass;
@@ -38,8 +37,8 @@ pub trait LintPass {
     ///   }
     /// }
     ///
-    /// let nodes = &[iarith!(Addi X1 X0 0)];
-    /// let errors = MyPass::new().run_single_pass_along_nodes(nodes);
+    /// let parsed = RVStringParser::parse_from_text("addi x1 x0 0");
+    /// let errors = MyPass::new().run_single_pass_along_nodes(&parsed.nodes);
     /// assert_eq!(errors.len(), 1);
     /// assert_eq!(errors[0].get_error_code(), "invalid-stack-pointer");
     /// ```

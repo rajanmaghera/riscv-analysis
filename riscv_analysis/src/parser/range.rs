@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::Position;
 
-#[derive(Debug, PartialEq, Clone, PartialOrd, Ord, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, PartialOrd, Ord, Eq, Serialize, Deserialize)]
 pub struct Range {
     start: Position,
     end: Position,

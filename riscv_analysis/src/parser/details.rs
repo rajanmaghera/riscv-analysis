@@ -3,12 +3,25 @@ use std::fmt::Display;
 
 use super::{
     ArithType, BasicType, BranchType, CsrIType, CsrImm, CsrType, DirectiveToken, IArithType,
-    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelStringToken, LoadType, PseudoType, RawToken,
-    Register, StoreType, With,
+    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelStringToken, LoadType, Position, PseudoType,
+    Range, RawToken, Register, StoreType, With,
 };
 use crate::cfg::Segment;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+/// Generate an empty token for testing purposes
+///
+/// This is ONLY to be used for testing. We should
+/// NEVER generate empty tokens. Tokens should always
+/// be valid.
+fn empty_token() -> RawToken {
+    RawToken::new(
+        "\n",
+        Range::new(Position::new(0, 0, 0), Position::new(0, 1, 1)),
+        Uuid::default(),
+    )
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Arith {
@@ -18,7 +31,7 @@ pub struct Arith {
     pub rs2: With<Register>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -32,7 +45,7 @@ pub struct IArith {
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -43,7 +56,7 @@ pub struct Label {
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -55,7 +68,7 @@ pub struct JumpLink {
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -69,7 +82,7 @@ pub struct JumpLinkR {
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -80,7 +93,7 @@ pub struct Basic {
     pub inst: With<BasicType>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -94,7 +107,7 @@ pub struct Branch {
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -108,7 +121,7 @@ pub struct Load {
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -122,7 +135,7 @@ pub struct Store {
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -194,7 +207,7 @@ pub struct Directive {
     pub dir: DirectiveType,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
 }
 
@@ -206,7 +219,7 @@ pub struct Csr {
     pub rs1: With<Register>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -220,7 +233,7 @@ pub struct CsrI {
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -231,7 +244,7 @@ pub struct Ignore {
     pub inst: With<IgnoreType>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
 }
 
@@ -242,7 +255,7 @@ pub struct LoadAddr {
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,
@@ -254,7 +267,7 @@ pub struct FuncEntry {
     pub file: Uuid,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     #[serde(skip)]
     pub is_interrupt_handler: bool,
@@ -268,7 +281,7 @@ pub struct ProgramEntry {
     pub file: Uuid,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     pub segment: Segment,
     pub labels: HashSet<LabelStringToken>,

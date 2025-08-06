@@ -22,7 +22,9 @@ use riscv_analysis::passes::DiagnosticLocation;
 use riscv_analysis::passes::Manager;
 
 use clap::{Args, Parser, Subcommand};
-use riscv_analysis::parser::{ProgramEntryType, Register};
+use riscv_analysis::parser::{
+    LabelString, Position, ProgramEntryType, Range, Register, Token, TokenType, With,
+};
 use riscv_analysis::reader::{FileReader, FileReaderError};
 
 #[derive(Parser)]
@@ -329,28 +331,58 @@ fn main() {
     match args.command {
         Commands::Lint(lint) => {
             let reader = IOFileReader::new();
+            let cli_args_filename = Uuid::new_v4();
             let program_entry_type =
                 match (lint.no_program_entry_at_start, lint.program_entry_label) {
-                    (_, Some(label)) => ProgramEntryType::LookForLabel(label),
+                    (_, Some(label)) => ProgramEntryType::LookForLabel(With::new(
+                        LabelString::new(label.clone()),
+                        Token::new(
+                            TokenType::Label(label.clone()),
+                            label.clone(),
+                            Range::new(
+                                Position::new(0, 0, 0),
+                                Position::new(0, label.len(), label.len()),
+                            ),
+                            cli_args_filename,
+                        ),
+                    )),
                     (false, None) => ProgramEntryType::FirstInstruction,
                     (true, None) => ProgramEntryType::None,
                 };
             let mut parser = RVParser::new(reader);
 
             let mut diags = Vec::new();
-            let parsed = parser.parse_from_file(
-                lint.path
-                    .to_str()
-                    .expect("unable to convert path to string"),
-                false,
-            );
+            let parsed = parser
+                .parse_from_file(
+                    lint.path
+                        .to_str()
+                        .expect("unable to convert path to string"),
+                    false,
+                )
+                .expect("unable to read file");
             diags.extend(parsed.errors.iter().cloned().map(DiagnosticItem::from));
 
             match Manager::gen_full_cfg(
                 parsed,
                 lint.function_names.map(|x| {
                     x.into_iter()
-                        .map(|item| (item.name, item.ret_registers.into_iter().collect()))
+                        .map(|item| {
+                            (
+                                With::new(
+                                    LabelString::new(item.name.clone()),
+                                    Token::new(
+                                        TokenType::Label(item.name.clone()),
+                                        item.name.clone(),
+                                        Range::new(
+                                            Position::new(0, 0, 0),
+                                            Position::new(0, item.name.len(), item.name.len()),
+                                        ),
+                                        cli_args_filename,
+                                    ),
+                                ),
+                                item.ret_registers.into_iter().collect(),
+                            )
+                        })
                         .collect()
                 }),
                 &program_entry_type,
@@ -448,7 +480,7 @@ mod tests {
                 let reader = IOFileReader::new();
                 let mut parser = RVParser::new(reader);
 
-                let parsed = parser.parse_from_file(filename, false);
+                let parsed = parser.parse_from_file(filename, false).unwrap();
 
                 let res: Cfg =
                     Manager::gen_full_cfg(parsed, None, &ProgramEntryType::FirstInstruction)

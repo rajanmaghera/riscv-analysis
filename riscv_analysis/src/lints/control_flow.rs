@@ -104,17 +104,17 @@ mod tests {
         // The first error should warn about the first instruction of `fn_a`
 
         assert_eq!(lints[0].get_error_code(), "first-instruction-is-function");
-        assert_eq!(lints[0].raw_text(), "addi a0 a0 1");
+        assert_eq!(lints[0].raw_text(), "addi   a0, a0, 1");
 
         // Next four errors should be about unreachable code
         assert_eq!(lints[1].get_error_code(), "unreachable-code");
-        assert_eq!(lints[1].raw_text(), "li a0 0");
+        assert_eq!(lints[1].raw_text(), "li     a0, 0");
 
         assert_eq!(lints[2].get_error_code(), "unreachable-code");
-        assert_eq!(lints[2].raw_text(), "jal fn_a");
+        assert_eq!(lints[2].raw_text(), "jal    fn_a");
 
         assert_eq!(lints[3].get_error_code(), "unreachable-code");
-        assert_eq!(lints[3].raw_text(), "addi a7 zero 10");
+        assert_eq!(lints[3].raw_text(), "addi   a7, zero, 10");
 
         assert_eq!(lints[4].get_error_code(), "unreachable-code");
         assert_eq!(lints[4].raw_text(), "ecall");
@@ -142,13 +142,13 @@ mod tests {
 
         // The first error should warn about the first instruction of `fn_a`
         assert_eq!(lints[0].get_error_code(), "unreachable-code");
-        assert_eq!(lints[0].raw_text(), "addi a7 zero 10");
+        assert_eq!(lints[0].raw_text(), "addi   a7, zero, 10");
 
         assert_eq!(lints[1].get_error_code(), "unreachable-code");
         assert_eq!(lints[1].raw_text(), "ecall");
 
         assert_eq!(lints[2].get_error_code(), "invalid-jump-to-function");
-        assert_eq!(lints[2].raw_text(), "addi a0 a0 1");
+        assert_eq!(lints[2].raw_text(), "addi   a0, a0, 1");
     }
 
     #[test]

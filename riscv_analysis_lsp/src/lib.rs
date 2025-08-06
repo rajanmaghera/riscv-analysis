@@ -34,11 +34,15 @@ where
 {
     /// Return the imported files of a file
     fn get_imports(&mut self, base: &str) -> HashSet<String> {
-        self.parse_from_file(base, true)
-            .include_strings
-            .iter()
-            .map(|x| x.get_cloned())
-            .collect()
+        if let Ok(parse) = self.parse_from_file(base, true) {
+            parse
+                .include_strings
+                .iter()
+                .map(|x| x.get_cloned())
+                .collect()
+        } else {
+            HashSet::new()
+        }
     }
 }
 
@@ -68,7 +72,9 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
     let errs = to_parse
         .flat_map(|f| {
             let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
-            let items = parser.run(&f.uri, &ProgramEntryType::FirstInstruction);
+            let items = parser
+                .run(&f.uri, &ProgramEntryType::FirstInstruction)
+                .expect("filename not found");
             items
                 .into_iter()
                 .map(|f| f.to_lsp_diag(&parser))

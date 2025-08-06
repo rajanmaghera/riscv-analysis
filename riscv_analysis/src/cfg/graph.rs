@@ -6,7 +6,7 @@ use crate::analysis::HasGenKillInfo;
 use crate::parser;
 use crate::parser::{HasIdentity, ParserNode};
 use crate::parser::{InstructionProperties, RVParserOutput};
-use crate::parser::{LabelString, LabelStringToken, ProgramEntryType, With};
+use crate::parser::{LabelStringToken, ProgramEntryType};
 use crate::parser::{Register, RegisterToken};
 use crate::passes::CfgError;
 use itertools::Itertools;
@@ -119,17 +119,16 @@ impl Cfg {
 
         // If the program entry is a label, return an error if the label does not exist
         if let ProgramEntryType::LookForLabel(name) = &program_entry {
-            let label = With::blank(LabelString::new(name));
-            if !defined_labels.contains(&label) {
-                return Err(Box::new(CfgError::LabelsNotDefined(HashSet::from([label]))));
+            if !defined_labels.contains(name) {
+                return Err(Box::new(CfgError::LabelsNotDefined(HashSet::from([
+                    name.clone()
+                ]))));
             }
         }
 
         for (idx, node) in parser_output.nodes.into_iter().enumerate() {
             let is_program_entry = match &program_entry {
-                ProgramEntryType::LookForLabel(l) => node
-                    .label_names()
-                    .contains(&With::blank(LabelString::new(l))),
+                ProgramEntryType::LookForLabel(l) => node.label_names().contains(&l),
                 ProgramEntryType::FirstInstruction => idx == 0,
                 ProgramEntryType::None => false,
             };

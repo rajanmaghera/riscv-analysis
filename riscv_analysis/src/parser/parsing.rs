@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use super::imm::{CsrImm, Imm};
 use super::token::Token;
-use super::{ExpectedType, LabelString, LabelStringToken, ParseError, Range, RegisterToken, With};
+use super::{ExpectedType, LabelString, LabelStringToken, ParseError, RegisterToken, With};
 use crate::cfg::Segment;
 use crate::parser::inst::{
     ArithType, BranchType, CsrIType, CsrType, IArithType, Inst, JumpLinkRType, JumpLinkType,
@@ -14,10 +14,9 @@ use crate::parser::{DirectiveToken, LexError};
 use crate::parser::{Lexer, TokenType};
 use crate::parser::{RawToken, Register};
 use crate::passes::{DiagnosticItem, DiagnosticLocation, Manager};
-use crate::reader::FileReader;
+use crate::reader::{FileReader, FileReaderError};
 use itertools::Itertools;
 use serde::Deserialize;
-use std::iter::Peekable;
 use std::mem;
 use std::str::FromStr;
 
@@ -37,7 +36,7 @@ pub trait CanGetURIString: FileReader {
 pub enum ProgramEntryType {
     /// Look for a label with this name. If it isn't found,
     /// return an error.
-    LookForLabel(String),
+    LookForLabel(With<LabelString>),
     /// Use the first instruction.
     FirstInstruction,
     /// Do not have any program entry
@@ -63,8 +62,12 @@ pub struct RVParserOutput {
 }
 
 impl<T: FileReader> RVParser<T> {
-    pub fn run(&mut self, base: &str, program_entry: &ProgramEntryType) -> Vec<DiagnosticItem> {
-        let parsed = self.parse_from_file(base, false);
+    pub fn run(
+        &mut self,
+        base: &str,
+        program_entry: &ProgramEntryType,
+    ) -> Result<Vec<DiagnosticItem>, FileReaderError> {
+        let parsed = self.parse_from_file(base, false)?;
         let mut diags = parsed
             .errors
             .iter()
@@ -82,7 +85,7 @@ impl<T: FileReader> RVParser<T> {
             Err(err) => diags.push(DiagnosticItem::from(*err)),
         }
         diags.sort();
-        diags
+        Ok(diags)
     }
 
     pub fn new(reader: T) -> RVParser<T> {
@@ -110,7 +113,11 @@ impl<T: FileReader> RVParser<T> {
     /// Parse files
     ///
     /// This function is responsible for parsing the file. It will continue until no imports are left.
-    pub fn parse_from_file(&mut self, base: &str, ignore_imports: bool) -> RVParserOutput {
+    pub fn parse_from_file(
+        &mut self,
+        base: &str,
+        ignore_imports: bool,
+    ) -> Result<RVParserOutput, FileReaderError> {
         let mut nodes = Vec::new();
         let mut all_defined_labels = HashSet::new();
         let mut errors = Vec::new();
@@ -118,19 +125,8 @@ impl<T: FileReader> RVParser<T> {
         let mut include_strings = HashSet::new();
 
         // import base lexer
-        let lexer = match self.reader.import_file(base, None) {
-            Ok(x) => Lexer::new(x.1, x.0),
-            Err(e) => {
-                errors.push(e.to_parse_error(With::new(base.to_owned(), Token::default())));
-                return RVParserOutput {
-                    nodes,
-                    all_defined_labels: HashSet::new(),
-                    errors,
-                    extra_labels,
-                    include_strings,
-                };
-            }
-        };
+        let (id, source) = self.reader.import_file(base, None)?;
+        let lexer = Lexer::new(source, id);
         self.lexer_stack.push(AnnotatedLexer::new(lexer));
 
         while let Some(l) = self.lexer() {
@@ -191,13 +187,13 @@ impl<T: FileReader> RVParser<T> {
                 },
             }
         }
-        RVParserOutput {
+        Ok(RVParserOutput {
             nodes,
             all_defined_labels,
             errors,
             extra_labels,
             include_strings,
-        }
+        })
     }
 
     fn lexer(&mut self) -> Option<&mut AnnotatedLexer> {
@@ -294,14 +290,10 @@ impl AnnotatedLexer {
     fn get_any(&mut self) -> Result<Token, LexError> {
         let item = self.lexer.next().ok_or(LexError::UnexpectedEOF)?;
         if let Ok(ref item) = item {
-            if self.raw_token == RawToken::default() {
-                self.raw_token = item.clone().into();
+            if let Some(ref mut raw_token) = self.raw_token.as_mut() {
+                self.lexer.extend_raw_token(raw_token, &item.clone().into());
             } else {
-                self.raw_token = RawToken::new(
-                    format!("{} {}", self.raw_token.raw_text(), item.raw_text()),
-                    Range::new(*self.raw_token.range().start(), *item.range().end()),
-                    self.raw_token.file(),
-                );
+                self.raw_token = Some(item.clone().into());
             }
         }
         item
@@ -313,12 +305,20 @@ impl AnnotatedLexer {
             None => Err(LexError::UnexpectedEOF),
         }
     }
+
+    fn take_raw_token(&mut self) -> Result<RawToken, LexError> {
+        if let Some(item) = self.raw_token.take() {
+            Ok(item)
+        } else {
+            Err(LexError::UnexpectedEOF)
+        }
+    }
 }
 
 struct AnnotatedLexer {
-    lexer: Peekable<Lexer>,
+    lexer: Lexer,
     all_defined_labels: HashSet<LabelStringToken>,
-    raw_token: RawToken,
+    raw_token: Option<RawToken>,
     current_segment: Segment,
     current_labels: HashSet<LabelStringToken>,
     queue: VecDeque<ParserNode>,
@@ -327,9 +327,9 @@ struct AnnotatedLexer {
 impl AnnotatedLexer {
     pub fn new(lexer: Lexer) -> AnnotatedLexer {
         Self {
-            lexer: lexer.peekable(),
+            lexer,
             all_defined_labels: HashSet::new(),
-            raw_token: RawToken::default(),
+            raw_token: None,
             current_segment: Segment::Text,
             current_labels: HashSet::new(),
             queue: VecDeque::new(),
@@ -345,12 +345,11 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
 
     #[allow(clippy::too_many_lines)]
     fn try_from(lex: &mut AnnotatedLexer) -> Result<Self, Self::Error> {
-        use LexError::{Expected, IgnoredWithWarning, IsNewline};
         if let Some(node) = lex.queue.pop_front() {
             return Ok(node);
         }
 
-        lex.raw_token = RawToken::default();
+        lex.raw_token = None;
         let next_node = lex.get_any()?;
         match next_node.token_type() {
             TokenType::Symbol(s) => {
@@ -360,12 +359,13 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             let rd = lex.get_reg()?;
                             let csr = lex.get_csrimm()?;
                             let imm = lex.get_imm()?;
+                            let raw_token = lex.take_raw_token()?;
                             Ok(ParserNode::new_csri(
                                 With::new(inst, next_node),
                                 rd,
                                 csr,
                                 imm,
-                                mem::take(&mut lex.raw_token),
+                                raw_token,
                                 lex.current_segment,
                                 mem::take(&mut lex.current_labels),
                             ))
@@ -374,12 +374,13 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             let rd = lex.get_reg()?;
                             let csr = lex.get_csrimm()?;
                             let rs1 = lex.get_reg()?;
+                            let raw_token = lex.take_raw_token()?;
                             Ok(ParserNode::new_csr(
                                 With::new(inst, next_node),
                                 rd,
                                 csr,
                                 rs1,
-                                mem::take(&mut lex.raw_token),
+                                raw_token,
                                 lex.current_segment,
                                 mem::take(&mut lex.current_labels),
                             ))
@@ -390,12 +391,13 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             let new_imm = Imm::new(imm.get().value() << 12);
                             // shift left by 12
                             *imm.get_mut() = new_imm;
+                            let raw_token = lex.take_raw_token()?;
                             Ok(ParserNode::new_iarith(
                                 With::new(inst, next_node.clone()),
                                 rd,
                                 With::new(Register::X0, next_node),
                                 imm,
-                                mem::take(&mut lex.raw_token),
+                                raw_token,
                                 lex.current_segment,
                                 mem::take(&mut lex.current_labels),
                             ))
@@ -404,12 +406,13 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             let rd = lex.get_reg()?;
                             let rs1 = lex.get_reg()?;
                             let rs2 = lex.get_reg()?;
+                            let raw_token = lex.take_raw_token()?;
                             Ok(ParserNode::new_arith(
                                 With::new(inst, next_node),
                                 rd,
                                 rs1,
                                 rs2,
-                                mem::take(&mut lex.raw_token),
+                                raw_token,
                                 lex.current_segment,
                                 mem::take(&mut lex.current_labels),
                             ))
@@ -418,12 +421,13 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             let rd = lex.get_reg()?;
                             let rs1 = lex.get_reg()?;
                             let imm = lex.get_imm()?;
+                            let raw_token = lex.take_raw_token()?;
                             Ok(ParserNode::new_iarith(
                                 With::new(inst, next_node),
                                 rd,
                                 rs1,
                                 imm,
-                                mem::take(&mut lex.raw_token),
+                                raw_token,
                                 lex.current_segment,
                                 mem::take(&mut lex.current_labels),
                             ))
@@ -434,25 +438,27 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
 
                             return if let Ok(reg) = next.as_reg() {
                                 let name = lex.get_label()?;
+                                let raw_token = lex.take_raw_token()?;
                                 Ok(ParserNode::new_jump_link(
                                     With::new(inst, next_node),
                                     reg,
                                     name,
-                                    mem::take(&mut lex.raw_token),
+                                    raw_token,
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ))
                             } else if let Ok(name) = next.as_label() {
+                                let raw_token = lex.take_raw_token()?;
                                 Ok(ParserNode::new_jump_link(
                                     With::new(inst, next_node.clone()),
                                     With::new(Register::X1, next_node),
                                     name,
-                                    mem::take(&mut lex.raw_token),
+                                    raw_token,
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ))
                             } else {
-                                Err(Expected(
+                                Err(LexError::Expected(
                                     vec![ExpectedType::Register, ExpectedType::Label],
                                     Box::new(next),
                                 ))
@@ -462,13 +468,14 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             let reg1 = lex.get_reg()?;
                             let next = lex.get_any()?;
                             return if let Ok(rs1) = next.as_reg() {
+                                let raw_token = lex.take_raw_token()?;
                                 let imm = lex.get_imm()?;
                                 Ok(ParserNode::new_jump_link_r(
                                     With::new(inst, next_node),
                                     reg1,
                                     rs1,
                                     imm,
-                                    mem::take(&mut lex.raw_token),
+                                    raw_token,
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ))
@@ -477,22 +484,24 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                                     lex.get_any()?;
                                     let rs1 = lex.get_reg()?;
                                     lex.expect_rparen()?;
+                                    let raw_token = lex.take_raw_token()?;
                                     Ok(ParserNode::new_jump_link_r(
                                         With::new(inst, next_node),
                                         reg1,
                                         rs1,
                                         imm,
-                                        mem::take(&mut lex.raw_token),
+                                        raw_token,
                                         lex.current_segment,
                                         mem::take(&mut lex.current_labels),
                                     ))
                                 } else {
+                                    let raw_token = lex.take_raw_token()?;
                                     Ok(ParserNode::new_jump_link_r(
                                         With::new(inst, next_node.clone()),
                                         With::new(Register::X1, next_node),
                                         reg1,
                                         imm,
-                                        mem::take(&mut lex.raw_token),
+                                        raw_token,
                                         lex.current_segment,
                                         mem::take(&mut lex.current_labels),
                                     ))
@@ -500,22 +509,24 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             } else if let Ok(()) = next.as_lparen() {
                                 let rs1 = lex.get_reg()?;
                                 lex.expect_rparen()?;
+                                let raw_token = lex.take_raw_token()?;
                                 Ok(ParserNode::new_jump_link_r(
                                     With::new(inst, next_node.clone()),
                                     reg1,
                                     rs1,
                                     With::new(Imm::new(0), next_node),
-                                    mem::take(&mut lex.raw_token),
+                                    raw_token,
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ))
                             } else {
+                                let raw_token = lex.take_raw_token()?;
                                 Ok(ParserNode::new_jump_link_r(
                                     With::new(inst, next_node.clone()),
                                     With::new(Register::X1, next_node.clone()),
                                     reg1,
                                     With::new(Imm::new(0), next_node),
-                                    mem::take(&mut lex.raw_token),
+                                    raw_token,
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ))
@@ -529,33 +540,36 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                                     lex.get_any()?;
                                     let rs1 = lex.get_reg()?;
                                     lex.expect_rparen()?;
+                                    let raw_token = lex.take_raw_token()?;
                                     Ok(ParserNode::new_load(
                                         With::new(inst, next_node),
                                         rd,
                                         rs1,
                                         imm,
-                                        mem::take(&mut lex.raw_token),
+                                        raw_token,
                                         lex.current_segment,
                                         mem::take(&mut lex.current_labels),
                                     ))
                                 } else {
+                                    let raw_token = lex.take_raw_token()?;
                                     Ok(ParserNode::new_load(
                                         With::new(inst, next_node.clone()),
                                         rd,
                                         With::new(Register::X0, next_node),
                                         imm,
-                                        mem::take(&mut lex.raw_token),
+                                        raw_token,
                                         lex.current_segment,
                                         mem::take(&mut lex.current_labels),
                                     ))
                                 }
                             } else if let Ok(label) = next.as_label() {
+                                let raw_token = lex.take_raw_token()?;
                                 lex.queue.push_back(ParserNode::new_load(
                                     With::new(inst, next_node.clone()),
                                     rd.clone(),
                                     rd.clone(),
                                     With::new(Imm::new(0), next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
+                                    raw_token.clone(),
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ));
@@ -563,24 +577,25 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                                     With::new(PseudoType::La, next_node.clone()),
                                     rd.clone(),
                                     label,
-                                    lex.raw_token.clone(),
+                                    raw_token,
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ))
                             } else if let Ok(()) = next.as_lparen() {
                                 let rs1 = lex.get_reg()?;
                                 lex.expect_rparen()?;
+                                let raw_token = lex.take_raw_token()?;
                                 Ok(ParserNode::new_load(
                                     With::new(inst, next_node.clone()),
                                     rd,
                                     rs1,
                                     With::new(Imm::new(0), next_node),
-                                    mem::take(&mut lex.raw_token),
+                                    raw_token,
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ))
                             } else {
-                                Err(Expected(
+                                Err(LexError::Expected(
                                     vec![
                                         ExpectedType::Label,
                                         ExpectedType::Imm,
@@ -599,23 +614,25 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                                     lex.get_any()?;
                                     let rs1 = lex.get_reg()?;
                                     lex.expect_rparen()?;
+                                    let raw_token = lex.take_raw_token()?;
                                     Ok(ParserNode::new_store(
                                         With::new(inst, next_node),
                                         rs1,
                                         rs2,
                                         imm,
-                                        mem::take(&mut lex.raw_token),
+                                        raw_token,
                                         lex.current_segment,
                                         mem::take(&mut lex.current_labels),
                                     ))
                                 } else if let Ok(tmp) = lex.peek_any()?.as_reg() {
                                     lex.get_any()?;
+                                    let raw_token = lex.take_raw_token()?;
                                     lex.queue.push_back(ParserNode::new_store(
                                         With::new(inst, next_node.clone()),
                                         tmp.clone(),
                                         rs2,
                                         With::new(Imm::new(0), next_node.clone()),
-                                        mem::take(&mut lex.raw_token),
+                                        raw_token.clone(),
                                         lex.current_segment,
                                         mem::take(&mut lex.current_labels),
                                     ));
@@ -624,29 +641,31 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                                         tmp.clone(),
                                         With::new(Register::X0, next_node.clone()),
                                         imm,
-                                        lex.raw_token.clone(),
+                                        raw_token,
                                         lex.current_segment,
                                         mem::take(&mut lex.current_labels),
                                     ))
                                 } else {
+                                    let raw_token = lex.take_raw_token()?;
                                     Ok(ParserNode::new_store(
                                         With::new(inst, next_node.clone()),
                                         With::new(Register::X0, next_node),
                                         rs2,
                                         imm,
-                                        mem::take(&mut lex.raw_token),
+                                        raw_token,
                                         lex.current_segment,
                                         mem::take(&mut lex.current_labels),
                                     ))
                                 }
                             } else if let Ok(label) = next.as_label() {
                                 let temp_reg = lex.get_reg()?;
+                                let raw_token = lex.take_raw_token()?;
                                 lex.queue.push_back(ParserNode::new_store(
                                     With::new(inst, next_node.clone()),
                                     temp_reg.clone(),
                                     rs2.clone(),
                                     With::new(Imm::new(0), next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
+                                    raw_token.clone(),
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ));
@@ -654,24 +673,25 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                                     With::new(PseudoType::La, next_node.clone()),
                                     temp_reg.clone(),
                                     label,
-                                    lex.raw_token.clone(),
+                                    raw_token,
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ))
                             } else if let Ok(()) = next.as_lparen() {
                                 let rs1 = lex.get_reg()?;
                                 lex.expect_rparen()?;
+                                let raw_token = lex.take_raw_token()?;
                                 Ok(ParserNode::new_store(
                                     With::new(inst, next_node.clone()),
                                     rs1,
                                     rs2,
                                     With::new(Imm::new(0), next_node),
-                                    mem::take(&mut lex.raw_token),
+                                    raw_token,
                                     lex.current_segment,
                                     mem::take(&mut lex.current_labels),
                                 ))
                             } else {
-                                Err(Expected(
+                                Err(LexError::Expected(
                                     vec![
                                         ExpectedType::Label,
                                         ExpectedType::Imm,
@@ -685,377 +705,406 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             let rs1 = lex.get_reg()?;
                             let rs2 = lex.get_reg()?;
                             let label = lex.get_label()?;
+                            let raw_token = lex.take_raw_token()?;
                             Ok(ParserNode::new_branch(
                                 With::new(inst, next_node),
                                 rs1,
                                 rs2,
                                 label,
-                                mem::take(&mut lex.raw_token),
+                                raw_token,
                                 lex.current_segment,
                                 mem::take(&mut lex.current_labels),
                             ))
                         }
-                        Type::Ignore(_) => Err(IgnoredWithWarning(Box::new(next_node))),
+                        Type::Ignore(_) => Err(LexError::IgnoredWithWarning(Box::new(next_node))),
                         Type::Basic(inst) => Ok(ParserNode::new_basic(
                             With::new(inst, next_node),
-                            mem::take(&mut lex.raw_token),
+                            lex.take_raw_token()?,
                             lex.current_segment,
                             mem::take(&mut lex.current_labels),
                         )),
-                        Type::Pseudo(inst) => match inst {
-                            PseudoType::Ret => {
-                                return Ok(ParserNode::new_jump_link_r(
-                                    With::new(JumpLinkRType::Jalr, next_node.clone()),
-                                    With::new(Register::X0, next_node.clone()),
-                                    With::new(Register::X1, next_node.clone()),
-                                    With::new(Imm::new(0), next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ))
+                        Type::Pseudo(inst) => {
+                            return match inst {
+                                PseudoType::Ret => {
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_jump_link_r(
+                                        With::new(JumpLinkRType::Jalr, next_node.clone()),
+                                        With::new(Register::X0, next_node.clone()),
+                                        With::new(Register::X1, next_node.clone()),
+                                        With::new(Imm::new(0), next_node.clone()),
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Mv => {
+                                    let rd = lex.get_reg()?;
+                                    let rs1 = lex.get_reg()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_arith(
+                                        With::new(ArithType::Add, next_node.clone()),
+                                        rd,
+                                        rs1,
+                                        With::new(Register::X0, next_node.clone()),
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Li => {
+                                    let rd = lex.get_reg()?;
+                                    let imm = lex.get_imm()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_iarith(
+                                        With::new(IArithType::Addi, next_node.clone()),
+                                        rd,
+                                        With::new(Register::X0, imm.token().clone()),
+                                        imm,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::La => {
+                                    let rd = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_load_addr(
+                                        With::new(PseudoType::La, next_node.clone()),
+                                        rd,
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::J | PseudoType::B => {
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_jump_link(
+                                        With::new(JumpLinkType::Jal, next_node.clone()),
+                                        With::new(Register::X0, next_node.clone()),
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Jr => {
+                                    let rs1 = lex.get_reg()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_jump_link_r(
+                                        With::new(JumpLinkRType::Jalr, next_node.clone()),
+                                        With::new(Register::X0, next_node.clone()),
+                                        rs1,
+                                        With::new(Imm::new(0), next_node.clone()),
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Beqz => {
+                                    let rs1 = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_branch(
+                                        With::new(BranchType::Beq, next_node.clone()),
+                                        rs1,
+                                        With::new(Register::X0, next_node.clone()),
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Bnez => {
+                                    let rs1 = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_branch(
+                                        With::new(BranchType::Bne, next_node.clone()),
+                                        rs1,
+                                        With::new(Register::X0, next_node.clone()),
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Bltz | PseudoType::Bgtz => {
+                                    let rs1 = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_branch(
+                                        With::new(BranchType::Blt, next_node.clone()),
+                                        rs1,
+                                        With::new(Register::X0, next_node.clone()),
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Neg => {
+                                    let rd = lex.get_reg()?;
+                                    let rs1 = lex.get_reg()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_arith(
+                                        With::new(ArithType::Sub, next_node.clone()),
+                                        rd,
+                                        With::new(Register::X0, next_node.clone()),
+                                        rs1,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Not => {
+                                    let rd = lex.get_reg()?;
+                                    let rs1 = lex.get_reg()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_iarith(
+                                        With::new(IArithType::Xori, next_node.clone()),
+                                        rd,
+                                        rs1,
+                                        With::new(Imm::new(-1), next_node.clone()),
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Seqz => {
+                                    let rd = lex.get_reg()?;
+                                    let rs1 = lex.get_reg()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_iarith(
+                                        With::new(IArithType::Sltiu, next_node.clone()),
+                                        rd,
+                                        rs1,
+                                        With::new(Imm::new(1), next_node.clone()),
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Snez => {
+                                    let rd = lex.get_reg()?;
+                                    let rs1 = lex.get_reg()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_iarith(
+                                        With::new(IArithType::Sltiu, next_node.clone()),
+                                        rd,
+                                        rs1,
+                                        With::new(Imm::new(0), next_node.clone()),
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Nop => {
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_iarith(
+                                        With::new(IArithType::Addi, next_node.clone()),
+                                        With::new(Register::X0, next_node.clone()),
+                                        With::new(Register::X0, next_node.clone()),
+                                        With::new(Imm::new(0), next_node.clone()),
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Bgez | PseudoType::Blez => {
+                                    let rs1 = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_branch(
+                                        With::new(BranchType::Bge, next_node.clone()),
+                                        rs1,
+                                        With::new(Register::X0, next_node.clone()),
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Sgtz => {
+                                    let rd = lex.get_reg()?;
+                                    let rs1 = lex.get_reg()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_arith(
+                                        With::new(ArithType::Slt, next_node.clone()),
+                                        rd,
+                                        With::new(Register::X0, next_node.clone()),
+                                        rs1,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Sltz => {
+                                    let rd = lex.get_reg()?;
+                                    let rs1 = lex.get_reg()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_arith(
+                                        With::new(ArithType::Slt, next_node.clone()),
+                                        rd,
+                                        rs1,
+                                        With::new(Register::X0, next_node.clone()),
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Sgez => {
+                                    let rs1 = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_branch(
+                                        With::new(BranchType::Bge, next_node.clone()),
+                                        With::new(Register::X0, next_node.clone()),
+                                        rs1,
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Call => {
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_jump_link(
+                                        With::new(JumpLinkType::Jal, next_node.clone()),
+                                        With::new(Register::X1, next_node.clone()),
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Bgt => {
+                                    let rs1 = lex.get_reg()?;
+                                    let rs2 = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_branch(
+                                        With::new(BranchType::Blt, next_node.clone()),
+                                        rs2,
+                                        rs1,
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Ble => {
+                                    let rs1 = lex.get_reg()?;
+                                    let rs2 = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_branch(
+                                        With::new(BranchType::Bge, next_node.clone()),
+                                        rs2,
+                                        rs1,
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Bgtu => {
+                                    let rs1 = lex.get_reg()?;
+                                    let rs2 = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_branch(
+                                        With::new(BranchType::Bltu, next_node.clone()),
+                                        rs2,
+                                        rs1,
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Bleu => {
+                                    let rs1 = lex.get_reg()?;
+                                    let rs2 = lex.get_reg()?;
+                                    let label = lex.get_label()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_branch(
+                                        With::new(BranchType::Bgeu, next_node.clone()),
+                                        rs2,
+                                        rs1,
+                                        label,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Csrci | PseudoType::Csrsi | PseudoType::Csrwi => {
+                                    let csr = lex.get_csrimm()?;
+                                    let imm = lex.get_imm()?;
+                                    let inst = match inst {
+                                        PseudoType::Csrci => CsrIType::Csrrci,
+                                        PseudoType::Csrsi => CsrIType::Csrrsi,
+                                        PseudoType::Csrwi => CsrIType::Csrrwi,
+                                        _ => {
+                                            return Err(LexError::UnexpectedError(Box::new(
+                                                next_node.clone(),
+                                            )))
+                                        }
+                                    };
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_csri(
+                                        With::new(inst, next_node.clone()),
+                                        With::new(Register::X0, next_node.clone()),
+                                        csr,
+                                        imm,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Csrc | PseudoType::Csrs | PseudoType::Csrw => {
+                                    let rs1 = lex.get_reg()?;
+                                    let csr = lex.get_csrimm()?;
+                                    let inst = match inst {
+                                        PseudoType::Csrc => CsrType::Csrrc,
+                                        PseudoType::Csrs => CsrType::Csrrs,
+                                        PseudoType::Csrw => CsrType::Csrrw,
+                                        _ => {
+                                            return Err(LexError::UnexpectedError(Box::new(
+                                                next_node.clone(),
+                                            )))
+                                        }
+                                    };
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_csr(
+                                        With::new(inst, next_node.clone()),
+                                        With::new(Register::X0, next_node.clone()),
+                                        csr,
+                                        rs1,
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
+                                PseudoType::Csrr => {
+                                    let rd = lex.get_reg()?;
+                                    let csr = lex.get_csrimm()?;
+                                    let raw_token = lex.take_raw_token()?;
+                                    Ok(ParserNode::new_csr(
+                                        With::new(CsrType::Csrrs, next_node.clone()),
+                                        rd,
+                                        csr,
+                                        With::new(Register::X0, next_node.clone()),
+                                        raw_token,
+                                        lex.current_segment,
+                                        mem::take(&mut lex.current_labels),
+                                    ))
+                                }
                             }
-                            PseudoType::Mv => {
-                                let rd = lex.get_reg()?;
-                                let rs1 = lex.get_reg()?;
-                                return Ok(ParserNode::new_arith(
-                                    With::new(ArithType::Add, next_node.clone()),
-                                    rd,
-                                    rs1,
-                                    With::new(Register::X0, next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Li => {
-                                let rd = lex.get_reg()?;
-                                let imm = lex.get_imm()?;
-                                return Ok(ParserNode::new_iarith(
-                                    With::new(IArithType::Addi, next_node.clone()),
-                                    rd,
-                                    With::new(Register::X0, imm.token().clone()),
-                                    imm,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::La => {
-                                let rd = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_load_addr(
-                                    With::new(PseudoType::La, next_node.clone()),
-                                    rd,
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::J | PseudoType::B => {
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_jump_link(
-                                    With::new(JumpLinkType::Jal, next_node.clone()),
-                                    With::new(Register::X0, next_node.clone()),
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Jr => {
-                                let rs1 = lex.get_reg()?;
-                                return Ok(ParserNode::new_jump_link_r(
-                                    With::new(JumpLinkRType::Jalr, next_node.clone()),
-                                    With::new(Register::X0, next_node.clone()),
-                                    rs1,
-                                    With::new(Imm::new(0), next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Beqz => {
-                                let rs1 = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_branch(
-                                    With::new(BranchType::Beq, next_node.clone()),
-                                    rs1,
-                                    With::new(Register::X0, next_node.clone()),
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Bnez => {
-                                let rs1 = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_branch(
-                                    With::new(BranchType::Bne, next_node.clone()),
-                                    rs1,
-                                    With::new(Register::X0, next_node.clone()),
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Bltz | PseudoType::Bgtz => {
-                                let rs1 = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_branch(
-                                    With::new(BranchType::Blt, next_node.clone()),
-                                    rs1,
-                                    With::new(Register::X0, next_node.clone()),
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Neg => {
-                                let rd = lex.get_reg()?;
-                                let rs1 = lex.get_reg()?;
-                                return Ok(ParserNode::new_arith(
-                                    With::new(ArithType::Sub, next_node.clone()),
-                                    rd,
-                                    With::new(Register::X0, next_node.clone()),
-                                    rs1,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Not => {
-                                let rd = lex.get_reg()?;
-                                let rs1 = lex.get_reg()?;
-                                return Ok(ParserNode::new_iarith(
-                                    With::new(IArithType::Xori, next_node.clone()),
-                                    rd,
-                                    rs1,
-                                    With::new(Imm::new(-1), next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Seqz => {
-                                let rd = lex.get_reg()?;
-                                let rs1 = lex.get_reg()?;
-                                return Ok(ParserNode::new_iarith(
-                                    With::new(IArithType::Sltiu, next_node.clone()),
-                                    rd,
-                                    rs1,
-                                    With::new(Imm::new(1), next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Snez => {
-                                let rd = lex.get_reg()?;
-                                let rs1 = lex.get_reg()?;
-                                return Ok(ParserNode::new_iarith(
-                                    With::new(IArithType::Sltiu, next_node.clone()),
-                                    rd,
-                                    rs1,
-                                    With::new(Imm::new(0), next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Nop => {
-                                return Ok(ParserNode::new_iarith(
-                                    With::new(IArithType::Addi, next_node.clone()),
-                                    With::new(Register::X0, next_node.clone()),
-                                    With::new(Register::X0, next_node.clone()),
-                                    With::new(Imm::new(0), next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Bgez | PseudoType::Blez => {
-                                let rs1 = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_branch(
-                                    With::new(BranchType::Bge, next_node.clone()),
-                                    rs1,
-                                    With::new(Register::X0, next_node.clone()),
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Sgtz => {
-                                let rd = lex.get_reg()?;
-                                let rs1 = lex.get_reg()?;
-                                return Ok(ParserNode::new_arith(
-                                    With::new(ArithType::Slt, next_node.clone()),
-                                    rd,
-                                    With::new(Register::X0, next_node.clone()),
-                                    rs1,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Sltz => {
-                                let rd = lex.get_reg()?;
-                                let rs1 = lex.get_reg()?;
-                                return Ok(ParserNode::new_arith(
-                                    With::new(ArithType::Slt, next_node.clone()),
-                                    rd,
-                                    rs1,
-                                    With::new(Register::X0, next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Sgez => {
-                                let rs1 = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_branch(
-                                    With::new(BranchType::Bge, next_node.clone()),
-                                    With::new(Register::X0, next_node.clone()),
-                                    rs1,
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Call => {
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_jump_link(
-                                    With::new(JumpLinkType::Jal, next_node.clone()),
-                                    With::new(Register::X1, next_node.clone()),
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Bgt => {
-                                let rs1 = lex.get_reg()?;
-                                let rs2 = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_branch(
-                                    With::new(BranchType::Blt, next_node.clone()),
-                                    rs2,
-                                    rs1,
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Ble => {
-                                let rs1 = lex.get_reg()?;
-                                let rs2 = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_branch(
-                                    With::new(BranchType::Bge, next_node.clone()),
-                                    rs2,
-                                    rs1,
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Bgtu => {
-                                let rs1 = lex.get_reg()?;
-                                let rs2 = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_branch(
-                                    With::new(BranchType::Bltu, next_node.clone()),
-                                    rs2,
-                                    rs1,
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Bleu => {
-                                let rs1 = lex.get_reg()?;
-                                let rs2 = lex.get_reg()?;
-                                let label = lex.get_label()?;
-                                return Ok(ParserNode::new_branch(
-                                    With::new(BranchType::Bgeu, next_node.clone()),
-                                    rs2,
-                                    rs1,
-                                    label,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Csrci | PseudoType::Csrsi | PseudoType::Csrwi => {
-                                let csr = lex.get_csrimm()?;
-                                let imm = lex.get_imm()?;
-                                let inst = match inst {
-                                    PseudoType::Csrci => CsrIType::Csrrci,
-                                    PseudoType::Csrsi => CsrIType::Csrrsi,
-                                    PseudoType::Csrwi => CsrIType::Csrrwi,
-                                    _ => {
-                                        return Err(LexError::UnexpectedError(Box::new(
-                                            next_node.clone(),
-                                        )))
-                                    }
-                                };
-                                return Ok(ParserNode::new_csri(
-                                    With::new(inst, next_node.clone()),
-                                    With::new(Register::X0, next_node.clone()),
-                                    csr,
-                                    imm,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Csrc | PseudoType::Csrs | PseudoType::Csrw => {
-                                let rs1 = lex.get_reg()?;
-                                let csr = lex.get_csrimm()?;
-                                let inst = match inst {
-                                    PseudoType::Csrc => CsrType::Csrrc,
-                                    PseudoType::Csrs => CsrType::Csrrs,
-                                    PseudoType::Csrw => CsrType::Csrrw,
-                                    _ => {
-                                        return Err(LexError::UnexpectedError(Box::new(
-                                            next_node.clone(),
-                                        )))
-                                    }
-                                };
-                                return Ok(ParserNode::new_csr(
-                                    With::new(inst, next_node.clone()),
-                                    With::new(Register::X0, next_node.clone()),
-                                    csr,
-                                    rs1,
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                            PseudoType::Csrr => {
-                                let rd = lex.get_reg()?;
-                                let csr = lex.get_csrimm()?;
-                                return Ok(ParserNode::new_csr(
-                                    With::new(CsrType::Csrrs, next_node.clone()),
-                                    rd,
-                                    csr,
-                                    With::new(Register::X0, next_node.clone()),
-                                    mem::take(&mut lex.raw_token),
-                                    lex.current_segment,
-                                    mem::take(&mut lex.current_labels),
-                                ));
-                            }
-                        },
+                        }
                     };
                     return node;
                 }
@@ -1157,7 +1206,7 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                     Err(LexError::UnknownDirective(Box::new(next_node.clone())))
                 }
             }
-            TokenType::Newline => Err(IsNewline(Box::new(next_node))),
+            TokenType::Newline => Err(LexError::IsNewline(Box::new(next_node))),
             TokenType::LParen | TokenType::RParen | TokenType::String(_) | TokenType::Char(_) => {
                 Err(LexError::UnexpectedToken(Box::new(next_node)))
             }

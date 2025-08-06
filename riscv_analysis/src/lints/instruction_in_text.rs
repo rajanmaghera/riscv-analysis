@@ -41,32 +41,35 @@ impl LintPass for InstructionInTextPass {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{arith, iarith};
+    use crate::parser::{ParserNode, RVStringParser};
+
+    fn parse_text(s: &str) -> Vec<ParserNode> {
+        let parser_output = RVStringParser::parse_from_text(s);
+        dbg!(&parser_output.errors);
+        assert!(parser_output.errors.is_empty());
+        parser_output.nodes
+    }
 
     #[test]
     fn default_segment_is_text() {
-        let nodes = &[iarith!(Addi X1 X0 0)];
-        let errors = InstructionInTextPass::new().run_single_pass_along_nodes(nodes);
+        let nodes = parse_text("addi x1 x0 0");
+        let errors = InstructionInTextPass::new().run_single_pass_along_nodes(&nodes);
         assert_eq!(errors.len(), 0);
     }
 
     #[test]
     fn explicit_text_segment_is_allowed() {
-        let nodes = &[iarith!(Addi X1 X0 0 => Text)];
-        let errors = InstructionInTextPass::new().run_single_pass_along_nodes(nodes);
+        let nodes = parse_text(".text\naddi x1 x0 0");
+        let errors = InstructionInTextPass::new().run_single_pass_along_nodes(&nodes);
         assert_eq!(errors.len(), 0);
     }
 
     #[test]
     fn can_get_error_for_data_segment() {
-        let nodes = &[
-            iarith!(Addi X1 X0 0),
-            arith!(Add X1 X0 X20),
-            iarith!(Addi X1 X0 0 => Data),
-            arith!(Sub X1 X0 X20 => Data),
-            iarith!(Andi X1 X0 0),
-        ];
-        let errors = InstructionInTextPass::new().run_single_pass_along_nodes(nodes);
+        let nodes = parse_text(
+            "addi x1 x0 0\nadd x1 x0 x20\n.data\naddi x1 x0 0\nsub x1 x0 x20\n.text\naddi x1 x0 0",
+        );
+        let errors = InstructionInTextPass::new().run_single_pass_along_nodes(&nodes);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[0].get_error_code(), "invalid-segment");
         assert_eq!(errors[1].get_error_code(), "invalid-segment");
@@ -74,15 +77,10 @@ mod tests {
 
     #[test]
     fn can_get_error_if_data_segment_is_first() {
-        let nodes = &[
-            iarith!(Addi X1 X0 0 => Data),
-            arith!(Add X1 X0 X20 => Data),
-            iarith!(Addi X1 X0 0 => Data),
-            iarith!(Addi X1 X0 0),
-            arith!(Sub X1 X0 X20),
-            iarith!(Andi X1 X0 0),
-        ];
-        let errors = InstructionInTextPass::new().run_single_pass_along_nodes(nodes);
+        let nodes = parse_text(
+            ".data\naddi x1 x0 0\nadd x1 x0 x20\naddi x1 x0 0\n.text\naddi x1 x0 0\nsub x1 x0 x20\nandi x1 x0 0",
+        );
+        let errors = InstructionInTextPass::new().run_single_pass_along_nodes(&nodes);
         assert_eq!(errors.len(), 3);
         assert_eq!(errors[0].get_error_code(), "invalid-segment");
         assert_eq!(errors[1].get_error_code(), "invalid-segment");

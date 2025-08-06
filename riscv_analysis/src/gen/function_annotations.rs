@@ -170,8 +170,8 @@ mod tests {
         assert_eq!(
             nodes,
             HashSet::from([
-                "lw a1 0 ( sp )".to_string(),
-                "mul a0 a0 a1".to_string(),
+                "lw      a1, 0(sp)".to_string(),
+                "mul     a0, a0, a1".to_string(),
                 "ret".to_string(),
             ])
         );
@@ -209,15 +209,15 @@ mod tests {
         // Check that the function bodies match
         assert_eq!(
             fn_a,
-            HashSet::from(["addi a1 a0 0".to_string(), "ret".to_string(),])
+            HashSet::from(["addi    a1, a0, 0".to_string(), "ret".to_string(),])
         );
         assert_eq!(
             fn_b,
-            HashSet::from(["addi a1 a0 1".to_string(), "ret".to_string(),])
+            HashSet::from(["addi    a1, a0, 1".to_string(), "ret".to_string(),])
         );
         assert_eq!(
             fn_c,
-            HashSet::from(["addi a1 a0 2".to_string(), "ret".to_string(),])
+            HashSet::from(["addi    a1, a0, 2".to_string(), "ret".to_string(),])
         );
     }
 
@@ -249,9 +249,9 @@ mod tests {
             fn_a,
             HashSet::from([
                 // Insructions after label `fn_a` & `fn_b`
-                "addi a1 a0 0".to_string(),
-                "addi a1 a0 1".to_string(),
-                "addi a1 a0 2".to_string(),
+                "addi    a1, a0, 0".to_string(),
+                "addi    a1, a0, 1".to_string(),
+                "addi    a1, a0, 2".to_string(),
                 "ret".to_string(),
             ])
         );
@@ -259,7 +259,7 @@ mod tests {
             fn_b,
             HashSet::from([
                 // Only insructions after label `fn_b`
-                "addi a1 a0 2".to_string(),
+                "addi    a1, a0, 2".to_string(),
                 "ret".to_string(),
             ])
         );
@@ -301,15 +301,15 @@ mod tests {
         assert_eq!(
             fn_a,
             HashSet::from([
-                "addi a1 a0 0".to_string(),
-                "j fn_a_rest".to_string(),
-                "addi a1 a0 2".to_string(),
+                "addi    a1, a0, 0".to_string(),
+                "j       fn_a_rest".to_string(),
+                "addi    a1, a0, 2".to_string(),
                 "ret".to_string(),
             ])
         );
         assert_eq!(
             fn_b,
-            HashSet::from(["addi a1 a0 1".to_string(), "ret".to_string(),])
+            HashSet::from(["addi    a1, a0, 1".to_string(), "ret".to_string(),])
         );
 
         // Instructions in both functions should only have a single annotation

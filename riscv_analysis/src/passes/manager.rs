@@ -38,7 +38,8 @@ impl Default for Manager {
 }
 
 impl Manager {
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             passes: HashMap::new(),
         }
@@ -46,7 +47,7 @@ impl Manager {
 
     pub fn gen_full_cfg(
         parser_output: RVParserOutput,
-        additional_function_information: Option<Vec<(String, RegisterSet)>>,
+        additional_function_information: Option<Vec<(With<LabelString>, RegisterSet)>>,
         program_entry: &ProgramEntryType,
     ) -> Result<Cfg, Box<CfgError>> {
         // Stage 1: Generate names of interrupt handler functions
@@ -59,11 +60,7 @@ impl Manager {
 
         // Combine interrupt call names and input function call names
         predefined.extend(parser_output.extra_labels.clone());
-        let injected = additional_function_information
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(name, regs)| (With::blank(LabelString::new(name)), regs))
-            .collect::<Vec<(With<LabelString>, RegisterSet)>>();
+        let injected = additional_function_information.unwrap_or_default();
         predefined.extend(injected.iter().map(|(name, _)| name.clone()));
 
         // Stage 2: Generate full CFG

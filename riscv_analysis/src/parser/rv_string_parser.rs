@@ -19,10 +19,16 @@ impl RVStringParser {
     /// matches!(&parser_output.nodes[0], ParserNode::Arith(_));
     /// assert_eq!(parser_output.nodes[0].to_string(), "add ra <- a0, a1");
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if there is an internal error.
     #[must_use]
     pub fn parse_from_text(text: &str) -> RVParserOutput {
         let mut parser = RVParser::new(EmptyFileReader::new(text));
-        parser.parse_from_file(EmptyFileReader::get_file_path(), false)
+        parser
+            .parse_from_file(EmptyFileReader::get_file_path(), false)
+            .unwrap()
     }
 }
 
