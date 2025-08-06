@@ -28,19 +28,6 @@ pub enum TokenType {
     /// more specific type. The types include
     /// instructions, registers, numbers, and special CSR numbers/regs.
     Symbol(String),
-    /// Directive: text starting with '.'
-    ///
-    /// This is used to mark a directive. A directive is a
-    /// command to the assembler to do something. For example,
-    /// the `.text` directive tells the assembler to start
-    /// assembling code into the text section.
-    ///
-    /// The most important directive is `.include`. This
-    /// directive tells the assembler to include the file
-    /// specified in the directive. This case has to be handled
-    /// specially, as the file is not parsed, but rather
-    /// included as is.
-    Directive(String),
     /// String: text enclosed in double quotes
     String(String),
     // Char: Single character enclosed in single quotes
@@ -61,7 +48,6 @@ impl TokenType {
             TokenType::Newline => "\n".to_owned(),
             TokenType::Label(l) => format!("{l}:"),
             TokenType::Symbol(s) => s.clone(),
-            TokenType::Directive(d) => format!(".{d}"),
             TokenType::String(s) => format!("\"{s}\""),
             TokenType::Char(c) => format!("'{c}'"),
             TokenType::Comment(c) => format!("#{c}:"),
@@ -74,7 +60,6 @@ impl Display for TokenType {
         match self {
             TokenType::Label(s) => writeln!(f, "LABEL({s})"),
             TokenType::Symbol(s) => write!(f, "SYMBOL({s})"),
-            TokenType::Directive(s) => write!(f, "DIRECTIVE({s})"),
             TokenType::String(s) => write!(f, "STRING({s})"),
             TokenType::Char(c) => write!(f, "CHAR({c})"),
             TokenType::Comment(s) => write!(f, "COMMENT{s}"),

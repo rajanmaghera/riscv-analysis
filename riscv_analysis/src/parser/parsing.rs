@@ -1108,25 +1108,9 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                     };
                     return node;
                 }
-                Err(LexError::Expected(
-                    vec![ExpectedType::Inst],
-                    Box::new(next_node.clone()),
-                ))
-            }
-            TokenType::Label(s) => {
-                let label = With::new(
-                    LabelString::from_str(s).map_err(|()| {
-                        LexError::Expected(vec![ExpectedType::Label], Box::new(next_node.clone()))
-                    })?,
-                    next_node,
-                );
-                lex.current_labels.insert(label.clone());
-                lex.all_defined_labels.insert(label);
-                Err(LexError::IgnoredWithoutWarning)
-            }
-            TokenType::Directive(dir) => {
-                if let Ok(directive) = DirectiveToken::from_str(dir) {
-                    match directive {
+
+                if let Ok(directive) = DirectiveToken::from_str(s) {
+                    return match directive {
                         DirectiveToken::Align => {
                             let _ = lex.get_imm()?;
                             Err(LexError::IgnoredWithoutWarning)
@@ -1169,7 +1153,7 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             // we will just ignore them until we reach endmacro
                             loop {
                                 let next = lex.get_any()?;
-                                if let TokenType::Directive(dir2) = next.token_type() {
+                                if let TokenType::Symbol(dir2) = next.token_type() {
                                     if let Ok(new_dir) = DirectiveToken::from_str(dir2) {
                                         if new_dir == DirectiveToken::EndMacro {
                                             break;
@@ -1201,10 +1185,29 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                             lex.current_segment = Segment::Text;
                             Err(LexError::IgnoredWithoutWarning)
                         }
-                    }
-                } else {
-                    Err(LexError::UnknownDirective(Box::new(next_node.clone())))
+                    };
                 }
+
+                // Unknown symbol; if it begins with a period, assume it is a directive
+                if s.starts_with(".") {
+                    Err(LexError::UnknownDirective(Box::new(next_node.clone())))
+                } else {
+                    Err(LexError::Expected(
+                        vec![ExpectedType::Inst, ExpectedType::Directive],
+                        Box::new(next_node.clone()),
+                    ))
+                }
+            }
+            TokenType::Label(s) => {
+                let label = With::new(
+                    LabelString::from_str(s).map_err(|()| {
+                        LexError::Expected(vec![ExpectedType::Label], Box::new(next_node.clone()))
+                    })?,
+                    next_node,
+                );
+                lex.current_labels.insert(label.clone());
+                lex.all_defined_labels.insert(label);
+                Err(LexError::IgnoredWithoutWarning)
             }
             TokenType::Newline => Err(LexError::IsNewline(Box::new(next_node))),
             TokenType::LParen | TokenType::RParen | TokenType::String(_) | TokenType::Char(_) => {

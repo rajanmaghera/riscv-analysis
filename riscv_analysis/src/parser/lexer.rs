@@ -530,7 +530,11 @@ impl Iterator for Lexer {
                 ))
             }
             _ => {
-                // directive or symbol
+                // symbol or label
+
+                // If a label marks an instruction, it is
+                // a label Token. If it is used to jump to
+                // some point, it is a Symbol.
                 let start = self.get_pos();
                 let mut symbol_str: String = String::new();
 
@@ -562,25 +566,15 @@ impl Iterator for Lexer {
 
                 let end = self.get_pos();
 
-                // If the string begins with a period, it is a directive
                 if symbol_str == "." {
                     return self.next();
                 }
-                if symbol_str.starts_with('.') {
-                    Some(Token::new(
-                        TokenType::Directive(symbol_str.clone()),
-                        symbol_str,
-                        Range::new(start, end),
-                        self.source_id,
-                    ))
-                } else {
-                    Some(Token::new(
-                        TokenType::Symbol(symbol_str.clone()),
-                        symbol_str,
-                        Range::new(start, end),
-                        self.source_id,
-                    ))
-                }
+                Some(Token::new(
+                    TokenType::Symbol(symbol_str.clone()),
+                    symbol_str,
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
         };
 
@@ -672,7 +666,7 @@ mod tests {
     #[test]
     fn lex_directive() {
         let tokens = tokenize(".text");
-        assert_eq!(tokens, vec![TokenType::Directive(".text".to_owned())]);
+        assert_eq!(tokens, vec![TokenType::Symbol(".text".to_owned())]);
     }
 
     #[test]
@@ -748,7 +742,7 @@ mod tests {
         assert_eq!(
             lexer,
             vec![
-                TokenType::Directive(".text".to_string()),
+                TokenType::Symbol(".text".to_string()),
                 TokenType::Symbol("add".into()),
                 TokenType::Symbol("x2".into()),
                 TokenType::Symbol("x2".into()),
@@ -787,7 +781,7 @@ mod tests {
         assert_eq!(
             lexer,
             vec![
-                TokenType::Directive(".text".to_string()),
+                TokenType::Symbol(".text".to_string()),
                 TokenType::Newline,
                 TokenType::Symbol("add".into()),
                 TokenType::Symbol("x2".into()),
@@ -1084,5 +1078,21 @@ mod tests {
         assert_eq!(tokens[4].range().end().zero_idx_line(), 3);
         assert_eq!(tokens[4].range().end().zero_idx_column(), 11);
         assert_eq!(tokens[4].range().end().raw_index(), 14);
+    }
+
+    #[test]
+    fn label_targets_are_symbols() {
+        let input = ".L1: .L1 .text j .L1";
+        let tokens = tokens(input);
+        assert_eq!(
+            tokens,
+            vec![
+                TokenType::Label(".L1".into()),
+                TokenType::Symbol(".L1".into()),
+                TokenType::Symbol(".text".into()),
+                TokenType::Symbol("j".into()),
+                TokenType::Symbol(".L1".into()),
+            ]
+        );
     }
 }

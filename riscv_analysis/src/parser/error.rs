@@ -237,6 +237,7 @@ pub enum ExpectedType {
     CsrImm,
     Inst,
     String,
+    Directive,
 }
 
 impl std::fmt::Display for ExpectedType {
@@ -250,6 +251,7 @@ impl std::fmt::Display for ExpectedType {
             ExpectedType::CsrImm => write!(f, "CSR-IMMEDIATE"),
             ExpectedType::Inst => write!(f, "INSTRUCTION"),
             ExpectedType::String => write!(f, "STRING"),
+            ExpectedType::Directive => write!(f, "DIRECTIVE"),
         }
     }
 }
