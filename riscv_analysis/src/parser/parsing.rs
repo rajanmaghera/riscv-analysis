@@ -201,6 +201,17 @@ impl<T: FileReader> RVParser<T> {
     }
 }
 
+impl TryFrom<Token> for String {
+    type Error = ();
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.token_type() {
+            TokenType::Symbol(s) => Ok(s.to_string()),
+            _ => Err(()),
+        }
+    }
+}
+
 impl Token {
     fn as_type<T: TryFrom<Token>, const N: usize>(
         &self,
@@ -243,6 +254,10 @@ impl Token {
         self.as_type([ExpectedType::Label])
     }
 
+    fn as_symbol(&self) -> Result<With<String>, LexError> {
+        self.as_type([ExpectedType::Symbol])
+    }
+
     fn as_csrimm(&self) -> Result<With<CsrImm>, LexError> {
         self.as_type([ExpectedType::CsrImm])
     }
@@ -277,6 +292,10 @@ impl AnnotatedLexer {
 
     fn get_label(&mut self) -> Result<LabelStringToken, LexError> {
         self.get_any()?.as_label()
+    }
+
+    fn get_symbol(&mut self) -> Result<With<String>, LexError> {
+        self.get_any()?.as_symbol()
     }
 
     fn get_csrimm(&mut self) -> Result<With<CsrImm>, LexError> {
@@ -1245,6 +1264,15 @@ impl TryFrom<&mut AnnotatedLexer> for ParserNode {
                         DirectiveToken::Text => {
                             lex.current_segment = Segment::Text;
                             Err(LexError::IgnoredWithoutWarning)
+                        }
+                        DirectiveToken::Type => {
+                            let label = lex.get_label()?;
+                            let symbol_type = lex.get_symbol()?;
+                            if symbol_type.get() == "@function" {
+                                Err(LexError::GlobalDef(Box::new(label)))
+                            } else {
+                                Err(LexError::IgnoredWithoutWarning)
+                            }
                         }
                     };
                 }

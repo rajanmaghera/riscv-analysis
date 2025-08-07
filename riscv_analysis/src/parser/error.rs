@@ -238,6 +238,7 @@ pub enum ExpectedType {
     Inst,
     String,
     Directive,
+    Symbol,
 }
 
 impl std::fmt::Display for ExpectedType {
@@ -252,6 +253,7 @@ impl std::fmt::Display for ExpectedType {
             ExpectedType::Inst => write!(f, "INSTRUCTION"),
             ExpectedType::String => write!(f, "STRING"),
             ExpectedType::Directive => write!(f, "DIRECTIVE"),
+            ExpectedType::Symbol => write!(f, "DIRECTIVE"),
         }
     }
 }
