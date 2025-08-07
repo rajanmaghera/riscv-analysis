@@ -60,12 +60,11 @@ impl Inst {
 }
 
 impl MathOp {
-    #[allow(clippy::cast_possible_wrap)]
     #[allow(clippy::cast_sign_loss)]
     #[must_use]
     pub fn operate(&self, x: i32, y: i32) -> i32 {
         match self {
-            MathOp::Add => x + y,
+            MathOp::Add => x.wrapping_add(y),
             MathOp::And => x & y,
             MathOp::Or => x | y,
             MathOp::Sll => x << y,
@@ -75,7 +74,7 @@ impl MathOp {
             MathOp::Srl => (x as u32 >> y) as i32,
             MathOp::Sub => x - y,
             MathOp::Xor => x ^ y,
-            MathOp::Mul => x * y,
+            MathOp::Mul => x.wrapping_mul(y),
             MathOp::Mulh | MathOp::Mulhsu => {
                 let (x, y) = (i64::from(x), i64::from(y));
                 ((x * y) >> 32) as i32
