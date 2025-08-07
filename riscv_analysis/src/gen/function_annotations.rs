@@ -3,12 +3,13 @@ use crate::{
     parser::InstructionProperties,
     passes::{CfgError, GenerationPass},
 };
+use std::collections::HashSet;
 use std::{rc::Rc, vec};
 
 struct MarkData {
     pub found: RegisterSet,
     pub instructions: Vec<Rc<CfgNode>>,
-    pub returns: Vec<Rc<CfgNode>>,
+    pub returns: HashSet<Rc<CfgNode>>,
 }
 
 pub struct FunctionMarkupPass;
@@ -16,7 +17,7 @@ pub struct FunctionMarkupPass;
 impl FunctionMarkupPass {
     fn mark_reachable(cfg: &Cfg, entry: &Rc<CfgNode>, func: &Rc<Function>) -> MarkData {
         let mut defs = RegisterSet::new(); // Registers this function writes to
-        let mut returns = Vec::new(); // Return instructions in this function
+        let mut returns = HashSet::new(); // Return instructions in this function
         let mut instructions = Vec::new();
 
         // Traverse the CFG for all nodes reachable from the entry point
@@ -32,7 +33,7 @@ impl FunctionMarkupPass {
 
             // Collect return instructions
             if node.is_return() {
-                returns.push(Rc::clone(node));
+                returns.insert(Rc::clone(node));
             }
         }
 
