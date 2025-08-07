@@ -131,3 +131,63 @@ impl HasIdentity for Function {
         self.id
     }
 }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ExternalFunction {
+    id: Uuid,
+    labels: HashSet<LabelStringToken>,
+    arguments: RegisterSet,
+    returns: RegisterSet,
+}
+
+impl Hash for ExternalFunction {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+impl ExternalFunction {
+    #[must_use]
+    pub fn name(&self) -> LabelString {
+        LabelString::new(
+            self.labels
+                .iter()
+                .map(|x| x.to_string())
+                .intersperse(", ".to_owned())
+                .collect::<String>(),
+        )
+    }
+
+    pub fn new(
+        labels: Vec<LabelStringToken>,
+        arguments: RegisterSet,
+        returns: RegisterSet,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            labels: labels.into_iter().collect(),
+            arguments,
+            returns,
+        }
+    }
+
+    #[must_use]
+    pub fn labels(&self) -> HashSet<LabelStringToken> {
+        self.labels.clone()
+    }
+
+    #[must_use]
+    pub fn arguments(&self) -> RegisterSet {
+        self.arguments.clone() & Register::argument_set()
+    }
+
+    #[must_use]
+    pub fn returns(&self) -> RegisterSet {
+        self.returns.clone() & Register::argument_set()
+    }
+}
+impl HasIdentity for ExternalFunction {
+    /// Get the id of the function.
+    fn id(&self) -> Uuid {
+        self.id
+    }
+}
