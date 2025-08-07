@@ -12,7 +12,7 @@ use super::AvailableValueMap;
 /// This is currently limited to 32 registers as it is
 /// tied heavily to the RISC-V architecture. For future
 /// use cases, growing to u64 or u128 is a good option.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RegisterSet {
     /// The registers that are used in the basic block.
     /// The bit at index `i` is set if register `i` is used.
