@@ -71,6 +71,15 @@ impl GenerationPass for LivenessPass {
 
                     changed |= node.set_live_in(live_in);
                     changed |= node.set_u_def(u_def);
+                } else if let Some((ext_func, _)) =
+                    node.calls_to_some_external_function_from_cfg(cfg)
+                {
+                    // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - caller-saved registers)
+                    let live_in_temp = node.live_out() - node.kill_reg();
+                    let live_in = (ext_func.arguments() & Register::argument_set())
+                        | live_in_temp
+                        | node.gen_reg();
+                    changed |= node.set_live_in(live_in);
                 } else if node.is_ecall() {
                     let (args, rets) = node.known_ecall_signature().unwrap_or_default();
 

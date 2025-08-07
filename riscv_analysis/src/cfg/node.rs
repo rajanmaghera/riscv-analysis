@@ -1,10 +1,10 @@
-use super::environment_in_outs;
 use super::AvailableValueMap;
 use super::Cfg;
 use super::Function;
 use super::RefCellReplacement;
 use super::RegisterSet;
 use super::Segment;
+use super::{environment_in_outs, ExternalFunction};
 use crate::analysis::AvailableValue;
 use crate::analysis::MemoryLocation;
 use crate::parser::InstructionProperties;
@@ -198,6 +198,17 @@ impl CfgNode {
         } else if let Some(name) = self.is_some_jump_to_label() {
             // In some cases, functions may be called by jumping to them indirectly
             cfg.get_function(&name).cloned().map(|x| (x, name))
+        } else {
+            None
+        }
+    }
+
+    pub fn calls_to_some_external_function_from_cfg(
+        &self,
+        cfg: &Cfg,
+    ) -> Option<(ExternalFunction, LabelStringToken)> {
+        if let Some(name) = self.calls_to() {
+            cfg.get_external_function(&name).map(|x| (x.clone(), name))
         } else {
             None
         }

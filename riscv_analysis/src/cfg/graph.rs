@@ -1,7 +1,7 @@
-use super::CfgBreadthFirstIterator;
-use super::CfgNode;
 use super::CfgSourceIterator;
 use super::Function;
+use super::{CfgBreadthFirstIterator, ExternalFunction};
+use super::{CfgNode, RegisterSet};
 use crate::analysis::HasGenKillInfo;
 use crate::parser;
 use crate::parser::{HasIdentity, ParserNode};
@@ -23,6 +23,7 @@ pub struct Cfg {
     pub label_node_map: HashMap<String, Rc<CfgNode>>,
     functions: HashSet<Rc<Function>>,
     label_function_map: HashMap<LabelStringToken, Rc<Function>>,
+    label_external_function_map: HashMap<LabelStringToken, ExternalFunction>,
 }
 
 impl Cfg {
@@ -63,6 +64,12 @@ impl Cfg {
         self.label_function_map.insert(label, func);
     }
 
+    /// Get the external functions of the CFG.
+    #[must_use]
+    pub fn get_external_function(&self, name: &LabelStringToken) -> Option<&ExternalFunction> {
+        self.label_external_function_map.get(name)
+    }
+
     /// Get the nodes of the CFG
     #[must_use]
     pub fn nodes(&self) -> &Vec<Rc<CfgNode>> {
@@ -99,12 +106,16 @@ impl Cfg {
     pub fn new(
         parser_output: RVParserOutput,
         predefined_call_names: Option<&HashSet<LabelStringToken>>,
+        external_functions: Option<HashSet<(LabelStringToken, RegisterSet, RegisterSet)>>,
         program_entry: &ProgramEntryType,
     ) -> Result<Cfg, Box<CfgError>> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
 
-        let defined_labels = parser_output.all_defined_labels;
+        let mut defined_labels = parser_output.all_defined_labels;
+        if let Some(new_set) = &external_functions {
+            defined_labels.extend(new_set.iter().map(|(name, _, _)| name.clone()))
+        }
         let call_names = {
             let mut set = parser_output.nodes.call_names();
             if let Some(new_set) = predefined_call_names {
@@ -180,6 +191,17 @@ impl Cfg {
         let nexts = nodes.iter().map(|x| (x.id(), HashSet::new())).collect();
         let prevs = nodes.iter().map(|x| (x.id(), HashSet::new())).collect();
 
+        let label_external_function_map: HashMap<_, _> = external_functions
+            .iter()
+            .flat_map(|x| x.iter())
+            .map(|(name, args, rets)| {
+                (
+                    name.clone(),
+                    ExternalFunction::new([name.clone()].into_iter().collect(), *args, *rets),
+                )
+            })
+            .collect();
+
         Ok(Cfg {
             nodes,
             nexts,
@@ -187,6 +209,7 @@ impl Cfg {
             label_function_map: HashMap::new(),
             functions: HashSet::new(),
             label_node_map: labels,
+            label_external_function_map,
         })
     }
 

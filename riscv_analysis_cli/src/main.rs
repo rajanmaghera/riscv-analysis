@@ -48,21 +48,39 @@ enum Commands {
 #[derive(Clone, Debug, PartialEq)]
 struct FunctionDef {
     name: String,
+    arg_registers: HashSet<Register>,
     ret_registers: HashSet<Register>,
 }
 
 impl FromStr for FunctionDef {
     type Err = &'static str;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let error_msg = "function name not in format \"func_name:a0,a1\"";
-        // Example strings; _main:a0,a1;
-        let (name, args_s) = s.split_once(":").ok_or(error_msg)?;
+        let error_msg = "function name not in format \"func_name:a0,a1:a0\"";
+        // Example strings; _main:a0,a1:a0;
+        let (name, args_rets) = s.split_once(":").ok_or(error_msg)?;
+        let (args, rets) = args_rets.split_once(":").ok_or(error_msg)?;
 
         Ok(Self {
             name: name.to_string(),
-            ret_registers: args_s
+            arg_registers: args
                 .split(",")
-                .map(|x| Register::from_str(x).map_err(|_| error_msg))
+                .filter_map(|x| {
+                    if x.is_empty() {
+                        None
+                    } else {
+                        Some(Register::from_str(x).map_err(|_| error_msg))
+                    }
+                })
+                .collect::<Result<HashSet<_>, _>>()?,
+            ret_registers: rets
+                .split(",")
+                .filter_map(|x| {
+                    if x.is_empty() {
+                        None
+                    } else {
+                        Some(Register::from_str(x).map_err(|_| error_msg))
+                    }
+                })
                 .collect::<Result<HashSet<_>, _>>()?,
         })
     }
@@ -93,7 +111,7 @@ struct Lint {
     /// Display errors from all files
     #[clap(long)]
     all_files: bool,
-    /// Inject functions and their return argument registers
+    /// Inject functions and their argument and return registers
     #[clap(long, value_delimiter = ';', num_args = 1.., value_name = "FUNCTION_DEF")]
     function_names: Option<Vec<FunctionDef>>,
     /// Do not use the first instruction as the program entry
@@ -380,6 +398,7 @@ fn main() {
                                         cli_args_filename,
                                     ),
                                 ),
+                                item.arg_registers.into_iter().collect(),
                                 item.ret_registers.into_iter().collect(),
                             )
                         })

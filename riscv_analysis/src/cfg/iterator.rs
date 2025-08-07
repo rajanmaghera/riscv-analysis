@@ -93,7 +93,13 @@ mod tests {
     fn gen_cfg(input: &str) -> Cfg {
         let parser_output = RVStringParser::parse_from_text(input);
         assert_eq!(parser_output.errors.len(), 0);
-        Cfg::new(parser_output, None, &ProgramEntryType::FirstInstruction).unwrap()
+        Cfg::new(
+            parser_output,
+            None,
+            None,
+            &ProgramEntryType::FirstInstruction,
+        )
+        .unwrap()
     }
 
     #[test]

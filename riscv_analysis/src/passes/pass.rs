@@ -54,6 +54,7 @@ pub trait LintPass {
                 ..Default::default()
             },
             None,
+            None,
             &ProgramEntryType::FirstInstruction,
         )
         .unwrap();

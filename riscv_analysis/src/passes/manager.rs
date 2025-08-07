@@ -14,7 +14,7 @@ use crate::{
         OverlappingFunctionPass, SaveToZeroPass, StackPass,
     },
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
 pub struct DebugInfo {
@@ -47,7 +47,7 @@ impl Manager {
 
     pub fn gen_full_cfg(
         parser_output: RVParserOutput,
-        additional_function_information: Option<Vec<(With<LabelString>, RegisterSet)>>,
+        external_functions: Option<HashSet<(With<LabelString>, RegisterSet, RegisterSet)>>,
         program_entry: &ProgramEntryType,
     ) -> Result<Cfg, Box<CfgError>> {
         // Stage 1: Generate names of interrupt handler functions
@@ -60,11 +60,14 @@ impl Manager {
 
         // Combine interrupt call names and input function call names
         predefined.extend(parser_output.extra_labels.clone());
-        let injected = additional_function_information.unwrap_or_default();
-        predefined.extend(injected.iter().map(|(name, _)| name.clone()));
 
         // Stage 2: Generate full CFG
-        let mut cfg = Cfg::new(parser_output, Some(&predefined), program_entry)?;
+        let mut cfg = Cfg::new(
+            parser_output,
+            Some(&predefined),
+            external_functions.clone(),
+            program_entry,
+        )?;
         NodeDirectionPass::run(&mut cfg)?;
         EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
         AvailableValuePass::run(&mut cfg)?;
@@ -74,7 +77,10 @@ impl Manager {
         AvailableValuePass::run(&mut cfg)?;
         EcallTerminationPass::run(&mut cfg)?;
         // EliminateDeadCodeDirectionsPass::run(&mut cfg)?; // to eliminate ecall terminated code
-        LivenessPass::inject_return_registers_into_function(&mut cfg, injected.into_iter());
+        LivenessPass::inject_return_registers_into_function(
+            &mut cfg,
+            external_functions.into_iter().flat_map(|x| x.into_iter()),
+        );
         LivenessPass::run(&mut cfg)?;
         Ok(cfg)
     }
