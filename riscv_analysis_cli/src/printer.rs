@@ -102,7 +102,6 @@ impl PrettyPrint {
             .collect();
 
         // Arrows pointing the the relevant position
-        let end = end + 1;
         let arrows = "^".repeat(end.saturating_sub(start));
         let offset = start.saturating_sub(first_non_ws);
         base.replace_range(offset.., &arrows);
