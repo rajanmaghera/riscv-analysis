@@ -194,10 +194,10 @@ impl CfgNode {
 
     pub fn calls_to_from_cfg(&self, cfg: &Cfg) -> Option<(Rc<Function>, LabelStringToken)> {
         if let Some(name) = self.calls_to() {
-            cfg.functions().get(&name).cloned().map(|x| (x, name))
+            cfg.get_function(&name).cloned().map(|x| (x, name))
         } else if let Some(name) = self.is_some_jump_to_label() {
             // In some cases, functions may be called by jumping to them indirectly
-            cfg.functions().get(&name).cloned().map(|x| (x, name))
+            cfg.get_function(&name).cloned().map(|x| (x, name))
         } else {
             None
         }

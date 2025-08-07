@@ -58,9 +58,13 @@ impl Manipulation {
 /// This allows LSP servers to determine where we can mark
 /// function actions.
 pub fn get_function_label_ranges(cfg: &Cfg) -> Vec<Range> {
-    cfg.functions()
-        .keys()
-        .map(crate::passes::DiagnosticLocation::range)
+    cfg.get_all_functions()
+        .flat_map(|x| {
+            x.labels()
+                .iter()
+                .map(DiagnosticLocation::range)
+                .collect::<Vec<_>>()
+        })
         .collect()
 }
 

@@ -139,7 +139,7 @@ impl LivenessPass {
     ) {
         // For each given function, union the live_out set to the input list of Registers
         for (func_name, registers) in function_name_return {
-            if let Some(func) = cfg.functions().get(&func_name) {
+            if let Some(func) = cfg.get_function(&func_name) {
                 for exit_node in func.exits().iter() {
                     #[allow(unused_must_use)]
                     exit_node.set_live_out(exit_node.live_out() | registers);

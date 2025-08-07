@@ -25,7 +25,7 @@ impl LintPass for CalleeSavedRegisterPass {
     }
 
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for func in cfg.functions().values() {
+        for func in cfg.get_all_functions() {
             for exit in func.exits().iter() {
                 let exit_vals = exit.reg_values_in();
                 for reg in &Register::callee_saved_set() {

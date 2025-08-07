@@ -21,6 +21,7 @@ pub struct Cfg {
     nexts: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
     prevs: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
     pub label_node_map: HashMap<String, Rc<CfgNode>>,
+    functions: HashSet<Rc<Function>>,
     label_function_map: HashMap<LabelStringToken, Rc<Function>>,
 }
 
@@ -38,14 +39,27 @@ impl Cfg {
         CfgBreadthFirstIterator::new(self, node)
     }
 
-    /// Get the functions of the CFG.
+    // /// Get the functions of the CFG.
+    // #[must_use]
+    // pub fn functions(&self) -> HashMap<LabelStringToken, Rc<Function>> {
+    //     self.label_function_map.clone()
+    // }
+
+    /// Get a function by its name
     #[must_use]
-    pub fn functions(&self) -> HashMap<LabelStringToken, Rc<Function>> {
-        self.label_function_map.clone()
+    pub fn get_function(&self, name: &LabelStringToken) -> Option<&Rc<Function>> {
+        self.label_function_map.get(name)
+    }
+
+    /// Get every function in the program
+    #[must_use]
+    pub fn get_all_functions(&self) -> impl Iterator<Item = &Rc<Function>> {
+        self.functions.iter()
     }
 
     /// Insert a new function
     pub fn insert_function(&mut self, label: LabelStringToken, func: Rc<Function>) {
+        self.functions.insert(Rc::clone(&func));
         self.label_function_map.insert(label, func);
     }
 
@@ -171,6 +185,7 @@ impl Cfg {
             nexts,
             prevs,
             label_function_map: HashMap::new(),
+            functions: HashSet::new(),
             label_node_map: labels,
         })
     }

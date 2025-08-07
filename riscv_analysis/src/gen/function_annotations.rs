@@ -100,10 +100,13 @@ mod tests {
 
     /// Map string labels to functions.
     fn function_map(cfg: &Cfg) -> HashMap<String, Rc<Function>> {
-        let funcs = cfg.functions();
-        funcs
-            .iter()
-            .map(|(name, func)| (name.to_string(), func.clone()))
+        cfg.get_all_functions()
+            .flat_map(|x| {
+                x.labels()
+                    .iter()
+                    .map(|label| (label.to_string(), Rc::clone(x)))
+                    .collect::<Vec<_>>()
+            })
             .collect()
     }
 
