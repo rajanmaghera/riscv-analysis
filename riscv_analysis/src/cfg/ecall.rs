@@ -1,12 +1,12 @@
-use crate::parser::Register;
+use crate::parser::RVRegister;
 
 use super::RegisterSet;
 
 #[allow(clippy::match_same_arms)]
 #[must_use]
 pub fn environment_in_outs(call_num: i32) -> Option<(RegisterSet, RegisterSet)> {
-    use crate::parser::Register::{X10, X11, X12, X13};
-    let (args, rets): (&[Register], &[Register]) = match call_num {
+    use crate::parser::RVRegister::{X10, X11, X12, X13};
+    let (args, rets): (&[RVRegister], &[RVRegister]) = match call_num {
         1 => (&[X10], &[]),
         // 2 => (&[], &[]), Not supporting floating point yet
         // 3 => (&[], &[]),

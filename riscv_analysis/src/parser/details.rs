@@ -1,36 +1,54 @@
+use std::collections::HashSet;
 use std::fmt::Display;
-
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use super::{
     ArithType, BasicType, BranchType, CsrIType, CsrImm, CsrType, DirectiveToken, IArithType,
-    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelStringToken, LoadType, PseudoType, RawToken,
-    Register, StoreType, With,
+    IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelStringToken, LoadType, Position, PseudoType,
+    RVRegister, Range, RawToken, StoreType, With,
 };
+use crate::cfg::Segment;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+/// Generate an empty token for testing purposes
+///
+/// This is ONLY to be used for testing. We should
+/// NEVER generate empty tokens. Tokens should always
+/// be valid.
+fn empty_token() -> RawToken {
+    RawToken::new(
+        "\n",
+        Range::new(Position::new(0, 0, 0), Position::new(0, 1, 1)),
+        Uuid::default(),
+    )
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Arith {
     pub inst: With<ArithType>,
-    pub rd: With<Register>,
-    pub rs1: With<Register>,
-    pub rs2: With<Register>,
+    pub rd: With<RVRegister>,
+    pub rs1: With<RVRegister>,
+    pub rs2: With<RVRegister>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IArith {
     pub inst: With<IArithType>,
-    pub rd: With<Register>,
-    pub rs1: With<Register>,
+    pub rd: With<RVRegister>,
+    pub rs1: With<RVRegister>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,30 +56,36 @@ pub struct Label {
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JumpLink {
     pub inst: With<JumpLinkType>,
-    pub rd: With<Register>,
+    pub rd: With<RVRegister>,
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JumpLinkR {
     pub inst: With<JumpLinkRType>,
-    pub rd: With<Register>,
-    pub rs1: With<Register>,
+    pub rd: With<RVRegister>,
+    pub rs1: With<RVRegister>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,44 +93,52 @@ pub struct Basic {
     pub inst: With<BasicType>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Branch {
     pub inst: With<BranchType>,
-    pub rs1: With<Register>,
-    pub rs2: With<Register>,
+    pub rs1: With<RVRegister>,
+    pub rs2: With<RVRegister>,
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Load {
     pub inst: With<LoadType>,
-    pub rd: With<Register>,
-    pub rs1: With<Register>,
+    pub rd: With<RVRegister>,
+    pub rs1: With<RVRegister>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Store {
     pub inst: With<StoreType>,
-    pub rs1: With<Register>,
-    pub rs2: With<Register>,
+    pub rs1: With<RVRegister>,
+    pub rs2: With<RVRegister>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize)]
@@ -141,13 +173,17 @@ pub enum DirectiveType {
     TextSection,
     Data(DataType, Vec<With<Imm>>),
     Space(With<Imm>),
+    Global(LabelStringToken),
+    Other,
 }
 
 impl Display for DirectiveType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DirectiveType::Other => write!(f, "directive"),
+            DirectiveType::Global(s) => write!(f, "global {s}"),
             DirectiveType::Include(s) => write!(f, "include {s}"),
-            DirectiveType::Align(i) => write!(f, "align {}", i.get().value()),
+            DirectiveType::Align(i) => write!(f, "align {}", i.get()),
             DirectiveType::Ascii { text, .. } => {
                 write!(f, "ascii \"{text}\"")
             }
@@ -156,11 +192,11 @@ impl Display for DirectiveType {
             DirectiveType::Data(dt, data) => {
                 write!(f, "{dt} ")?;
                 for d in data {
-                    write!(f, "{}, ", d.get().value())?;
+                    write!(f, "{}, ", d.get())?;
                 }
                 Ok(())
             }
-            DirectiveType::Space(i) => write!(f, "space {}", i.get().value()),
+            DirectiveType::Space(i) => write!(f, "space {}", i.get()),
         }
     }
 }
@@ -171,32 +207,36 @@ pub struct Directive {
     pub dir: DirectiveType,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Csr {
     pub inst: With<CsrType>,
-    pub rd: With<Register>,
+    pub rd: With<RVRegister>,
     pub csr: With<CsrImm>,
-    pub rs1: With<Register>,
+    pub rs1: With<RVRegister>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CsrI {
     pub inst: With<CsrIType>,
-    pub rd: With<Register>,
+    pub rd: With<RVRegister>,
     pub csr: With<CsrImm>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,19 +244,21 @@ pub struct Ignore {
     pub inst: With<IgnoreType>,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoadAddr {
     pub inst: With<PseudoType>,
-    pub rd: With<Register>,
+    pub rd: With<RVRegister>,
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -225,10 +267,12 @@ pub struct FuncEntry {
     pub file: Uuid,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
     #[serde(skip)]
     pub is_interrupt_handler: bool,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -237,6 +281,8 @@ pub struct ProgramEntry {
     pub file: Uuid,
     #[serde(skip)]
     pub key: Uuid,
-    #[serde(skip)]
+    #[serde(skip, default = "empty_token")]
     pub token: RawToken,
+    pub segment: Segment,
+    pub labels: HashSet<LabelStringToken>,
 }

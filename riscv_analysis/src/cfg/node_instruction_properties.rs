@@ -1,4 +1,5 @@
-use crate::parser::{Imm, InstructionProperties, LabelStringToken, Register, RegisterToken};
+use crate::parser::{Imm, InstructionProperties, LabelStringToken, RVRegister, RegisterToken};
+use std::collections::HashSet;
 
 use super::CfgNode;
 
@@ -15,11 +16,11 @@ impl InstructionProperties for CfgNode {
         self.node().is_ureturn()
     }
 
-    fn stores_to_memory(&self) -> Option<(Register, (Register, Imm))> {
+    fn stores_to_memory(&self) -> Option<(RVRegister, (RVRegister, Imm))> {
         self.node().stores_to_memory()
     }
 
-    fn reads_from_memory(&self) -> Option<((Register, Imm), Register)> {
+    fn reads_from_memory(&self) -> Option<((RVRegister, Imm), RVRegister)> {
         self.node().reads_from_memory()
     }
 
@@ -39,27 +40,11 @@ impl InstructionProperties for CfgNode {
         self.node().jumps_to()
     }
 
-    fn is_any_entry(&self) -> bool {
-        self.node().is_any_entry()
-    }
-
-    fn is_function_entry(&self) -> bool {
-        self.node().is_function_entry()
-    }
-
-    fn is_handler_function_entry(&self) -> bool {
-        self.node().is_handler_function_entry()
-    }
-
-    fn is_program_entry(&self) -> bool {
-        self.node().is_program_entry()
-    }
-
     fn is_instruction(&self) -> bool {
         self.node().is_instruction()
     }
 
-    fn uses_memory_location(&self) -> Option<(Register, Imm)> {
+    fn uses_memory_location(&self) -> Option<(RVRegister, Imm)> {
         self.node().uses_memory_location()
     }
 
@@ -71,7 +56,7 @@ impl InstructionProperties for CfgNode {
         self.node().is_some_jump_to_label()
     }
 
-    fn writes_to(&self) -> Option<RegisterToken> {
+    fn writes_to(&self) -> HashSet<RegisterToken> {
         self.node().writes_to()
     }
 

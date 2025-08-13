@@ -57,10 +57,14 @@ impl Manipulation {
 ///
 /// This allows LSP servers to determine where we can mark
 /// function actions.
-pub fn get_function_label_ranges(cfg: &Cfg) -> Vec<Range> {
-    cfg.functions()
-        .keys()
-        .map(crate::passes::DiagnosticLocation::range)
+#[must_use] pub fn get_function_label_ranges(cfg: &Cfg) -> Vec<Range> {
+    cfg.get_all_functions()
+        .flat_map(|x| {
+            x.labels()
+                .iter()
+                .map(DiagnosticLocation::range)
+                .collect::<Vec<_>>()
+        })
         .collect()
 }
 
@@ -68,7 +72,7 @@ pub fn get_function_label_ranges(cfg: &Cfg) -> Vec<Range> {
 pub fn fix_stack(func: &Rc<Function>) -> Vec<Manipulation> {
     // go to the beginning of the function
     let entry = &func.entry();
-    let exit = &func.exit();
+    let exits = &func.exits();
     // sorted to make the output nicer
     let regs = func.to_save().into_iter().sorted().collect_vec();
     let count = regs.len();
@@ -95,15 +99,28 @@ pub fn fix_stack(func: &Rc<Function>) -> Vec<Manipulation> {
 
     let offset = count + 4;
 
+    let mut manipulations = Vec::new();
+
     // Move range to beginning of line
     let mut entry_range = *entry.node().range().start();
     entry_range.decrement_to_beginning_of_line();
+    manipulations.push(Manipulation::Insert(
+        entry.node().file(),
+        entry_range,
+        entry_text,
+        offset,
+    ));
 
-    let mut exit_range = *exit.node().range().start();
-    exit_range.decrement_to_beginning_of_line();
+    for exit in exits.iter() {
+        let mut exit_range = *exit.node().range().start();
+        exit_range.decrement_to_beginning_of_line();
+        manipulations.push(Manipulation::Insert(
+            exit.node().file(),
+            exit_range,
+            exit_text.clone(),
+            offset,
+        ));
+    }
 
-    vec![
-        Manipulation::Insert(entry.node().file(), entry_range, entry_text, offset),
-        Manipulation::Insert(exit.node().file(), exit_range, exit_text, offset),
-    ]
+    manipulations
 }

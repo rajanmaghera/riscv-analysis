@@ -1,9 +1,7 @@
 use crate::{
     cfg::Cfg,
-    parser::{Label, ParserNode},
     passes::{DiagnosticManager, LintError, LintPass},
 };
-use uuid::Uuid;
 
 /// A lint to ensure warn about instructions that exist in more than one
 /// function.
@@ -12,33 +10,36 @@ use uuid::Uuid;
 /// doesn't generally occur in canonical code. Instead, the existence of
 /// overlapping functions usually indicates a mistaken jump to the middle of a
 /// function.
-pub struct OverlappingFunctionCheck;
-impl LintPass for OverlappingFunctionCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg {
+#[non_exhaustive]
+pub struct OverlappingFunctionPass;
+impl OverlappingFunctionPass {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for OverlappingFunctionPass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl LintPass for OverlappingFunctionPass {
+    fn get_pass_name(&self) -> &'static str {
+        "overlapping-function"
+    }
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
+        for node in cfg.iter_source() {
             // Capture entry points that are part of more than one function
             // NOTE: We only give an error for the first line of a function,
             //       even though there may be many overlapping instructions.
             //       This is done to not overwhelm the user with errors.
             if node.functions().len() > 1 && node.is_function_entry_with_func().is_some() {
-                // HACK: Create a dummy label with the same name
-                let labels = node.labels();
-                let labels = labels
-                    .iter()
-                    .map(|l| Label {
-                        name: l.clone(),
-                        key: Uuid::new_v4(),
-                        token: l.raw_token().clone(),
-                    })
-                    .collect::<Vec<_>>();
-                let label = labels.first();
-
-                if let Some(l) = label {
-                    errors.push(LintError::NodeInManyFunctions(
-                        ParserNode::Label(l.clone()),
-                        node.functions().clone().into_iter().collect::<Vec<_>>(),
-                    ));
-                }
+                errors.push(LintError::NodeInManyFunctions(
+                    node.node(),
+                    node.functions().clone().into_iter().collect::<Vec<_>>(),
+                ));
             }
         }
     }
@@ -46,17 +47,18 @@ impl LintPass for OverlappingFunctionCheck {
 
 #[cfg(test)]
 mod tests {
-    use crate::lints::OverlappingFunctionCheck;
-    use crate::parser::RVStringParser;
+    use crate::lints::OverlappingFunctionPass;
+    use crate::parser::{ProgramEntryType, RVStringParser};
     use crate::passes::{DiagnosticManager, LintPass, Manager};
 
     /// Compute the lints for a given input
     fn run_pass(input: &str) -> DiagnosticManager {
-        let (nodes, error) = RVStringParser::parse_from_text(input);
-        assert_eq!(error.len(), 0);
+        let parser_output = RVStringParser::parse_from_text(input);
+        assert_eq!(parser_output.errors.len(), 0);
 
-        let cfg = Manager::gen_full_cfg(nodes).unwrap(); // Need fn annotations
-        OverlappingFunctionCheck::run_single_pass_along_cfg(&cfg)
+        let cfg = Manager::gen_full_cfg(&parser_output, None, &ProgramEntryType::FirstInstruction)
+            .unwrap(); // Need fn annotations
+        OverlappingFunctionPass::new().run_single_pass_along_cfg(&cfg)
     }
 
     #[test]
@@ -79,7 +81,7 @@ mod tests {
         assert_eq!(lints.len(), 1);
 
         assert_eq!(lints[0].get_error_code(), "node-in-many-functions");
-        assert_eq!(lints[0].raw_text(), "fn_b:",);
+        assert_eq!(lints[0].raw_text(), "addi   a0, a0, 2",);
     }
 
     #[test]
@@ -106,10 +108,10 @@ mod tests {
         assert_eq!(lints.len(), 2);
 
         assert_eq!(lints[0].get_error_code(), "node-in-many-functions");
-        assert_eq!(lints[0].raw_text(), "fn_b:");
+        assert_eq!(lints[0].raw_text(), "addi   a0, a0, 2");
 
         assert_eq!(lints[1].get_error_code(), "node-in-many-functions");
-        assert_eq!(lints[1].raw_text(), "fn_c:");
+        assert_eq!(lints[1].raw_text(), "addi   a0, a0, 3");
     }
 
     #[test]

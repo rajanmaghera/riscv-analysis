@@ -1,4 +1,4 @@
-use super::{IsSomeDisplayableDiagnostic, LintError};
+use super::IsSomeDisplayableDiagnostic;
 
 pub struct DiagnosticManager {
     diagnostics: Vec<Box<dyn IsSomeDisplayableDiagnostic>>,
@@ -18,12 +18,8 @@ impl DiagnosticManager {
         }
     }
 
-    pub fn push_real(&mut self, diagnostic: Box<dyn IsSomeDisplayableDiagnostic>) {
-        self.diagnostics.push(diagnostic);
-    }
-
-    pub fn push(&mut self, fake_diag: LintError) {
-        self.diagnostics.push(Box::new(fake_diag));
+    pub fn push(&mut self, diagnostic: impl IsSomeDisplayableDiagnostic + 'static) {
+        self.diagnostics.push(Box::new(diagnostic));
     }
 
     #[must_use]
@@ -36,12 +32,20 @@ impl DiagnosticManager {
         self.diagnostics.is_empty()
     }
 
-    pub fn iter(&self) -> std::slice::Iter<Box<dyn IsSomeDisplayableDiagnostic>> {
-        self.diagnostics.iter()
+    pub fn iter(&self) -> impl Iterator<Item = &dyn IsSomeDisplayableDiagnostic> {
+        self.diagnostics.iter().map(AsRef::as_ref)
+    }
+
+    pub fn retain<F>(&mut self, f: F)
+    where
+        F: FnMut(&Box<dyn IsSomeDisplayableDiagnostic>) -> bool,
+    {
+        self.diagnostics.retain(f);
     }
 }
 
 // implement indexing for DiagnosticManager
+#[cfg(test)]
 impl std::ops::Index<usize> for DiagnosticManager {
     type Output = Box<dyn IsSomeDisplayableDiagnostic>;
 

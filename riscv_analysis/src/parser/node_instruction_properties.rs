@@ -1,48 +1,54 @@
+use crate::cfg::Segment;
+use crate::parser::node::RVInstructionNode;
 use std::collections::HashSet;
 
-use crate::parser::node::ParserNode;
-
 use super::{
-    BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, LabelStringToken, Register,
-    RegisterToken,
+    BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, JumpLinkType,
+    LabelStringToken, RVRegister, RegisterToken, With,
 };
-impl InstructionProperties for ParserNode {
+impl InstructionProperties for RVInstructionNode {
     fn is_return(&self) -> bool {
         match self {
-            ParserNode::JumpLinkR(x) => {
+            RVInstructionNode::JumpLinkR(x) => {
                 x.inst == JumpLinkRType::Jalr
-                    && x.rd == Register::X0
-                    && x.rs1 == Register::X1
-                    && x.imm.get().value() == 0
+                    && x.rd == RVRegister::X0
+                    && x.rs1 == RVRegister::X1
+                    && x.imm.get().value() == Some(0)
             }
-            ParserNode::Basic(x) => x.inst == BasicType::Uret,
+            RVInstructionNode::Basic(x) => x.inst == BasicType::Uret,
             _ => false,
         }
     }
 
     fn might_terminate(&self) -> bool {
-        self.is_ecall()
-    }
-
-    fn is_ureturn(&self) -> bool {
         match self {
-            ParserNode::Basic(x) => x.inst == BasicType::Uret,
+            RVInstructionNode::Basic(x) => match x.inst.get() {
+                BasicType::Ecall => true,
+                BasicType::Uret | BasicType::Ebreak => false,
+            },
             _ => false,
         }
     }
 
-    fn stores_to_memory(&self) -> Option<(Register, (Register, Imm))> {
+    fn is_ureturn(&self) -> bool {
         match self {
-            ParserNode::Store(x) if x.rs2 != Register::X0 => {
+            RVInstructionNode::Basic(x) => x.inst == BasicType::Uret,
+            _ => false,
+        }
+    }
+
+    fn stores_to_memory(&self) -> Option<(RVRegister, (RVRegister, Imm))> {
+        match self {
+            RVInstructionNode::Store(x) if x.rs2 != RVRegister::X0 => {
                 Some((x.rs2.get_cloned(), (x.rs1.get_cloned(), x.imm.get_cloned())))
             }
             _ => None,
         }
     }
 
-    fn reads_from_memory(&self) -> Option<((Register, Imm), Register)> {
+    fn reads_from_memory(&self) -> Option<((RVRegister, Imm), RVRegister)> {
         match self {
-            ParserNode::Load(x) => {
+            RVInstructionNode::Load(x) => {
                 Some(((x.rs1.get_cloned(), x.imm.get_cloned()), x.rd.get_cloned()))
             }
             _ => None,
@@ -52,92 +58,74 @@ impl InstructionProperties for ParserNode {
     fn can_skip_save_checks(&self) -> bool {
         matches!(
             self,
-            ParserNode::ProgramEntry(_)
-                | ParserNode::FuncEntry(_)
-                | ParserNode::JumpLink(_)
-                | ParserNode::JumpLinkR(_)
-                | ParserNode::Csr(_)
-                | ParserNode::CsrI(_)
-        )
+            RVInstructionNode::JumpLink(_)
+                | RVInstructionNode::JumpLinkR(_)
+                | RVInstructionNode::Csr(_)
+                | RVInstructionNode::CsrI(_)
+        ) || self.segment() != Segment::Text
     }
 
     fn calls_to(&self) -> Option<LabelStringToken> {
         match self {
-            ParserNode::JumpLink(x) if x.rd == Register::X1 => Some(x.name.clone()),
+            RVInstructionNode::JumpLink(x) if x.rd == RVRegister::X1 => Some(x.name.clone()),
             _ => None,
         }
     }
 
     fn is_ecall(&self) -> bool {
         match self {
-            ParserNode::Basic(x) => x.inst == BasicType::Ecall,
+            RVInstructionNode::Basic(x) => x.inst == BasicType::Ecall,
             _ => false,
         }
     }
 
     fn jumps_to(&self) -> Option<LabelStringToken> {
         match self {
-            ParserNode::JumpLink(x) if x.rd != Register::X1 => Some(x.name.clone()),
-            ParserNode::Branch(x) => Some(x.name.clone()),
+            RVInstructionNode::JumpLink(x) if x.rd != RVRegister::X1 => Some(x.name.clone()),
+            RVInstructionNode::Branch(x) => Some(x.name.clone()),
             _ => None,
         }
     }
 
     fn reads_address_of(&self) -> Option<LabelStringToken> {
         match self {
-            ParserNode::LoadAddr(x) => Some(x.name.clone()),
+            RVInstructionNode::LoadAddr(x) => Some(x.name.clone()),
             _ => None,
         }
-    }
-
-    fn is_any_entry(&self) -> bool {
-        matches!(self, ParserNode::ProgramEntry(_) | ParserNode::FuncEntry(_))
-    }
-
-    fn is_function_entry(&self) -> bool {
-        matches!(self, ParserNode::FuncEntry(_))
-    }
-
-    fn is_handler_function_entry(&self) -> bool {
-        matches!(self, ParserNode::FuncEntry(x) if x.is_interrupt_handler)
-    }
-
-    fn is_program_entry(&self) -> bool {
-        matches!(self, ParserNode::ProgramEntry(_))
     }
 
     fn is_instruction(&self) -> bool {
         matches!(
             self,
-            ParserNode::Arith(_)
-                | ParserNode::IArith(_)
-                | ParserNode::JumpLink(_)
-                | ParserNode::JumpLinkR(_)
-                | ParserNode::Basic(_)
-                | ParserNode::Branch(_)
-                | ParserNode::Store(_)
-                | ParserNode::Load(_)
-                | ParserNode::LoadAddr(_)
-                | ParserNode::Csr(_)
-                | ParserNode::CsrI(_)
+            RVInstructionNode::Arith(_)
+                | RVInstructionNode::IArith(_)
+                | RVInstructionNode::JumpLink(_)
+                | RVInstructionNode::JumpLinkR(_)
+                | RVInstructionNode::Basic(_)
+                | RVInstructionNode::Branch(_)
+                | RVInstructionNode::Store(_)
+                | RVInstructionNode::Load(_)
+                | RVInstructionNode::LoadAddr(_)
+                | RVInstructionNode::Csr(_)
+                | RVInstructionNode::CsrI(_)
         )
     }
 
-    fn uses_memory_location(&self) -> Option<(Register, Imm)> {
+    fn uses_memory_location(&self) -> Option<(RVRegister, Imm)> {
         match self {
-            ParserNode::Store(s) => Some((s.rs1.get_cloned(), s.imm.get_cloned())),
-            ParserNode::Load(l) => Some((l.rs1.get_cloned(), l.imm.get_cloned())),
+            RVInstructionNode::Store(s) => Some((s.rs1.get_cloned(), s.imm.get_cloned())),
+            RVInstructionNode::Load(l) => Some((l.rs1.get_cloned(), l.imm.get_cloned())),
             _ => None,
         }
     }
 
     fn is_unconditional_jump(&self) -> bool {
         match self {
-            ParserNode::JumpLink(x) if x.rd == Register::X0 => true,
-            ParserNode::JumpLinkR(x) if x.rd == Register::X0 => true,
-            ParserNode::Branch(x) => {
-                x.rs1 == Register::X0
-                    && x.rs2 == Register::X0
+            RVInstructionNode::JumpLink(x) if x.rd == RVRegister::X0 => true,
+            RVInstructionNode::JumpLinkR(x) if x.rd == RVRegister::X0 => true,
+            RVInstructionNode::Branch(x) => {
+                x.rs1 == RVRegister::X0
+                    && x.rs2 == RVRegister::X0
                     && (x.inst == BranchType::Beq
                         || x.inst == BranchType::Bge
                         || x.inst == BranchType::Bgeu)
@@ -148,49 +136,48 @@ impl InstructionProperties for ParserNode {
 
     fn is_some_jump_to_label(&self) -> Option<LabelStringToken> {
         match self {
-            ParserNode::JumpLink(x) if x.rd == Register::X0 => Some(x.name.clone()),
-            ParserNode::Branch(x) => Some(x.name.clone()),
+            RVInstructionNode::JumpLink(x) if x.rd == RVRegister::X0 => Some(x.name.clone()),
+            RVInstructionNode::Branch(x) => Some(x.name.clone()),
             _ => None,
         }
     }
 
-    fn writes_to(&self) -> Option<RegisterToken> {
+    fn writes_to(&self) -> HashSet<RegisterToken> {
         match self {
-            ParserNode::Load(load) => Some(load.rd.clone()),
-            ParserNode::LoadAddr(load) => Some(load.rd.clone()),
-            ParserNode::Arith(arith) => Some(arith.rd.clone()),
-            ParserNode::IArith(iarith) => Some(iarith.rd.clone()),
-            ParserNode::JumpLink(jump_link) => Some(jump_link.rd.clone()),
-            ParserNode::JumpLinkR(jump_link_r) => Some(jump_link_r.rd.clone()),
-            ParserNode::Csr(csr) => Some(csr.rd.clone()),
-            ParserNode::CsrI(csri) => Some(csri.rd.clone()),
-            ParserNode::ProgramEntry(_)
-            | ParserNode::FuncEntry(_)
-            | ParserNode::Label(_)
-            | ParserNode::Basic(_)
-            | ParserNode::Directive(_)
-            | ParserNode::Branch(_)
-            | ParserNode::Store(_) => None,
+            RVInstructionNode::Load(load) => [load.rd.clone()].into(),
+            RVInstructionNode::LoadAddr(load) => [load.rd.clone()].into(),
+            RVInstructionNode::Arith(arith) => [arith.rd.clone()].into(),
+            RVInstructionNode::IArith(iarith) => [iarith.rd.clone()].into(),
+            RVInstructionNode::JumpLink(jump_link) => match jump_link.inst.get() {
+                JumpLinkType::Jal => [jump_link.rd.clone()].into(),
+                JumpLinkType::Tail => [
+                    jump_link.rd.clone(),
+                    With::new(RVRegister::X6, jump_link.rd.token().clone()),
+                ]
+                .into(),
+            },
+            RVInstructionNode::JumpLinkR(jump_link_r) => [jump_link_r.rd.clone()].into(),
+            RVInstructionNode::Csr(csr) => [csr.rd.clone()].into(),
+            RVInstructionNode::CsrI(csri) => [csri.rd.clone()].into(),
+            RVInstructionNode::Basic(_)
+            | RVInstructionNode::Branch(_)
+            | RVInstructionNode::Store(_) => HashSet::new(),
         }
     }
 
     fn reads_from(&self) -> HashSet<RegisterToken> {
         let vector = match self {
-            ParserNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()],
-            ParserNode::IArith(x) => vec![x.rs1.clone()],
-            ParserNode::JumpLinkR(x) => vec![x.rs1.clone()],
-            ParserNode::Branch(x) => vec![x.rs1.clone(), x.rs2.clone()],
-            ParserNode::Store(x) => vec![x.rs1.clone(), x.rs2.clone()],
-            ParserNode::Load(x) => vec![x.rs1.clone()],
-            ParserNode::Csr(x) => vec![x.rs1.clone()],
-            ParserNode::ProgramEntry(_)
-            | ParserNode::FuncEntry(_)
-            | ParserNode::Label(_)
-            | ParserNode::JumpLink(_)
-            | ParserNode::Basic(_)
-            | ParserNode::Directive(_)
-            | ParserNode::LoadAddr(_)
-            | ParserNode::CsrI(_) => vec![],
+            RVInstructionNode::Arith(x) => vec![x.rs1.clone(), x.rs2.clone()],
+            RVInstructionNode::IArith(x) => vec![x.rs1.clone()],
+            RVInstructionNode::JumpLinkR(x) => vec![x.rs1.clone()],
+            RVInstructionNode::Branch(x) => vec![x.rs1.clone(), x.rs2.clone()],
+            RVInstructionNode::Store(x) => vec![x.rs1.clone(), x.rs2.clone()],
+            RVInstructionNode::Load(x) => vec![x.rs1.clone()],
+            RVInstructionNode::Csr(x) => vec![x.rs1.clone()],
+            RVInstructionNode::JumpLink(_)
+            | RVInstructionNode::Basic(_)
+            | RVInstructionNode::LoadAddr(_)
+            | RVInstructionNode::CsrI(_) => vec![],
         };
         vector.into_iter().collect()
     }

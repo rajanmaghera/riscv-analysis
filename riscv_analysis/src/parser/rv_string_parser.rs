@@ -1,4 +1,4 @@
-use super::{EmptyFileReader, ParseError, ParserNode, RVParser};
+use super::{EmptyFileReader, RVFileParser, RVParserOutput};
 
 /// A simplified parser to read a string into `ParserNodes`, for testing.
 pub struct RVStringParser;
@@ -12,64 +12,65 @@ impl RVStringParser {
     /// used for test purposes, as it does not handle file reading.
     ///
     /// ```
-    /// use riscv_analysis::parser::{RVStringParser, ParserNode};
-    /// let (nodes, errors) = RVStringParser::parse_from_text("add x1, x10, x11\n");
-    /// assert_eq!(nodes.len(), 2);
-    /// assert_eq!(errors.len(), 0);
-    /// matches!(&nodes[0], ParserNode::ProgramEntry(_));
-    /// matches!(&nodes[1], ParserNode::Arith(_));
-    /// assert_eq!(nodes[1].to_string(), "add ra <- a0, a1");
+    /// use riscv_analysis::parser::{RVStringParser, RVInstructionNode};
+    /// let parser_output = RVStringParser::parse_from_text("add x1, x10, x11\n");
+    /// assert_eq!(parser_output.nodes.len(), 1);
+    /// assert_eq!(parser_output.errors.len(), 0);
+    /// matches!(&parser_output.nodes[0], RVInstructionNode::Arith(_));
+    /// assert_eq!(parser_output.nodes[0].to_string(), "add ra <- a0, a1");
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if there is an internal error.
     #[must_use]
-    pub fn parse_from_text(text: &str) -> (Vec<ParserNode>, Vec<ParseError>) {
-        let mut parser = RVParser::new(EmptyFileReader::new(text));
-        parser.parse_from_file(EmptyFileReader::get_file_path(), false)
+    pub fn parse_from_text(text: &str) -> RVParserOutput {
+        let mut parser = RVFileParser::new(EmptyFileReader::new(text));
+        parser
+            .parse_from_file(EmptyFileReader::get_file_path(), false)
+            .unwrap()
     }
 }
 
 #[cfg(test)]
 mod test {
-
     use super::*;
+    use crate::parser::{ParseError, RVInstructionNode};
 
     #[test]
     fn can_parse_from_text() {
-        let (nodes, errors) = RVStringParser::parse_from_text("add x1, x10, x11\n");
-        assert_eq!(nodes.len(), 2);
-        assert_eq!(errors.len(), 0);
-        matches!(&nodes[0], ParserNode::ProgramEntry(_));
-        matches!(&nodes[1], ParserNode::Arith(_));
-        assert_eq!(nodes[1].to_string(), "add ra <- a0, a1");
+        let parser_output = RVStringParser::parse_from_text("add x1, x10, x11\n");
+        assert_eq!(parser_output.nodes.len(), 1);
+        assert_eq!(parser_output.errors.len(), 0);
+        matches!(&parser_output.nodes[0], RVInstructionNode::Arith(_));
+        assert_eq!(parser_output.nodes[0].to_string(), "add ra <- a0, a1");
     }
 
     #[test]
     fn can_emit_parse_errors() {
-        let (nodes, errors) =
+        let parser_output =
             RVStringParser::parse_from_text("add x1, x10, x11\nadd x1, x10, x11\njall");
-        assert_eq!(nodes.len(), 3);
-        assert_eq!(errors.len(), 1);
-        matches!(&nodes[0], ParserNode::ProgramEntry(_));
-        matches!(&nodes[1], ParserNode::Arith(_));
-        matches!(&nodes[2], ParserNode::Arith(_));
-        matches!(&errors[0], ParseError::UnexpectedToken(_));
+        assert_eq!(parser_output.nodes.len(), 2);
+        assert_eq!(parser_output.errors.len(), 1);
+        matches!(&parser_output.nodes[0], RVInstructionNode::Arith(_));
+        matches!(&parser_output.nodes[1], RVInstructionNode::Arith(_));
+        matches!(&parser_output.errors[0], ParseError::UnexpectedToken(_));
     }
 
     #[test]
     fn can_emit_error_on_include_directive() {
-        let (nodes, errors) = RVStringParser::parse_from_text(".include \"file.s\"");
-        assert_eq!(nodes.len(), 1);
-        assert_eq!(errors.len(), 1);
-        matches!(&nodes[0], ParserNode::Directive(_));
-        matches!(&errors[0], ParseError::FileNotFound(_));
+        let parser_output = RVStringParser::parse_from_text(".include \"file.s\"");
+        assert_eq!(parser_output.nodes.len(), 0);
+        assert_eq!(parser_output.errors.len(), 1);
+        matches!(&parser_output.errors[0], ParseError::FileNotFound(_));
     }
 
     #[test]
     fn can_emit_error_on_self_reference() {
-        let text = format!(".include \"{}\"\n", EmptyFileReader::get_file_path());
-        let (nodes, errors) = RVStringParser::parse_from_text(&text);
-        assert_eq!(nodes.len(), 1);
-        assert_eq!(errors.len(), 1);
-        matches!(&nodes[0], ParserNode::Directive(_));
-        matches!(&errors[0], ParseError::FileNotFound(_));
+        let text = format!(".include \"{}\"\n", EmptyFileReader::get_file_path(),);
+        let parser_output = RVStringParser::parse_from_text(&text);
+        assert_eq!(parser_output.nodes.len(), 0);
+        assert_eq!(parser_output.errors.len(), 1);
+        matches!(&parser_output.errors[0], ParseError::FileNotFound(_));
     }
 }

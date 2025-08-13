@@ -3,9 +3,9 @@ use std::{
     fmt::Display,
 };
 
-use itertools::Itertools;
-
 use super::{Cfg, CfgNode};
+use crate::passes::DiagnosticLocation;
+use itertools::Itertools;
 
 pub trait SetListString {
     fn str(&self) -> String;
@@ -51,13 +51,16 @@ impl Display for CfgNode {
                 .join(" | "),
         };
 
-        f.write_fmt(format_args!("{}\n", self.node()))?;
+        f.write_fmt(format_args!(
+            "{} -- line {}: \"{}\"\n",
+            self.node(),
+            self.node().token().range().start().one_idx_line(),
+            self.node().token().raw_text()
+        ))?;
         f.write_fmt(format_args!("  | LIVI | {}\n", self.live_in()))?;
         f.write_fmt(format_args!("  | LIVO | {}\n", self.live_out()))?;
-        f.write_fmt(format_args!("  | VALO | {}\n", self.reg_values_out()))?;
-        f.write_fmt(format_args!("  | STCK | {}\n", self.memory_values_out()))?;
+        f.write_fmt(format_args!("  | VALO | {}\n", self.real_val_out()))?;
         f.write_fmt(format_args!("  | UDEF | {}\n", self.u_def()))?;
-        f.write_fmt(format_args!("  | NEXT | {}\n", self.nexts().len()))?;
         f.write_fmt(format_args!("  | FN   | {fn_label}\n"))?;
 
         Ok(())
@@ -66,7 +69,7 @@ impl Display for CfgNode {
 
 impl Display for Cfg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for node in self {
+        for node in self.iter_source() {
             f.write_fmt(format_args!("{node}\n"))?;
         }
         Ok(())

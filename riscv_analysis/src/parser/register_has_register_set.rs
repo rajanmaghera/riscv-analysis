@@ -1,5 +1,5 @@
-use crate::{cfg::RegisterSet, parser::Register};
-use Register::{
+use crate::{cfg::RegisterSet, parser::RVRegister};
+use RVRegister::{
     X0, X1, X10, X11, X12, X13, X14, X15, X16, X17, X18, X19, X2, X20, X21, X22, X23, X24, X25,
     X26, X27, X28, X29, X3, X30, X31, X4, X5, X6, X7, X8, X9,
 };
@@ -10,13 +10,13 @@ trait AsSet {
     fn set(self) -> RegisterSet;
 }
 
-impl<const N: usize> AsSet for [Register; N] {
+impl<const N: usize> AsSet for [RVRegister; N] {
     fn set(self) -> RegisterSet {
         self.into_iter().collect()
     }
 }
 
-impl HasRegisterSets for Register {
+impl HasRegisterSets for RVRegister {
     fn program_args_set() -> RegisterSet {
         [X10, X11].set()
     }
@@ -49,10 +49,6 @@ impl HasRegisterSets for Register {
         [X2, X1].set()
     }
 
-    fn return_addr_set() -> RegisterSet {
-        [X1].set()
-    }
-
     fn caller_saved_set() -> RegisterSet {
         Self::temporary_set() | Self::argument_set()
     }
@@ -62,10 +58,13 @@ impl HasRegisterSets for Register {
     }
 
     fn callee_saved_set() -> RegisterSet {
+        // TODO : fix set names
         Self::saved_set() | Self::sp_ra_set()
     }
 
     fn ecall_always_argument_set() -> RegisterSet {
-        [Register::ecall_type()].set()
+        [RVRegister::ecall_type()].set()
     }
 }
+
+impl RVRegister {}

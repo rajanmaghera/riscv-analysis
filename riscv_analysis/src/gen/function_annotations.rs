@@ -1,95 +1,54 @@
-use std::{rc::Rc, vec};
-
 use crate::{
     cfg::{Cfg, CfgNode, Function, RegisterSet},
-    parser::{
-        InstructionProperties, JumpLinkType, LabelString, ParserNode, Register, Token, TokenType,
-        With,
-    },
-    passes::{CfgError, DiagnosticLocation, GenerationPass},
+    parser::InstructionProperties,
+    passes::{CfgError, GenerationPass},
 };
+use std::collections::HashSet;
+use std::{rc::Rc, vec};
 
 struct MarkData {
     pub found: RegisterSet,
     pub instructions: Vec<Rc<CfgNode>>,
-    pub returns: Rc<CfgNode>,
+    pub returns: HashSet<Rc<CfgNode>>,
 }
 
 pub struct FunctionMarkupPass;
 
 impl FunctionMarkupPass {
-    fn mark_reachable(
-        cfg: &Cfg,
-        entry: &Rc<CfgNode>,
-        func: &Rc<Function>,
-    ) -> Result<MarkData, Box<CfgError>> {
+    fn mark_reachable(cfg: &Cfg, entry: &Rc<CfgNode>, func: &Rc<Function>) -> MarkData {
         let mut defs = RegisterSet::new(); // Registers this function writes to
-        let mut returns = None; // Return instructions in this function
-        let mut instructions = vec![];
+        let mut returns = HashSet::new(); // Return instructions in this function
+        let mut instructions = Vec::new();
 
         // Traverse the CFG for all nodes reachable from the entry point
-        for node in cfg.iter_nexts(Rc::clone(entry)) {
+        for node in cfg.iter_breadth_first(entry) {
             // Mark the node as being a part of the given function
-            instructions.push(Rc::clone(&node));
+            instructions.push(Rc::clone(node));
             node.insert_function(Rc::clone(func));
 
             // Collect any registers written to by the node
-            if let Some(dest) = node.writes_to() {
+            for dest in node.writes_to() {
                 defs |= dest.get_cloned();
             }
 
             // Collect return instructions
             if node.is_return() {
-                // Set the newly found return to be an jump to the previously
-                // found return.
-                if let Some(ref prev_ret) = returns {
-                    let found_ret = Rc::clone(&node);
-
-                    // Fix the prevs & nexts of both returns
-                    found_ret.clear_nexts();
-                    found_ret.insert_next(Rc::clone(prev_ret));
-                    prev_ret.insert_prev(Rc::clone(&found_ret));
-
-                    // Convert the found return into a jump
-                    let info = Token::new(
-                        TokenType::Symbol("return".to_string()),
-                        found_ret.raw_text(),
-                        found_ret.range(),
-                        found_ret.file(),
-                    );
-
-                    let inst = With::new(JumpLinkType::Jal, info.clone());
-                    let rd = With::new(Register::X0, info.clone());
-                    let name = With::new(LabelString::new("__return__"), info.clone());
-                    let new_node =
-                        ParserNode::new_jump_link(inst, rd, name, prev_ret.node().token().clone());
-                    #[allow(unused_must_use)]
-                    found_ret.set_node(new_node);
-                }
-                // If this is the first return node, save it
-                else {
-                    returns = Some(Rc::clone(&node));
-                }
+                returns.insert(Rc::clone(node));
             }
         }
 
-        if let Some(ret) = returns {
-            Ok(MarkData {
-                found: defs,
-                instructions,
-                returns: ret,
-            })
-        }
-        // TODO: Handle functions with no return statements
-        else {
-            Err(Box::new(CfgError::UnexpectedError))
+        MarkData {
+            found: defs,
+            instructions,
+            returns,
         }
     }
 }
 
 impl GenerationPass for FunctionMarkupPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
-        for entry in &cfg.clone() {
+        let mut functions_to_insert = Vec::new();
+        for entry in cfg.clone().iter_source() {
             // Skip all nodes that are not entry points
             if !entry.is_function_entry() {
                 continue;
@@ -99,32 +58,38 @@ impl GenerationPass for FunctionMarkupPass {
             let labels = entry.labels().iter().cloned().collect::<Vec<_>>();
 
             // Insert a new function into the CFG
-            let func = Rc::new(Function::new(
-                labels.clone(),
-                vec![],
-                Rc::clone(&entry),
-                Rc::clone(&entry),
-            ));
+            let func = Rc::new(Function::new(labels.clone(), vec![], Rc::clone(entry)));
 
             for label in &labels {
-                cfg.insert_function(label.clone(), Rc::clone(&func));
+                functions_to_insert.push((label.clone(), Rc::clone(&func)));
             }
 
             // Mark all CFG nodes that are reachable from this entry point
-            // FIXME: What to do if there is more than one return
-            match Self::mark_reachable(cfg, &entry, &Rc::clone(&func)) {
-                Ok(data) => {
-                    #[allow(unused_must_use)]
-                    func.set_defs(data.found);
-                    #[allow(unused_must_use)]
-                    func.set_nodes(data.instructions);
-                    #[allow(unused_must_use)]
-                    func.set_exit(data.returns);
-                }
-                Err(e) => {
-                    return Err(e);
-                }
+            let data = Self::mark_reachable(cfg, entry, &func);
+            #[allow(unused_must_use)]
+            func.set_defs(data.found);
+            #[allow(unused_must_use)]
+            func.set_nodes(data.instructions);
+            #[allow(unused_must_use)]
+            func.set_exits(data.returns);
+        }
+
+        for (label, func) in functions_to_insert {
+            cfg.insert_function(label, func);
+        }
+
+        // Pass 2: on each function, mark up the function call instructions that call
+        // that function.
+
+        let mut functions_to_call_sites = Vec::new();
+        for node in cfg.iter_source() {
+            if let Some((func, _)) = node.calls_to_from_cfg(cfg) {
+                functions_to_call_sites.push((func, Rc::clone(node)));
             }
+        }
+
+        for (func, call_site) in functions_to_call_sites {
+            cfg.insert_call_site(&func, call_site);
         }
 
         Ok(())
@@ -137,22 +102,25 @@ mod tests {
     use std::rc::Rc;
 
     use crate::cfg::{Cfg, Function};
-    use crate::parser::RVStringParser;
+    use crate::parser::{ProgramEntryType, RVStringParser};
     use crate::passes::{DiagnosticLocation, Manager};
 
     /// Generate the complete CFG from an input string.
     fn gen_cfg(input: &str) -> Cfg {
-        let (nodes, error) = RVStringParser::parse_from_text(input);
-        assert_eq!(error.len(), 0);
-        Manager::gen_full_cfg(nodes).unwrap()
+        let parser_output = RVStringParser::parse_from_text(input);
+        assert_eq!(parser_output.errors.len(), 0);
+        Manager::gen_full_cfg(&parser_output, None, &ProgramEntryType::FirstInstruction).unwrap()
     }
 
     /// Map string labels to functions.
     fn function_map(cfg: &Cfg) -> HashMap<String, Rc<Function>> {
-        let funcs = cfg.functions();
-        funcs
-            .iter()
-            .map(|(name, func)| (name.to_string(), func.clone()))
+        cfg.get_all_functions()
+            .flat_map(|x| {
+                x.labels()
+                    .iter()
+                    .map(|label| (label.to_string(), Rc::clone(x)))
+                    .collect::<Vec<_>>()
+            })
             .collect()
     }
 
@@ -183,7 +151,7 @@ mod tests {
         assert_eq!(funcs.len(), 0);
 
         // All nodes should have no function annotations
-        for node in &cfg {
+        for node in cfg.iter_source() {
             assert_eq!(node.functions().len(), 0);
         }
     }
@@ -220,8 +188,8 @@ mod tests {
         assert_eq!(
             nodes,
             HashSet::from([
-                "lw a1 0 ( sp )".to_string(),
-                "mul a0 a0 a1".to_string(),
+                "lw      a1, 0(sp)".to_string(),
+                "mul     a0, a0, a1".to_string(),
                 "ret".to_string(),
             ])
         );
@@ -259,15 +227,15 @@ mod tests {
         // Check that the function bodies match
         assert_eq!(
             fn_a,
-            HashSet::from(["addi a1 a0 0".to_string(), "ret".to_string(),])
+            HashSet::from(["addi    a1, a0, 0".to_string(), "ret".to_string(),])
         );
         assert_eq!(
             fn_b,
-            HashSet::from(["addi a1 a0 1".to_string(), "ret".to_string(),])
+            HashSet::from(["addi    a1, a0, 1".to_string(), "ret".to_string(),])
         );
         assert_eq!(
             fn_c,
-            HashSet::from(["addi a1 a0 2".to_string(), "ret".to_string(),])
+            HashSet::from(["addi    a1, a0, 2".to_string(), "ret".to_string(),])
         );
     }
 
@@ -299,9 +267,9 @@ mod tests {
             fn_a,
             HashSet::from([
                 // Insructions after label `fn_a` & `fn_b`
-                "addi a1 a0 0".to_string(),
-                "addi a1 a0 1".to_string(),
-                "addi a1 a0 2".to_string(),
+                "addi    a1, a0, 0".to_string(),
+                "addi    a1, a0, 1".to_string(),
+                "addi    a1, a0, 2".to_string(),
                 "ret".to_string(),
             ])
         );
@@ -309,7 +277,7 @@ mod tests {
             fn_b,
             HashSet::from([
                 // Only insructions after label `fn_b`
-                "addi a1 a0 2".to_string(),
+                "addi    a1, a0, 2".to_string(),
                 "ret".to_string(),
             ])
         );
@@ -351,15 +319,15 @@ mod tests {
         assert_eq!(
             fn_a,
             HashSet::from([
-                "addi a1 a0 0".to_string(),
-                "j fn_a_rest".to_string(),
-                "addi a1 a0 2".to_string(),
+                "addi    a1, a0, 0".to_string(),
+                "j       fn_a_rest".to_string(),
+                "addi    a1, a0, 2".to_string(),
                 "ret".to_string(),
             ])
         );
         assert_eq!(
             fn_b,
-            HashSet::from(["addi a1 a0 1".to_string(), "ret".to_string(),])
+            HashSet::from(["addi    a1, a0, 1".to_string(), "ret".to_string(),])
         );
 
         // Instructions in both functions should only have a single annotation

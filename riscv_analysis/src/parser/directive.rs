@@ -28,6 +28,7 @@ pub enum DirectiveToken {
     String,
     Text,
     Word,
+    Type,
 }
 
 impl Display for DirectiveToken {
@@ -54,6 +55,7 @@ impl Display for DirectiveToken {
             DirectiveToken::String => write!(f, ".string"),
             DirectiveToken::Text => write!(f, ".text"),
             DirectiveToken::Word => write!(f, ".word"),
+            DirectiveToken::Type => write!(f, ".type"),
         }
     }
 }
@@ -85,6 +87,7 @@ impl FromStr for DirectiveToken {
             ".string" => Ok(DirectiveToken::String),
             ".text" => Ok(DirectiveToken::Text),
             ".word" => Ok(DirectiveToken::Word),
+            ".type" => Ok(DirectiveToken::Type),
             _ => Err(()),
         }
     }

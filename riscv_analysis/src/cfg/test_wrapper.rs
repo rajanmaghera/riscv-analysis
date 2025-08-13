@@ -1,18 +1,15 @@
 use std::collections::HashSet;
 
+use crate::analysis::LocValueMap;
+use crate::parser::{HasIdentity, RVInstructionNode};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::{
-    analysis::MemoryLocation,
-    parser::{HasIdentity, ParserNode, Register},
-};
-
-use super::{AvailableValueMap, Cfg, CfgNode, RegisterSet};
+use super::{Cfg, CfgNode, RegisterSet};
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct NodeWrapper {
-    pub node: ParserNode,
+    pub node: RVInstructionNode,
     // skip if empty
     #[serde(
         default,
@@ -23,7 +20,7 @@ pub struct NodeWrapper {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub func_entry: Vec<usize>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub func_exit: Vec<usize>,
+    pub func_exits: Vec<usize>,
     #[serde(
         default,
         skip_serializing_if = "HashSet::is_empty",
@@ -36,14 +33,10 @@ pub struct NodeWrapper {
         serialize_with = "sorted_set"
     )]
     pub prevs: HashSet<usize>,
-    #[serde(default, skip_serializing_if = "AvailableValueMap::is_empty")]
-    pub reg_values_in: AvailableValueMap<Register>,
-    #[serde(default, skip_serializing_if = "AvailableValueMap::is_empty")]
-    pub reg_values_out: AvailableValueMap<Register>,
-    #[serde(default, skip_serializing_if = "AvailableValueMap::is_empty")]
-    pub memory_values_in: AvailableValueMap<MemoryLocation>,
-    #[serde(default, skip_serializing_if = "AvailableValueMap::is_empty")]
-    pub memory_values_out: AvailableValueMap<MemoryLocation>,
+    #[serde(default)]
+    pub val_in: LocValueMap,
+    #[serde(default)]
+    pub val_out: LocValueMap,
     #[serde(default, skip_serializing_if = "RegisterSet::is_empty")]
     pub live_in: RegisterSet,
     #[serde(default, skip_serializing_if = "RegisterSet::is_empty")]
@@ -57,7 +50,7 @@ impl NodeWrapper {
         NodeWrapper {
             node: node.node(),
             labels: node
-                .labels
+                .labels()
                 .iter()
                 .map(std::string::ToString::to_string)
                 .collect(),
@@ -65,34 +58,35 @@ impl NodeWrapper {
                 .functions()
                 .iter()
                 .map(|func| {
-                    cfg.iter()
+                    cfg.iter_source()
                         .position(|other| func.entry().id() == other.id())
                         .unwrap()
                 })
                 .collect::<Vec<_>>(),
-            func_exit: node
+            func_exits: node
                 .functions()
                 .iter()
-                .map(|func| {
-                    cfg.iter()
-                        .position(|other| func.exit().id() == other.id())
-                        .unwrap()
+                .flat_map(|func| {
+                    func.exits()
+                        .iter()
+                        .map(|exit| {
+                            cfg.iter_source()
+                                .position(|other| exit.id() == other.id())
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
-            nexts: node
-                .nexts()
-                .iter()
-                .map(|x| cfg.iter().position(|y| x.id() == y.id()).unwrap())
+            nexts: cfg
+                .get_nexts(node)
+                .map(|x| cfg.iter_source().position(|y| x.id() == y.id()).unwrap())
                 .collect(),
-            prevs: node
-                .prevs()
-                .iter()
-                .map(|x| cfg.iter().position(|y| x.id() == y.id()).unwrap())
+            prevs: cfg
+                .get_prevs(node)
+                .map(|x| cfg.iter_source().position(|y| x.id() == y.id()).unwrap())
                 .collect(),
-            reg_values_in: node.reg_values_in(),
-            reg_values_out: node.reg_values_out(),
-            memory_values_in: node.memory_values_in(),
-            memory_values_out: node.memory_values_out(),
+            val_in: node.real_val_in(),
+            val_out: node.real_val_out(),
             live_in: node.live_in(),
             live_out: node.live_out(),
             u_def: node.u_def(),
@@ -105,7 +99,11 @@ pub struct CfgWrapper(Vec<NodeWrapper>);
 
 impl From<&Cfg> for CfgWrapper {
     fn from(cfg: &Cfg) -> Self {
-        CfgWrapper(cfg.iter().map(|x| NodeWrapper::from(&x, cfg)).collect())
+        CfgWrapper(
+            cfg.iter_source()
+                .map(|x| NodeWrapper::from(x, cfg))
+                .collect(),
+        )
     }
 }
 

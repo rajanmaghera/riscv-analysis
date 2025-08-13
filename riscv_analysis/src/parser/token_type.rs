@@ -28,19 +28,6 @@ pub enum TokenType {
     /// more specific type. The types include
     /// instructions, registers, numbers, and special CSR numbers/regs.
     Symbol(String),
-    /// Directive: text starting with '.'
-    ///
-    /// This is used to mark a directive. A directive is a
-    /// command to the assembler to do something. For example,
-    /// the `.text` directive tells the assembler to start
-    /// assembling code into the text section.
-    ///
-    /// The most important directive is `.include`. This
-    /// directive tells the assembler to include the file
-    /// specified in the directive. This case has to be handled
-    /// specially, as the file is not parsed, but rather
-    /// included as is.
-    Directive(String),
     /// String: text enclosed in double quotes
     String(String),
     // Char: Single character enclosed in single quotes
@@ -50,6 +37,12 @@ pub enum TokenType {
     /// the assembler, but they are useful for human readers.
     /// They may be used to annotate the assembler in the future.
     Comment(String),
+    /// High specifier
+    PercentHigh,
+    /// Low specifier
+    PercentLow,
+    /// Plus specifier
+    Plus(u32),
 }
 
 impl TokenType {
@@ -61,10 +54,12 @@ impl TokenType {
             TokenType::Newline => "\n".to_owned(),
             TokenType::Label(l) => format!("{l}:"),
             TokenType::Symbol(s) => s.clone(),
-            TokenType::Directive(d) => format!(".{d}"),
             TokenType::String(s) => format!("\"{s}\""),
             TokenType::Char(c) => format!("'{c}'"),
             TokenType::Comment(c) => format!("#{c}:"),
+            TokenType::PercentHigh => "%hi".to_owned(),
+            TokenType::PercentLow => "%lo".to_owned(),
+            TokenType::Plus(n) => format!("+{n}"),
         }
     }
 }
@@ -74,13 +69,15 @@ impl Display for TokenType {
         match self {
             TokenType::Label(s) => writeln!(f, "LABEL({s})"),
             TokenType::Symbol(s) => write!(f, "SYMBOL({s})"),
-            TokenType::Directive(s) => write!(f, "DIRECTIVE({s})"),
             TokenType::String(s) => write!(f, "STRING({s})"),
             TokenType::Char(c) => write!(f, "CHAR({c})"),
             TokenType::Comment(s) => write!(f, "COMMENT{s}"),
             TokenType::Newline => write!(f, "NEWLINE"),
             TokenType::LParen => write!(f, "LPAREN"),
             TokenType::RParen => write!(f, "RPAREN"),
+            TokenType::PercentHigh => write!(f, "PERCENT_HIGH"),
+            TokenType::PercentLow => write!(f, "PERCENT_LOW"),
+            TokenType::Plus(n) => writeln!(f, "PLUS({n})"),
         }
     }
 }

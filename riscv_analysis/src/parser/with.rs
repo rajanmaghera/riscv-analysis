@@ -8,11 +8,11 @@ use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-use super::{Range, RawToken, Register, Token};
+use super::{Position, RVRegister, RVToken, Range, RawToken, TokenType};
 
 #[derive(Clone)]
 pub struct With<T> {
-    token: Token,
+    token: RVToken,
     underlying_data: T,
 }
 
@@ -31,7 +31,7 @@ impl<T> DerefMut for With<T> {
 }
 
 impl<T> With<T> {
-    pub fn new(data: T, token: Token) -> Self {
+    pub fn new(data: T, token: RVToken) -> Self {
         With {
             token,
             underlying_data: data,
@@ -53,7 +53,7 @@ impl<T> With<T> {
         self.underlying_data.clone()
     }
 
-    pub fn token(&self) -> &Token {
+    pub fn token(&self) -> &RVToken {
         &self.token
     }
 
@@ -90,10 +90,15 @@ where
     T: Deserialize<'de>,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(With {
-            token: Token::default(),
-            underlying_data: T::deserialize(deserializer)?,
-        })
+        Ok(With::new(
+            T::deserialize(deserializer)?,
+            RVToken::new(
+                TokenType::Newline,
+                "\n".to_string(),
+                Range::new(Position::new(0, 0, 0), Position::new(0, 1, 1)),
+                Uuid::default(),
+            ),
+        ))
     }
 }
 
@@ -164,8 +169,8 @@ impl<T> Eq for With<T> where T: Eq {}
 
 // Blanket implementation for into()
 
-impl From<With<Register>> for Register {
-    fn from(with: With<Register>) -> Register {
+impl From<With<RVRegister>> for RVRegister {
+    fn from(with: With<RVRegister>) -> RVRegister {
         *with.get()
     }
 }

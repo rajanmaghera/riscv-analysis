@@ -15,3 +15,5 @@ target/
 private/
 tmp/
 result
+
+.idea/

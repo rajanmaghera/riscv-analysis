@@ -1,23 +1,40 @@
 use crate::{
     cfg::Cfg,
-    parser::{HasRegisterSets, InstructionProperties, Register},
+    parser::{HasRegisterSets, RVRegister},
     passes::{DiagnosticManager, LintError, LintPass},
 };
 
 // TODO deprecate
 // Check if there are any in values to the start of functions that are not args or saved registers
 // Check if there are any in values at the start of a program
-pub struct GarbageInputValueCheck;
-impl LintPass for GarbageInputValueCheck {
-    fn run(cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg {
+#[non_exhaustive]
+pub struct GarbageInputValuePass;
+impl GarbageInputValuePass {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for GarbageInputValuePass {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl LintPass for GarbageInputValuePass {
+    fn get_pass_name(&self) -> &'static str {
+        "garbage-input-value"
+    }
+    fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
+        for node in cfg.iter_source() {
             if node.is_program_entry() {
                 // get registers
-                let garbage = node.live_in() - Register::program_args_set();
+                let garbage = node.live_in() - RVRegister::program_args_set();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
-                        let mut ranges_tmp = Cfg::error_ranges_for_first_usage(&node, reg);
+                        let mut ranges_tmp = cfg.error_ranges_for_first_usage(node, reg);
                         ranges.append(&mut ranges_tmp);
                     }
                     for range in ranges {
@@ -26,11 +43,11 @@ impl LintPass for GarbageInputValueCheck {
                 }
             } else if let Some(func) = node.is_function_entry_with_func() {
                 let args = func.arguments();
-                let garbage = node.live_in() - args - Register::callee_saved_set();
+                let garbage = node.live_in() - args - RVRegister::callee_saved_set();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
-                        let mut ranges_tmp = Cfg::error_ranges_for_first_usage(&node, reg);
+                        let mut ranges_tmp = cfg.error_ranges_for_first_usage(node, reg);
                         ranges.append(&mut ranges_tmp);
                     }
                     for range in ranges {

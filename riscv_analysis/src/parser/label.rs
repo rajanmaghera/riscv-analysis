@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use super::{Register, Token, TokenType, With};
+use super::{RVRegister, RVToken, TokenType, With};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct LabelString(String);
@@ -41,13 +41,7 @@ impl FromStr for LabelString {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // ensure labelstring cannot be a register
-        if Register::from_str(s).is_ok() {
-            return Err(());
-        }
-
-        // ensure string only starts with a letter or underscore
-        let first = s.chars().next().ok_or(())?;
-        if !first.is_alphabetic() && first != '_' {
+        if RVRegister::from_str(s).is_ok() {
             return Err(());
         }
 
@@ -68,10 +62,10 @@ impl Display for LabelString {
     }
 }
 
-impl TryFrom<Token> for LabelString {
+impl TryFrom<RVToken> for LabelString {
     type Error = ();
 
-    fn try_from(value: Token) -> Result<Self, Self::Error> {
+    fn try_from(value: RVToken) -> Result<Self, Self::Error> {
         match value.token_type() {
             TokenType::Symbol(s) => LabelString::try_from(s.clone()),
             _ => Err(()),

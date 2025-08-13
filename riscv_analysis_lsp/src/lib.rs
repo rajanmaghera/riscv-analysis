@@ -1,12 +1,10 @@
 mod lsp;
 use lsp::{LSPDiag, LSPFileReader, LSPRVDiagnostic, LSPRVSingleDiagnostic, RVCompletionItem};
 use lsp_types::Diagnostic;
-use riscv_analysis::parser::{CanGetURIString, DirectiveType, ParserNode, RVDocument, RVParser};
-use riscv_analysis::passes::DiagnosticLocation;
+use riscv_analysis::parser::{CanGetURIString, ProgramEntryType, RVDocument, RVFileParser};
 use riscv_analysis::reader::FileReader;
 use serde_wasm_bindgen::to_value;
 use std::collections::{HashMap, HashSet};
-use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 
 // WASM MODULES
@@ -27,37 +25,24 @@ pub fn riscv_get_uncond_completions() -> JsValue {
 }
 
 trait FileReading {
-    fn get_full_url(&mut self, path: &str, uuid: Uuid) -> String;
     fn get_imports(&mut self, base: &str) -> HashSet<String>;
 }
 
-impl<T> FileReading for RVParser<T>
+impl<T> FileReading for RVFileParser<T>
 where
     T: CanGetURIString + Clone + FileReader,
 {
-    fn get_full_url(&mut self, path: &str, uuid: Uuid) -> String {
-        let doc = self.reader.get_uri_string(uuid);
-        let uri = lsp_types::Url::parse(&doc.uri).unwrap();
-        let fileuri = uri.join(path).unwrap();
-        fileuri.to_string()
-    }
-
     /// Return the imported files of a file
     fn get_imports(&mut self, base: &str) -> HashSet<String> {
-        let mut imported = HashSet::new();
-        let items = self.parse_from_file(base, true);
-        for item in items.0 {
-            if let ParserNode::Directive(x) = item {
-                if let DirectiveType::Include(name) = x.dir {
-                    // get full file path
-                    let this_uri = self.get_full_url(name.get(), x.dir_token.file());
-                    // add to set
-                    imported.insert(this_uri);
-                    // imports.insert(this_uri);
-                }
-            }
+        if let Ok(parse) = self.parse_from_file(base, true) {
+            parse
+                .include_strings
+                .iter()
+                .map(|x| x.get_cloned())
+                .collect()
+        } else {
+            HashSet::new()
         }
-        imported
     }
 }
 
@@ -71,7 +56,7 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
     let imported = docs
         .clone()
         .into_iter()
-        .map(|doc| RVParser::new(LSPFileReader::new(docs.clone())).get_imports(&doc.uri))
+        .map(|doc| RVFileParser::new(LSPFileReader::new(docs.clone())).get_imports(&doc.uri))
         .reduce(|mut x, y| {
             x.extend(y);
             x
@@ -86,8 +71,10 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
 
     let errs = to_parse
         .flat_map(|f| {
-            let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
-            let items = parser.run(&f.uri);
+            let mut parser = RVFileParser::new(LSPFileReader::new(docs.clone()));
+            let items = parser
+                .run(&f.uri, &ProgramEntryType::FirstInstruction)
+                .expect("filename not found");
             items
                 .into_iter()
                 .map(|f| f.to_lsp_diag(&parser))

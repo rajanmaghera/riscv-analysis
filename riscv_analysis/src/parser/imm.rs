@@ -1,33 +1,51 @@
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
-
-use crate::parser::token::Token;
+use crate::parser::token::RVToken;
 
 use super::TokenType;
 
+/// Descriptor of immediate types
+///
+/// In some cases, the immediate is a reference
+/// to a label. In that case, the immediate is
+/// not known and is treated as an "any" value
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Imm(i32);
+enum ImmType {
+    Unknown,
+    Constant(i32),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Imm(ImmType);
 
 impl Imm {
     #[must_use]
     pub fn new(value: i32) -> Self {
-        Imm(value)
+        Imm(ImmType::Constant(value))
+    }
+
+    #[must_use] pub fn new_unknown() -> Self {
+        Imm(ImmType::Unknown)
     }
 
     #[must_use]
-    pub fn value(&self) -> i32 {
-        self.0
+    pub fn value(&self) -> Option<i32> {
+        match self.0 {
+            ImmType::Constant(c) => Some(c),
+            ImmType::Unknown => None,
+        }
     }
 }
 
-impl TryFrom<Token> for Imm {
+impl TryFrom<RVToken> for Imm {
     type Error = ();
 
-    fn try_from(value: Token) -> Result<Self, Self::Error> {
+    fn try_from(value: RVToken) -> Result<Self, Self::Error> {
         match value.token_type() {
+            TokenType::PercentHigh | TokenType::PercentLow => Ok(Imm::new_unknown()),
             TokenType::Symbol(s) => Imm::from_str(s),
-            TokenType::Char(c) => Ok(Imm(*c as i32)),
+            TokenType::Char(c) => Ok(Imm(ImmType::Constant(*c as i32))),
             _ => Err(()),
         }
     }
@@ -48,10 +66,10 @@ impl CsrImm {
     }
 }
 
-impl TryFrom<Token> for CsrImm {
+impl TryFrom<RVToken> for CsrImm {
     type Error = ();
 
-    fn try_from(value: Token) -> Result<Self, Self::Error> {
+    fn try_from(value: RVToken) -> Result<Self, Self::Error> {
         match value.token_type() {
             TokenType::Symbol(s) => CsrImm::from_str(s),
             _ => Err(()),
@@ -83,7 +101,7 @@ impl FromStr for CsrImm {
             "timeh" => 0xC81,
             "instreth" => 0xC82,
             #[allow(clippy::cast_sign_loss)]
-            _ => Imm::from_str(s)?.value() as u32,
+            _ => Imm::from_str(s)?.value().ok_or(())? as u32,
         };
         Ok(CsrImm(num))
     }
@@ -93,6 +111,9 @@ impl FromStr for Imm {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with('%') {
+            return Ok(Imm::new_unknown());
+        }
         let s = s.to_lowercase();
         let s = s.as_str();
         let s = s.trim();
@@ -103,33 +124,36 @@ impl FromStr for Imm {
         };
 
         if s == "zero" {
-            Ok(Imm(0))
+            Ok(Imm::new(0))
         } else if let Some(stripped) = s.strip_prefix("0x") {
             if stripped.starts_with('-') {
-                Err(())
-            } else {
-                match u32::from_str_radix(stripped, 16) {
-                    #[allow(clippy::cast_possible_wrap)]
-                    Ok(i) => Ok(Imm(mul * i as i32)),
-                    Err(_) => Err(()),
-                }
+                return Err(());
+            }
+            match u32::from_str_radix(stripped, 16) {
+                #[allow(clippy::cast_possible_wrap)]
+                Ok(i) => Ok(Imm::new(mul * i as i32)),
+                Err(_) => Err(()),
             }
         } else if let Some(stripped) = s.strip_prefix("0b") {
             if stripped.starts_with('-') {
-                Err(())
-            } else {
-                match u32::from_str_radix(stripped, 2) {
-                    #[allow(clippy::cast_possible_wrap)]
-                    Ok(i) => Ok(Imm(mul * i as i32)),
-                    Err(_) => Err(()),
-                }
+                return Err(());
+            }
+            match u32::from_str_radix(stripped, 2) {
+                #[allow(clippy::cast_possible_wrap)]
+                Ok(i) => Ok(Imm::new(mul * i as i32)),
+                Err(_) => Err(()),
             }
         } else {
             if s.starts_with('-') {
                 return Err(());
             }
-            match s.parse::<i32>() {
-                Ok(i) => Ok(Imm(mul * i)),
+            let mut st = String::new();
+            if mul == -1 {
+                st.push('-');
+            }
+            st.push_str(s);
+            match st.parse::<i32>() {
+                Ok(i) => Ok(Imm::new(i)),
                 Err(_) => Err(()),
             }
         }
@@ -138,15 +162,27 @@ impl FromStr for Imm {
 
 impl From<Imm> for CsrImm {
     fn from(value: Imm) -> Self {
-        #[allow(clippy::cast_sign_loss)]
-        CsrImm(value.0 as u32)
+        match value.0 {
+            ImmType::Unknown => panic!(),
+            #[allow(clippy::cast_sign_loss)]
+            ImmType::Constant(x) => CsrImm(x as u32),
+        }
     }
 }
 
 impl From<CsrImm> for Imm {
     fn from(value: CsrImm) -> Self {
         #[allow(clippy::cast_possible_wrap)]
-        Imm(value.0 as i32)
+        Imm::new(value.0 as i32)
+    }
+}
+
+impl std::fmt::Display for Imm {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.0 {
+            ImmType::Constant(c) => write!(f, "{c}"),
+            ImmType::Unknown => write!(f, "unknown"),
+        }
     }
 }
 
@@ -157,39 +193,39 @@ mod test {
 
     #[test]
     fn zero() {
-        assert_eq!(Imm::from_str("zero"), Ok(Imm(0)));
-        assert_eq!(Imm::from_str("ZERO"), Ok(Imm(0)));
+        assert_eq!(Imm::from_str("zero"), Ok(Imm::new(0)));
+        assert_eq!(Imm::from_str("ZERO"), Ok(Imm::new(0)));
     }
 
     #[test]
     fn basic_imm() {
-        assert_eq!(Imm::from_str("0"), Ok(Imm(0)));
-        assert_eq!(Imm::from_str("1"), Ok(Imm(1)));
-        assert_eq!(Imm::from_str("-1"), Ok(Imm(-1)));
-        assert_eq!(Imm::from_str("-16"), Ok(Imm(-16)));
+        assert_eq!(Imm::from_str("0"), Ok(Imm::new(0)));
+        assert_eq!(Imm::from_str("1"), Ok(Imm::new(1)));
+        assert_eq!(Imm::from_str("-1"), Ok(Imm::new(-1)));
+        assert_eq!(Imm::from_str("-16"), Ok(Imm::new(-16)));
     }
 
     #[test]
     fn neg_hex() {
-        assert_eq!(Imm::from_str("0xFFFFFFFF"), Ok(Imm(-1)));
+        assert_eq!(Imm::from_str("0xFFFFFFFF"), Ok(Imm::new(-1)));
     }
 
     #[test]
     fn almost_neg_hex() {
-        assert_eq!(Imm::from_str("0xFFFFFFFE"), Ok(Imm(-2)));
+        assert_eq!(Imm::from_str("0xFFFFFFFE"), Ok(Imm::new(-2)));
     }
 
     #[test]
     fn safe_hex() {
-        assert_eq!(Imm::from_str("0x7FFFFFFF"), Ok(Imm(0x7FFF_FFFF)));
-        assert_eq!(Imm::from_str("0x80000000"), Ok(Imm(-0x8000_0000)));
+        assert_eq!(Imm::from_str("0x7FFFFFFF"), Ok(Imm::new(0x7FFF_FFFF)));
+        assert_eq!(Imm::from_str("0x80000000"), Ok(Imm::new(-0x8000_0000)));
     }
 
     #[test]
     fn trim_allowed() {
-        assert_eq!(Imm::from_str(" 120"), Ok(Imm(120)));
-        assert_eq!(Imm::from_str("203 "), Ok(Imm(203)));
-        assert_eq!(Imm::from_str(" 140 "), Ok(Imm(140)));
+        assert_eq!(Imm::from_str(" 120"), Ok(Imm::new(120)));
+        assert_eq!(Imm::from_str("203 "), Ok(Imm::new(203)));
+        assert_eq!(Imm::from_str(" 140 "), Ok(Imm::new(140)));
     }
 
     #[test]
@@ -201,25 +237,25 @@ mod test {
 
     #[test]
     fn hex_imm() {
-        assert_eq!(Imm::from_str("0x0"), Ok(Imm(0)));
-        assert_eq!(Imm::from_str("0x1"), Ok(Imm(1)));
-        assert_eq!(Imm::from_str("0x10"), Ok(Imm(16)));
-        assert_eq!(Imm::from_str("0x00000100"), Ok(Imm(256)));
-        assert_eq!(Imm::from_str("0x0000000A"), Ok(Imm(10)));
-        assert_eq!(Imm::from_str("-0x0000000A"), Ok(Imm(-10)));
+        assert_eq!(Imm::from_str("0x0"), Ok(Imm::new(0)));
+        assert_eq!(Imm::from_str("0x1"), Ok(Imm::new(1)));
+        assert_eq!(Imm::from_str("0x10"), Ok(Imm::new(16)));
+        assert_eq!(Imm::from_str("0x00000100"), Ok(Imm::new(256)));
+        assert_eq!(Imm::from_str("0x0000000A"), Ok(Imm::new(10)));
+        assert_eq!(Imm::from_str("-0x0000000A"), Ok(Imm::new(-10)));
     }
 
     #[test]
     fn binary_imm() {
-        assert_eq!(Imm::from_str("0b0"), Ok(Imm(0)));
-        assert_eq!(Imm::from_str("0b1"), Ok(Imm(1)));
-        assert_eq!(Imm::from_str("0b10"), Ok(Imm(2)));
-        assert_eq!(Imm::from_str("0b00000010"), Ok(Imm(2)));
-        assert_eq!(Imm::from_str("0b00000001"), Ok(Imm(1)));
-        assert_eq!(Imm::from_str("0b00000000"), Ok(Imm(0)));
-        assert_eq!(Imm::from_str("-0b00000000"), Ok(Imm(0)));
-        assert_eq!(Imm::from_str("-0b00000001"), Ok(Imm(-1)));
-        assert_eq!(Imm::from_str("-0b00000010"), Ok(Imm(-2)));
+        assert_eq!(Imm::from_str("0b0"), Ok(Imm::new(0)));
+        assert_eq!(Imm::from_str("0b1"), Ok(Imm::new(1)));
+        assert_eq!(Imm::from_str("0b10"), Ok(Imm::new(2)));
+        assert_eq!(Imm::from_str("0b00000010"), Ok(Imm::new(2)));
+        assert_eq!(Imm::from_str("0b00000001"), Ok(Imm::new(1)));
+        assert_eq!(Imm::from_str("0b00000000"), Ok(Imm::new(0)));
+        assert_eq!(Imm::from_str("-0b00000000"), Ok(Imm::new(0)));
+        assert_eq!(Imm::from_str("-0b00000001"), Ok(Imm::new(-1)));
+        assert_eq!(Imm::from_str("-0b00000010"), Ok(Imm::new(-2)));
     }
 
     #[test]
@@ -240,5 +276,11 @@ mod test {
         assert_eq!(Imm::from_str("0b-00000001"), Err(()));
         assert_eq!(Imm::from_str("0x-00000000"), Err(()));
         assert_eq!(Imm::from_str("0b-00000000"), Err(()));
+    }
+
+    #[test]
+    fn i32_min() {
+        assert_eq!(Imm::from_str("-2147483648"), Ok(Imm::new(-2147483648)));
+        assert_eq!(Imm::from_str("0x80000000"), Ok(Imm::new(-2147483648)));
     }
 }

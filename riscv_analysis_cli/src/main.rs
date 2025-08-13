@@ -3,18 +3,18 @@ use pretty_print_options::PrettyPrintOptions;
 use printer::*;
 mod pretty_print_options;
 
-use std::fmt::Display;
-#[cfg(feature = "fixes")]
-use std::io::Write;
-use std::{collections::HashMap, str::FromStr};
-
 #[cfg(feature = "fixes")]
 use colored::Colorize;
 #[cfg(feature = "fixes")]
 use riscv_analysis::fix::Manipulation;
 use riscv_analysis::passes::DiagnosticItem;
-use riscv_analysis::{parser::RVParser, passes::DiagnosticManager};
+use riscv_analysis::{parser::RVFileParser, passes::DiagnosticManager};
+use std::collections::HashSet;
+use std::fmt::Display;
+#[cfg(feature = "fixes")]
+use std::io::Write;
 use std::path::PathBuf;
+use std::{collections::HashMap, str::FromStr};
 use uuid::Uuid;
 
 #[cfg(feature = "analysis_debugger")]
@@ -22,6 +22,9 @@ use riscv_analysis::passes::DiagnosticLocation;
 use riscv_analysis::passes::Manager;
 
 use clap::{Args, Parser, Subcommand};
+use riscv_analysis::parser::{
+    LabelString, Position, ProgramEntryType, RVRegister, RVToken, Range, TokenType, With,
+};
 use riscv_analysis::reader::{FileReader, FileReaderError};
 
 #[derive(Parser)]
@@ -40,6 +43,47 @@ enum Commands {
     #[cfg(feature = "analysis_debugger")]
     #[clap(name = "debug_parse")]
     DebugParse(DebugParse),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct FunctionDef {
+    name: String,
+    arg_registers: HashSet<RVRegister>,
+    ret_registers: HashSet<RVRegister>,
+}
+
+impl FromStr for FunctionDef {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let error_msg = "function name not in format \"func_name:a0,a1:a0\"";
+        // Example strings; _main:a0,a1:a0;
+        let (name, args_rets) = s.split_once(":").ok_or(error_msg)?;
+        let (args, rets) = args_rets.split_once(":").ok_or(error_msg)?;
+
+        Ok(Self {
+            name: name.to_string(),
+            arg_registers: args
+                .split(",")
+                .filter_map(|x| {
+                    if x.is_empty() {
+                        None
+                    } else {
+                        Some(RVRegister::from_str(x).map_err(|_| error_msg))
+                    }
+                })
+                .collect::<Result<HashSet<_>, _>>()?,
+            ret_registers: rets
+                .split(",")
+                .filter_map(|x| {
+                    if x.is_empty() {
+                        None
+                    } else {
+                        Some(RVRegister::from_str(x).map_err(|_| error_msg))
+                    }
+                })
+                .collect::<Result<HashSet<_>, _>>()?,
+        })
+    }
 }
 
 #[derive(Args)]
@@ -67,6 +111,15 @@ struct Lint {
     /// Display errors from all files
     #[clap(long)]
     all_files: bool,
+    /// Inject functions and their argument and return registers
+    #[clap(long, value_delimiter = ';', num_args = 1.., value_name = "FUNCTION_DEF")]
+    function_names: Option<Vec<FunctionDef>>,
+    /// Do not use the first instruction as the program entry
+    #[clap(long)]
+    no_program_entry_at_start: bool,
+    /// Use a specific label as the program entry
+    #[clap(long)]
+    program_entry_label: Option<String>,
 }
 
 #[cfg(feature = "fixes")]
@@ -296,21 +349,63 @@ fn main() {
     match args.command {
         Commands::Lint(lint) => {
             let reader = IOFileReader::new();
-            let mut parser = RVParser::new(reader);
+            let cli_args_filename = Uuid::new_v4();
+            let program_entry_type =
+                match (lint.no_program_entry_at_start, lint.program_entry_label) {
+                    (_, Some(label)) => ProgramEntryType::LookForLabel(With::new(
+                        LabelString::new(label.clone()),
+                        RVToken::new(
+                            TokenType::Label(label.clone()),
+                            label.clone(),
+                            Range::new(
+                                Position::new(0, 0, 0),
+                                Position::new(0, label.len(), label.len()),
+                            ),
+                            cli_args_filename,
+                        ),
+                    )),
+                    (false, None) => ProgramEntryType::FirstInstruction,
+                    (true, None) => ProgramEntryType::None,
+                };
+            let mut parser = RVFileParser::new(reader);
 
             let mut diags = Vec::new();
-            let parsed = parser.parse_from_file(
-                lint.path
-                    .to_str()
-                    .expect("unable to convert path to string"),
-                false,
-            );
-            parsed
-                .1
-                .iter()
-                .for_each(|x| diags.push(DiagnosticItem::from(x.clone())));
+            let parsed = parser
+                .parse_from_file(
+                    lint.path
+                        .to_str()
+                        .expect("unable to convert path to string"),
+                    false,
+                )
+                .expect("unable to read file");
+            diags.extend(parsed.errors.iter().cloned().map(DiagnosticItem::from));
 
-            match Manager::gen_full_cfg(parsed.0) {
+            match Manager::gen_full_cfg(
+                &parsed,
+                lint.function_names.map(|x| {
+                    x.into_iter()
+                        .map(|item| {
+                            (
+                                With::new(
+                                    LabelString::new(item.name.clone()),
+                                    RVToken::new(
+                                        TokenType::Label(item.name.clone()),
+                                        item.name.clone(),
+                                        Range::new(
+                                            Position::new(0, 0, 0),
+                                            Position::new(0, item.name.len(), item.name.len()),
+                                        ),
+                                        cli_args_filename,
+                                    ),
+                                ),
+                                item.arg_registers.into_iter().collect(),
+                                item.ret_registers.into_iter().collect(),
+                            )
+                        })
+                        .collect()
+                }),
+                &program_entry_type,
+            ) {
                 Ok(full_cfg) => {
                     // if debug, print out the cfg
                     if lint.yaml {
@@ -320,9 +415,10 @@ fn main() {
                         println!("{}", full_cfg);
                     }
                     let mut errs = DiagnosticManager::new();
-                    Manager::run_diagnostics(&full_cfg, &mut errs);
-                    errs.iter()
-                        .for_each(|x| diags.push(DiagnosticItem::from_displayable(x.as_ref())));
+                    let mut manager = Manager::new();
+                    manager.register_and_enable_built_in_passes();
+                    manager.run_diagnostics(&full_cfg, &mut errs);
+                    diags.extend(errs.iter().map(DiagnosticItem::from_displayable))
                 }
                 Err(err) => {
                     diags.push(DiagnosticItem::from(*err));
@@ -348,7 +444,7 @@ fn main() {
                     );
                     printer.display_errors(&parser);
                     #[cfg(feature = "c229")]
-                    println!("You are using an alpha version of this software. Please report any bugs to the developers.");
+                    println ! ("You are using an alpha version of this software. Please report any bugs to the developers.");
                 }
             }
         }
@@ -356,7 +452,7 @@ fn main() {
         Commands::DebugParse(debu) => {
             // Debug mode that prints out parsing errors only
             let reader = IOFileReader::new();
-            let mut parser = RVParser::new(reader);
+            let mut parser = RVFileParser::new(reader);
             let parsed = parser.parse_from_file(
                 debu.input
                     .to_str()
@@ -384,27 +480,29 @@ mod tests {
     use crate::IOFileReader;
     use riscv_analysis::cfg::Cfg;
     use riscv_analysis::cfg::CfgWrapper;
-    use riscv_analysis::parser::RVParser;
+    use riscv_analysis::parser::{ProgramEntryType, RVFileParser};
     use riscv_analysis::passes::Manager;
 
     macro_rules! file_name {
-        ($fname:expr) => {
+        ( $ fname: expr) => {
             concat!(env!("CARGO_MANIFEST_DIR"), "/resources/test/", $fname) // assumes Linux ('/')!
         };
     }
 
     macro_rules! file_test_case {
-        ($fname:ident) => {
+        ( $ fname: ident) => {
             #[test]
             fn $fname() {
                 let filename = concat!(file_name!(stringify!($fname)), "/code.s");
                 let compare = concat!(file_name!(stringify!($fname)), "/raw.yaml");
                 let reader = IOFileReader::new();
-                let mut parser = RVParser::new(reader);
+                let mut parser = RVFileParser::new(reader);
 
-                let parsed = parser.parse_from_file(filename, false);
+                let parsed = parser.parse_from_file(filename, false).unwrap();
 
-                let res: Cfg = Manager::gen_full_cfg(parsed.0).unwrap();
+                let res: Cfg =
+                    Manager::gen_full_cfg(&parsed, None, &ProgramEntryType::FirstInstruction)
+                        .unwrap();
                 let res = CfgWrapper::from(&res);
 
                 // deserialize the yaml file
@@ -415,7 +513,7 @@ mod tests {
                 let res = serde_yaml::to_string(&res).unwrap();
                 let res: CfgWrapper = serde_yaml::from_str(&res).unwrap();
 
-                assert_eq!(res, compare);
+                assert!(res == compare, "file {} does not match expected output, this happens when internal node information behaviour is updated, use \"./generate-full-test-cases.sh\" to update test case outputs to match", filename);
             }
         };
     }

@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::cfg::Function;
 
 use crate::parser::LabelStringToken;
-use crate::parser::ParserNode;
+use crate::parser::RVInstructionNode;
 use crate::parser::Range;
 use crate::parser::RegisterToken;
 
@@ -54,7 +54,7 @@ pub enum LintError {
     InvalidUseAfterCall(RegisterToken, Rc<Function>, LabelStringToken),
     InvalidUseBeforeAssignment(RegisterToken),
     OverwriteCalleeSavedRegister(RegisterToken),
-    FirstInstructionIsFunction(ParserNode, Rc<Function>), // if the first instruction has a function, it is incorrect
+    FirstInstructionIsFunction(RVInstructionNode, Rc<Function>), // if the first instruction has a function, it is incorrect
     /// A function is entered through a non-conventional way
     ///
     /// If a function has any previous items, it is entered either through the
@@ -62,16 +62,16 @@ pub enum LintError {
     /// call.
     ///
     /// (First line in function, line where function is entered through, function)
-    InvalidJumpToFunction(ParserNode, ParserNode, Rc<Function>),
+    InvalidJumpToFunction(RVInstructionNode, RVInstructionNode, Rc<Function>),
     DeadAssignment(RegisterToken),
     SaveToZero(RegisterToken),
-    InvalidSegment(ParserNode),
-    UnknownEcall(ParserNode),
-    UnknownStack(ParserNode),        // stack value is not definitely known
-    InvalidStackPointer(ParserNode), // stack value is being overwritten
-    InvalidStackPosition(ParserNode, i32), // stack value is wrong way (positive)
-    InvalidStackOffsetUsage(ParserNode, i32), // read/write using invalid stack offser
-    UnreachableCode(ParserNode),     // -- code that is unreachable
+    InvalidSegment(RVInstructionNode),
+    UnknownEcall(RVInstructionNode),
+    UnknownStack(RVInstructionNode), // stack value is not definitely known
+    InvalidStackPointer(RVInstructionNode), // stack value is being overwritten
+    InvalidStackPosition(RVInstructionNode, i32), // stack value is wrong way (positive)
+    InvalidStackOffsetUsage(RVInstructionNode, i32), // read/write using invalid stack offser
+    UnreachableCode(RVInstructionNode), // -- code that is unreachable
     // SetBadRegister(Range, Register), -- used when setting registers that should not be set
     // FallOffEnd(Range), program may fall off the end of code
     // InvalidControlFlowRead(Range), -- reading from a register that is not assigned to
@@ -80,7 +80,7 @@ pub enum LintError {
     // LoadAddressFromTextLabel -- if the address is a label in the text area, then it is a warning
     // AnyJumpToData -- if any jump is to a data label, then it is a warning (label strings should have data/text prefix)
     /// An instruction is a member of more than one function.
-    NodeInManyFunctions(ParserNode, Vec<Rc<Function>>),
+    NodeInManyFunctions(RVInstructionNode, Vec<Rc<Function>>),
 }
 
 #[derive(Clone)]

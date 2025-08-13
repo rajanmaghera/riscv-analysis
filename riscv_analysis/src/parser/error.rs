@@ -7,7 +7,7 @@ use crate::{
     reader::FileReaderError,
 };
 
-use super::{ParserNode, StringLexError, StringLexErrorType, Token, With};
+use super::{LabelString, RVToken, StringLexError, StringLexErrorType, With};
 
 #[derive(Debug, Clone)]
 /// Lexer error
@@ -16,18 +16,30 @@ use super::{ParserNode, StringLexError, StringLexErrorType, Token, With};
 /// inherently mean that the code is wrong, but rather that the parser must go
 /// down an alternate path to parse the code.
 pub enum LexError {
-    Expected(Vec<ExpectedType>, Box<Token>),
-    IsNewline(Box<Token>),
-    IgnoredWithWarning(Box<Token>),
+    Expected(Vec<ExpectedType>, Box<RVToken>),
+    IsNewline(Box<RVToken>),
+    IgnoredWithWarning(Box<RVToken>),
     IgnoredWithoutWarning,
-    UnexpectedToken(Box<Token>),
+    UnexpectedToken(Box<RVToken>),
     UnexpectedEOF,
-    NeedTwoNodes(Box<ParserNode>, Box<ParserNode>),
-    UnexpectedError(Box<Token>),
-    UnknownDirective(Box<Token>),
-    UnsupportedDirective(Box<Token>),
-    InvalidString(Box<Token>, Box<StringLexError>),
+    UnexpectedError(Box<RVToken>),
+    UnknownDirective(Box<RVToken>),
+    UnsupportedDirective(Box<RVToken>),
+    InvalidString(Box<RVToken>, Box<StringLexError>),
+    IncludeFile(Box<With<String>>),
+    GlobalDef(Box<With<LabelString>>),
 }
+
+// TODO: move all skipping logic to within the lexer or annotated lexer.
+// AnnotatedLexer should be an iterator that has Item == Result<> and does
+// not need the caller to determine how to skip. Same for Lexer
+
+// TODO: rename AnnotatedLexer to Parser
+
+// TODO: Move colon to be its own lexer token, then have the Parser deal
+// with expecting a colon as a label.
+
+// TODO: Registers should be a lexer token?
 
 #[derive(Debug, Clone)]
 /// Parser error
@@ -36,15 +48,15 @@ pub enum LexError {
 /// that the parser recovers from by skipping the line, and continuing to parse
 /// the rest of the file. The user should see these errors within their editor
 pub enum ParseError {
-    Expected(Vec<ExpectedType>, Box<Token>),
-    Unsupported(Box<Token>),
-    UnexpectedToken(Box<Token>),
-    UnexpectedError(Box<Token>),
-    UnknownDirective(Box<Token>),
-    CyclicDependency(Box<Token>),
+    Expected(Vec<ExpectedType>, Box<RVToken>),
+    Unsupported(Box<RVToken>),
+    UnexpectedToken(Box<RVToken>),
+    UnexpectedError(Box<RVToken>),
+    UnknownDirective(Box<RVToken>),
+    CyclicDependency(Box<RVToken>),
     FileNotFound(With<String>),
     IOError(With<String>, String),
-    InvalidString(Box<Token>, Box<StringLexError>),
+    InvalidString(Box<RVToken>, Box<StringLexError>),
 }
 
 impl FileReaderError {
@@ -236,6 +248,8 @@ pub enum ExpectedType {
     CsrImm,
     Inst,
     String,
+    Directive,
+    Symbol,
 }
 
 impl std::fmt::Display for ExpectedType {
@@ -249,6 +263,8 @@ impl std::fmt::Display for ExpectedType {
             ExpectedType::CsrImm => write!(f, "CSR-IMMEDIATE"),
             ExpectedType::Inst => write!(f, "INSTRUCTION"),
             ExpectedType::String => write!(f, "STRING"),
+            ExpectedType::Directive => write!(f, "DIRECTIVE"),
+            ExpectedType::Symbol => write!(f, "SYMBOL"),
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::parser::Inst;
+use crate::parser::RVInst;
 
 pub enum MathOp {
     Add,
@@ -22,28 +22,28 @@ pub enum MathOp {
 }
 
 // impl Inst -> MathOp
-impl Inst {
+impl RVInst {
     #[must_use]
     pub fn math_op(self) -> Option<MathOp> {
         match self {
-            Inst::Add | Inst::Addi => Some(MathOp::Add),
-            Inst::And | Inst::Andi => Some(MathOp::And),
-            Inst::Or | Inst::Ori => Some(MathOp::Or),
-            Inst::Sll | Inst::Slli => Some(MathOp::Sll),
-            Inst::Slt | Inst::Slti => Some(MathOp::Slt),
-            Inst::Sltu | Inst::Sltiu => Some(MathOp::Sltu),
-            Inst::Sra | Inst::Srai => Some(MathOp::Sra),
-            Inst::Srl | Inst::Srli => Some(MathOp::Srl),
-            Inst::Sub => Some(MathOp::Sub),
-            Inst::Xor | Inst::Xori => Some(MathOp::Xor),
-            Inst::Mul => Some(MathOp::Mul),
-            Inst::Mulh => Some(MathOp::Mulh),
-            Inst::Mulhsu => Some(MathOp::Mulhsu),
-            Inst::Mulhu => Some(MathOp::Mulhu),
-            Inst::Div | Inst::Divw => Some(MathOp::Div),
-            Inst::Divu => Some(MathOp::Divu),
-            Inst::Rem | Inst::Remw => Some(MathOp::Rem),
-            Inst::Remu | Inst::Remuw => Some(MathOp::Remu),
+            RVInst::Add | RVInst::Addi => Some(MathOp::Add),
+            RVInst::And | RVInst::Andi => Some(MathOp::And),
+            RVInst::Or | RVInst::Ori => Some(MathOp::Or),
+            RVInst::Sll | RVInst::Slli => Some(MathOp::Sll),
+            RVInst::Slt | RVInst::Slti => Some(MathOp::Slt),
+            RVInst::Sltu | RVInst::Sltiu => Some(MathOp::Sltu),
+            RVInst::Sra | RVInst::Srai => Some(MathOp::Sra),
+            RVInst::Srl | RVInst::Srli => Some(MathOp::Srl),
+            RVInst::Sub => Some(MathOp::Sub),
+            RVInst::Xor | RVInst::Xori => Some(MathOp::Xor),
+            RVInst::Mul => Some(MathOp::Mul),
+            RVInst::Mulh => Some(MathOp::Mulh),
+            RVInst::Mulhsu => Some(MathOp::Mulhsu),
+            RVInst::Mulhu => Some(MathOp::Mulhu),
+            RVInst::Div | RVInst::Divw => Some(MathOp::Div),
+            RVInst::Divu => Some(MathOp::Divu),
+            RVInst::Rem | RVInst::Remw => Some(MathOp::Rem),
+            RVInst::Remu | RVInst::Remuw => Some(MathOp::Remu),
             _ => None,
         }
     }
@@ -52,30 +52,30 @@ impl Inst {
     #[must_use]
     pub fn scalar_op(self) -> Option<MathOp> {
         match self {
-            Inst::Add | Inst::Addi => Some(MathOp::Add),
-            Inst::Sub => Some(MathOp::Sub),
+            RVInst::Add | RVInst::Addi => Some(MathOp::Add),
+            RVInst::Sub => Some(MathOp::Sub),
             _ => None,
         }
     }
 }
 
 impl MathOp {
-    #[allow(clippy::cast_possible_wrap)]
     #[allow(clippy::cast_sign_loss)]
     #[must_use]
     pub fn operate(&self, x: i32, y: i32) -> i32 {
         match self {
-            MathOp::Add => x + y,
+            MathOp::Add => x.wrapping_add(y),
             MathOp::And => x & y,
             MathOp::Or => x | y,
             MathOp::Sll => x << y,
             MathOp::Slt => i32::from(x < y),
             MathOp::Sltu => i32::from((x as u32) < (y as u32)),
             MathOp::Sra => x >> y,
+            #[allow(clippy::cast_possible_wrap)]
             MathOp::Srl => (x as u32 >> y) as i32,
             MathOp::Sub => x - y,
             MathOp::Xor => x ^ y,
-            MathOp::Mul => x * y,
+            MathOp::Mul => x.wrapping_mul(y),
             MathOp::Mulh | MathOp::Mulhsu => {
                 let (x, y) = (i64::from(x), i64::from(y));
                 ((x * y) >> 32) as i32
@@ -98,6 +98,7 @@ impl MathOp {
             }
             MathOp::Divu => match y {
                 0 => -1,
+                #[allow(clippy::cast_possible_wrap)]
                 _ => (x as u32 / y as u32) as i32,
             },
             MathOp::Rem => match y {
@@ -106,6 +107,7 @@ impl MathOp {
             },
             MathOp::Remu => match y {
                 0 => x,
+                #[allow(clippy::cast_possible_wrap)]
                 _ => (x as u32 % y as u32) as i32,
             },
         }

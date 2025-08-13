@@ -25,9 +25,6 @@ pub trait HasRegisterSets: RegisterProperties {
     fn sp_ra_set() -> RegisterSet;
 
     #[must_use]
-    fn return_addr_set() -> RegisterSet;
-
-    #[must_use]
     fn caller_saved_set() -> RegisterSet;
 
     #[must_use]

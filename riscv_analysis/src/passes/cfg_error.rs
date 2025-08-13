@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display};
 
-use crate::parser::{LabelStringToken, ParserNode};
+use crate::parser::{LabelStringToken, RVInstructionNode};
 
 use super::{DiagnosticLocation, DiagnosticMessage, SeverityLevel};
 
@@ -19,14 +19,10 @@ pub enum CfgError {
     DuplicateLabel(LabelStringToken),
     /// This error occurs when a return statement is used but can be reached by
     /// multiple labels.
-    MultipleLabelsForReturn(ParserNode, HashSet<LabelStringToken>),
+    MultipleLabelsForReturn(RVInstructionNode, HashSet<LabelStringToken>),
     /// This error occurs when a return statement is used but can be reached by
     /// no labels.
-    NoLabelForReturn(ParserNode),
-    /// Unexpected error
-    UnexpectedError,
-    /// Assertion error
-    AssertionError,
+    NoLabelForReturn(RVInstructionNode),
 }
 
 trait SetListString {
@@ -62,8 +58,6 @@ impl Display for CfgError {
             CfgError::NoLabelForReturn(_) => {
                 write!(f, "No label for return")
             }
-            CfgError::UnexpectedError => write!(f, "Unexpected error"),
-            CfgError::AssertionError => write!(f, "Assertion error"),
         }
     }
 }
@@ -74,9 +68,7 @@ impl From<&CfgError> for SeverityLevel {
             CfgError::LabelsNotDefined(_)
             | CfgError::DuplicateLabel(_)
             | CfgError::MultipleLabelsForReturn(_, _)
-            | CfgError::NoLabelForReturn(_)
-            | CfgError::UnexpectedError
-            | CfgError::AssertionError => SeverityLevel::Error,
+            | CfgError::NoLabelForReturn(_) => SeverityLevel::Error,
         }
     }
 }
@@ -89,7 +81,6 @@ impl DiagnosticLocation for CfgError {
             }
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().file(),
             CfgError::DuplicateLabel(label) => label.file(),
-            CfgError::UnexpectedError | CfgError::AssertionError => uuid::Uuid::nil(),
         }
     }
 
@@ -100,7 +91,6 @@ impl DiagnosticLocation for CfgError {
             }
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().range(),
             CfgError::DuplicateLabel(label) => label.range(),
-            CfgError::UnexpectedError | CfgError::AssertionError => crate::parser::Range::default(),
         }
     }
 
@@ -111,7 +101,6 @@ impl DiagnosticLocation for CfgError {
             }
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().raw_text(),
             CfgError::DuplicateLabel(label) => label.raw_text(),
-            CfgError::UnexpectedError | CfgError::AssertionError => String::new(),
         }
     }
 }
@@ -158,8 +147,6 @@ impl DiagnosticMessage for CfgError {
                 A label is considered a function if it has been called by a [jal] instruction. This code might also be\
                 missing from your file or imports.
                 ".to_string(),
-            CfgError::UnexpectedError => "An unexpected error occurred. Please file a bug.".to_string(),
-            CfgError::AssertionError => "An unexpected assertion error occurred. Please file a bug.".to_string(),
         }
     }
 }

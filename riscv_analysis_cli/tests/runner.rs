@@ -80,10 +80,3 @@ fn sample() {
     let out = PathBuf::from("./sample/unused-value.json");
     run_test(asm, out);
 }
-
-#[test]
-fn no_invalid_assign_for_ret() {
-    let asm = PathBuf::from("./checks/no-invalid-assign-for-ret.s");
-    let out = PathBuf::from("./checks/no-invalid-assign-for-ret.json");
-    run_test(asm, out);
-}

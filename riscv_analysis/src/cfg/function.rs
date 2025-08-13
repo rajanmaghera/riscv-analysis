@@ -7,7 +7,7 @@ use std::{
 };
 use uuid::Uuid;
 
-use crate::parser::{HasIdentity, HasRegisterSets, LabelString, LabelStringToken, Register};
+use crate::parser::{HasIdentity, HasRegisterSets, LabelString, LabelStringToken, RVRegister};
 
 use super::{CfgNode, RegisterSet};
 
@@ -26,10 +26,14 @@ pub struct Function {
 
     /// Exit node of the function. Multiple exit points will be converted to a
     /// single exit point.
-    exit: RefCell<Rc<CfgNode>>,
+    exits: RefCell<HashSet<Rc<CfgNode>>>,
 
     /// The registers that are set ever in the function
     defs: RefCell<RegisterSet>,
+
+    /// Call sites. These are the function call instructions in the rest of the program
+    /// that call this function
+    call_sites: HashSet<Rc<CfgNode>>,
 }
 
 impl Hash for Function {
@@ -50,18 +54,14 @@ impl Function {
         )
     }
 
-    pub fn new(
-        labels: Vec<LabelStringToken>,
-        nodes: Vec<Rc<CfgNode>>,
-        entry: Rc<CfgNode>,
-        exit: Rc<CfgNode>,
-    ) -> Self {
+    pub fn new(labels: Vec<LabelStringToken>, nodes: Vec<Rc<CfgNode>>, entry: Rc<CfgNode>) -> Self {
         Function {
             id: Uuid::new_v4(),
             labels: labels.into_iter().collect::<HashSet<_>>(),
             nodes: RefCell::new(nodes),
             entry,
-            exit: RefCell::new(exit),
+            call_sites: HashSet::new(),
+            exits: RefCell::new(HashSet::new()),
             defs: RefCell::new(RegisterSet::new()),
         }
     }
@@ -73,12 +73,16 @@ impl Function {
 
     #[must_use]
     pub fn arguments(&self) -> RegisterSet {
-        self.entry.live_out() & Register::argument_set()
+        self.entry.live_in() & RVRegister::argument_set()
     }
 
     #[must_use]
     pub fn returns(&self) -> RegisterSet {
-        self.exit().live_in() & Register::return_set()
+        self.exits()
+            .iter()
+            .map(|x| x.live_out() & RVRegister::return_set())
+            .reduce(|acc, x| acc | x)
+            .unwrap_or_default()
     }
 
     /// Set the registers used by this function.
@@ -95,7 +99,7 @@ impl Function {
     #[must_use]
     pub fn to_save(&self) -> RegisterSet {
         // Remove the stack pointer()
-        (*self.defs() & Register::callee_saved_set()) - Register::X2
+        (*self.defs() & RVRegister::callee_saved_set()) - RVRegister::stack_pointer()
     }
 
     /// Set the instructions composing this function.
@@ -116,17 +120,78 @@ impl Function {
 
     /// Return the exit node of this function. In general, this corresponds to a
     /// `ret` instruction.
-    pub fn exit(&self) -> Ref<Rc<CfgNode>> {
-        self.exit.borrow()
+    pub fn exits(&self) -> Ref<HashSet<Rc<CfgNode>>> {
+        self.exits.borrow()
     }
 
     /// Set the exit node of this function.
     #[must_use]
-    pub fn set_exit(&self, node: Rc<CfgNode>) -> bool {
-        self.exit.replace_if_changed(node)
+    pub fn set_exits(&self, nodes: HashSet<Rc<CfgNode>>) -> bool {
+        self.exits.replace_if_changed(nodes)
     }
 }
 impl HasIdentity for Function {
+    /// Get the id of the function.
+    fn id(&self) -> Uuid {
+        self.id
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ExternalFunction {
+    id: Uuid,
+    labels: HashSet<LabelStringToken>,
+    arguments: RegisterSet,
+    returns: RegisterSet,
+}
+
+impl Hash for ExternalFunction {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+impl ExternalFunction {
+    #[must_use]
+    pub fn name(&self) -> LabelString {
+        LabelString::new(
+            self.labels
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<String>>()
+                .join(", "),
+        )
+    }
+
+    #[must_use]
+    pub fn new(
+        labels: Vec<LabelStringToken>,
+        arguments: RegisterSet,
+        returns: RegisterSet,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            labels: labels.into_iter().collect(),
+            arguments,
+            returns,
+        }
+    }
+
+    #[must_use]
+    pub fn labels(&self) -> HashSet<LabelStringToken> {
+        self.labels.clone()
+    }
+
+    #[must_use]
+    pub fn arguments(&self) -> RegisterSet {
+        self.arguments & RVRegister::argument_set()
+    }
+
+    #[must_use]
+    pub fn returns(&self) -> RegisterSet {
+        self.returns & RVRegister::argument_set()
+    }
+}
+impl HasIdentity for ExternalFunction {
     /// Get the id of the function.
     fn id(&self) -> Uuid {
         self.id

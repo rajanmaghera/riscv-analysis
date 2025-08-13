@@ -1,9 +1,10 @@
+use crate::parser::lexer::PeekStatus::HasLookedAhead;
+use crate::parser::token::RVToken;
+use crate::passes::DiagnosticLocation;
+use std::str::FromStr;
 use uuid::Uuid;
 
-use crate::parser::token::Token;
-use crate::passes::DiagnosticLocation;
-
-use super::{LexError, Position};
+use super::{LexError, Position, RawToken};
 use super::{Range, TokenType};
 
 // TODO: add "RawToken" buffer rather than reconstructing raw token texts
@@ -29,11 +30,23 @@ impl StringLexError {
     }
 }
 
+#[derive(Debug, Clone)]
+enum PeekStatus {
+    HasLookedAhead(Option<Result<RVToken, LexError>>),
+    HasNotLookedAhead,
+}
+
+impl PeekStatus {
+    fn take(&mut self) -> Self {
+        std::mem::replace(self, PeekStatus::HasNotLookedAhead)
+    }
+}
+
 /// Lexer for RISC-V assembly
 ///
 /// The lexer implements the Iterator trait, so it can be used in a for loop for
 /// getting the next token.
-pub struct Lexer {
+pub struct RVLexer {
     pub source_id: Uuid,
     /// Raw source, don't read from this directly
     source: Vec<char>,
@@ -43,28 +56,74 @@ pub struct Lexer {
     row: usize,
     /// The column that will be read next
     col: usize,
+    /// Upcoming item
+    peek: PeekStatus,
 }
 
-impl Lexer {
+impl RVLexer {
     /// Create a new lexer from a string.
-    pub fn new<S: Into<String>>(source: S, id: Uuid) -> Lexer {
-        Lexer {
+    pub fn new<S: Into<String>>(source: S, id: Uuid) -> RVLexer {
+        RVLexer {
             source: source.into().chars().collect(),
             source_id: id,
             pos: 0,
             row: 0,
             col: 0,
+            peek: PeekStatus::HasNotLookedAhead,
         }
     }
 
     /// Get the N'th next character, without updating the current character.
-    fn peek(&self, n: usize) -> Option<char> {
+    fn peek_char(&self, n: usize) -> Option<char> {
         self.source.get(self.pos + n).copied()
+    }
+
+    pub fn peek(&mut self) -> Option<Result<RVToken, LexError>> {
+        if let PeekStatus::HasLookedAhead(next) = self.peek.clone() {
+            next.clone()
+        } else {
+            let next = self.next();
+            self.peek = HasLookedAhead(next.clone());
+            next
+        }
+    }
+
+    /// Get the string between the two indices
+    fn get_between(&self, start: usize, end: usize) -> Option<String> {
+        self.source.get(start..end).map(|s| s.iter().collect())
+    }
+
+    /// Extend the raw token to include all text between the new token.
+    ///
+    /// Our tokens can only be one line long, so this function asserts that
+    /// the two tokens are on the same line
+    ///
+    /// # Panics
+    ///
+    /// Panics if the second token is not on the same line or is not after this token.
+    pub fn extend_raw_token(&self, start: &mut RawToken, end: &RawToken) {
+        assert!(start.range().start().raw_index() < end.range().end().raw_index());
+        assert_eq!(
+            start.range().start().zero_idx_line(),
+            end.range().end().zero_idx_line()
+        );
+        assert_eq!(start.file(), end.file());
+        // Create a new token that has the start and ends
+        let new_token = RawToken::new(
+            self.get_between(
+                start.range().start().raw_index(),
+                end.range().end().raw_index(),
+            )
+            .unwrap(),
+            Range::new(*start.range().start(), *end.range().end()),
+            start.file(),
+        );
+        *start = new_token;
     }
 
     /// Get the current next character.
     fn current(&self) -> Option<char> {
-        self.peek(0)
+        self.peek_char(0)
     }
 
     /// Get the next character in the source.
@@ -73,7 +132,7 @@ impl Lexer {
     /// of the Lexer struct.
     fn consume_char(&mut self) {
         // Get the next character
-        if let Some(ch) = self.peek(1) {
+        if let Some(ch) = self.current() {
             // Update the position
             if ch == '\n' {
                 self.row += 1;
@@ -82,8 +141,6 @@ impl Lexer {
                 self.col += 1;
             }
             self.pos += 1;
-        } else {
-            self.pos = self.source.len();
         }
     }
 
@@ -111,7 +168,12 @@ impl Lexer {
     /// This function will return true if the current character is a lowercase
     /// or uppercase letter, an underscore, or a dash.
     fn is_symbol_char(ch: char) -> bool {
-        ch.is_ascii_lowercase() || ch.is_ascii_uppercase() || ch == '_' || ch == '-'
+        ch.is_ascii_lowercase()
+            || ch.is_ascii_uppercase()
+            || ch == '_'
+            || ch == '-'
+            || ch == '.'
+            || ch == '@'
     }
 
     /// Check if the given character is a character usable in a symbol
@@ -146,8 +208,7 @@ impl Lexer {
     ///
     /// This function will return the current position of the lexer.
     fn get_pos(&self) -> Position {
-        let column = if self.col == 0 { 0 } else { self.col - 1 };
-        Position::new(self.row, column, self.pos)
+        Position::new(self.row, self.col, self.pos)
     }
 
     /// Lex a unicode escape code.
@@ -155,7 +216,12 @@ impl Lexer {
     /// Returns None if the code doesn't define a valid unicode character. The
     /// escape code is lexed into a single unicode character.
     fn unicode_code(&mut self) -> Option<char> {
-        let chars = vec![self.peek(2)?, self.peek(3)?, self.peek(4)?, self.peek(5)?];
+        let chars = vec![
+            self.peek_char(2)?,
+            self.peek_char(3)?,
+            self.peek_char(4)?,
+            self.peek_char(5)?,
+        ];
 
         // Convert to a codepoint number
         let code_number: Option<u32> = {
@@ -180,7 +246,7 @@ impl Lexer {
     /// All escape codes present in RARS are supported. This function will
     /// consume all needed characters for the escape code.
     fn escape_code(&mut self) -> Option<char> {
-        if let Some(c) = self.peek(1) {
+        if let Some(c) = self.peek_char(1) {
             let real = match c {
                 '\\' => '\\',
                 '\'' => '\'',
@@ -257,9 +323,9 @@ impl Lexer {
         kind: StringLexErrorType,
         start: Position,
         end: Position,
-    ) -> Result<Token, LexError> {
+    ) -> Result<RVToken, LexError> {
         Err(LexError::InvalidString(
-            Box::new(Token::new(
+            Box::new(RVToken::new(
                 TokenType::String(partial.clone()),
                 partial,
                 Range::new(start, end),
@@ -270,15 +336,15 @@ impl Lexer {
     }
 }
 
-impl Iterator for Lexer {
-    type Item = Result<Token, LexError>;
+impl Iterator for RVLexer {
+    type Item = Result<RVToken, LexError>;
 
     #[allow(clippy::too_many_lines)]
     fn next(&mut self) -> Option<Self::Item> {
+        if let PeekStatus::HasLookedAhead(peek) = self.peek.take() {
+            return peek;
+        }
         self.skip_ws();
-
-        // TODO(rajan): ensure that we are consistent with whether the tokens are included or not in the Token representation
-        // TODO(rajan): should we introduce a new token type for the comment hash (#) and directive hash (.)?
 
         let token = match self.current() {
             None => None,
@@ -287,7 +353,7 @@ impl Iterator for Lexer {
 
                 self.consume_char();
 
-                Some(Token::new(
+                Some(RVToken::new(
                     TokenType::Newline,
                     "\n".to_string(),
                     pos,
@@ -298,7 +364,7 @@ impl Iterator for Lexer {
                 let pos = self.get_range();
                 self.consume_char();
 
-                Some(Token::new(
+                Some(RVToken::new(
                     TokenType::LParen,
                     "(".to_string(),
                     pos,
@@ -309,39 +375,10 @@ impl Iterator for Lexer {
                 let pos = self.get_range();
                 self.consume_char();
 
-                Some(Token::new(
+                Some(RVToken::new(
                     TokenType::RParen,
                     ")".to_owned(),
                     pos,
-                    self.source_id,
-                ))
-            }
-            Some('.') => {
-                // directive
-                let start = self.get_pos();
-                let mut dir_str: String = String::new();
-
-                while let Some(current) = self.current() {
-                    dir_str.push(current);
-                    if let Some(next) = self.peek(1) {
-                        if !Self::is_symbol_char(next) {
-                            break;
-                        }
-                    }
-                    self.consume_char();
-                }
-
-                let end = self.get_pos();
-                self.consume_char();
-
-                if dir_str == "." {
-                    return self.next();
-                }
-
-                Some(Token::new(
-                    TokenType::Directive(dir_str.clone()),
-                    dir_str,
-                    Range::new(start, end),
                     self.source_id,
                 ))
             }
@@ -351,25 +388,21 @@ impl Iterator for Lexer {
                 let mut comment_str: String = String::new();
 
                 while let Some(current) = self.current() {
-                    comment_str.push(current);
-                    if self.peek(1) == Some('\n') || self.peek(1).is_none() {
+                    if current == '\n' {
                         break;
                     }
+                    comment_str.push(current);
                     self.consume_char();
                 }
 
                 let end = self.get_pos();
-                self.consume_char();
-
-                // Remove the '#' character
-                let (_, comment_str) = comment_str.split_at(1);
 
                 // Empty comment strings are allowed, in the case of a
                 // comment with a new line. We don't strip any whitespace
                 // for comments here.
-                Some(Token::new(
-                    TokenType::Comment(comment_str.to_string()),
-                    comment_str.to_string(),
+                Some(RVToken::new(
+                    TokenType::Comment(comment_str.split_at(1).1.to_string()),
+                    comment_str.clone(),
                     Range::new(start, end),
                     self.source_id,
                 ))
@@ -382,10 +415,40 @@ impl Iterator for Lexer {
                 let string_str = match self.acc_string() {
                     Ok(s) => s,
                     Err(e) => {
+                        // Invalid escape sequence
+                        // Try to find the end of the string on this line. If not found,
+                        // produce an unclosed error. If found, produce an invalid escape sequence
+                        // error.
+                        while let Some(current) = self.current() {
+                            if current == '\n' {
+                                let pos = self.get_range();
+                                return Some(self.invalid_string(
+                                    "\n".to_string(),
+                                    StringLexErrorType::Newline,
+                                    *pos.start(),
+                                    *pos.end(),
+                                ));
+                            }
+                            if current == '"' {
+                                self.consume_char();
+                                let end = self.get_pos();
+                                let actual_string =
+                                    self.get_between(start.raw_index(), end.raw_index())?;
+                                return Some(self.invalid_string(
+                                    actual_string,
+                                    StringLexErrorType::InvalidEscapeSequence,
+                                    start,
+                                    end,
+                                ));
+                            }
+                            self.consume_char();
+                        }
+                        let actual_string =
+                            self.get_between(start.raw_index(), e.pos.raw_index())?;
                         return Some(Err(LexError::InvalidString(
-                            Box::new(Token::new(
+                            Box::new(RVToken::new(
                                 TokenType::String(String::new()),
-                                String::new(),
+                                actual_string.clone(),
                                 Range::new(start, e.pos),
                                 self.source_id,
                             )),
@@ -394,113 +457,207 @@ impl Iterator for Lexer {
                     }
                 };
 
-                let end = self.get_pos();
                 self.consume_char(); // Skip final '"'
-                self.consume_char();
+                let end = self.get_pos();
 
-                Some(Token::new(
+                let actual_string = self.get_between(start.raw_index(), end.raw_index())?;
+
+                Some(RVToken::new(
                     TokenType::String(string_str.clone()),
-                    "\"".to_string() + &string_str + "\"",
+                    actual_string,
                     Range::new(start, end),
                     self.source_id,
                 ))
             }
             Some('\'') => {
+                // Consume initial quote '
                 let start = self.get_pos();
                 self.consume_char();
 
-                if let Some(c) = self.current() {
-                    // Get the character in the quote
-                    let c = match c {
-                        // Is an escape code
-                        '\\' => match self.escape_code() {
-                            Some(ec) => ec,
-                            None => {
-                                return Some(self.invalid_string(
-                                    c.to_string(),
-                                    StringLexErrorType::InvalidEscapeSequence,
-                                    start,
-                                    self.get_pos(),
-                                ))
+                let Some(c) = self.current() else {
+                    let end = self.get_pos();
+                    return Some(self.invalid_string(
+                        '\''.to_string(), // Empty string, since we are at EOF
+                        StringLexErrorType::Unclosed,
+                        start,
+                        end,
+                    ));
+                };
+
+                // Get the character in the quote
+                let c = match c {
+                    // Is an escape code
+                    '\\' => {
+                        if let Some(ec) = self.escape_code() {
+                            ec
+                        } else {
+                            // Invalid escape sequence
+                            // Try to find the end of the string on this line. If not found,
+                            // produce an unclosed error. If found, produce an invalid escape sequence
+                            // error.
+                            while let Some(current) = self.current() {
+                                self.consume_char();
+                                if current == '\n' {
+                                    let pos = self.get_range();
+                                    return Some(self.invalid_string(
+                                        "\n".to_string(),
+                                        StringLexErrorType::Newline,
+                                        *pos.start(),
+                                        *pos.end(),
+                                    ));
+                                }
+                                if current == '\'' {
+                                    self.consume_char();
+                                    let end = self.get_pos();
+                                    let actual_string =
+                                        self.get_between(start.raw_index(), end.raw_index())?;
+                                    return Some(self.invalid_string(
+                                        actual_string,
+                                        StringLexErrorType::InvalidEscapeSequence,
+                                        start,
+                                        end,
+                                    ));
+                                }
                             }
-                        },
-                        // Can't have a literal newline in a character
-                        '\n' => {
-                            return Some(self.invalid_string(
-                                c.to_string(),
-                                StringLexErrorType::Newline,
-                                start,
-                                self.get_pos(),
-                            ))
+                            return None;
                         }
-                        // Otherwise, return the character as is
-                        c => c,
-                    };
-
-                    // Ensure that the next character is the closing quote
-                    self.consume_char();
-                    if let Some(eq) = self.current() {
-                        // Return the character
-                        if eq == '\'' {
-                            let end = self.get_pos();
-                            self.consume_char();
-
-                            return Some(Ok(Token::new(
-                                TokenType::Char(c),
-                                '\''.to_string() + &c.to_string() + "'",
-                                Range::new(start, end),
-                                self.source_id,
-                            )));
-                        }
-
-                        // The character is unclosed
-                        let end = self.get_pos();
+                    }
+                    // Can't have a literal newline in a character
+                    '\n' => {
+                        let pos = self.get_range();
                         return Some(self.invalid_string(
-                            c.to_string(),
-                            StringLexErrorType::Unclosed,
-                            start,
-                            end,
+                            "\n".to_string(),
+                            StringLexErrorType::Newline,
+                            *pos.start(),
+                            *pos.end(),
                         ));
                     }
+                    // Otherwise, return the character as is
+                    c => c,
+                };
+
+                // Ensure that the next character is the closing quote
+                self.consume_char();
+                let Some(eq) = self.current() else {
+                    // The character is unclosed
+                    let end = self.get_pos();
+                    let actual_string = self.get_between(start.raw_index(), end.raw_index())?;
+                    return Some(self.invalid_string(
+                        actual_string,
+                        StringLexErrorType::Unclosed,
+                        start,
+                        end,
+                    ));
+                };
+
+                if eq != '\'' {
+                    // The character is unclosed
+                    let end = self.get_pos();
+                    let actual_string = self.get_between(start.raw_index(), end.raw_index())?;
+                    return Some(self.invalid_string(
+                        actual_string,
+                        StringLexErrorType::Unclosed,
+                        start,
+                        end,
+                    ));
                 }
 
+                // Return the character
+                self.consume_char();
                 let end = self.get_pos();
-                return Some(self.invalid_string(
-                    String::new(), // Empty string, since we are at EOF
-                    StringLexErrorType::Unclosed,
-                    start,
-                    end,
-                ));
+                let actual_string = self.get_between(start.raw_index(), end.raw_index())?;
+
+                Some(RVToken::new(
+                    TokenType::Char(c),
+                    actual_string,
+                    Range::new(start, end),
+                    self.source_id,
+                ))
+            }
+            Some('%') => {
+                // %hi or %lo
+                let start = self.get_pos();
+                self.consume_char();
+                if let (Some('h'), Some('i')) = (self.peek_char(0), self.peek_char(1)) {
+                    self.consume_char();
+                    self.consume_char();
+                    let end = self.get_pos();
+                    Some(RVToken::new(
+                        TokenType::PercentHigh,
+                        "%hi".to_string(),
+                        Range::new(start, end),
+                        self.source_id,
+                    ))
+                } else if let (Some('l'), Some('o')) = (self.peek_char(0), self.peek_char(1)) {
+                    self.consume_char();
+                    self.consume_char();
+                    let end = self.get_pos();
+                    Some(RVToken::new(
+                        TokenType::PercentLow,
+                        "%lo".to_string(),
+                        Range::new(start, end),
+                        self.source_id,
+                    ))
+                } else {
+                    let end = self.get_pos();
+                    return Some(Err(LexError::UnexpectedToken(Box::new(RVToken::new(
+                        TokenType::Symbol("%".to_string()),
+                        "&".to_string(),
+                        Range::new(start, end),
+                        self.source_id,
+                    )))));
+                }
+            }
+            Some('+') => {
+                // Match +xyz expressions; e.g. %hi(label+43)
+                let start = self.get_pos();
+                self.consume_char();
+                let mut number_str = String::new();
+                self.skip_ws();
+
+                while let Some(current) = self.current() {
+                    if !current.is_ascii_digit() {
+                        break;
+                    }
+                    number_str.push(current);
+                    self.consume_char();
+                }
+
+                assert!(!number_str.is_empty());
+
+                let number = u32::from_str(number_str.as_str()).unwrap();
+                let end = self.get_pos();
+                Some(RVToken::new(
+                    TokenType::Plus(number),
+                    self.get_between(start.raw_index(), end.raw_index())?,
+                    Range::new(start, end),
+                    self.source_id,
+                ))
             }
             _ => {
-                // symbol
+                // symbol or label
+
+                // If a label marks an instruction, it is
+                // a label Token. If it is used to jump to
+                // some point, it is a Symbol.
                 let start = self.get_pos();
                 let mut symbol_str: String = String::new();
 
-                // If the first character is not a symbol char -> error
-                if let Some(current) = self.current() {
-                    if !Self::is_symbol_item(current) {
-                        return None;
-                    }
-                }
-
                 while let Some(current) = self.current() {
-                    symbol_str.push(current);
-                    if let Some(next) = self.peek(1) {
-                        if !Self::is_symbol_item(next) {
-                            break;
-                        }
+                    if !Self::is_symbol_item(current) {
+                        break;
                     }
+                    symbol_str.push(current);
                     self.consume_char();
                 }
+                assert!(!symbol_str.is_empty());
 
                 // If the next char is ':', this is a label
-                if self.peek(1) == Some(':') {
-                    self.consume_char(); // Move onto the ':'
+                if self.current() == Some(':') {
+                    self.consume_char(); // Consume ":"
                     let end = self.get_pos();
-                    self.consume_char();
 
-                    return Some(Ok(Token::new(
+                    return Some(Ok(RVToken::new(
                         TokenType::Label(symbol_str.clone()),
                         symbol_str.clone() + ":",
                         Range::new(start, end),
@@ -509,9 +666,11 @@ impl Iterator for Lexer {
                 }
 
                 let end = self.get_pos();
-                self.consume_char();
 
-                Some(Token::new(
+                if symbol_str == "." {
+                    return self.next();
+                }
+                Some(RVToken::new(
                     TokenType::Symbol(symbol_str.clone()),
                     symbol_str,
                     Range::new(start, end),
@@ -543,15 +702,17 @@ mod tests {
     // TODO: These tests only test the token output, but not the ranges or the
     // IDs of the file. Those need to be tested and documented.
 
-    use crate::parser::{LexError, Lexer, StringLexErrorType, Token, TokenType};
+    use crate::parser::{LexError, RVLexer, RVToken, StringLexErrorType, TokenType};
+    use crate::passes::DiagnosticLocation;
+
     fn tokenize<S: Into<String>>(input: S) -> Vec<TokenType> {
-        Lexer::new(input, uuid::Uuid::nil())
+        RVLexer::new(input, uuid::Uuid::nil())
             .map(|x| x.unwrap().token_type().clone()) // All tokens should be valid
             .collect()
     }
 
-    fn tokenize_err<S: Into<String>>(input: S) -> Vec<Result<Token, LexError>> {
-        Lexer::new(input, uuid::Uuid::nil()).collect()
+    fn tokenize_err<S: Into<String>>(input: S) -> Vec<Result<RVToken, LexError>> {
+        RVLexer::new(input, uuid::Uuid::nil()).collect()
     }
 
     #[test]
@@ -606,7 +767,7 @@ mod tests {
     #[test]
     fn lex_directive() {
         let tokens = tokenize(".text");
-        assert_eq!(tokens, vec![TokenType::Directive(".text".to_owned())]);
+        assert_eq!(tokens, vec![TokenType::Symbol(".text".to_owned())]);
     }
 
     #[test]
@@ -682,7 +843,7 @@ mod tests {
         assert_eq!(
             lexer,
             vec![
-                TokenType::Directive(".text".to_string()),
+                TokenType::Symbol(".text".to_string()),
                 TokenType::Symbol("add".into()),
                 TokenType::Symbol("x2".into()),
                 TokenType::Symbol("x2".into()),
@@ -721,7 +882,7 @@ mod tests {
         assert_eq!(
             lexer,
             vec![
-                TokenType::Directive(".text".to_string()),
+                TokenType::Symbol(".text".to_string()),
                 TokenType::Newline,
                 TokenType::Symbol("add".into()),
                 TokenType::Symbol("x2".into()),
@@ -840,6 +1001,7 @@ mod tests {
         let input = "\"\\a\"";
         let tokens = tokenize_err(input);
 
+        dbg!(&tokens);
         assert_eq!(tokens.len(), 1);
 
         assert!(matches!(
@@ -957,6 +1119,81 @@ mod tests {
                 TokenType::Char('\n'),
                 TokenType::Char('n'),
                 TokenType::Newline
+            ]
+        );
+    }
+
+    fn tokens<S: Into<String>>(input: S) -> Vec<RVToken> {
+        RVLexer::new(input, uuid::Uuid::nil())
+            .map(|x| x.unwrap())
+            .collect()
+    }
+    #[test]
+    fn first_line_as_newline_increments_index() {
+        let input = "\n\n\n     a0  a1";
+        let tokens = tokens(input);
+        assert_eq!(
+            tokens,
+            vec![
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Newline,
+                TokenType::Symbol("a0".into()),
+                TokenType::Symbol("a1".into()),
+            ]
+        );
+        // Start should be inclusive
+        // End should be exclusive
+        // If this is a newline token, the end column will not "exist"
+        // since we don't go over one line.
+        assert_eq!(tokens[0].range().start().zero_idx_line(), 0);
+        assert_eq!(tokens[0].range().start().zero_idx_column(), 0);
+        assert_eq!(tokens[0].range().start().raw_index(), 0);
+        assert_eq!(tokens[0].range().end().zero_idx_line(), 0);
+        assert_eq!(tokens[0].range().end().zero_idx_column(), 1);
+        assert_eq!(tokens[0].range().end().raw_index(), 1);
+
+        assert_eq!(tokens[1].range().start().zero_idx_line(), 1);
+        assert_eq!(tokens[1].range().start().zero_idx_column(), 0);
+        assert_eq!(tokens[1].range().start().raw_index(), 1);
+        assert_eq!(tokens[1].range().end().zero_idx_line(), 1);
+        assert_eq!(tokens[1].range().end().zero_idx_column(), 1);
+        assert_eq!(tokens[1].range().end().raw_index(), 2);
+
+        assert_eq!(tokens[2].range().start().zero_idx_line(), 2);
+        assert_eq!(tokens[2].range().start().zero_idx_column(), 0);
+        assert_eq!(tokens[2].range().start().raw_index(), 2);
+        assert_eq!(tokens[2].range().end().zero_idx_line(), 2);
+        assert_eq!(tokens[2].range().end().zero_idx_column(), 1);
+        assert_eq!(tokens[2].range().end().raw_index(), 3);
+
+        assert_eq!(tokens[3].range().start().zero_idx_line(), 3);
+        assert_eq!(tokens[3].range().start().zero_idx_column(), 5);
+        assert_eq!(tokens[3].range().start().raw_index(), 8);
+        assert_eq!(tokens[3].range().end().zero_idx_line(), 3);
+        assert_eq!(tokens[3].range().end().zero_idx_column(), 7);
+        assert_eq!(tokens[3].range().end().raw_index(), 10);
+
+        assert_eq!(tokens[4].range().start().zero_idx_line(), 3);
+        assert_eq!(tokens[4].range().start().zero_idx_column(), 9);
+        assert_eq!(tokens[4].range().start().raw_index(), 12);
+        assert_eq!(tokens[4].range().end().zero_idx_line(), 3);
+        assert_eq!(tokens[4].range().end().zero_idx_column(), 11);
+        assert_eq!(tokens[4].range().end().raw_index(), 14);
+    }
+
+    #[test]
+    fn label_targets_are_symbols() {
+        let input = ".L1: .L1 .text j .L1";
+        let tokens = tokens(input);
+        assert_eq!(
+            tokens,
+            vec![
+                TokenType::Label(".L1".into()),
+                TokenType::Symbol(".L1".into()),
+                TokenType::Symbol(".text".into()),
+                TokenType::Symbol("j".into()),
+                TokenType::Symbol(".L1".into()),
             ]
         );
     }

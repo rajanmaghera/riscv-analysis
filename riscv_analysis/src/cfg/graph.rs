@@ -1,65 +1,70 @@
-use super::CfgIterator;
-use super::CfgNextsIterator;
-use super::CfgNode;
-use super::CfgPrevsIterator;
 use super::CfgSourceIterator;
 use super::Function;
-use super::Segment;
+use super::{CfgBreadthFirstIterator, ExternalFunction};
+use super::{CfgNode, RegisterSet};
 use crate::analysis::HasGenKillInfo;
 use crate::parser;
-use crate::parser::InstructionProperties;
-use crate::parser::LabelStringToken;
-use crate::parser::ParserNode;
-use crate::parser::{DirectiveType, Register, RegisterToken};
+use crate::parser::RVInstructionNode;
+use crate::parser::{HasIdentity, InstructionProperties};
+use crate::parser::{LabelStringToken, ProgramEntryType, RVParserOutput};
+use crate::parser::{RVRegister, RegisterToken};
 use crate::passes::CfgError;
-use crate::passes::DiagnosticLocation;
+use itertools::Itertools;
 use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
+use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Cfg {
     nodes: Vec<Rc<CfgNode>>,
+    nexts: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
+    prevs: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
+    provisional_nexts: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
     pub label_node_map: HashMap<String, Rc<CfgNode>>,
+    functions: HashSet<Rc<Function>>,
     label_function_map: HashMap<LabelStringToken, Rc<Function>>,
+    label_external_function_map: HashMap<LabelStringToken, ExternalFunction>,
+    function_to_call_sites_map: HashMap<Rc<Function>, HashSet<Rc<CfgNode>>>,
 }
 
 impl Cfg {
-    /// Get an iterator over the `Cfg` nodes.
-    #[must_use]
-    pub fn iter(&self) -> CfgIterator {
-        CfgIterator::new(self)
-    }
-
     /// Get an iterator over the `Cfg` nodes in source order.
     #[must_use]
-    pub fn iter_source(&self) -> CfgSourceIterator {
+    pub fn iter_source(&self) -> CfgSourceIterator<'_> {
         CfgSourceIterator::new(self)
     }
 
     /// Get an iterator over the `Cfg` nodes that are reachable using the
     /// nexts of `node`.
     #[must_use]
-    pub fn iter_nexts(&self, node: Rc<CfgNode>) -> CfgNextsIterator {
-        CfgNextsIterator::new(node)
+    pub fn iter_breadth_first<'a>(&'a self, node: &'a Rc<CfgNode>) -> CfgBreadthFirstIterator<'a> {
+        CfgBreadthFirstIterator::new(self, node)
     }
 
-    /// Get an iterator over the `Cfg` nodes that are reachable using the
-    /// prevs of `node`.
+    /// Get a function by its name
     #[must_use]
-    pub fn iter_prevs(&self, node: Rc<CfgNode>) -> CfgPrevsIterator {
-        CfgPrevsIterator::new(node)
+    pub fn get_function(&self, name: &LabelStringToken) -> Option<&Rc<Function>> {
+        self.label_function_map.get(name)
     }
 
-    /// Get the functions of the CFG.
-    #[must_use]
-    pub fn functions(&self) -> HashMap<LabelStringToken, Rc<Function>> {
-        self.label_function_map.clone()
+    /// Get every function in the program
+    pub fn get_all_functions(&self) -> impl Iterator<Item = &Rc<Function>> {
+        self.functions.iter()
     }
 
     /// Insert a new function
     pub fn insert_function(&mut self, label: LabelStringToken, func: Rc<Function>) {
+        self.functions.insert(Rc::clone(&func));
+        self.function_to_call_sites_map
+            .insert(Rc::clone(&func), HashSet::new());
         self.label_function_map.insert(label, func);
+    }
+
+    /// Get the external functions of the CFG.
+    #[must_use]
+    pub fn get_external_function(&self, name: &LabelStringToken) -> Option<&ExternalFunction> {
+        self.label_external_function_map.get(name)
     }
 
     /// Get the nodes of the CFG
@@ -69,179 +74,141 @@ impl Cfg {
     }
 }
 
-impl<'a> IntoIterator for &'a Cfg {
-    type IntoIter = CfgIterator<'a>;
-    type Item = Rc<CfgNode>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
 trait BaseCfgGen {
     fn call_names(&self) -> HashSet<LabelStringToken>;
     fn jump_names(&self) -> HashSet<LabelStringToken>;
-    fn label_names(&self) -> HashSet<LabelStringToken>;
     fn load_names(&self) -> HashSet<LabelStringToken>;
 }
 
-impl BaseCfgGen for Vec<ParserNode> {
+impl BaseCfgGen for Vec<RVInstructionNode> {
     fn call_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
-            .filter_map(parser::ParserNode::calls_to)
+            .filter_map(parser::RVInstructionNode::calls_to)
             .collect()
     }
 
     fn jump_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
-            .filter_map(parser::ParserNode::jumps_to)
+            .filter_map(parser::RVInstructionNode::jumps_to)
             .collect()
     }
 
     fn load_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
-            .filter_map(parser::ParserNode::reads_address_of)
-            .collect()
-    }
-
-    fn label_names(&self) -> HashSet<LabelStringToken> {
-        self.iter()
-            .filter_map(|x| match x {
-                ParserNode::Label(s) => Some(s.name.clone()),
-                _ => None,
-            })
+            .filter_map(parser::RVInstructionNode::reads_address_of)
             .collect()
     }
 }
 impl Cfg {
-    pub fn new(old_nodes: Vec<ParserNode>) -> Result<Cfg, Box<CfgError>> {
-        Cfg::new_with_predefined_call_names(old_nodes, &None)
-    }
-
-    pub fn new_with_predefined_call_names(
-        old_nodes: Vec<ParserNode>,
-        predefined_call_names: &Option<HashSet<LabelStringToken>>,
+    pub fn new(
+        parser_output: RVParserOutput,
+        predefined_call_names: Option<&HashSet<LabelStringToken>>,
+        external_functions: &Option<HashSet<(LabelStringToken, RegisterSet, RegisterSet)>>,
+        program_entry: &ProgramEntryType,
     ) -> Result<Cfg, Box<CfgError>> {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
-        let mut current_labels = HashSet::new();
-        let mut all_labels = HashSet::new();
 
-        let label_names = old_nodes.label_names();
+        let mut defined_labels = parser_output.all_defined_labels;
+        if let Some(new_set) = &external_functions {
+            defined_labels.extend(new_set.iter().map(|(name, _, _)| name.clone()));
+        }
         let call_names = {
-            let mut set = old_nodes.call_names();
-            if let Some(new_set) = predefined_call_names.clone() {
-                set.extend(new_set);
+            let mut set = parser_output.nodes.call_names();
+            if let Some(new_set) = predefined_call_names {
+                set.extend(new_set.clone());
             }
             set
         };
-        let jump_names = old_nodes.jump_names();
-        let load_names = old_nodes.load_names();
+        let jump_names = parser_output.nodes.jump_names();
+        let load_names = parser_output.nodes.load_names();
 
         // Check if any call or jump names are not defined
-        let undefined_labels = call_names
-            .union(&jump_names)
+        let all_label_targets: HashSet<_> = call_names
+            .iter()
+            .chain(jump_names.iter())
+            .chain(load_names.iter())
             .cloned()
-            .collect::<HashSet<_>>()
-            .union(&load_names)
-            .filter(|x| !label_names.contains(x))
+            .collect();
+        let undefined_labels: HashSet<_> = all_label_targets
+            .difference(&defined_labels)
             .cloned()
-            .collect::<HashSet<LabelStringToken>>();
+            .collect();
 
         if !undefined_labels.is_empty() {
             return Err(Box::new(CfgError::LabelsNotDefined(undefined_labels)));
         }
 
-        // Code always begins in the text segment if it is not defined.
-        let mut segment = Segment::Text;
-        // PASS 1:
-        // --------------------
-        // Add nodes to graph
-
-        for node in old_nodes {
-            match node {
-                ParserNode::Label(s) => {
-                    current_labels.insert(s.name.clone());
-
-                    // Check for duplicate labels
-                    if !all_labels.insert(s.name.clone()) {
-                        return Err(Box::new(CfgError::DuplicateLabel(s.name)));
-                    }
-                }
-                ParserNode::Directive(x) if x.dir == DirectiveType::DataSection => {
-                    segment = Segment::Data;
-                }
-                ParserNode::Directive(x) if x.dir == DirectiveType::TextSection => {
-                    segment = Segment::Text;
-                }
-                // Ignore other types of directives
-                ParserNode::Directive(_) => {}
-                _ => {
-                    // If any of the labels are a function call, add a function entry node
-                    if current_labels
-                        .clone()
-                        .intersection(&call_names)
-                        .next()
-                        .is_some()
-                    {
-                        let is_interrupt = if let Some(ref p_call_names) = predefined_call_names {
-                            // If any of the current_labels are in the predefined call names, then we need to add
-                            // a boolean switch
-                            current_labels
-                                .clone()
-                                .intersection(p_call_names)
-                                .next()
-                                .is_some()
-                        } else {
-                            false
-                        };
-
-                        let rc_node = Rc::new(CfgNode::new(
-                            ParserNode::new_func_entry(
-                                node.file(),
-                                node.token().clone(),
-                                is_interrupt,
-                            ),
-                            current_labels.clone(),
-                            segment,
-                        ));
-
-                        // Add the node to the graph
-                        nodes.push(Rc::clone(&rc_node));
-
-                        // Add the node to the labels map
-                        for label in current_labels.clone() {
-                            labels.insert(label.to_string(), Rc::clone(&rc_node));
-                        }
-
-                        // Clear the current labels
-                        current_labels.clear();
-
-                        // Add the node to the graph
-                        nodes.push(Rc::new(CfgNode::new(node, HashSet::new(), segment)));
-                    } else {
-                        let rc_node =
-                            Rc::new(CfgNode::new(node.clone(), current_labels.clone(), segment));
-
-                        // Add the node to the graph
-                        nodes.push(Rc::clone(&rc_node));
-
-                        // Add the node to the labels map
-                        for label in current_labels.clone() {
-                            labels.insert(label.to_string(), Rc::clone(&rc_node));
-                        }
-
-                        // Clear the current labels
-                        current_labels.clear();
-                    }
-                }
+        // If the program entry is a label, return an error if the label does not exist
+        if let ProgramEntryType::LookForLabel(name) = &program_entry {
+            if !defined_labels.contains(name) {
+                return Err(Box::new(CfgError::LabelsNotDefined(HashSet::from([
+                    name.clone()
+                ]))));
             }
         }
 
+        for (idx, node) in parser_output.nodes.into_iter().enumerate() {
+            let is_program_entry = match &program_entry {
+                ProgramEntryType::LookForLabel(l) => node.label_names().contains(&l),
+                ProgramEntryType::FirstInstruction => idx == 0,
+                ProgramEntryType::None => false,
+            };
+
+            // Check if this node's label has already been defined
+            for label in node.label_names() {
+                if labels.keys().any(|x| x == label.as_str()) {
+                    return Err(Box::new(CfgError::DuplicateLabel(label.clone())));
+                }
+            }
+
+            // If any of the labels are a function call, add a function entry node
+            let is_function_call = node
+                .label_names()
+                .cloned()
+                .collect::<HashSet<_>>()
+                .intersection(&call_names)
+                .next()
+                .is_some();
+
+            // Get a copy of the node's labels
+            let current_labels = node.label_names().cloned().collect::<HashSet<_>>();
+
+            // Create the new node
+            let new_node = Rc::new(CfgNode::new(node, is_function_call, is_program_entry));
+
+            // Add the node to the labels map
+            for label in current_labels {
+                labels.insert(label.to_string(), Rc::clone(&new_node));
+            }
+
+            nodes.push(new_node);
+        }
+
+        let nexts = nodes.iter().map(|x| (x.id(), HashSet::new())).collect();
+        let prevs = nodes.iter().map(|x| (x.id(), HashSet::new())).collect();
+
+        let label_external_function_map: HashMap<_, _> = external_functions
+            .iter()
+            .flat_map(|x| x.iter())
+            .map(|(name, args, rets)| {
+                (
+                    name.clone(),
+                    ExternalFunction::new([name.clone()].into_iter().collect(), *args, *rets),
+                )
+            })
+            .collect();
+
         Ok(Cfg {
             nodes,
+            nexts,
+            prevs,
+            provisional_nexts: HashMap::new(),
             label_function_map: HashMap::new(),
+            functions: HashSet::new(),
             label_node_map: labels,
+            label_external_function_map,
+            function_to_call_sites_map: HashMap::new(),
         })
     }
 
@@ -256,11 +223,15 @@ impl Cfg {
     /// know their ranges. This function will take a register and return the ranges
     /// that need to be annotated. If it cannot find any, then it will return the original
     /// node's range.
-    pub fn error_ranges_for_first_store(node: &Rc<CfgNode>, item: Register) -> Vec<RegisterToken> {
+    pub fn error_ranges_for_first_store(
+        &self,
+        node: &Rc<CfgNode>,
+        item: RVRegister,
+    ) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the previous nodes onto the queue
-        queue.extend(node.prevs().clone());
+        queue.extend(self.get_prevs(node.as_ref()).cloned());
 
         // keep track of visited nodes
         #[allow(clippy::mutable_key_type)]
@@ -275,25 +246,28 @@ impl Cfg {
                 continue;
             }
             visited.insert(Rc::clone(&prev));
-            if let Some(reg) = prev.writes_to() {
+            for reg in prev.writes_to() {
                 if *reg.get() == item {
                     ranges.push(reg);
-                    continue;
                 }
             }
-            queue.extend(prev.prevs().clone().into_iter());
+            queue.extend(self.get_prevs(prev.as_ref()).cloned());
         }
         ranges
     }
 
     // TODO move to a more appropriate place
     // TODO make better, what even is this?
-    pub fn error_ranges_for_first_usage(node: &Rc<CfgNode>, item: Register) -> Vec<RegisterToken> {
+    pub fn error_ranges_for_first_usage(
+        &self,
+        node: &Rc<CfgNode>,
+        item: RVRegister,
+    ) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
         // push the next nodes onto the queue
 
-        queue.extend(node.nexts().clone());
+        queue.extend(self.get_nexts(node.as_ref()).cloned());
 
         // keep track of visited nodes
         #[allow(clippy::mutable_key_type)]
@@ -325,8 +299,107 @@ impl Cfg {
                 break;
             }
 
-            queue.extend(next.nexts().clone().into_iter());
+            queue.extend(self.get_nexts(next.as_ref()).cloned());
         }
         ranges
+    }
+
+    /// Get the successors of a given node.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the node does not exist on this CFG.
+    pub fn get_nexts<'a>(
+        &'a self,
+        node: &'a CfgNode,
+    ) -> impl ExactSizeIterator<Item = &'a Rc<CfgNode>> + 'a {
+        self.nexts.get(&node.id()).unwrap().iter()
+    }
+
+    /// Get the predecessors of a given node.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the node does not exist on this CFG.
+    pub fn get_prevs<'a>(
+        &'a self,
+        node: &'a CfgNode,
+    ) -> impl ExactSizeIterator<Item = &'a Rc<CfgNode>> + 'a {
+        self.prevs.get(&node.id()).unwrap().iter()
+    }
+
+    /// Insert an edge from one node to another.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the nodes `from` and `to` do not exist on this CFG.
+    pub fn insert_edge(&mut self, from: &Rc<CfgNode>, to: &Rc<CfgNode>) {
+        self.nexts
+            .get_mut(&from.id())
+            .unwrap()
+            .insert(Rc::clone(to));
+        self.prevs
+            .get_mut(&to.id())
+            .unwrap()
+            .insert(Rc::clone(from));
+    }
+
+    /// Insert a provisional edge from one node to another.
+    ///
+    /// These edges are not inserted initially, but later can be promoted to
+    /// a real edge
+    pub fn insert_provisional_edge(&mut self, from: &Rc<CfgNode>, to: &Rc<CfgNode>) {
+        let entry = self.provisional_nexts.entry(from.id()).or_default();
+        entry.insert(Rc::clone(to));
+    }
+
+    /// Promote a provisional edge to a real edge, if they exist.
+    ///
+    /// This function returns if a modification was made
+    #[must_use]
+    pub fn promote_provisional_nexts_to_real(&mut self, from: &Rc<CfgNode>) -> bool {
+        if let Some(tos) = self.provisional_nexts.remove(&from.id()) {
+            for to in tos {
+                self.insert_edge(from, &to);
+            }
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Remove an edge from one node to another.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the nodes `from` and `to` do not exist on this CFG.
+    pub fn remove_edge(&mut self, from: &CfgNode, to: &CfgNode) -> bool {
+        let res_1 = self.nexts.get_mut(&from.id()).unwrap().remove(to);
+        let res_2 = self.prevs.get_mut(&to.id()).unwrap().remove(from);
+        res_1 | res_2
+    }
+
+    /// Get the nodes that call this function
+    ///
+    /// # Panics
+    ///
+    /// Panics if the function does not exist on this CFG.
+    pub fn get_call_sites(&self, function: &Rc<Function>) -> impl Iterator<Item = &Rc<CfgNode>> {
+        self.function_to_call_sites_map
+            .get(function)
+            .unwrap()
+            .iter()
+    }
+
+    /// Insert a call site for a function.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the function does not exist on this cfg
+    pub fn insert_call_site(&mut self, function: &Rc<Function>, node: Rc<CfgNode>) {
+        self.function_to_call_sites_map
+            .get_mut(function)
+            .unwrap()
+            .insert(node);
     }
 }

@@ -24,13 +24,13 @@
 )]
 #![allow(clippy::multiple_crate_versions)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(clippy::mutable_key_type)]
 #![allow(clippy::missing_errors_doc)]
 
 pub mod analysis;
 pub mod cfg;
 pub mod fix;
 pub mod gen;
-pub mod helpers;
 pub mod lints;
 pub mod parser;
 pub mod passes;
