@@ -57,7 +57,7 @@ impl Manipulation {
 ///
 /// This allows LSP servers to determine where we can mark
 /// function actions.
-pub fn get_function_label_ranges(cfg: &Cfg) -> Vec<Range> {
+#[must_use] pub fn get_function_label_ranges(cfg: &Cfg) -> Vec<Range> {
     cfg.get_all_functions()
         .flat_map(|x| {
             x.labels()

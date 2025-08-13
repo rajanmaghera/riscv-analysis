@@ -1,22 +1,22 @@
 use lsp_types::CompletionItem;
 
-use riscv_analysis::parser::{Inst, LabelString, Register};
+use riscv_analysis::parser::{LabelString, RVInst, RVRegister};
 
 pub enum RVCompletionItem {
-    Inst(Inst),
-    Register(Register),
+    Inst(RVInst),
+    Register(RVRegister),
     Label(LabelString),
     FunctionLabel(LabelString),
 }
 
-impl From<Register> for RVCompletionItem {
-    fn from(value: Register) -> Self {
+impl From<RVRegister> for RVCompletionItem {
+    fn from(value: RVRegister) -> Self {
         RVCompletionItem::Register(value)
     }
 }
 
-impl From<Inst> for RVCompletionItem {
-    fn from(value: Inst) -> Self {
+impl From<RVInst> for RVCompletionItem {
+    fn from(value: RVInst) -> Self {
         RVCompletionItem::Inst(value)
     }
 }
@@ -68,14 +68,14 @@ impl From<RVCompletionItem> for CompletionItem {
 
 impl RVCompletionItem {
     fn get_registers() -> Vec<CompletionItem> {
-        Register::all()
+        RVRegister::all()
             .into_iter()
             .map(|r| RVCompletionItem::from(r).into())
             .collect()
     }
 
     fn get_instructions() -> Vec<CompletionItem> {
-        Inst::all()
+        RVInst::all()
             .into_iter()
             .map(|i| RVCompletionItem::from(i).into())
             .collect()

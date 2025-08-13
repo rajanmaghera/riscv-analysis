@@ -4,7 +4,7 @@ use std::fmt::Display;
 use super::{
     ArithType, BasicType, BranchType, CsrIType, CsrImm, CsrType, DirectiveToken, IArithType,
     IgnoreType, Imm, JumpLinkRType, JumpLinkType, LabelStringToken, LoadType, Position, PseudoType,
-    Range, RawToken, Register, StoreType, With,
+    RVRegister, Range, RawToken, StoreType, With,
 };
 use crate::cfg::Segment;
 use serde::{Deserialize, Serialize};
@@ -26,9 +26,9 @@ fn empty_token() -> RawToken {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Arith {
     pub inst: With<ArithType>,
-    pub rd: With<Register>,
-    pub rs1: With<Register>,
-    pub rs2: With<Register>,
+    pub rd: With<RVRegister>,
+    pub rs1: With<RVRegister>,
+    pub rs2: With<RVRegister>,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip, default = "empty_token")]
@@ -40,8 +40,8 @@ pub struct Arith {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IArith {
     pub inst: With<IArithType>,
-    pub rd: With<Register>,
-    pub rs1: With<Register>,
+    pub rd: With<RVRegister>,
+    pub rs1: With<RVRegister>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
@@ -64,7 +64,7 @@ pub struct Label {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JumpLink {
     pub inst: With<JumpLinkType>,
-    pub rd: With<Register>,
+    pub rd: With<RVRegister>,
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
@@ -77,8 +77,8 @@ pub struct JumpLink {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JumpLinkR {
     pub inst: With<JumpLinkRType>,
-    pub rd: With<Register>,
-    pub rs1: With<Register>,
+    pub rd: With<RVRegister>,
+    pub rs1: With<RVRegister>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
@@ -102,8 +102,8 @@ pub struct Basic {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Branch {
     pub inst: With<BranchType>,
-    pub rs1: With<Register>,
-    pub rs2: With<Register>,
+    pub rs1: With<RVRegister>,
+    pub rs2: With<RVRegister>,
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,
@@ -116,8 +116,8 @@ pub struct Branch {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Load {
     pub inst: With<LoadType>,
-    pub rd: With<Register>,
-    pub rs1: With<Register>,
+    pub rd: With<RVRegister>,
+    pub rs1: With<RVRegister>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
@@ -130,8 +130,8 @@ pub struct Load {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Store {
     pub inst: With<StoreType>,
-    pub rs1: With<Register>,
-    pub rs2: With<Register>,
+    pub rs1: With<RVRegister>,
+    pub rs2: With<RVRegister>,
     pub imm: With<Imm>,
     #[serde(skip)]
     pub key: Uuid,
@@ -214,9 +214,9 @@ pub struct Directive {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Csr {
     pub inst: With<CsrType>,
-    pub rd: With<Register>,
+    pub rd: With<RVRegister>,
     pub csr: With<CsrImm>,
-    pub rs1: With<Register>,
+    pub rs1: With<RVRegister>,
     #[serde(skip)]
     pub key: Uuid,
     #[serde(skip, default = "empty_token")]
@@ -228,7 +228,7 @@ pub struct Csr {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CsrI {
     pub inst: With<CsrIType>,
-    pub rd: With<Register>,
+    pub rd: With<RVRegister>,
     pub csr: With<CsrImm>,
     pub imm: With<Imm>,
     #[serde(skip)]
@@ -251,7 +251,7 @@ pub struct Ignore {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoadAddr {
     pub inst: With<PseudoType>,
-    pub rd: With<Register>,
+    pub rd: With<RVRegister>,
     pub name: LabelStringToken,
     #[serde(skip)]
     pub key: Uuid,

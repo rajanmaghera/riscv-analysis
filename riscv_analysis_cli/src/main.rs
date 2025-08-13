@@ -8,7 +8,7 @@ use colored::Colorize;
 #[cfg(feature = "fixes")]
 use riscv_analysis::fix::Manipulation;
 use riscv_analysis::passes::DiagnosticItem;
-use riscv_analysis::{parser::RVParser, passes::DiagnosticManager};
+use riscv_analysis::{parser::RVFileParser, passes::DiagnosticManager};
 use std::collections::HashSet;
 use std::fmt::Display;
 #[cfg(feature = "fixes")]
@@ -23,7 +23,7 @@ use riscv_analysis::passes::Manager;
 
 use clap::{Args, Parser, Subcommand};
 use riscv_analysis::parser::{
-    LabelString, Position, ProgramEntryType, Range, Register, Token, TokenType, With,
+    LabelString, Position, ProgramEntryType, RVRegister, RVToken, Range, TokenType, With,
 };
 use riscv_analysis::reader::{FileReader, FileReaderError};
 
@@ -48,8 +48,8 @@ enum Commands {
 #[derive(Clone, Debug, PartialEq)]
 struct FunctionDef {
     name: String,
-    arg_registers: HashSet<Register>,
-    ret_registers: HashSet<Register>,
+    arg_registers: HashSet<RVRegister>,
+    ret_registers: HashSet<RVRegister>,
 }
 
 impl FromStr for FunctionDef {
@@ -68,7 +68,7 @@ impl FromStr for FunctionDef {
                     if x.is_empty() {
                         None
                     } else {
-                        Some(Register::from_str(x).map_err(|_| error_msg))
+                        Some(RVRegister::from_str(x).map_err(|_| error_msg))
                     }
                 })
                 .collect::<Result<HashSet<_>, _>>()?,
@@ -78,7 +78,7 @@ impl FromStr for FunctionDef {
                     if x.is_empty() {
                         None
                     } else {
-                        Some(Register::from_str(x).map_err(|_| error_msg))
+                        Some(RVRegister::from_str(x).map_err(|_| error_msg))
                     }
                 })
                 .collect::<Result<HashSet<_>, _>>()?,
@@ -354,7 +354,7 @@ fn main() {
                 match (lint.no_program_entry_at_start, lint.program_entry_label) {
                     (_, Some(label)) => ProgramEntryType::LookForLabel(With::new(
                         LabelString::new(label.clone()),
-                        Token::new(
+                        RVToken::new(
                             TokenType::Label(label.clone()),
                             label.clone(),
                             Range::new(
@@ -367,7 +367,7 @@ fn main() {
                     (false, None) => ProgramEntryType::FirstInstruction,
                     (true, None) => ProgramEntryType::None,
                 };
-            let mut parser = RVParser::new(reader);
+            let mut parser = RVFileParser::new(reader);
 
             let mut diags = Vec::new();
             let parsed = parser
@@ -381,14 +381,14 @@ fn main() {
             diags.extend(parsed.errors.iter().cloned().map(DiagnosticItem::from));
 
             match Manager::gen_full_cfg(
-                parsed,
+                &parsed,
                 lint.function_names.map(|x| {
                     x.into_iter()
                         .map(|item| {
                             (
                                 With::new(
                                     LabelString::new(item.name.clone()),
-                                    Token::new(
+                                    RVToken::new(
                                         TokenType::Label(item.name.clone()),
                                         item.name.clone(),
                                         Range::new(
@@ -418,8 +418,7 @@ fn main() {
                     let mut manager = Manager::new();
                     manager.register_and_enable_built_in_passes();
                     manager.run_diagnostics(&full_cfg, &mut errs);
-                    errs.iter()
-                        .for_each(|x| diags.push(DiagnosticItem::from_displayable(x.as_ref())));
+                    diags.extend(errs.iter().map(DiagnosticItem::from_displayable))
                 }
                 Err(err) => {
                     diags.push(DiagnosticItem::from(*err));
@@ -453,7 +452,7 @@ fn main() {
         Commands::DebugParse(debu) => {
             // Debug mode that prints out parsing errors only
             let reader = IOFileReader::new();
-            let mut parser = RVParser::new(reader);
+            let mut parser = RVFileParser::new(reader);
             let parsed = parser.parse_from_file(
                 debu.input
                     .to_str()
@@ -481,7 +480,7 @@ mod tests {
     use crate::IOFileReader;
     use riscv_analysis::cfg::Cfg;
     use riscv_analysis::cfg::CfgWrapper;
-    use riscv_analysis::parser::{ProgramEntryType, RVParser};
+    use riscv_analysis::parser::{ProgramEntryType, RVFileParser};
     use riscv_analysis::passes::Manager;
 
     macro_rules! file_name {
@@ -497,12 +496,12 @@ mod tests {
                 let filename = concat!(file_name!(stringify!($fname)), "/code.s");
                 let compare = concat!(file_name!(stringify!($fname)), "/raw.yaml");
                 let reader = IOFileReader::new();
-                let mut parser = RVParser::new(reader);
+                let mut parser = RVFileParser::new(reader);
 
                 let parsed = parser.parse_from_file(filename, false).unwrap();
 
                 let res: Cfg =
-                    Manager::gen_full_cfg(parsed, None, &ProgramEntryType::FirstInstruction)
+                    Manager::gen_full_cfg(&parsed, None, &ProgramEntryType::FirstInstruction)
                         .unwrap();
                 let res = CfgWrapper::from(&res);
 

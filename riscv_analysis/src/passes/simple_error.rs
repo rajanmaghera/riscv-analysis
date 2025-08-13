@@ -40,6 +40,7 @@ struct SimpleDisplayedDiagnostic {
     token: RawToken,
     long_description: Option<String>,
     related_information: Vec<Box<dyn IsRelatedDiagnosticInformation>>,
+    certainty: DiagnosticCertainty,
 }
 
 impl DiagnosticLocation for SimpleDisplayedDiagnostic {
@@ -87,11 +88,24 @@ impl IsSomeDisplayableDiagnostic for SimpleDisplayedDiagnostic {
     }
 }
 
+pub enum DiagnosticCertainty {
+    /// This diagnostic is emitted with 100% certainty
+    IsTrue,
+    /// This diagnostic is true if assumptions are met
+    IsTrueIfAssumptionsAreMet,
+    /// This diagnostic might not be true, but we are emitting
+    /// to be overly cautious; e.g. if a value is Unknown/UnknownConst
+    MightBeTrue,
+    /// Not sure how certain this diagnostic is
+    Unknown,
+}
+
 pub struct DiagnosticBuilder {
     code_name: &'static str,
     title: &'static str,
     long_description: Option<String>,
     related_information: Vec<Box<dyn IsRelatedDiagnosticInformation>>,
+    certainty: DiagnosticCertainty,
 }
 
 impl DiagnosticBuilder {
@@ -102,65 +116,73 @@ impl DiagnosticBuilder {
             title,
             long_description: None,
             related_information: Vec::new(),
+            certainty: DiagnosticCertainty::Unknown,
         }
     }
 
-    fn on<T: AsRef<impl DiagnosticLocation>>(
+    fn on(
         self,
-        annotated_item: T,
+        annotated_item: &impl DiagnosticLocation,
         severity: SeverityLevel,
-    ) -> Box<dyn IsSomeDisplayableDiagnostic> {
-        Box::new(SimpleDisplayedDiagnostic {
+    ) -> impl IsSomeDisplayableDiagnostic {
+        SimpleDisplayedDiagnostic {
             code_name: self.code_name,
             title: self.title,
             severity,
-            token: annotated_item.as_ref().as_raw_token(),
+            token: annotated_item.as_raw_token(),
             long_description: self.long_description,
             related_information: self.related_information,
-        })
+            certainty: self.certainty,
+        }
     }
 
-    pub fn is_error_on<T: AsRef<impl DiagnosticLocation>>(
+    pub fn is_error_on(
         self,
-        annotated_item: T,
-    ) -> Box<dyn IsSomeDisplayableDiagnostic> {
+        annotated_item: &impl DiagnosticLocation,
+    ) -> impl IsSomeDisplayableDiagnostic {
         self.on(annotated_item, SeverityLevel::Error)
     }
 
-    pub fn is_hint_on<T: AsRef<impl DiagnosticLocation>>(
+    pub fn is_hint_on(
         self,
-        annotated_item: T,
-    ) -> Box<dyn IsSomeDisplayableDiagnostic> {
+        annotated_item: &impl DiagnosticLocation,
+    ) -> impl IsSomeDisplayableDiagnostic {
         self.on(annotated_item, SeverityLevel::Hint)
     }
 
-    pub fn is_warning_on<T: AsRef<impl DiagnosticLocation>>(
+    pub fn is_warning_on(
         self,
-        annotated_item: T,
-    ) -> Box<dyn IsSomeDisplayableDiagnostic> {
+        annotated_item: &impl DiagnosticLocation,
+    ) -> impl IsSomeDisplayableDiagnostic {
         self.on(annotated_item, SeverityLevel::Warning)
     }
 
-    pub fn is_information_on<T: AsRef<impl DiagnosticLocation>>(
+    pub fn is_information_on(
         self,
-        annotated_item: T,
-    ) -> Box<dyn IsSomeDisplayableDiagnostic> {
+        annotated_item: &impl DiagnosticLocation,
+    ) -> impl IsSomeDisplayableDiagnostic {
         self.on(annotated_item, SeverityLevel::Information)
     }
 
     #[must_use]
-    pub fn description<S: Into<String>>(mut self, long_description: S) -> Self {
+    pub fn description(mut self, long_description: impl Into<String>) -> Self {
         self.long_description = Some(long_description.into());
         self
     }
 
     #[must_use]
-    pub fn related<S: Into<String>>(mut self, description: S, token: RawToken) -> Self {
+    pub fn related(mut self, description: impl Into<String>, token: RawToken) -> Self {
         self.related_information
             .push(Box::new(RelatedDisplayedDiagnostic {
                 description: description.into(),
                 token,
             }) as Box<dyn IsRelatedDiagnosticInformation>);
+        self
+    }
+
+    #[must_use]
+    pub fn with_certainty(mut self, certainty: DiagnosticCertainty) -> Self {
+        self.certainty = certainty;
         self
     }
 }

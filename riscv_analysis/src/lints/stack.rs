@@ -1,7 +1,7 @@
-use crate::analysis::AvailableValue;
-use crate::cfg::Cfg;
-use crate::parser::{InstructionProperties, Register};
-use crate::passes::{DiagnosticManager, LintError, LintPass};
+use crate::analysis::{Location, Value};
+use crate::cfg::{Cfg, Segment};
+use crate::parser::{InstructionProperties, RVRegister};
+use crate::passes::{DiagnosticBuilder, DiagnosticCertainty, DiagnosticManager, LintPass};
 
 // Check that we know the stack position at every point in the program (aka. within scopes)
 #[non_exhaustive]
@@ -24,50 +24,57 @@ impl LintPass for StackPass {
         "stack"
     }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        // PASS 1
-        // check that we know the stack position at every point in the program
-        // check that the stack is never in an invalid position
-        // TODO check that the stack stores always happen to a place that is negative
-        // TODO move to impl methods
-        'outer: for node in cfg.iter_source() {
-            let values = node.reg_values_out();
-            match values.get(&Register::X2) {
-                None => {
-                    errors.push(LintError::UnknownStack(node.node()));
-                    break 'outer;
-                }
-                Some(x) => {
-                    if let AvailableValue::OriginalRegisterWithScalar(reg, off) = x {
-                        if reg != &Register::X2 {
-                            errors.push(LintError::InvalidStackPointer(node.node()));
-                            break 'outer;
-                        }
-                        if off > &0 {
-                            errors.push(LintError::InvalidStackPosition(node.node(), *off));
-                            break 'outer;
-                        }
-
-                        if let Some((reg2, off2)) = node.uses_memory_location() {
-                            if let Some(value) = off2.value() {
-                                if reg2 == Register::X2 && value + off >= 0 {
-                                    errors.push(LintError::InvalidStackOffsetUsage(
-                                        node.node().clone(),
-                                        value + off,
-                                    ));
-                                }
-                            }
-                        }
-                    } else {
-                        errors.push(LintError::InvalidStackPointer(node.node()));
-                        break 'outer;
-                    }
-                }
+        for node in cfg.iter_source() {
+            if node.segment() != Segment::Text {
+                continue;
             }
-            if let Some((reg, _)) = node.uses_memory_location() {
-                if reg == Register::X2 {}
+            if node.calls_to().is_some() {
+                // At each function call instruction,
+                // check that the stack pointer is a negative multiple of 4
+                match node
+                    .real_val_in()
+                    .get(&Location::Register(RVRegister::stack_pointer()))
+                {
+                    Value::InitialStackPointer(x) if x % 4 == 0 && x <= 0 => {
+                        // Good, this program follows conventions
+                    }
+                    Value::InitialStackPointer(x) if x > 0 => {
+                        // Caller stack frame will be corrupted
+                        errors.push(
+                            DiagnosticBuilder::new(
+                                "caller-stack-frame-corruption",
+                                "Caller stack frame will be corrupted",
+                            )
+                            .with_certainty(DiagnosticCertainty::IsTrueIfAssumptionsAreMet)
+                            .is_error_on(node.as_ref()),
+                        );
+                    }
+                    Value::InitialStackPointer(x) if x % 4 != 0 => errors.push(
+                        DiagnosticBuilder::new(
+                            "stack-pointer-misalignment",
+                            "Stack pointer is misaligned",
+                        )
+                        .with_certainty(DiagnosticCertainty::IsTrueIfAssumptionsAreMet)
+                        .is_error_on(node.as_ref()),
+                    ),
+                    Value::Unknown => errors.push(
+                        DiagnosticBuilder::new(
+                            "stack-pointer-maybe-invalid",
+                            "Stack pointer may be incorrect",
+                        )
+                        .with_certainty(DiagnosticCertainty::MightBeTrue)
+                        .is_warning_on(node.as_ref()),
+                    ),
+                    x => errors.push(
+                        DiagnosticBuilder::new("stack-pointer-invalid", "Stack pointer is invalid")
+                            .description(format!(
+                                "The stack pointer should be sp - x, but it is {x}"
+                            ))
+                            .with_certainty(DiagnosticCertainty::IsTrueIfAssumptionsAreMet)
+                            .is_error_on(node.as_ref()),
+                    ),
+                }
             }
         }
-
-        // PASS 2: check that
     }
 }

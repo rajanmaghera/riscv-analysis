@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{Imm, LabelStringToken, Register, RegisterToken};
+use super::{Imm, LabelStringToken, RVRegister, RegisterToken};
 
 pub trait InstructionProperties {
     fn is_return(&self) -> bool;
@@ -15,9 +15,9 @@ pub trait InstructionProperties {
 
     fn is_ureturn(&self) -> bool;
 
-    fn stores_to_memory(&self) -> Option<(Register, (Register, Imm))>;
+    fn stores_to_memory(&self) -> Option<(RVRegister, (RVRegister, Imm))>;
 
-    fn reads_from_memory(&self) -> Option<((Register, Imm), Register)>;
+    fn reads_from_memory(&self) -> Option<((RVRegister, Imm), RVRegister)>;
 
     /// Checks if a instruction is meant to be saved to zero
     ///
@@ -47,7 +47,7 @@ pub trait InstructionProperties {
 
     /// Either loads or stores to a memory location
     #[must_use]
-    fn uses_memory_location(&self) -> Option<(Register, Imm)>;
+    fn uses_memory_location(&self) -> Option<(RVRegister, Imm)>;
 
     /// Checks whether a jump is unconditional with no side effects
     ///

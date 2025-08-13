@@ -78,6 +78,20 @@ impl GenerationPass for FunctionMarkupPass {
             cfg.insert_function(label, func);
         }
 
+        // Pass 2: on each function, mark up the function call instructions that call
+        // that function.
+
+        let mut functions_to_call_sites = Vec::new();
+        for node in cfg.iter_source() {
+            if let Some((func, _)) = node.calls_to_from_cfg(cfg) {
+                functions_to_call_sites.push((func, Rc::clone(node)));
+            }
+        }
+
+        for (func, call_site) in functions_to_call_sites {
+            cfg.insert_call_site(&func, call_site);
+        }
+
         Ok(())
     }
 }
@@ -95,7 +109,7 @@ mod tests {
     fn gen_cfg(input: &str) -> Cfg {
         let parser_output = RVStringParser::parse_from_text(input);
         assert_eq!(parser_output.errors.len(), 0);
-        Manager::gen_full_cfg(parser_output, None, &ProgramEntryType::FirstInstruction).unwrap()
+        Manager::gen_full_cfg(&parser_output, None, &ProgramEntryType::FirstInstruction).unwrap()
     }
 
     /// Map string labels to functions.

@@ -4,10 +4,10 @@ use super::{CfgBreadthFirstIterator, ExternalFunction};
 use super::{CfgNode, RegisterSet};
 use crate::analysis::HasGenKillInfo;
 use crate::parser;
-use crate::parser::{HasIdentity, ParserNode};
-use crate::parser::{InstructionProperties, RVParserOutput};
-use crate::parser::{LabelStringToken, ProgramEntryType};
-use crate::parser::{Register, RegisterToken};
+use crate::parser::RVInstructionNode;
+use crate::parser::{HasIdentity, InstructionProperties};
+use crate::parser::{LabelStringToken, ProgramEntryType, RVParserOutput};
+use crate::parser::{RVRegister, RegisterToken};
 use crate::passes::CfgError;
 use itertools::Itertools;
 use std::collections::HashSet;
@@ -20,10 +20,12 @@ pub struct Cfg {
     nodes: Vec<Rc<CfgNode>>,
     nexts: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
     prevs: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
+    provisional_nexts: HashMap<Uuid, HashSet<Rc<CfgNode>>>,
     pub label_node_map: HashMap<String, Rc<CfgNode>>,
     functions: HashSet<Rc<Function>>,
     label_function_map: HashMap<LabelStringToken, Rc<Function>>,
     label_external_function_map: HashMap<LabelStringToken, ExternalFunction>,
+    function_to_call_sites_map: HashMap<Rc<Function>, HashSet<Rc<CfgNode>>>,
 }
 
 impl Cfg {
@@ -40,12 +42,6 @@ impl Cfg {
         CfgBreadthFirstIterator::new(self, node)
     }
 
-    // /// Get the functions of the CFG.
-    // #[must_use]
-    // pub fn functions(&self) -> HashMap<LabelStringToken, Rc<Function>> {
-    //     self.label_function_map.clone()
-    // }
-
     /// Get a function by its name
     #[must_use]
     pub fn get_function(&self, name: &LabelStringToken) -> Option<&Rc<Function>> {
@@ -53,7 +49,6 @@ impl Cfg {
     }
 
     /// Get every function in the program
-    #[must_use]
     pub fn get_all_functions(&self) -> impl Iterator<Item = &Rc<Function>> {
         self.functions.iter()
     }
@@ -61,6 +56,8 @@ impl Cfg {
     /// Insert a new function
     pub fn insert_function(&mut self, label: LabelStringToken, func: Rc<Function>) {
         self.functions.insert(Rc::clone(&func));
+        self.function_to_call_sites_map
+            .insert(Rc::clone(&func), HashSet::new());
         self.label_function_map.insert(label, func);
     }
 
@@ -83,22 +80,22 @@ trait BaseCfgGen {
     fn load_names(&self) -> HashSet<LabelStringToken>;
 }
 
-impl BaseCfgGen for Vec<ParserNode> {
+impl BaseCfgGen for Vec<RVInstructionNode> {
     fn call_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
-            .filter_map(parser::ParserNode::calls_to)
+            .filter_map(parser::RVInstructionNode::calls_to)
             .collect()
     }
 
     fn jump_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
-            .filter_map(parser::ParserNode::jumps_to)
+            .filter_map(parser::RVInstructionNode::jumps_to)
             .collect()
     }
 
     fn load_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
-            .filter_map(parser::ParserNode::reads_address_of)
+            .filter_map(parser::RVInstructionNode::reads_address_of)
             .collect()
     }
 }
@@ -106,7 +103,7 @@ impl Cfg {
     pub fn new(
         parser_output: RVParserOutput,
         predefined_call_names: Option<&HashSet<LabelStringToken>>,
-        external_functions: Option<HashSet<(LabelStringToken, RegisterSet, RegisterSet)>>,
+        external_functions: &Option<HashSet<(LabelStringToken, RegisterSet, RegisterSet)>>,
         program_entry: &ProgramEntryType,
     ) -> Result<Cfg, Box<CfgError>> {
         let mut labels = HashMap::new();
@@ -114,7 +111,7 @@ impl Cfg {
 
         let mut defined_labels = parser_output.all_defined_labels;
         if let Some(new_set) = &external_functions {
-            defined_labels.extend(new_set.iter().map(|(name, _, _)| name.clone()))
+            defined_labels.extend(new_set.iter().map(|(name, _, _)| name.clone()));
         }
         let call_names = {
             let mut set = parser_output.nodes.call_names();
@@ -206,10 +203,12 @@ impl Cfg {
             nodes,
             nexts,
             prevs,
+            provisional_nexts: HashMap::new(),
             label_function_map: HashMap::new(),
             functions: HashSet::new(),
             label_node_map: labels,
             label_external_function_map,
+            function_to_call_sites_map: HashMap::new(),
         })
     }
 
@@ -227,7 +226,7 @@ impl Cfg {
     pub fn error_ranges_for_first_store(
         &self,
         node: &Rc<CfgNode>,
-        item: Register,
+        item: RVRegister,
     ) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
@@ -250,7 +249,6 @@ impl Cfg {
             for reg in prev.writes_to() {
                 if *reg.get() == item {
                     ranges.push(reg);
-                    continue;
                 }
             }
             queue.extend(self.get_prevs(prev.as_ref()).cloned());
@@ -263,7 +261,7 @@ impl Cfg {
     pub fn error_ranges_for_first_usage(
         &self,
         node: &Rc<CfgNode>,
-        item: Register,
+        item: RVRegister,
     ) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
@@ -346,6 +344,30 @@ impl Cfg {
             .insert(Rc::clone(from));
     }
 
+    /// Insert a provisional edge from one node to another.
+    ///
+    /// These edges are not inserted initially, but later can be promoted to
+    /// a real edge
+    pub fn insert_provisional_edge(&mut self, from: &Rc<CfgNode>, to: &Rc<CfgNode>) {
+        let entry = self.provisional_nexts.entry(from.id()).or_default();
+        entry.insert(Rc::clone(to));
+    }
+
+    /// Promote a provisional edge to a real edge, if they exist.
+    ///
+    /// This function returns if a modification was made
+    #[must_use]
+    pub fn promote_provisional_nexts_to_real(&mut self, from: &Rc<CfgNode>) -> bool {
+        if let Some(tos) = self.provisional_nexts.remove(&from.id()) {
+            for to in tos {
+                self.insert_edge(from, &to);
+            }
+            true
+        } else {
+            false
+        }
+    }
+
     /// Remove an edge from one node to another.
     ///
     /// # Panics
@@ -355,5 +377,29 @@ impl Cfg {
         let res_1 = self.nexts.get_mut(&from.id()).unwrap().remove(to);
         let res_2 = self.prevs.get_mut(&to.id()).unwrap().remove(from);
         res_1 | res_2
+    }
+
+    /// Get the nodes that call this function
+    ///
+    /// # Panics
+    ///
+    /// Panics if the function does not exist on this CFG.
+    pub fn get_call_sites(&self, function: &Rc<Function>) -> impl Iterator<Item = &Rc<CfgNode>> {
+        self.function_to_call_sites_map
+            .get(function)
+            .unwrap()
+            .iter()
+    }
+
+    /// Insert a call site for a function.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the function does not exist on this cfg
+    pub fn insert_call_site(&mut self, function: &Rc<Function>, node: Rc<CfgNode>) {
+        self.function_to_call_sites_map
+            .get_mut(function)
+            .unwrap()
+            .insert(node);
     }
 }

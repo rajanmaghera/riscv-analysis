@@ -1,6 +1,6 @@
 use crate::{
     cfg::Cfg,
-    parser::{HasRegisterSets, Register},
+    parser::{HasRegisterSets, RVRegister},
     passes::{DiagnosticManager, LintError, LintPass},
 };
 
@@ -30,7 +30,7 @@ impl LintPass for GarbageInputValuePass {
         for node in cfg.iter_source() {
             if node.is_program_entry() {
                 // get registers
-                let garbage = node.live_in() - Register::program_args_set();
+                let garbage = node.live_in() - RVRegister::program_args_set();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {
@@ -43,7 +43,7 @@ impl LintPass for GarbageInputValuePass {
                 }
             } else if let Some(func) = node.is_function_entry_with_func() {
                 let args = func.arguments();
-                let garbage = node.live_in() - args - Register::callee_saved_set();
+                let garbage = node.live_in() - args - RVRegister::callee_saved_set();
                 if !garbage.is_empty() {
                     let mut ranges = Vec::new();
                     for reg in &garbage {

@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{
     cfg::Cfg,
-    parser::{HasRegisterSets, InstructionProperties, Register},
+    parser::{HasRegisterSets, InstructionProperties, RVRegister},
     passes::{DiagnosticManager, LintError, LintPass},
 };
 
@@ -31,9 +31,10 @@ impl LintPass for DeadValuePass {
             // should not be there (temporaries)
             // TODO merge with Callee saved register check
             if let Some((function, call_site)) = node.calls_to_from_cfg(cfg) {
+                // TODO fix for external function calls
                 // check the expected return values of the function:
 
-                let out = (Register::caller_saved_set() - function.returns()) & node.live_out();
+                let out = (RVRegister::caller_saved_set() - function.returns()) & node.live_out();
 
                 // if there is anything left, then there is an error
                 // for each item, keep going to the next node until a use of

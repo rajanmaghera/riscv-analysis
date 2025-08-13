@@ -3,7 +3,7 @@
 use lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range,
 };
-use riscv_analysis::parser::{CanGetURIString, RVDocument, RVParser, Range as MyRange};
+use riscv_analysis::parser::{CanGetURIString, RVDocument, RVFileParser, Range as MyRange};
 use riscv_analysis::passes::DiagnosticItem;
 use riscv_analysis::passes::SeverityLevel;
 use riscv_analysis::reader::{FileReader, FileReaderError};
@@ -50,11 +50,11 @@ impl WarningInto for SeverityLevel {
 }
 
 pub trait LSPDiag {
-    fn to_lsp_diag(&self, parser: &RVParser<LSPFileReader>) -> LSPRVSingleDiagnostic;
+    fn to_lsp_diag(&self, parser: &RVFileParser<LSPFileReader>) -> LSPRVSingleDiagnostic;
 }
 
 impl LSPDiag for DiagnosticItem {
-    fn to_lsp_diag(&self, parser: &RVParser<LSPFileReader>) -> LSPRVSingleDiagnostic {
+    fn to_lsp_diag(&self, parser: &RVFileParser<LSPFileReader>) -> LSPRVSingleDiagnostic {
         LSPRVSingleDiagnostic {
             uri: parser.reader.get_filename(self.file).unwrap_or_default(), // Empty string by default
             diagnostic: Diagnostic {

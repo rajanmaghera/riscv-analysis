@@ -1,7 +1,7 @@
 mod lsp;
 use lsp::{LSPDiag, LSPFileReader, LSPRVDiagnostic, LSPRVSingleDiagnostic, RVCompletionItem};
 use lsp_types::Diagnostic;
-use riscv_analysis::parser::{CanGetURIString, ProgramEntryType, RVDocument, RVParser};
+use riscv_analysis::parser::{CanGetURIString, ProgramEntryType, RVDocument, RVFileParser};
 use riscv_analysis::reader::FileReader;
 use serde_wasm_bindgen::to_value;
 use std::collections::{HashMap, HashSet};
@@ -28,7 +28,7 @@ trait FileReading {
     fn get_imports(&mut self, base: &str) -> HashSet<String>;
 }
 
-impl<T> FileReading for RVParser<T>
+impl<T> FileReading for RVFileParser<T>
 where
     T: CanGetURIString + Clone + FileReader,
 {
@@ -56,7 +56,7 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
     let imported = docs
         .clone()
         .into_iter()
-        .map(|doc| RVParser::new(LSPFileReader::new(docs.clone())).get_imports(&doc.uri))
+        .map(|doc| RVFileParser::new(LSPFileReader::new(docs.clone())).get_imports(&doc.uri))
         .reduce(|mut x, y| {
             x.extend(y);
             x
@@ -71,7 +71,7 @@ pub fn riscv_get_diagnostics(docs: JsValue) -> JsValue {
 
     let errs = to_parse
         .flat_map(|f| {
-            let mut parser = RVParser::new(LSPFileReader::new(docs.clone()));
+            let mut parser = RVFileParser::new(LSPFileReader::new(docs.clone()));
             let items = parser
                 .run(&f.uri, &ProgramEntryType::FirstInstruction)
                 .expect("filename not found");

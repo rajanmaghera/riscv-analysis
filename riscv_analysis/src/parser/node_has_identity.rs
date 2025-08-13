@@ -1,21 +1,21 @@
 use uuid::Uuid;
 
-use super::{HasIdentity, ParserNode};
+use super::{HasIdentity, RVInstructionNode};
 
-impl HasIdentity for ParserNode {
+impl HasIdentity for RVInstructionNode {
     fn id(&self) -> Uuid {
         match self {
-            ParserNode::Arith(a) => a.key,
-            ParserNode::IArith(a) => a.key,
-            ParserNode::JumpLink(a) => a.key,
-            ParserNode::JumpLinkR(a) => a.key,
-            ParserNode::Basic(a) => a.key,
-            ParserNode::Branch(a) => a.key,
-            ParserNode::Store(a) => a.key,
-            ParserNode::Load(a) => a.key,
-            ParserNode::Csr(a) => a.key,
-            ParserNode::CsrI(a) => a.key,
-            ParserNode::LoadAddr(a) => a.key,
+            RVInstructionNode::Arith(a) => a.key,
+            RVInstructionNode::IArith(a) => a.key,
+            RVInstructionNode::JumpLink(a) => a.key,
+            RVInstructionNode::JumpLinkR(a) => a.key,
+            RVInstructionNode::Basic(a) => a.key,
+            RVInstructionNode::Branch(a) => a.key,
+            RVInstructionNode::Store(a) => a.key,
+            RVInstructionNode::Load(a) => a.key,
+            RVInstructionNode::Csr(a) => a.key,
+            RVInstructionNode::CsrI(a) => a.key,
+            RVInstructionNode::LoadAddr(a) => a.key,
         }
     }
 }

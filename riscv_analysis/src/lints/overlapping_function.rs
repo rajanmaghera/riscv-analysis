@@ -56,7 +56,7 @@ mod tests {
         let parser_output = RVStringParser::parse_from_text(input);
         assert_eq!(parser_output.errors.len(), 0);
 
-        let cfg = Manager::gen_full_cfg(parser_output, None, &ProgramEntryType::FirstInstruction)
+        let cfg = Manager::gen_full_cfg(&parser_output, None, &ProgramEntryType::FirstInstruction)
             .unwrap(); // Need fn annotations
         OverlappingFunctionPass::new().run_single_pass_along_cfg(&cfg)
     }

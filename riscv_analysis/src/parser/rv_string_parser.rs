@@ -1,4 +1,4 @@
-use super::{EmptyFileReader, RVParser, RVParserOutput};
+use super::{EmptyFileReader, RVFileParser, RVParserOutput};
 
 /// A simplified parser to read a string into `ParserNodes`, for testing.
 pub struct RVStringParser;
@@ -12,11 +12,11 @@ impl RVStringParser {
     /// used for test purposes, as it does not handle file reading.
     ///
     /// ```
-    /// use riscv_analysis::parser::{RVStringParser, ParserNode};
+    /// use riscv_analysis::parser::{RVStringParser, RVInstructionNode};
     /// let parser_output = RVStringParser::parse_from_text("add x1, x10, x11\n");
     /// assert_eq!(parser_output.nodes.len(), 1);
     /// assert_eq!(parser_output.errors.len(), 0);
-    /// matches!(&parser_output.nodes[0], ParserNode::Arith(_));
+    /// matches!(&parser_output.nodes[0], RVInstructionNode::Arith(_));
     /// assert_eq!(parser_output.nodes[0].to_string(), "add ra <- a0, a1");
     /// ```
     ///
@@ -25,7 +25,7 @@ impl RVStringParser {
     /// Panics if there is an internal error.
     #[must_use]
     pub fn parse_from_text(text: &str) -> RVParserOutput {
-        let mut parser = RVParser::new(EmptyFileReader::new(text));
+        let mut parser = RVFileParser::new(EmptyFileReader::new(text));
         parser
             .parse_from_file(EmptyFileReader::get_file_path(), false)
             .unwrap()
@@ -35,14 +35,14 @@ impl RVStringParser {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::parser::{ParseError, ParserNode};
+    use crate::parser::{ParseError, RVInstructionNode};
 
     #[test]
     fn can_parse_from_text() {
         let parser_output = RVStringParser::parse_from_text("add x1, x10, x11\n");
         assert_eq!(parser_output.nodes.len(), 1);
         assert_eq!(parser_output.errors.len(), 0);
-        matches!(&parser_output.nodes[0], ParserNode::Arith(_));
+        matches!(&parser_output.nodes[0], RVInstructionNode::Arith(_));
         assert_eq!(parser_output.nodes[0].to_string(), "add ra <- a0, a1");
     }
 
@@ -52,8 +52,8 @@ mod test {
             RVStringParser::parse_from_text("add x1, x10, x11\nadd x1, x10, x11\njall");
         assert_eq!(parser_output.nodes.len(), 2);
         assert_eq!(parser_output.errors.len(), 1);
-        matches!(&parser_output.nodes[0], ParserNode::Arith(_));
-        matches!(&parser_output.nodes[1], ParserNode::Arith(_));
+        matches!(&parser_output.nodes[0], RVInstructionNode::Arith(_));
+        matches!(&parser_output.nodes[1], RVInstructionNode::Arith(_));
         matches!(&parser_output.errors[0], ParseError::UnexpectedToken(_));
     }
 

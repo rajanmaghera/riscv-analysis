@@ -3,7 +3,7 @@ use std::fs;
 
 use colored::Colorize;
 
-use riscv_analysis::parser::RVParser;
+use riscv_analysis::parser::RVFileParser;
 use riscv_analysis::passes::{DiagnosticItem, SeverityLevel};
 use riscv_analysis::reader::FileReader;
 use uuid::Uuid;
@@ -13,7 +13,7 @@ use riscv_analysis_cli::wrapper::{DiagnosticTestCase, TestCase};
 use crate::pretty_print_options::PrettyPrintOptions;
 
 pub trait ErrorDisplay {
-    fn display_errors<T: FileReader>(&mut self, parser: &RVParser<T>);
+    fn display_errors<T: FileReader>(&mut self, parser: &RVFileParser<T>);
 }
 
 /// Pretty printer for errors.
@@ -35,7 +35,7 @@ impl PrettyPrint {
     /// Return the contents of a file, caching the results.
     fn get_file<T: FileReader>(
         &mut self,
-        parser: &RVParser<T>,
+        parser: &RVFileParser<T>,
         file: &Uuid,
     ) -> Option<&Vec<String>> {
         // Load the file if we haven't already
@@ -113,7 +113,7 @@ impl PrettyPrint {
     /// Format a diagnostic item in a compact (one-line) form.
     fn format_item_compact<T: FileReader>(
         &mut self,
-        parser: &RVParser<T>,
+        parser: &RVFileParser<T>,
         item: &DiagnosticItem,
     ) -> String {
         let level = self.level_string(&item.level);
@@ -132,7 +132,7 @@ impl PrettyPrint {
     /// Format a diagnostic item.
     fn format_item<T: FileReader>(
         &mut self,
-        parser: &RVParser<T>,
+        parser: &RVFileParser<T>,
         item: &DiagnosticItem,
     ) -> String {
         let level = self.level_string(&item.level);
@@ -155,13 +155,17 @@ impl PrettyPrint {
             }
         }
 
+        if !item.description.is_empty() {
+            acc.push_str(format!(" {}\n", item.description).as_str());
+        }
+
         acc.push('\n');
         acc
     }
 }
 
 impl ErrorDisplay for PrettyPrint {
-    fn display_errors<T: FileReader>(&mut self, parser: &RVParser<T>) {
+    fn display_errors<T: FileReader>(&mut self, parser: &RVFileParser<T>) {
         let mut errors_in_other_files = 0;
         for err in &self.diagnostics.clone() {
             if let Some(base_file) = parser.reader.get_base_file() {
@@ -201,7 +205,7 @@ impl JSONPrint {
     /// Convert a single diagnostic item to JSON
     fn wrap_item<T: FileReader>(
         &self,
-        parser: &RVParser<T>,
+        parser: &RVFileParser<T>,
         item: &DiagnosticItem,
     ) -> DiagnosticTestCase {
         // Get the fields
@@ -228,7 +232,7 @@ impl JSONPrint {
 }
 
 impl ErrorDisplay for JSONPrint {
-    fn display_errors<T: FileReader>(&mut self, parser: &RVParser<T>) {
+    fn display_errors<T: FileReader>(&mut self, parser: &RVFileParser<T>) {
         // Convert the diagnostic items to JSON
         let sub: Vec<_> = self
             .diagnostics

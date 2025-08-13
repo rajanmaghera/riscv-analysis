@@ -1,6 +1,6 @@
 use super::{CfgError, DiagnosticManager};
 use crate::parser::{ProgramEntryType, RVParserOutput};
-use crate::{cfg::Cfg, parser::ParserNode};
+use crate::{cfg::Cfg, parser::RVInstructionNode};
 
 pub trait GenerationPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>>;
@@ -17,7 +17,7 @@ pub trait LintPass {
     ///
     /// ```
     /// use riscv_analysis::passes::{LintPass, LintError, DiagnosticManager};
-    /// use riscv_analysis::parser::{ParserNode, RVStringParser};
+    /// use riscv_analysis::parser::{RVInstructionNode, RVStringParser};
     /// use riscv_analysis::cfg::Cfg;
     ///
     /// struct MyPass;
@@ -40,21 +40,21 @@ pub trait LintPass {
     /// let parsed = RVStringParser::parse_from_text("addi x1 x0 0");
     /// let errors = MyPass::new().run_single_pass_along_nodes(&parsed.nodes);
     /// assert_eq!(errors.len(), 1);
-    /// assert_eq!(errors[0].get_error_code(), "invalid-stack-pointer");
+    /// assert_eq!(errors.iter().next().unwrap().get_error_code(), "invalid-stack-pointer");
     /// ```
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager);
 
     fn get_pass_name(&self) -> &'static str;
 
     #[must_use]
-    fn run_single_pass_along_nodes(&self, nodes: &[ParserNode]) -> DiagnosticManager {
+    fn run_single_pass_along_nodes(&self, nodes: &[RVInstructionNode]) -> DiagnosticManager {
         let cfg = Cfg::new(
             RVParserOutput {
                 nodes: nodes.into(),
                 ..Default::default()
             },
             None,
-            None,
+            &None,
             &ProgramEntryType::FirstInstruction,
         )
         .unwrap();

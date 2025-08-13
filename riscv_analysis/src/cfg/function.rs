@@ -7,7 +7,7 @@ use std::{
 };
 use uuid::Uuid;
 
-use crate::parser::{HasIdentity, HasRegisterSets, LabelString, LabelStringToken, Register};
+use crate::parser::{HasIdentity, HasRegisterSets, LabelString, LabelStringToken, RVRegister};
 
 use super::{CfgNode, RegisterSet};
 
@@ -30,6 +30,10 @@ pub struct Function {
 
     /// The registers that are set ever in the function
     defs: RefCell<RegisterSet>,
+
+    /// Call sites. These are the function call instructions in the rest of the program
+    /// that call this function
+    call_sites: HashSet<Rc<CfgNode>>,
 }
 
 impl Hash for Function {
@@ -56,6 +60,7 @@ impl Function {
             labels: labels.into_iter().collect::<HashSet<_>>(),
             nodes: RefCell::new(nodes),
             entry,
+            call_sites: HashSet::new(),
             exits: RefCell::new(HashSet::new()),
             defs: RefCell::new(RegisterSet::new()),
         }
@@ -68,14 +73,14 @@ impl Function {
 
     #[must_use]
     pub fn arguments(&self) -> RegisterSet {
-        self.entry.live_out() & Register::argument_set()
+        self.entry.live_in() & RVRegister::argument_set()
     }
 
     #[must_use]
     pub fn returns(&self) -> RegisterSet {
         self.exits()
             .iter()
-            .map(|x| x.live_out() & Register::return_set())
+            .map(|x| x.live_out() & RVRegister::return_set())
             .reduce(|acc, x| acc | x)
             .unwrap_or_default()
     }
@@ -94,7 +99,7 @@ impl Function {
     #[must_use]
     pub fn to_save(&self) -> RegisterSet {
         // Remove the stack pointer()
-        (*self.defs() & Register::callee_saved_set()) - Register::X2
+        (*self.defs() & RVRegister::callee_saved_set()) - RVRegister::stack_pointer()
     }
 
     /// Set the instructions composing this function.
@@ -151,12 +156,13 @@ impl ExternalFunction {
         LabelString::new(
             self.labels
                 .iter()
-                .map(|x| x.to_string())
-                .intersperse(", ".to_owned())
-                .collect::<String>(),
+                .map(std::string::ToString::to_string)
+                .collect::<Vec<String>>()
+                .join(", "),
         )
     }
 
+    #[must_use]
     pub fn new(
         labels: Vec<LabelStringToken>,
         arguments: RegisterSet,
@@ -177,12 +183,12 @@ impl ExternalFunction {
 
     #[must_use]
     pub fn arguments(&self) -> RegisterSet {
-        self.arguments.clone() & Register::argument_set()
+        self.arguments & RVRegister::argument_set()
     }
 
     #[must_use]
     pub fn returns(&self) -> RegisterSet {
-        self.returns.clone() & Register::argument_set()
+        self.returns & RVRegister::argument_set()
     }
 }
 impl HasIdentity for ExternalFunction {

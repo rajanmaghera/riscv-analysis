@@ -1,16 +1,14 @@
-use super::AvailableValueMap;
 use super::Cfg;
 use super::Function;
 use super::RefCellReplacement;
 use super::RegisterSet;
 use super::Segment;
 use super::{environment_in_outs, ExternalFunction};
-use crate::analysis::AvailableValue;
-use crate::analysis::MemoryLocation;
+use crate::analysis::{LocValueMap, Location, Value};
 use crate::parser::InstructionProperties;
 use crate::parser::LabelStringToken;
-use crate::parser::ParserNode;
-use crate::parser::Register;
+use crate::parser::RVInstructionNode;
+use crate::parser::RVRegister;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -20,7 +18,7 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub struct CfgNode {
     /// Parser node that this CFG node is wrapping.
-    node: RefCell<ParserNode>,
+    node: RefCell<RVInstructionNode>,
     /// Is this node used as a function entry point?
     is_function_entry: bool,
     /// Is program entry
@@ -29,28 +27,8 @@ pub struct CfgNode {
     ///
     /// Note that a node could be a part of 0, 1 or more functions.
     function: RefCell<HashSet<Rc<Function>>>,
-    /// Map each register to the available value that is set before
-    /// the instruction represented by this CFG node is run.
-    ///
-    /// The maps will contain all known registers and their known
-    /// values. This means that many values might be duplicated above
-    /// and below this CFG node.
-    reg_values_in: RefCell<AvailableValueMap<Register>>,
-    /// Map each register to the available value that is set after
-    /// the instruction represented by this CFG node is run.
-    ///
-    /// The maps will contain all known registers and their known
-    /// values. This means that many values might be duplicated above
-    /// and below this CFG node.
-    reg_values_out: RefCell<AvailableValueMap<Register>>,
-    /// Map each memory location to the available value
-    /// that is set before the instruction represented by this
-    /// CFG node is run.
-    memory_values_in: RefCell<AvailableValueMap<MemoryLocation>>,
-    /// Map each memory location to the available value
-    /// that is set after the instruction represented by this
-    /// CFG node is run.
-    memory_values_out: RefCell<AvailableValueMap<MemoryLocation>>,
+    real_val_in: RefCell<LocValueMap>,
+    real_val_out: RefCell<LocValueMap>,
     /// The set of registers that are live before the instruction
     /// represented by this CFG node is run.
     live_in: RefCell<RegisterSet>,
@@ -78,16 +56,14 @@ pub struct CfgNode {
 
 impl CfgNode {
     #[must_use]
-    pub fn new(node: ParserNode, is_function_entry: bool, is_program_entry: bool) -> Self {
+    pub fn new(node: RVInstructionNode, is_function_entry: bool, is_program_entry: bool) -> Self {
         CfgNode {
             node: RefCell::new(node),
             is_function_entry,
             is_program_entry,
             function: RefCell::new(HashSet::new()),
-            reg_values_in: RefCell::new(AvailableValueMap::new()),
-            reg_values_out: RefCell::new(AvailableValueMap::new()),
-            memory_values_in: RefCell::new(AvailableValueMap::new()),
-            memory_values_out: RefCell::new(AvailableValueMap::new()),
+            real_val_in: RefCell::new(LocValueMap::new()),
+            real_val_out: RefCell::new(LocValueMap::new()),
             live_in: RefCell::new(RegisterSet::new()),
             live_out: RefCell::new(RegisterSet::new()),
             u_def: RefCell::new(RegisterSet::new()),
@@ -110,11 +86,11 @@ impl CfgNode {
     }
 
     #[must_use]
-    pub fn set_node(&self, node: ParserNode) -> bool {
+    pub fn set_node(&self, node: RVInstructionNode) -> bool {
         self.node.replace_if_changed(node)
     }
 
-    pub fn node(&self) -> ParserNode {
+    pub fn node(&self) -> RVInstructionNode {
         self.node.borrow().clone()
     }
 
@@ -129,40 +105,22 @@ impl CfgNode {
         (*self.function.borrow_mut()).insert(function);
     }
 
-    pub fn reg_values_in(&self) -> AvailableValueMap<Register> {
-        self.reg_values_in.borrow().clone()
+    #[must_use]
+    pub fn set_real_val_in(&self, val_in: LocValueMap) -> bool {
+        self.real_val_in.replace_if_changed(val_in)
     }
 
     #[must_use]
-    pub fn set_reg_values_in(&self, available_in: AvailableValueMap<Register>) -> bool {
-        self.reg_values_in.replace_if_changed(available_in)
+    pub fn set_real_val_out(&self, val_out: LocValueMap) -> bool {
+        self.real_val_out.replace_if_changed(val_out)
     }
 
-    pub fn reg_values_out(&self) -> AvailableValueMap<Register> {
-        self.reg_values_out.borrow().clone()
+    pub fn real_val_in(&self) -> LocValueMap {
+        self.real_val_in.borrow().clone()
     }
 
-    #[must_use]
-    pub fn set_reg_values_out(&self, available_out: AvailableValueMap<Register>) -> bool {
-        self.reg_values_out.replace_if_changed(available_out)
-    }
-
-    pub fn memory_values_in(&self) -> AvailableValueMap<MemoryLocation> {
-        self.memory_values_in.borrow().clone()
-    }
-
-    #[must_use]
-    pub fn set_memory_values_in(&self, memory_in: AvailableValueMap<MemoryLocation>) -> bool {
-        self.memory_values_in.replace_if_changed(memory_in)
-    }
-
-    pub fn memory_values_out(&self) -> AvailableValueMap<MemoryLocation> {
-        self.memory_values_out.borrow().clone()
-    }
-
-    #[must_use]
-    pub fn set_memory_values_out(&self, memory_out: AvailableValueMap<MemoryLocation>) -> bool {
-        self.memory_values_out.replace_if_changed(memory_out)
+    pub fn real_val_out(&self) -> LocValueMap {
+        self.real_val_out.borrow().clone()
     }
 
     pub fn live_in(&self) -> RegisterSet {
@@ -214,17 +172,20 @@ impl CfgNode {
         }
     }
 
+    #[deprecated]
     pub fn known_ecall(&self) -> Option<i32> {
         if self.is_ecall() {
-            if let Some(AvailableValue::Constant(call_num)) =
-                self.reg_values_in().get(&Register::ecall_type())
+            if let Value::Const(call_num) = self
+                .real_val_in()
+                .get(&Location::Register(RVRegister::ecall_type()))
             {
-                return Some(*call_num);
+                return Some(call_num);
             }
         }
         None
     }
 
+    #[deprecated]
     pub fn known_ecall_signature(&self) -> Option<(RegisterSet, RegisterSet)> {
         if let Some(call_num) = self.known_ecall() {
             if let Some((ins, out)) = environment_in_outs(call_num) {
@@ -234,6 +195,7 @@ impl CfgNode {
         None
     }
 
+    #[deprecated]
     pub fn is_program_exit(&self) -> bool {
         self.known_ecall() == Some(10) || self.known_ecall() == Some(93)
     }
@@ -250,6 +212,7 @@ impl CfgNode {
     }
 
     /// Return true if this node is part of a function.
+    #[deprecated]
     pub fn is_part_of_some_function(&self) -> bool {
         !self.functions().is_empty()
     }

@@ -395,7 +395,6 @@ dependencies = [
  "itertools",
  "serde",
  "serde_repr",
- "serde_yaml",
  "uuid",
 ]
 

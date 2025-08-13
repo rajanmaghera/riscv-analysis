@@ -1,5 +1,5 @@
 use crate::parser::imm::{CsrImm, Imm};
-use crate::parser::inst::Inst;
+use crate::parser::inst::RVInst;
 use crate::parser::inst::{
     ArithType, BasicType, BranchType, CsrIType, CsrType, IArithType, JumpLinkRType, JumpLinkType,
     LoadType, PseudoType, StoreType,
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ParserNode {
+pub enum RVInstructionNode {
     Arith(Arith),
     IArith(IArith),
     JumpLink(JumpLink),
@@ -31,86 +31,86 @@ pub enum ParserNode {
     CsrI(CsrI),
 }
 
-impl ParserNode {
+impl RVInstructionNode {
     /// Get the labels that refer to this node.
     pub fn label_names(&self) -> impl Iterator<Item = &LabelStringToken> {
         match self {
-            ParserNode::Arith(x) => x.labels.iter(),
-            ParserNode::IArith(x) => x.labels.iter(),
-            ParserNode::JumpLink(x) => x.labels.iter(),
-            ParserNode::JumpLinkR(x) => x.labels.iter(),
-            ParserNode::Basic(x) => x.labels.iter(),
-            ParserNode::Branch(x) => x.labels.iter(),
-            ParserNode::Store(x) => x.labels.iter(),
-            ParserNode::Load(x) => x.labels.iter(),
-            ParserNode::Csr(x) => x.labels.iter(),
-            ParserNode::CsrI(x) => x.labels.iter(),
-            ParserNode::LoadAddr(x) => x.labels.iter(),
+            RVInstructionNode::Arith(x) => x.labels.iter(),
+            RVInstructionNode::IArith(x) => x.labels.iter(),
+            RVInstructionNode::JumpLink(x) => x.labels.iter(),
+            RVInstructionNode::JumpLinkR(x) => x.labels.iter(),
+            RVInstructionNode::Basic(x) => x.labels.iter(),
+            RVInstructionNode::Branch(x) => x.labels.iter(),
+            RVInstructionNode::Store(x) => x.labels.iter(),
+            RVInstructionNode::Load(x) => x.labels.iter(),
+            RVInstructionNode::Csr(x) => x.labels.iter(),
+            RVInstructionNode::CsrI(x) => x.labels.iter(),
+            RVInstructionNode::LoadAddr(x) => x.labels.iter(),
         }
     }
 
     #[must_use]
     pub fn segment(&self) -> Segment {
         match self {
-            ParserNode::Arith(x) => x.segment,
-            ParserNode::IArith(x) => x.segment,
-            ParserNode::JumpLink(x) => x.segment,
-            ParserNode::JumpLinkR(x) => x.segment,
-            ParserNode::Basic(x) => x.segment,
-            ParserNode::Branch(x) => x.segment,
-            ParserNode::Store(x) => x.segment,
-            ParserNode::Load(x) => x.segment,
-            ParserNode::Csr(x) => x.segment,
-            ParserNode::CsrI(x) => x.segment,
-            ParserNode::LoadAddr(x) => x.segment,
+            RVInstructionNode::Arith(x) => x.segment,
+            RVInstructionNode::IArith(x) => x.segment,
+            RVInstructionNode::JumpLink(x) => x.segment,
+            RVInstructionNode::JumpLinkR(x) => x.segment,
+            RVInstructionNode::Basic(x) => x.segment,
+            RVInstructionNode::Branch(x) => x.segment,
+            RVInstructionNode::Store(x) => x.segment,
+            RVInstructionNode::Load(x) => x.segment,
+            RVInstructionNode::Csr(x) => x.segment,
+            RVInstructionNode::CsrI(x) => x.segment,
+            RVInstructionNode::LoadAddr(x) => x.segment,
         }
     }
 
     #[must_use]
     pub fn token(&self) -> &RawToken {
         match self {
-            ParserNode::Arith(x) => &x.token,
-            ParserNode::IArith(x) => &x.token,
-            ParserNode::JumpLink(x) => &x.token,
-            ParserNode::JumpLinkR(x) => &x.token,
-            ParserNode::Basic(x) => &x.token,
-            ParserNode::Branch(x) => &x.token,
-            ParserNode::Store(x) => &x.token,
-            ParserNode::Load(x) => &x.token,
-            ParserNode::Csr(x) => &x.token,
-            ParserNode::CsrI(x) => &x.token,
-            ParserNode::LoadAddr(x) => &x.token,
+            RVInstructionNode::Arith(x) => &x.token,
+            RVInstructionNode::IArith(x) => &x.token,
+            RVInstructionNode::JumpLink(x) => &x.token,
+            RVInstructionNode::JumpLinkR(x) => &x.token,
+            RVInstructionNode::Basic(x) => &x.token,
+            RVInstructionNode::Branch(x) => &x.token,
+            RVInstructionNode::Store(x) => &x.token,
+            RVInstructionNode::Load(x) => &x.token,
+            RVInstructionNode::Csr(x) => &x.token,
+            RVInstructionNode::CsrI(x) => &x.token,
+            RVInstructionNode::LoadAddr(x) => &x.token,
         }
     }
 }
 
-impl PartialEq for ParserNode {
+impl PartialEq for RVInstructionNode {
     fn eq(&self, other: &Self) -> bool {
         self.id().eq(&other.id())
     }
 }
-impl Eq for ParserNode {}
-impl Hash for ParserNode {
+impl Eq for RVInstructionNode {}
+impl Hash for RVInstructionNode {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id().hash(state);
     }
 }
 
-impl ParserNode {
+impl RVInstructionNode {
     #[must_use]
-    pub fn inst(&self) -> Inst {
+    pub fn inst(&self) -> RVInst {
         match self {
-            ParserNode::Arith(x) => (x.inst.get()).into(),
-            ParserNode::IArith(x) => (x.inst.get()).into(),
-            ParserNode::JumpLink(x) => (x.inst.get()).into(),
-            ParserNode::JumpLinkR(x) => (x.inst.get()).into(),
-            ParserNode::Basic(x) => (x.inst.get()).into(),
-            ParserNode::Branch(x) => (x.inst.get()).into(),
-            ParserNode::Store(x) => (x.inst.get()).into(),
-            ParserNode::Load(x) => (x.inst.get()).into(),
-            ParserNode::Csr(x) => (x.inst.get()).into(),
-            ParserNode::CsrI(x) => (x.inst.get()).into(),
-            ParserNode::LoadAddr(_) => Inst::La,
+            RVInstructionNode::Arith(x) => (x.inst.get()).into(),
+            RVInstructionNode::IArith(x) => (x.inst.get()).into(),
+            RVInstructionNode::JumpLink(x) => (x.inst.get()).into(),
+            RVInstructionNode::JumpLinkR(x) => (x.inst.get()).into(),
+            RVInstructionNode::Basic(x) => (x.inst.get()).into(),
+            RVInstructionNode::Branch(x) => (x.inst.get()).into(),
+            RVInstructionNode::Store(x) => (x.inst.get()).into(),
+            RVInstructionNode::Load(x) => (x.inst.get()).into(),
+            RVInstructionNode::Csr(x) => (x.inst.get()).into(),
+            RVInstructionNode::CsrI(x) => (x.inst.get()).into(),
+            RVInstructionNode::LoadAddr(_) => RVInst::La,
         }
     }
 
@@ -123,8 +123,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::Arith(Arith {
+    ) -> RVInstructionNode {
+        RVInstructionNode::Arith(Arith {
             inst,
             rd,
             rs1,
@@ -145,8 +145,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::IArith(IArith {
+    ) -> RVInstructionNode {
+        RVInstructionNode::IArith(IArith {
             inst,
             rd,
             rs1,
@@ -166,8 +166,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::JumpLink(JumpLink {
+    ) -> RVInstructionNode {
+        RVInstructionNode::JumpLink(JumpLink {
             inst,
             rd,
             name,
@@ -187,8 +187,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::JumpLinkR(JumpLinkR {
+    ) -> RVInstructionNode {
+        RVInstructionNode::JumpLinkR(JumpLinkR {
             inst,
             rd,
             rs1,
@@ -206,8 +206,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::Basic(Basic {
+    ) -> RVInstructionNode {
+        RVInstructionNode::Basic(Basic {
             inst,
             key: Uuid::new_v4(),
             token,
@@ -225,8 +225,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::Branch(Branch {
+    ) -> RVInstructionNode {
+        RVInstructionNode::Branch(Branch {
             inst,
             rs1,
             rs2,
@@ -247,8 +247,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::Store(Store {
+    ) -> RVInstructionNode {
+        RVInstructionNode::Store(Store {
             inst,
             rs1,
             rs2,
@@ -269,8 +269,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::Load(Load {
+    ) -> RVInstructionNode {
+        RVInstructionNode::Load(Load {
             inst,
             rd,
             rs1,
@@ -291,8 +291,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::Csr(Csr {
+    ) -> RVInstructionNode {
+        RVInstructionNode::Csr(Csr {
             inst,
             rd,
             rs1,
@@ -313,8 +313,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::CsrI(CsrI {
+    ) -> RVInstructionNode {
+        RVInstructionNode::CsrI(CsrI {
             inst,
             rd,
             imm,
@@ -334,8 +334,8 @@ impl ParserNode {
         token: RawToken,
         segment: Segment,
         labels: HashSet<LabelStringToken>,
-    ) -> ParserNode {
-        ParserNode::LoadAddr(LoadAddr {
+    ) -> RVInstructionNode {
+        RVInstructionNode::LoadAddr(LoadAddr {
             inst,
             rd,
             name,

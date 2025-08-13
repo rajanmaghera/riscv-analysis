@@ -3,9 +3,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Sub, SubAssign};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::{analysis::AvailableValue, parser::Register};
-
-use super::AvailableValueMap;
+use crate::parser::RVRegister;
 
 /// A set of registers that are used in a basic block.
 ///
@@ -44,25 +42,25 @@ impl RegisterSet {
 
     /// Create a new `RegisterSet` from a single register.
     #[must_use]
-    pub fn from_register(register: Register) -> Self {
+    pub fn from_register(register: RVRegister) -> Self {
         let mut set = Self::new();
         set.set_register(&register);
         set
     }
 
     /// Set the given register in the set.
-    pub fn set_register(&mut self, register: &Register) {
+    pub fn set_register(&mut self, register: &RVRegister) {
         self.registers |= 1 << register.to_num();
     }
 
     /// Unset the given register in the set.
-    pub fn unset_register(&mut self, register: &Register) {
+    pub fn unset_register(&mut self, register: &RVRegister) {
         self.registers &= !(1 << register.to_num());
     }
 
     /// Check if the given register is set in the set.
     #[must_use]
-    pub fn contains(&self, register: &Register) -> bool {
+    pub fn contains(&self, register: &RVRegister) -> bool {
         self.registers & (1 << register.to_num()) != 0
     }
 
@@ -77,15 +75,6 @@ impl RegisterSet {
     pub fn is_empty(&self) -> bool {
         self.registers == 0
     }
-
-    /// Represent the set of registers as a map to available values, with
-    /// all the registers set to their original value.
-    #[must_use]
-    pub fn into_available_values(self) -> AvailableValueMap<Register> {
-        self.into_iter()
-            .map(|x| (x, AvailableValue::OriginalRegisterWithScalar(x, 0)))
-            .collect()
-    }
 }
 
 impl Default for RegisterSet {
@@ -95,11 +84,11 @@ impl Default for RegisterSet {
 }
 
 impl Iterator for RegisterSetIter<'_> {
-    type Item = Register;
+    type Item = RVRegister;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.current < 32 {
-            let register = Register::from_num(self.current).unwrap();
+            let register = RVRegister::from_num(self.current).unwrap();
             self.current += 1;
             if self.registers.contains(&register) {
                 return Some(register);
@@ -110,7 +99,7 @@ impl Iterator for RegisterSetIter<'_> {
 }
 
 impl<'a> IntoIterator for &'a RegisterSet {
-    type Item = Register;
+    type Item = RVRegister;
     type IntoIter = RegisterSetIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -137,18 +126,18 @@ impl BitAndAssign for RegisterSet {
     }
 }
 
-impl BitAnd<Register> for RegisterSet {
+impl BitAnd<RVRegister> for RegisterSet {
     type Output = Self;
 
-    fn bitand(self, rhs: Register) -> Self::Output {
+    fn bitand(self, rhs: RVRegister) -> Self::Output {
         Self {
             registers: self.registers & (1 << rhs.to_num()),
         }
     }
 }
 
-impl BitAndAssign<Register> for RegisterSet {
-    fn bitand_assign(&mut self, rhs: Register) {
+impl BitAndAssign<RVRegister> for RegisterSet {
+    fn bitand_assign(&mut self, rhs: RVRegister) {
         self.registers &= 1 << rhs.to_num();
     }
 }
@@ -169,18 +158,18 @@ impl BitOrAssign for RegisterSet {
     }
 }
 
-impl BitOr<Register> for RegisterSet {
+impl BitOr<RVRegister> for RegisterSet {
     type Output = Self;
 
-    fn bitor(self, rhs: Register) -> Self::Output {
+    fn bitor(self, rhs: RVRegister) -> Self::Output {
         RegisterSet {
             registers: self.registers | (1 << rhs.to_num()),
         }
     }
 }
 
-impl BitOrAssign<Register> for RegisterSet {
-    fn bitor_assign(&mut self, rhs: Register) {
+impl BitOrAssign<RVRegister> for RegisterSet {
+    fn bitor_assign(&mut self, rhs: RVRegister) {
         self.registers |= 1 << rhs.to_num();
     }
 }
@@ -201,18 +190,18 @@ impl SubAssign for RegisterSet {
     }
 }
 
-impl Sub<Register> for RegisterSet {
+impl Sub<RVRegister> for RegisterSet {
     type Output = Self;
 
-    fn sub(self, rhs: Register) -> Self::Output {
+    fn sub(self, rhs: RVRegister) -> Self::Output {
         Self {
             registers: self.registers & !(1 << rhs.to_num()),
         }
     }
 }
 
-impl SubAssign<Register> for RegisterSet {
-    fn sub_assign(&mut self, rhs: Register) {
+impl SubAssign<RVRegister> for RegisterSet {
+    fn sub_assign(&mut self, rhs: RVRegister) {
         self.registers &= !(1 << rhs.to_num());
     }
 }
@@ -238,7 +227,7 @@ impl<'a> Deserialize<'a> for RegisterSet {
     where
         D: serde::Deserializer<'a>,
     {
-        let list = Vec::<Register>::deserialize(deserializer)?;
+        let list = Vec::<RVRegister>::deserialize(deserializer)?;
         Ok(list.into_iter().collect())
     }
 }
@@ -252,8 +241,8 @@ impl Serialize for RegisterSet {
     }
 }
 
-impl FromIterator<Register> for RegisterSet {
-    fn from_iter<I: IntoIterator<Item = Register>>(iter: I) -> Self {
+impl FromIterator<RVRegister> for RegisterSet {
+    fn from_iter<I: IntoIterator<Item = RVRegister>>(iter: I) -> Self {
         let mut set = Self::new();
         for register in iter {
             set.set_register(&register);
@@ -278,24 +267,24 @@ mod tests {
     #[test]
     fn can_use_set_of_one_register() {
         let mut set = RegisterSet::new();
-        set.set_register(&Register::X1);
+        set.set_register(&RVRegister::X1);
         assert!(!set.is_empty());
         let mut set_iter = set.iter();
-        assert_eq!(set_iter.next(), Some(Register::X1));
+        assert_eq!(set_iter.next(), Some(RVRegister::X1));
         assert!(set_iter.next().is_none(), "Set should only contain X1");
-        assert_eq!(set, [Register::X1].into_iter().collect::<RegisterSet>());
+        assert_eq!(set, [RVRegister::X1].into_iter().collect::<RegisterSet>());
     }
 
     #[test]
     fn can_loop_in_order_of_registers() {
         let mut set = RegisterSet::new();
-        set.set_register(&Register::X3);
-        set |= Register::X1;
-        set |= Register::X2;
+        set.set_register(&RVRegister::X3);
+        set |= RVRegister::X1;
+        set |= RVRegister::X4;
         let mut set_iter = set.iter();
-        assert_eq!(set_iter.next(), Some(Register::X1));
-        assert_eq!(set_iter.next(), Some(Register::X2));
-        assert_eq!(set_iter.next(), Some(Register::X3));
+        assert_eq!(set_iter.next(), Some(RVRegister::X1));
+        assert_eq!(set_iter.next(), Some(RVRegister::X3));
+        assert_eq!(set_iter.next(), Some(RVRegister::X4));
         assert!(
             set_iter.next().is_none(),
             "Set should only contain X1, X2, X3"

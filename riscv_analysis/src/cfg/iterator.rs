@@ -96,7 +96,7 @@ mod tests {
         Cfg::new(
             parser_output,
             None,
-            None,
+            &None,
             &ProgramEntryType::FirstInstruction,
         )
         .unwrap()

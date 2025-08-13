@@ -59,7 +59,7 @@ impl TokenType {
             TokenType::Comment(c) => format!("#{c}:"),
             TokenType::PercentHigh => "%hi".to_owned(),
             TokenType::PercentLow => "%lo".to_owned(),
-            TokenType::Plus(n) => format!("+{}", n),
+            TokenType::Plus(n) => format!("+{n}"),
         }
     }
 }

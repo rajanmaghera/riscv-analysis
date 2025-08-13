@@ -2,9 +2,9 @@ use uuid::Uuid;
 
 use crate::passes::DiagnosticLocation;
 
-use super::ParserNode;
+use super::RVInstructionNode;
 
-impl DiagnosticLocation for ParserNode {
+impl DiagnosticLocation for RVInstructionNode {
     fn file(&self) -> Uuid {
         self.token().file()
     }

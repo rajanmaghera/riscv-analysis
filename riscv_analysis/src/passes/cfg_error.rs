@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display};
 
-use crate::parser::{LabelStringToken, ParserNode};
+use crate::parser::{LabelStringToken, RVInstructionNode};
 
 use super::{DiagnosticLocation, DiagnosticMessage, SeverityLevel};
 
@@ -19,10 +19,10 @@ pub enum CfgError {
     DuplicateLabel(LabelStringToken),
     /// This error occurs when a return statement is used but can be reached by
     /// multiple labels.
-    MultipleLabelsForReturn(ParserNode, HashSet<LabelStringToken>),
+    MultipleLabelsForReturn(RVInstructionNode, HashSet<LabelStringToken>),
     /// This error occurs when a return statement is used but can be reached by
     /// no labels.
-    NoLabelForReturn(ParserNode),
+    NoLabelForReturn(RVInstructionNode),
 }
 
 trait SetListString {

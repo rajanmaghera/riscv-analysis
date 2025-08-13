@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::cfg::CfgNode;
+use crate::cfg::{CfgNode, Segment};
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
@@ -16,7 +16,12 @@ impl GenerationPass for NodeDirectionPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
         let mut prev: Option<Rc<CfgNode>> = None;
         let mut edges_to_insert = Vec::new();
+        let mut provisional_edges_to_insert = Vec::new();
         for node in cfg.iter_source() {
+            // If node is not in text section, skip
+            if node.segment() != Segment::Text {
+                continue;
+            }
             // If node jumps to another node, add it to the nexts of the current node and the prevs of the node it jumps to.
             if let Some(label) = node.jumps_to() {
                 if let Some(jump_to_node) = cfg.iter_source().find(|n| n.labels().contains(&label))
@@ -27,7 +32,12 @@ impl GenerationPass for NodeDirectionPass {
 
             // Linearly scan for nexts and prevs
             if let Some(p) = prev {
-                edges_to_insert.push((Rc::clone(&p), Rc::clone(node)));
+                // If previous node is a potentially halting instruction, insert a provisional edge
+                if p.might_terminate() {
+                    provisional_edges_to_insert.push((Rc::clone(&p), Rc::clone(node)));
+                } else {
+                    edges_to_insert.push((Rc::clone(&p), Rc::clone(node)));
+                }
             }
 
             // Set previous node to current node, if it is not a return
@@ -39,6 +49,9 @@ impl GenerationPass for NodeDirectionPass {
         }
         for (from, to) in edges_to_insert {
             cfg.insert_edge(&from, &to);
+        }
+        for (from, to) in provisional_edges_to_insert {
+            cfg.insert_provisional_edge(&from, &to);
         }
 
         Ok(())
@@ -60,7 +73,7 @@ mod test {
         let mut cfg = Cfg::new(
             parser_output,
             None,
-            None,
+            &None,
             &ProgramEntryType::FirstInstruction,
         )
         .unwrap();

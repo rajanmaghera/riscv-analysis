@@ -1,3 +1,4 @@
+use crate::cfg::Segment;
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
@@ -57,11 +58,14 @@ impl LintPass for ControlFlowPass {
                         }
                     }
                 }
-            } else if !node.is_program_entry() && cfg.get_prevs(node.as_ref()).len() == 0 {
-                errors.push_real(
+            } else if !node.is_program_entry()
+                && cfg.get_prevs(node.as_ref()).len() == 0
+                && node.segment() == Segment::Text
+            {
+                errors.push(
                     DiagnosticBuilder::new("unreachable-code", "Unreachable line of code")
                         .description("There is no path to this instruction.")
-                        .is_warning_on(node),
+                        .is_warning_on(node.as_ref()),
                 );
             }
         }
@@ -78,7 +82,7 @@ mod tests {
     fn run_pass(input: &str) -> DiagnosticManager {
         let parser_output = RVStringParser::parse_from_text(input);
         assert_eq!(parser_output.errors.len(), 0);
-        let cfg = Manager::gen_full_cfg(parser_output, None, &ProgramEntryType::FirstInstruction)
+        let cfg = Manager::gen_full_cfg(&parser_output, None, &ProgramEntryType::FirstInstruction)
             .unwrap();
         ControlFlowPass::new().run_single_pass_along_cfg(&cfg)
     }
@@ -99,25 +103,16 @@ mod tests {
 
         // Error for function on at the program entry & 4 errors for all the
         // unreachable instructions in `main`
-        assert_eq!(lints.len(), 5);
+        assert_eq!(lints.len(), 2);
 
         // The first error should warn about the first instruction of `fn_a`
 
         assert_eq!(lints[0].get_error_code(), "first-instruction-is-function");
         assert_eq!(lints[0].raw_text(), "addi   a0, a0, 1");
 
-        // Next four errors should be about unreachable code
+        // Next error should be about unreachable code
         assert_eq!(lints[1].get_error_code(), "unreachable-code");
         assert_eq!(lints[1].raw_text(), "li     a0, 0");
-
-        assert_eq!(lints[2].get_error_code(), "unreachable-code");
-        assert_eq!(lints[2].raw_text(), "jal    fn_a");
-
-        assert_eq!(lints[3].get_error_code(), "unreachable-code");
-        assert_eq!(lints[3].raw_text(), "addi   a7, zero, 10");
-
-        assert_eq!(lints[4].get_error_code(), "unreachable-code");
-        assert_eq!(lints[4].raw_text(), "ecall");
     }
 
     #[test]
@@ -138,17 +133,14 @@ mod tests {
 
         // Error for function on at the program entry & 2 errors for all the
         // unreachable instructions in `main` after the `j` instruction
-        assert_eq!(lints.len(), 3);
+        assert_eq!(lints.len(), 2);
 
         // The first error should warn about the first instruction of `fn_a`
         assert_eq!(lints[0].get_error_code(), "unreachable-code");
         assert_eq!(lints[0].raw_text(), "addi   a7, zero, 10");
 
-        assert_eq!(lints[1].get_error_code(), "unreachable-code");
-        assert_eq!(lints[1].raw_text(), "ecall");
-
-        assert_eq!(lints[2].get_error_code(), "invalid-jump-to-function");
-        assert_eq!(lints[2].raw_text(), "addi   a0, a0, 1");
+        assert_eq!(lints[1].get_error_code(), "invalid-jump-to-function");
+        assert_eq!(lints[1].raw_text(), "addi   a0, a0, 1");
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use super::ParserNode;
+use super::RVInstructionNode;
 
 /// This module contains a wrapper for the `ParserNode` enum that implements `PartialEq` and Eq
 ///
@@ -9,37 +9,37 @@ use super::ParserNode;
 ///
 /// This is needed for testing as we want to check if the data of two `ParserNodes` are equal.
 #[derive(Debug, Clone)]
-pub struct ParserNodeDataWrapper(pub ParserNode);
+pub struct ParserNodeDataWrapper(pub RVInstructionNode);
 
 impl PartialEq for ParserNodeDataWrapper {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {
-            (ParserNode::Arith(a), ParserNode::Arith(b)) => {
+            (RVInstructionNode::Arith(a), RVInstructionNode::Arith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.rs2 == b.rs2
             }
-            (ParserNode::IArith(a), ParserNode::IArith(b)) => {
+            (RVInstructionNode::IArith(a), RVInstructionNode::IArith(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
             }
-            (ParserNode::JumpLink(a), ParserNode::JumpLink(b)) => {
+            (RVInstructionNode::JumpLink(a), RVInstructionNode::JumpLink(b)) => {
                 a.inst == b.inst && a.name == b.name
             }
-            (ParserNode::JumpLinkR(a), ParserNode::JumpLinkR(b)) => {
+            (RVInstructionNode::JumpLinkR(a), RVInstructionNode::JumpLinkR(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
             }
-            (ParserNode::Basic(a), ParserNode::Basic(b)) => a.inst == b.inst,
-            (ParserNode::Branch(a), ParserNode::Branch(b)) => {
+            (RVInstructionNode::Basic(a), RVInstructionNode::Basic(b)) => a.inst == b.inst,
+            (RVInstructionNode::Branch(a), RVInstructionNode::Branch(b)) => {
                 a.inst == b.inst && a.rs1 == b.rs1 && a.rs2 == b.rs2 && a.name == b.name
             }
-            (ParserNode::Store(a), ParserNode::Store(b)) => {
+            (RVInstructionNode::Store(a), RVInstructionNode::Store(b)) => {
                 a.inst == b.inst && a.rs1 == b.rs1 && a.rs2 == b.rs2 && a.imm == b.imm
             }
-            (ParserNode::Load(a), ParserNode::Load(b)) => {
+            (RVInstructionNode::Load(a), RVInstructionNode::Load(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.rs1 == b.rs1 && a.imm == b.imm
             }
-            (ParserNode::Csr(a), ParserNode::Csr(b)) => {
+            (RVInstructionNode::Csr(a), RVInstructionNode::Csr(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.csr == b.csr && a.rs1 == b.rs1
             }
-            (ParserNode::LoadAddr(a), ParserNode::LoadAddr(b)) => {
+            (RVInstructionNode::LoadAddr(a), RVInstructionNode::LoadAddr(b)) => {
                 a.inst == b.inst && a.rd == b.rd && a.name == b.name
             }
             _ => false,
@@ -56,19 +56,19 @@ pub trait VecParserNodeData {
     fn data(&self) -> Vec<ParserNodeDataWrapper>;
 }
 
-impl ParserNodeData for ParserNode {
+impl ParserNodeData for RVInstructionNode {
     fn data(&self) -> ParserNodeDataWrapper {
         ParserNodeDataWrapper(self.clone())
     }
 }
 
-impl VecParserNodeData for Vec<ParserNode> {
+impl VecParserNodeData for Vec<RVInstructionNode> {
     fn data(&self) -> Vec<ParserNodeDataWrapper> {
         self.iter().map(ParserNodeData::data).collect()
     }
 }
 
-impl VecParserNodeData for Vec<Rc<ParserNode>> {
+impl VecParserNodeData for Vec<Rc<RVInstructionNode>> {
     fn data(&self) -> Vec<ParserNodeDataWrapper> {
         self.iter().map(|x| x.data()).collect()
     }

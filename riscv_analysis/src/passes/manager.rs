@@ -4,14 +4,11 @@ use crate::parser::{LabelString, ProgramEntryType, RVParserOutput, With};
 use crate::{
     analysis::{AvailableValuePass, LivenessPass},
     cfg::Cfg,
-    gen::{
-        EcallTerminationPass, EliminateDeadCodeDirectionsPass, FunctionMarkupPass,
-        NodeDirectionPass,
-    },
+    gen::{FunctionMarkupPass, NodeDirectionPass},
     lints::{
         CalleeSavedGarbageReadPass, CalleeSavedRegisterPass, ControlFlowPass, DeadValuePass,
-        EcallPass, GarbageInputValuePass, InstructionInTextPass, LostCalleeSavedRegisterPass,
-        OverlappingFunctionPass, SaveToZeroPass, StackPass,
+        EcallPass, GarbageInputValuePass, LostCalleeSavedRegisterPass, OverlappingFunctionPass,
+        SaveToZeroPass, StackPass,
     },
 };
 use std::collections::{HashMap, HashSet};
@@ -46,40 +43,26 @@ impl Manager {
     }
 
     pub fn gen_full_cfg(
-        parser_output: RVParserOutput,
+        parser_output: &RVParserOutput,
         external_functions: Option<HashSet<(With<LabelString>, RegisterSet, RegisterSet)>>,
         program_entry: &ProgramEntryType,
     ) -> Result<Cfg, Box<CfgError>> {
-        // Stage 1: Generate names of interrupt handler functions
-        let mut predefined = {
-            let mut cfg = Cfg::new(parser_output.clone(), None, program_entry)?;
-            NodeDirectionPass::run(&mut cfg)?;
-            AvailableValuePass::run(&mut cfg)?;
-            cfg.get_names_of_interrupt_handler_functions()
-        };
-
         // Combine interrupt call names and input function call names
-        predefined.extend(parser_output.extra_labels.clone());
-
-        // Stage 2: Generate full CFG
+        let predefined = parser_output.extra_labels.clone();
         let mut cfg = Cfg::new(
-            parser_output,
+            parser_output.clone(),
             Some(&predefined),
-            external_functions.clone(),
+            &external_functions,
             program_entry,
         )?;
         NodeDirectionPass::run(&mut cfg)?;
-        EliminateDeadCodeDirectionsPass::run(&mut cfg)?;
-        AvailableValuePass::run(&mut cfg)?;
-        EcallTerminationPass::run(&mut cfg)?;
         FunctionMarkupPass::run(&mut cfg)?;
-
         AvailableValuePass::run(&mut cfg)?;
-        EcallTerminationPass::run(&mut cfg)?;
-        // EliminateDeadCodeDirectionsPass::run(&mut cfg)?; // to eliminate ecall terminated code
         LivenessPass::inject_return_registers_into_function(
             &mut cfg,
-            external_functions.into_iter().flat_map(|x| x.into_iter()),
+            external_functions
+                .into_iter()
+                .flat_map(std::iter::IntoIterator::into_iter),
         );
         LivenessPass::run(&mut cfg)?;
         Ok(cfg)
@@ -105,10 +88,10 @@ impl Manager {
 
     /// Register all built in passes.
     pub fn register_and_enable_built_in_passes(&mut self) {
-        let diags: [Box<dyn LintPass>; 11] = [
+        let diags: [Box<dyn LintPass>; 10] = [
             Box::new(SaveToZeroPass::new()),
             Box::new(DeadValuePass::new()),
-            Box::new(InstructionInTextPass::new()),
+            // Box::new(InstructionInTextPass::new()),
             Box::new(EcallPass::new()),
             Box::new(ControlFlowPass::new()),
             Box::new(GarbageInputValuePass::new()),
@@ -162,7 +145,7 @@ impl Manager {
     }
 
     pub fn run(
-        parser_output: RVParserOutput,
+        parser_output: &RVParserOutput,
         program_entry: &ProgramEntryType,
     ) -> Result<DiagnosticManager, Box<CfgError>> {
         let mut errors = DiagnosticManager::new();

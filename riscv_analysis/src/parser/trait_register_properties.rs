@@ -8,4 +8,8 @@ pub trait RegisterProperties {
 
     /// Returns true if the register is a stack pointer.
     fn is_stack_pointer(&self) -> bool;
+
+    fn is_initial_register(&self) -> bool;
+
+    fn is_return_addr(&self) -> bool;
 }

@@ -1,5 +1,5 @@
 use crate::cfg::Cfg;
-use crate::parser::{InstructionProperties, Register};
+use crate::parser::{InstructionProperties, RVRegister};
 use crate::passes::{DiagnosticManager, LintError, LintPass};
 
 #[non_exhaustive]
@@ -24,7 +24,7 @@ impl LintPass for SaveToZeroPass {
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg.iter_source() {
             for register in node.writes_to() {
-                if register == Register::X0 && !node.can_skip_save_checks() {
+                if register == RVRegister::X0 && !node.can_skip_save_checks() {
                     errors.push(LintError::SaveToZero(register.clone()));
                 }
             }

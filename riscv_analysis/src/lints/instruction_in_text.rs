@@ -41,9 +41,9 @@ impl LintPass for InstructionInTextPass {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::{ParserNode, RVStringParser};
+    use crate::parser::{RVInstructionNode, RVStringParser};
 
-    fn parse_text(s: &str) -> Vec<ParserNode> {
+    fn parse_text(s: &str) -> Vec<RVInstructionNode> {
         let parser_output = RVStringParser::parse_from_text(s);
         dbg!(&parser_output.errors);
         assert!(parser_output.errors.is_empty());

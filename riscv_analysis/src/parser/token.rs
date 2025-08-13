@@ -6,15 +6,15 @@ use crate::passes::DiagnosticLocation;
 use super::{Range, RawToken, TokenType};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Token {
+pub struct RVToken {
     token_type: TokenType,
     raw_token: RawToken,
 }
 
-impl Token {
+impl RVToken {
     pub fn new<S: Into<String>>(token: TokenType, text: S, pos: Range, file: Uuid) -> Self {
         // TODO: assert token text and positions match
-        Token {
+        RVToken {
             token_type: token,
             raw_token: RawToken::new(text, pos, file),
         }
@@ -22,7 +22,7 @@ impl Token {
 
     #[must_use]
     pub fn new_without_text(token: TokenType, pos: Range, file: Uuid) -> Self {
-        Token {
+        RVToken {
             token_type: token,
             raw_token: RawToken::new(String::new(), pos, file),
         }
@@ -39,25 +39,25 @@ impl Token {
     }
 }
 
-impl From<Token> for RawToken {
-    fn from(token: Token) -> RawToken {
+impl From<RVToken> for RawToken {
+    fn from(token: RVToken) -> RawToken {
         token.raw_token
     }
 }
 
-impl PartialEq<TokenType> for Token {
+impl PartialEq<TokenType> for RVToken {
     fn eq(&self, other: &TokenType) -> bool {
         self.token_type == *other
     }
 }
 
-impl Display for Token {
+impl Display for RVToken {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         Display::fmt(&self.token_type, f)
     }
 }
 
-impl DiagnosticLocation for Token {
+impl DiagnosticLocation for RVToken {
     fn file(&self) -> Uuid {
         self.raw_token.file()
     }

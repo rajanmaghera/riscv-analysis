@@ -59,8 +59,7 @@ impl Display for CfgNode {
         ))?;
         f.write_fmt(format_args!("  | LIVI | {}\n", self.live_in()))?;
         f.write_fmt(format_args!("  | LIVO | {}\n", self.live_out()))?;
-        f.write_fmt(format_args!("  | VALO | {}\n", self.reg_values_out()))?;
-        f.write_fmt(format_args!("  | STCK | {}\n", self.memory_values_out()))?;
+        f.write_fmt(format_args!("  | VALO | {}\n", self.real_val_out()))?;
         f.write_fmt(format_args!("  | UDEF | {}\n", self.u_def()))?;
         f.write_fmt(format_args!("  | FN   | {fn_label}\n"))?;
 

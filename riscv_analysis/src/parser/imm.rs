@@ -1,8 +1,7 @@
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use crate::parser::token::Token;
+use crate::parser::token::RVToken;
 
 use super::TokenType;
 
@@ -26,7 +25,7 @@ impl Imm {
         Imm(ImmType::Constant(value))
     }
 
-    pub fn new_unknown() -> Self {
+    #[must_use] pub fn new_unknown() -> Self {
         Imm(ImmType::Unknown)
     }
 
@@ -39,10 +38,10 @@ impl Imm {
     }
 }
 
-impl TryFrom<Token> for Imm {
+impl TryFrom<RVToken> for Imm {
     type Error = ();
 
-    fn try_from(value: Token) -> Result<Self, Self::Error> {
+    fn try_from(value: RVToken) -> Result<Self, Self::Error> {
         match value.token_type() {
             TokenType::PercentHigh | TokenType::PercentLow => Ok(Imm::new_unknown()),
             TokenType::Symbol(s) => Imm::from_str(s),
@@ -67,10 +66,10 @@ impl CsrImm {
     }
 }
 
-impl TryFrom<Token> for CsrImm {
+impl TryFrom<RVToken> for CsrImm {
     type Error = ();
 
-    fn try_from(value: Token) -> Result<Self, Self::Error> {
+    fn try_from(value: RVToken) -> Result<Self, Self::Error> {
         match value.token_type() {
             TokenType::Symbol(s) => CsrImm::from_str(s),
             _ => Err(()),
@@ -112,7 +111,7 @@ impl FromStr for Imm {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("%") {
+        if s.starts_with('%') {
             return Ok(Imm::new_unknown());
         }
         let s = s.to_lowercase();
@@ -181,7 +180,7 @@ impl From<CsrImm> for Imm {
 impl std::fmt::Display for Imm {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.0 {
-            ImmType::Constant(c) => write!(f, "{}", c),
+            ImmType::Constant(c) => write!(f, "{c}"),
             ImmType::Unknown => write!(f, "unknown"),
         }
     }
