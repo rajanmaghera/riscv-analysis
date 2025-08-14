@@ -32,6 +32,7 @@ pub mod cfg;
 pub mod fix;
 pub mod gen;
 pub mod lints;
+pub mod new_impl;
 pub mod parser;
 pub mod passes;
 pub mod reader;
