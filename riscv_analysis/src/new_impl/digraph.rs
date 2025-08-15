@@ -53,6 +53,10 @@ impl<T: HasIdentity> DigraphNodes<T> {
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.items.values()
     }
+
+    pub fn contains(&self, item: T) -> bool {
+        self.items.contains(item.id())
+    }
 }
 
 /// A directed graph structure.
@@ -160,7 +164,7 @@ impl<T: HasIdentity> Digraph<T> {
     }
 
     pub fn contains(&self, item: &T) -> bool {
-        todo!();
+        self.nodes.contains(item)
     }
 }
 
