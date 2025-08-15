@@ -54,8 +54,8 @@ impl<T: HasIdentity> DigraphNodes<T> {
         self.items.values()
     }
 
-    pub fn contains(&self, item: T) -> bool {
-        self.items.contains(item.id())
+    pub fn contains(&self, item: &T) -> bool {
+        self.items.contains_key(&item.id())
     }
 }
 
