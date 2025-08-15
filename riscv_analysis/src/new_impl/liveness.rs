@@ -58,17 +58,21 @@ impl<T: RegisterLike> LivenessInfo<T> {
 
     // Set live in and out, returning if either were mutated or not
     fn set_live_in_out(&mut self, live_in: T::ArrayType, live_out: T::ArrayType) -> bool {
-        todo!()
+        self.set_live_in(live_in) || self.set_live_out(live_out)
     }
 
     // Set live in, returning if it was mutated or not
     fn set_live_in(&mut self, new: T::ArrayType) -> bool {
-        todo!()
+        let live_in_changed = (self.live_in == new);
+        self.live_in = new;
+        live_in_changed
     }
 
     // Set live out, returning if it was mutated or not
     fn set_live_out(&mut self, new: T::ArrayType) -> bool {
-        todo!()
+        let live_out_changed = (self.live_out == new);
+        self.live_out = new;
+        live_out_changed
     }
 
     fn get_live_in(&self) -> T::ArrayType {
