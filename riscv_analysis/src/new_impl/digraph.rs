@@ -127,6 +127,19 @@ impl<T: HasIdentity> Digraph<T> {
         self.nodes.items.get(&item.id()).unwrap()
     }
 
+    pub fn get_many<'a>(&self, items: impl IntoIterator<Item = &'a T> + Clone) -> Vec<&T> where T: 'a {
+        items.into_iter().map(|item| self.get(item)).collect()
+    }
+
+    pub fn get_by_id(&self, id: &Uuid) -> &T {
+        assert!(self.nodes.items.contains_key(&id));
+        self.nodes.items.get(id).unwrap()
+    }
+
+    pub fn get_many_by_ids<'a>(&self, ids: impl IntoIterator<Item = &'a Uuid> + Clone) -> Vec<&T> {
+        ids.into_iter().map(|id| self.get_by_id(&id)).collect()
+    }
+
     pub fn get_nexts(&self, item: &T) -> impl Iterator<Item = &T> + Clone {
         self.edges
             .nexts

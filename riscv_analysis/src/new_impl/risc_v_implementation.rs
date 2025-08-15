@@ -3,6 +3,7 @@ use crate::new_impl::digraph::{Digraph, DigraphNodes};
 use crate::new_impl::has_labels::HasLabels;
 use crate::parser::HasIdentity;
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::iter::{Enumerate, Peekable};
 use std::ops::Deref;
 use uuid::Uuid;
@@ -10,6 +11,7 @@ use uuid::Uuid;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RealInst {
     labels: HashSet<String>,
+    id: Uuid,
 }
 
 
@@ -32,7 +34,7 @@ impl HasLabels for RealInst {
 
 impl HasIdentity for RealInst {
     fn id(&self) -> Uuid {
-        Uuid::default()
+        self.id
     }
 }
 
@@ -193,8 +195,10 @@ impl<'a> Iterator for RealBasicBlockIterator<'a> {
 /// FUNCTION
 
 pub struct RealFunction<'a> {
-    first_basic_block: RealBasicBlock<'a>,
-    rest_basic_blocks: HashSet<RealBasicBlock<'a>>,
+    digraph: Digraph<RealBasicBlock<'a>>,
+    entry_block_id: Uuid,
+    exit_block_ids: HashSet<Uuid>,
+    id: Uuid,
 }
 
 struct RealFunctionIterator<'a> {
@@ -203,23 +207,83 @@ struct RealFunctionIterator<'a> {
 }
 
 impl<'a> RealFunction<'a> {
-    fn iter(&'a self) -> impl Iterator<Item = &'a RealBasicBlock<'a>> {
-        RealFunctionIterator {
-            first: Some(&self.first_basic_block),
-            iterator: self.rest_basic_blocks.iter(),
+    pub fn new(entry_block: RealBasicBlock<'a>) -> Self {
+        let mut digraph = Digraph::<RealBasicBlock>::new();
+        let entry_block_id = entry_block.id();
+        digraph.add_node(entry_block);
+        RealFunction {
+            digraph,
+            entry_block_id,
+            exit_block_ids: HashSet::new(),
+            id: Uuid::new_v4(),
         }
+    }
+
+    // TODO add a block, connecting it to successors and predecessors,
+    // and adding its id to exit_block_ids if it may exit the function
+    pub fn add_block(&mut self, block: RealBasicBlock<'a>) {
+        todo!()
+        // self.digraph.add_node(block)
+    }
+
+    pub fn remove_block(&mut self, block: &RealBasicBlock<'a>) -> bool {
+        // Cannot remove the entry block
+        if self.block_is_entry(block) {
+            return false;
+        }
+
+        if self.block_is_an_exit(block) {
+            self.exit_block_ids.remove(&block.id());
+        }
+        self.digraph.remove_node(block);
+        true
+    }
+
+    pub fn get_entry_block(&self) -> &RealBasicBlock {
+        self.digraph.get_by_id(&self.entry_block_id)
+    }
+
+    pub fn get_exit_blocks(&self) -> Vec<&RealBasicBlock> {
+        self.digraph.get_many_by_ids(self.exit_block_ids.iter())
+    }
+
+    pub fn block_is_entry(&self, block: &RealBasicBlock) -> bool {
+        self.entry_block_id == block.id()
+    }
+
+    pub fn block_is_an_exit(&self, block: &RealBasicBlock) -> bool {
+        self.exit_block_ids.contains(&block.id())
+    }
+
+    pub fn get_block_nexts(&self, block: &RealBasicBlock<'a>) -> impl Iterator<Item = &RealBasicBlock<'a>> {
+        self.digraph.get_nexts(block)
+    }
+
+    pub fn get_block_prevs(&self, block: &RealBasicBlock<'a>) -> impl Iterator<Item = &RealBasicBlock<'a>> {
+        self.digraph.get_prevs(block)
+    }
+
+    pub fn contains(&self, block: &RealBasicBlock) -> bool {
+        self.digraph.contains(block)
+    }
+}
+
+impl<'a> HasIdentity for RealFunction<'a> {
+    /// Get the id of the function.
+    fn id(&self) -> Uuid {
+        self.id
     }
 }
 
 impl<'a> HasLabels for RealFunction<'a> {
     /// TODO naming may be confusing - only considers first basic block
     fn get_labels(&self) -> &HashSet<String> {
-        &self.first_basic_block.get_labels()
+        &self.get_entry_block().get_labels()
     }
 
     /// TODO naming may be confusing - only considers first basic block
     fn has_label(&self, label: &impl ToString) -> bool {
-        self.first_basic_block.has_label(label)
+        self.get_entry_block().has_label(label)
     }
 }
 
