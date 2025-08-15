@@ -207,6 +207,7 @@ struct RealFunctionIterator<'a> {
 }
 
 impl<'a> RealFunction<'a> {
+    /// Create a new function given its entry block.
     pub fn new(entry_block: RealBasicBlock<'a>) -> Self {
         let mut digraph = Digraph::<RealBasicBlock>::new();
         let entry_block_id = entry_block.id();
@@ -226,7 +227,12 @@ impl<'a> RealFunction<'a> {
         // self.digraph.add_node(block)
     }
 
-    pub fn remove_block(&mut self, block: &RealBasicBlock<'a>) -> bool {
+    /// Remove a non-entry block from the function.
+    ///
+    /// Returns true if the block was successfully removed,
+    /// meaning that it was not the entry block for the function,
+    /// and false otherwise.
+    pub fn remove_non_entry_block(&mut self, block: &RealBasicBlock<'a>) -> bool {
         // Cannot remove the entry block
         if self.block_is_entry(block) {
             return false;
@@ -239,30 +245,37 @@ impl<'a> RealFunction<'a> {
         true
     }
 
+    /// Get the entry block of the function.
     pub fn get_entry_block(&self) -> &RealBasicBlock {
         self.digraph.get_by_id(&self.entry_block_id)
     }
 
+    /// Get the exit blocks of the function.
     pub fn get_exit_blocks(&self) -> Vec<&RealBasicBlock> {
         self.digraph.get_many_by_ids(self.exit_block_ids.iter())
     }
 
+    /// Check if the block is the entry block of this function.
     pub fn block_is_entry(&self, block: &RealBasicBlock) -> bool {
         self.entry_block_id == block.id()
     }
 
+    /// Check if the block is an exit block of this function.
     pub fn block_is_an_exit(&self, block: &RealBasicBlock) -> bool {
         self.exit_block_ids.contains(&block.id())
     }
 
-    pub fn get_block_nexts(&self, block: &RealBasicBlock<'a>) -> impl Iterator<Item = &RealBasicBlock<'a>> {
+    /// Get an iterator over the successor blocks of the provided block that are in this function.
+    pub fn get_block_nexts_in_function(&self, block: &RealBasicBlock<'a>) -> impl Iterator<Item = &RealBasicBlock<'a>> {
         self.digraph.get_nexts(block)
     }
 
-    pub fn get_block_prevs(&self, block: &RealBasicBlock<'a>) -> impl Iterator<Item = &RealBasicBlock<'a>> {
+    /// Get an iterator over the predecessor blocks of the provided block that are in this function.
+    pub fn get_block_prevs_in_function(&self, block: &RealBasicBlock<'a>) -> impl Iterator<Item = &RealBasicBlock<'a>> {
         self.digraph.get_prevs(block)
     }
 
+    /// Check if this function contains the given block.
     pub fn contains(&self, block: &RealBasicBlock) -> bool {
         self.digraph.contains(block)
     }
