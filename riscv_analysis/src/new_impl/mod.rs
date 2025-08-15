@@ -20,6 +20,7 @@ use uuid::Uuid;
 mod calling_convention;
 mod digraph;
 mod gen_kill;
+mod has_labels;
 mod instruction_like;
 mod isa;
 mod limited_element_set;

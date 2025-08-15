@@ -1,5 +1,6 @@
 use crate::cfg::Cfg;
 use crate::new_impl::digraph::{Digraph, DigraphNodes};
+use crate::new_impl::has_labels::HasLabels;
 use crate::parser::HasIdentity;
 use std::collections::HashSet;
 use std::iter::{Enumerate, Peekable};
@@ -7,12 +8,25 @@ use std::ops::Deref;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RealInst {}
+pub struct RealInst {
+    labels: HashSet<String>,
+}
+
 
 impl RealInst {
     // Remove this, this is not the place it should be
     fn get_idx(&self) -> usize {
         todo!()
+    }
+}
+
+impl HasLabels for RealInst {
+    fn get_labels(&self) -> &HashSet<String> {
+        &self.labels
+    }
+
+    fn has_label(&self, label: &impl ToString) -> bool {
+        self.labels.contains(&label.to_string())
     }
 }
 
@@ -113,7 +127,6 @@ impl RealInstList {
 /// A basic block must be sequential in memory.
 pub struct RealBasicBlock<'a> {
     insts: Vec<&'a RealInst>,
-    labels: Vec<String>,
 }
 
 struct RealBasicBlockIterator<'a> {
@@ -134,7 +147,6 @@ impl<'a> RealBasicBlock<'a> {
     fn new(first_inst: &'a RealInst) -> Self {
         Self {
             insts: vec![first_inst],
-            labels: vec![],
         }
     }
 
@@ -143,13 +155,6 @@ impl<'a> RealBasicBlock<'a> {
     /// This function should NOT be published.
     fn push_inst(&mut self, inst: &'a RealInst) {
         self.insts.push(inst);
-    }
-
-    /// Add a label to the basic block.
-    ///
-    /// This function should NOT be published.
-    fn add_label(&mut self, label: &impl ToString) {
-        self.labels.push(label.to_string());
     }
 
     /// Get the last instruction.
@@ -163,6 +168,18 @@ impl<'a> RealBasicBlock<'a> {
 
     fn get_first_instruction(&self) -> &RealInst {
         self.insts.first().unwrap()
+    }
+}
+
+impl<'a> HasLabels for RealBasicBlock<'a> {
+    /// TODO naming may be confusing - only considers first instruction
+    fn get_labels(&self) -> &HashSet<String> {
+        &self.get_first_instruction().get_labels()
+    }
+
+    /// TODO naming may be confusing - only considers first instruction
+    fn has_label(&self, label: &impl ToString) -> bool {
+        self.get_first_instruction().has_label(label)
     }
 }
 
@@ -191,6 +208,18 @@ impl<'a> RealFunction<'a> {
             first: Some(&self.first_basic_block),
             iterator: self.rest_basic_blocks.iter(),
         }
+    }
+}
+
+impl<'a> HasLabels for RealFunction<'a> {
+    /// TODO naming may be confusing - only considers first basic block
+    fn get_labels(&self) -> &HashSet<String> {
+        &self.first_basic_block.get_labels()
+    }
+
+    /// TODO naming may be confusing - only considers first basic block
+    fn has_label(&self, label: &impl ToString) -> bool {
+        self.first_basic_block.has_label(label)
     }
 }
 
