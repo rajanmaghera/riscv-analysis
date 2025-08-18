@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 mod calling_convention;
+mod contains_instructions;
 mod contains_basic_blocks;
 mod contains_functions;
 mod digraph;

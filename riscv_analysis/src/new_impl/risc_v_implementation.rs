@@ -1,6 +1,7 @@
 use crate::cfg::Cfg;
 use crate::new_impl::contains_basic_blocks::ContainsBasicBlocks;
 use crate::new_impl::contains_functions::ContainsFunctions;
+use crate::new_impl::contains_instructions::ContainsInstructions;
 use crate::new_impl::digraph::{Digraph, DigraphNodes};
 use crate::new_impl::has_labels::HasLabels;
 use crate::parser::HasIdentity;
@@ -300,6 +301,35 @@ impl<'a> HasIdentity for RealFunction<'a> {
     }
 }
 
+impl<'a> ContainsInstructions for RealFunction<'a> {
+    /// Given an instruction `inst` in this function, get the next instructions of `inst`
+    /// that are in this function.
+    ///
+    /// Returns `None` if `inst` is not in this function.
+    /// Returns an empty iterator if `inst` is a leaf node in the function (ie. if `inst` returns
+    /// unconditionally or if `inst` exits the program unconditionally).
+    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<impl Iterator<Item = &RealInst>> {
+        if let Some(block) = self.get_basic_block_of_inst(inst) {
+            Some(self.get_block_nexts_in_function(block).map(|b| b.get_first_instruction()))
+        } else {
+            None
+        }
+    }
+
+    /// Given an instruction `inst` in this function, get the previous instructions of `inst`
+    /// that are in this function.
+    ///
+    /// Returns `None` if `inst` is not in this function.
+    /// Returns an empty iterator if `inst` is the entry point of the function.
+    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> Option<impl Iterator<Item = &RealInst>> {
+        if let Some(block) = self.get_basic_block_of_inst(inst) {
+            Some(self.get_block_prevs_in_function(block).map(|b| b.get_last_instruction()))
+        } else {
+            None
+        }
+    }
+}
+
 impl<'a> ContainsBasicBlocks for RealFunction<'a> {
     /// Given the id of a basic block in this function, get the basic block.
     ///
@@ -448,6 +478,30 @@ struct RealCfg<'a> {
     functions: HashMap<Uuid, RealFunction<'a>>,
     inst_ids_to_func_ids: HashMap<Uuid, Uuid>,
     block_ids_to_func_ids: HashMap<Uuid, Uuid>,
+}
+
+impl<'a> ContainsInstructions for RealCfg<'a> {
+    /// Get the next instructions of `inst` that are in the same function as `inst`.
+    ///
+    /// Returns `None` if `inst` is not in the CFG.
+    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<impl Iterator<Item = &RealInst>> {
+        if let Some(function) = self.get_function_of_inst(inst) {
+            function.get_next_insts_intraprocedural(inst)
+        } else {
+            None
+        }
+    }
+
+    /// Get the previous instructions of `inst` that are in the same function as `inst`.
+    ///
+    /// Returns `None` if `inst` is not in the CFG.
+    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> Option<impl Iterator<Item = &RealInst>> {
+        if let Some(function) = self.get_function_of_inst(inst) {
+            function.get_prev_insts_intraprocedural(inst)
+        } else {
+            None
+        }
+    }
 }
 
 impl<'a> ContainsBasicBlocks for RealCfg<'a> {
