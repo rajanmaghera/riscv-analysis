@@ -251,12 +251,12 @@ impl<'a> RealFunction<'a> {
 
     /// Get the entry block of the function.
     pub fn get_entry_block(&self) -> &RealBasicBlock {
-        self.digraph.get_by_id(&self.entry_block_id)
+        self.digraph.get_by_id(&self.entry_block_id).expect("Entry block should exist in function digraph")
     }
 
     /// Get the exit blocks of the function.
     pub fn get_exit_blocks(&self) -> impl Iterator<Item = &RealBasicBlock> {
-        self.exit_block_ids.iter().map(|b| self.digraph.get_by_id(b))
+        self.exit_block_ids.iter().map(|b| self.digraph.get_by_id(b).expect("Exit block should exist in function digraph"))
     }
 
     /// Check if the block is the entry block of this function.
@@ -297,7 +297,7 @@ impl<'a> ContainsBasicBlocks for RealFunction<'a> {
     ///
     /// Returns `None` if there is no block with the specified id in this function.
     fn get_basic_block_by_id(&self, block_id: &Uuid) -> Option<&RealBasicBlock> {
-        Some(self.digraph.get_by_id(block_id))
+        self.digraph.get_by_id(block_id)
     }
 
     /// Given an instruction in this function, get the basic block that contains it.
