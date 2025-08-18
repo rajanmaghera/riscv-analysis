@@ -44,8 +44,9 @@ pub struct RealInstList {
 }
 
 impl RealInstList {
-    fn get_label_names(&self, idx: usize) -> impl Iterator<Item = &str> {
-        [].into_iter()
+    /// Get the labels of the instruction at `idx`.
+    fn get_label_names(&self, idx: usize) -> &HashSet<String> {
+        self.list[idx].get_labels()
     }
 
     /// Return if this instruction is a branch target.
