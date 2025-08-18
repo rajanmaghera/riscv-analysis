@@ -1,9 +1,10 @@
 use crate::cfg::Cfg;
+use crate::new_impl::contains_basic_blocks::ContainsBasicBlocks;
+use crate::new_impl::contains_functions::ContainsFunctions;
 use crate::new_impl::digraph::{Digraph, DigraphNodes};
 use crate::new_impl::has_labels::HasLabels;
 use crate::parser::HasIdentity;
-use std::collections::HashSet;
-use std::hash::Hash;
+use std::collections::{HashMap, HashSet};
 use std::iter::{Enumerate, Peekable};
 use std::ops::Deref;
 use uuid::Uuid;
@@ -196,6 +197,7 @@ impl<'a> Iterator for RealBasicBlockIterator<'a> {
 
 pub struct RealFunction<'a> {
     digraph: Digraph<RealBasicBlock<'a>>,
+    inst_ids_to_block_ids: HashMap<Uuid, Uuid>,
     entry_block_id: Uuid,
     exit_block_ids: HashSet<Uuid>,
     id: Uuid,
@@ -207,24 +209,26 @@ struct RealFunctionIterator<'a> {
 }
 
 impl<'a> RealFunction<'a> {
-    /// Create a new function given its entry block.
+    // Create a new function given its entry block.
     pub fn new(entry_block: RealBasicBlock<'a>) -> Self {
-        let mut digraph = Digraph::<RealBasicBlock>::new();
         let entry_block_id = entry_block.id();
-        digraph.add_node(entry_block);
-        RealFunction {
-            digraph,
+        let inst_ids_to_block_ids: HashMap<Uuid, Uuid> = entry_block.iter().map(|inst| (inst.id(), entry_block.id())).collect();
+        let mut function = RealFunction {
+            digraph: Digraph::new(),
+            inst_ids_to_block_ids: inst_ids_to_block_ids,
             entry_block_id,
             exit_block_ids: HashSet::new(),
             id: Uuid::new_v4(),
-        }
+        };
+        function.add_block(entry_block);
+        function
     }
 
     // TODO add a block, connecting it to successors and predecessors,
     // and adding its id to exit_block_ids if it may exit the function
     pub fn add_block(&mut self, block: RealBasicBlock<'a>) {
-        todo!()
-        // self.digraph.add_node(block)
+        self.digraph.add_node(block);
+        todo!(); // add edges as appropriate
     }
 
     /// Remove a non-entry block from the function.
@@ -251,8 +255,8 @@ impl<'a> RealFunction<'a> {
     }
 
     /// Get the exit blocks of the function.
-    pub fn get_exit_blocks(&self) -> Vec<&RealBasicBlock> {
-        self.digraph.get_many_by_ids(self.exit_block_ids.iter())
+    pub fn get_exit_blocks(&self) -> impl Iterator<Item = &RealBasicBlock> {
+        self.exit_block_ids.iter().map(|b| self.digraph.get_by_id(b))
     }
 
     /// Check if the block is the entry block of this function.
@@ -285,6 +289,22 @@ impl<'a> HasIdentity for RealFunction<'a> {
     /// Get the id of the function.
     fn id(&self) -> Uuid {
         self.id
+    }
+}
+
+impl<'a> ContainsBasicBlocks for RealFunction<'a> {
+    /// Given the id of a basic block in this function, get the basic block.
+    ///
+    /// Returns `None` if there is no block with the specified id in this function.
+    fn get_basic_block_by_id(&self, block_id: &Uuid) -> Option<&RealBasicBlock> {
+        Some(self.digraph.get_by_id(block_id))
+    }
+
+    /// Given an instruction in this function, get the basic block that contains it.
+    ///
+    /// Returns `None` if the instruction is not in this function.
+    fn get_basic_block_of_inst(&self, inst: &RealInst) -> Option<&RealBasicBlock> {
+        self.get_basic_block_by_id(self.inst_ids_to_block_ids.get(&inst.id())?)
     }
 }
 
@@ -417,8 +437,48 @@ impl<'a> Digraph<RealBasicBlock<'a>> {
 /// CFG
 
 struct RealCfg<'a> {
-    rest_functions: HashSet<RealFunction<'a>>,
-    first_function: RealFunction<'a>,
+    functions: HashMap<Uuid, RealFunction<'a>>,
+    inst_ids_to_func_ids: HashMap<Uuid, Uuid>,
+    block_ids_to_func_ids: HashMap<Uuid, Uuid>,
+}
+
+impl<'a> ContainsBasicBlocks for RealCfg<'a> {
+    /// Given the id of a basic block in this CFG, get the basic block.
+    ///
+    /// Returns `None` if there is no block with the specified id in this CFG.
+    fn get_basic_block_by_id(&self, block_id: &Uuid) -> Option<&RealBasicBlock> {
+        self.get_function_by_id(self.block_ids_to_func_ids.get(block_id)?)?.get_basic_block_by_id(block_id)
+    }
+
+    /// Given an instruction in this CFG, get the basic block that contains it.
+    ///
+    /// Returns `None` if the instruction is not in this CFG.
+    fn get_basic_block_of_inst(&self, inst: &RealInst) -> Option<&RealBasicBlock> {
+        self.get_function_of_inst(inst)?.get_basic_block_of_inst(inst)
+    }
+}
+
+impl<'a> ContainsFunctions for RealCfg<'a> {
+    /// Given the id of a function in this CFG, get the function.
+    ///
+    /// Returns `None` if there is no function with the specified id in this CFG.
+    fn get_function_by_id(&self, function_id: &Uuid) -> Option<&RealFunction> {
+        self.functions.get(&function_id)
+    }
+
+    /// Given an instruction in this CFG, get the function that contains it.
+    ///
+    /// Returns `None` if the specified instruction is not in this CFG.
+    fn get_function_of_inst(&self, inst: &RealInst) -> Option<&RealFunction> {
+        self.get_function_by_id(self.inst_ids_to_func_ids.get(&inst.id())?)
+    }
+
+    /// Given a basic block in this CFG, get the function that contains it.
+    ///
+    /// Returns `None` if the specified basic block is not in this CFG.
+    fn get_function_of_basic_block(&self, basic_block: &RealBasicBlock) -> Option<&RealFunction> {
+        self.get_function_by_id(self.block_ids_to_func_ids.get(&basic_block.id())?)
+    }
 }
 
 fn construct_new_cfg_from_inst_list(inst_list: &RealInstList) -> Cfg {
