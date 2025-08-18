@@ -41,9 +41,16 @@ impl HasIdentity for RealInst {
 
 pub struct RealInstList {
     list: Vec<RealInst>,
+    inst_id_to_index_map: HashMap<Uuid, usize>,
 }
 
 impl RealInstList {
+    /// Construct a new `RealInstList`.
+    fn new(list: Vec<RealInst>) -> Self {
+        let inst_id_to_index_map: HashMap<Uuid, usize> = list.iter().enumerate().map(|(idx, inst)| (inst.id(), idx)).collect();
+        RealInstList { list, inst_id_to_index_map }
+    }
+
     /// Get the labels of the instruction at `idx`.
     fn get_label_names(&self, idx: usize) -> &HashSet<String> {
         self.list[idx].get_labels()
