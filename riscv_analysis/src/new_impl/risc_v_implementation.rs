@@ -22,6 +22,22 @@ impl RealInst {
     fn get_idx(&self) -> usize {
         todo!()
     }
+
+    fn is_ret(&self) -> bool {
+        todo!()
+    }
+
+    fn is_call(&self) -> bool {
+        todo!()
+    }
+
+    fn is_call_target(&self) -> bool {
+        todo!()
+    }
+
+    fn get_target_label(&self) -> Option<String> {
+        todo!()
+    }
 }
 
 impl HasLabels for RealInst {
@@ -558,6 +574,82 @@ struct RealCfg<'a> {
     functions: HashMap<Uuid, RealFunction<'a>>,
     inst_ids_to_func_ids: HashMap<Uuid, Uuid>,
     block_ids_to_func_ids: HashMap<Uuid, Uuid>,
+    labels_to_inst_ids: HashMap<String, Uuid>,
+    callee_func_id_to_caller_inst_ids: HashMap<Uuid, HashSet<Uuid>>,
+    call_id_to_return_target_id: HashMap<Uuid, Uuid>,
+}
+
+impl<'a> RealCfg<'a> {
+    /// For a return instruction `ret_inst`, get the ids of all
+    /// possible instructions that it could return to.
+    ///
+    /// Equivalently, for every instruction that calls the function containing `ret_inst`,
+    /// this function gets the ids of the instruction at the return address of those calls.
+    fn get_return_target_ids_for_ret_inst(&self, ret_inst: &RealInst) -> Option<HashSet<&Uuid>> {
+        assert!(ret_inst.is_ret(), "Expected ret instruction");
+        let func_id = &self.get_function_of_inst(ret_inst)?.id();
+        let calling_instructions = self.callee_func_id_to_caller_inst_ids.get(func_id)?;
+        let return_targets = calling_instructions.iter().map(
+            |call_inst_id| self.call_id_to_return_target_id.get(call_inst_id)
+            .expect("Call instruction should exist in call_id_to_return_target_id map")
+        ).collect();
+        Some(return_targets)
+    }
+
+    /// For a return instruction `ret_inst`, get all possible instructions that it could return to.
+    ///
+    /// Equivalently, for every instruction that calls the function containing `ret_inst`,
+    /// this function gets the instruction at the return address of those calls.
+    fn get_return_target_insts_for_ret_inst(&self, ret_inst: &RealInst) -> Option<HashSet<&RealInst>> {
+        Some(
+            self.get_return_target_ids_for_ret_inst(ret_inst)?
+            .iter()
+            .map(
+                |inst_id| self.get_inst_by_id(&inst_id)
+                .expect("Return target instruction should be in the CFG")
+            )
+            .collect()
+        )
+    }
+
+    /// Get the id of the instruction that `call_inst` targets.
+    fn get_target_id_for_call_inst(&self, call_inst: &RealInst) -> Option<&Uuid> {
+        assert!(call_inst.is_call(), "Expected call instruction");
+        self.labels_to_inst_ids.get(&call_inst.get_target_label().expect("Call instruction should have target label"))
+    }
+
+    /// Get the target of the instruction that `call_inst` targets.
+    fn get_target_inst_for_call_inst(&self, call_inst: &RealInst) -> Option<&RealInst> {
+        self.get_inst_by_id(self.get_target_id_for_call_inst(call_inst)?)
+    }
+
+    /// Get the ids of all instructions that call to the provided function entry instruction.
+    fn get_calling_inst_ids_for_func_entry_inst(&self, func_entry_inst: &RealInst) -> Option<&HashSet<Uuid>> {
+        self.get_calling_inst_ids_for_func(self.get_function_of_inst(func_entry_inst)?)
+    }
+
+    /// Get all instructions that call to the provided function entry instruction.
+    fn get_calling_insts_for_func_entry_inst(&self, func_entry_inst: &RealInst) -> Option<HashSet<&RealInst>> {
+        self.get_calling_insts_for_func(self.get_function_of_inst(func_entry_inst)?)
+    }
+
+    /// Get the ids of all instructions that call `func`.
+    fn get_calling_inst_ids_for_func(&self, func: &RealFunction) -> Option<&HashSet<Uuid>> {
+        self.callee_func_id_to_caller_inst_ids.get(&func.id())
+    }
+
+    /// Get all instructions that call `func`.
+    fn get_calling_insts_for_func(&self, func: &RealFunction) -> Option<HashSet<&RealInst>> {
+        Some(
+            self.get_calling_inst_ids_for_func(func)?
+            .iter()
+            .map(
+                |inst_id| self.get_inst_by_id(inst_id)
+                .expect("Calling instruction should be in the CFG")
+            )
+            .collect()
+        )
+    }
 }
 
 impl<'a> ContainsInstructions for RealCfg<'a> {
@@ -645,9 +737,45 @@ impl<'a> ContainsFunctions for RealCfg<'a> {
 
     /// Given the id of a basic block in this CFG, get the function that contains it.
     ///
-    /// Returns `None` if the there is no basic block with the given id in this CFG.
+    /// Returns `None` if there is no basic block with the given id in this CFG.
     fn get_function_of_basic_block_by_id(&self, basic_block_id: &Uuid) -> Option<&RealFunction> {
         self.get_function_by_id(self.block_ids_to_func_ids.get(&basic_block_id)?)
+    }
+
+    /// Given an instruction in this CFG, get all instructions that follow it
+    /// including instructions outside of the function that `inst` is in.
+    ///
+    /// Returns `None` if `inst` is not in this CFG.
+    fn get_next_insts_interprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
+        // get_next_insts_intraprocedural will return None if, and only if, inst is not in function.
+        // So, we can exit get_next_insts_interprocedural early in that case.
+        let intraprocedural_nexts: HashSet<&RealInst> = self.get_next_insts_intraprocedural(inst)?.collect();
+        let mut all_nexts = intraprocedural_nexts;
+        if inst.is_call() {
+            let call_target = self.get_target_inst_for_call_inst(inst).expect("Call instruction should have target");
+            all_nexts.insert(call_target);
+        }
+        if inst.is_ret() {
+            let return_target_insts = self.get_return_target_insts_for_ret_inst(inst).expect("Return instruction should have return addresses");
+            all_nexts.extend(return_target_insts);
+        }
+        Some(all_nexts)
+    }
+
+    /// Given an instruction in this CFG, get all instructions that precede it
+    /// including instructions outside of the function that `inst` is in.
+    ///
+    /// Returns `None` if `inst` is not in this CFG.
+    fn get_prev_insts_interprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
+        // get_prev_insts_intraprocedural will return None if, and only if, inst is not in function.
+        // So, we can exit get_prev_insts_interprocedural early in that case.
+        let intraprocedural_prevs: HashSet<&RealInst> = self.get_prev_insts_intraprocedural(inst)?.collect();
+        let mut all_prevs = intraprocedural_prevs;
+        if inst.is_call_target() {
+            let calling_insts = self.get_calling_insts_for_func_entry_inst(inst)?;
+            all_prevs.extend(calling_insts);
+        }
+        Some(all_prevs)
     }
 }
 
