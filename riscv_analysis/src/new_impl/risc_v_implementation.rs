@@ -139,6 +139,7 @@ impl RealInstList {
 /// A basic block must be sequential in memory.
 pub struct RealBasicBlock<'a> {
     insts: Vec<&'a RealInst>,
+    inst_ids_to_indices: HashMap<Uuid, usize>,
 }
 
 struct RealBasicBlockIterator<'a> {
@@ -157,8 +158,11 @@ impl<'a> RealBasicBlock<'a> {
     /// The input instructions should not be empty. This function
     /// should NOT be published.
     fn new(first_inst: &'a RealInst) -> Self {
+        let mut inst_ids_to_indices = HashMap::new();
+        inst_ids_to_indices.insert(first_inst.id(), 0);
         Self {
             insts: vec![first_inst],
+            inst_ids_to_indices,
         }
     }
 
@@ -166,6 +170,7 @@ impl<'a> RealBasicBlock<'a> {
     ///
     /// This function should NOT be published.
     fn push_inst(&mut self, inst: &'a RealInst) {
+        self.inst_ids_to_indices.insert(inst.id(), self.insts.len());
         self.insts.push(inst);
     }
 
@@ -180,6 +185,56 @@ impl<'a> RealBasicBlock<'a> {
 
     fn get_first_instruction(&self) -> &RealInst {
         self.insts.first().unwrap()
+    }
+
+    /// Get the index of an instruction in this block.
+    ///
+    /// Returns `None` if the given instruction is not in this block.
+    fn get_index_of_inst(&self, inst: &RealInst) -> Option<usize> {
+        self.get_index_of_inst_by_id(&inst.id())
+    }
+
+    /// Get the index of an instruction in this block, given the instruction's id.
+    ///
+    /// Returns `None` if there is no instruction with the given id in this block.
+    fn get_index_of_inst_by_id(&self, inst_id: &Uuid) -> Option<usize> {
+        self.inst_ids_to_indices.get(inst_id).cloned()
+    }
+
+    /// Get the next instruction after `inst` in this block.
+    ///
+    /// Returns `None` if `inst` is not in this basic block,
+    /// or if `inst` is the last instruction in the basic block
+    /// and thus has no next instruction in the block.
+    fn get_next(&self, inst: &RealInst) -> Option<&RealInst> {
+        self.get_next_by_id(&inst.id())
+    }
+
+    /// Get the next instruction after the instruction with id `inst_id` in this block.
+    ///
+    /// Returns `None` if there is no instruction with id `inst_id` is not in this basic block,
+    /// or if the instruction with id `inst_id` is the last instruction in the basic block
+    /// and thus has no next instruction in the block.
+    fn get_next_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
+        self.insts.get(self.get_index_of_inst_by_id(inst_id)? + 1).map(|v| *v)
+    }
+
+    /// Get the previous instruction before `inst` in this block.
+    ///
+    /// Returns `None` if `inst` is not in this basic block,
+    /// or if `inst` is the first instruction in the basic block
+    /// and thus has no previous instruction in the block.
+    fn get_prev(&self, inst: &RealInst) -> Option<&RealInst> {
+        self.get_prev_by_id(&inst.id())
+    }
+
+    /// Get the previous instruction before the instruction with id `inst_id` in this block.
+    ///
+    /// Returns `None` if there is no instruction with id `inst_id` is not in this basic block,
+    /// or if the instruction with id `inst_id` is the first instruction in the basic block
+    /// and thus has no previous instruction in the block.
+    fn get_prev_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
+        self.insts.get(self.get_index_of_inst_by_id(inst_id)? - 1).map(|v| *v)
     }
 }
 
