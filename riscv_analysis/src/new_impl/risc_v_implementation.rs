@@ -10,9 +10,9 @@ use std::iter::{Enumerate, Peekable};
 use std::ops::Deref;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct RealInst {
-    labels: HashSet<String>,
+    labels: Vec<String>,
     id: Uuid,
 }
 
