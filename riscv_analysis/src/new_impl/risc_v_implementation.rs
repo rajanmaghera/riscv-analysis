@@ -324,6 +324,11 @@ impl<'a> RealFunction<'a> {
         self.digraph.get_by_id(&self.entry_block_id).expect("Entry block should exist in function digraph")
     }
 
+    /// Get the entry instruction of the function.
+    pub fn get_entry_inst(&self) -> &RealInst {
+        self.get_entry_block().get_first_instruction()
+    }
+
     /// Get the exit blocks of the function.
     pub fn get_exit_blocks(&self) -> impl Iterator<Item = &RealBasicBlock> {
         self.exit_block_ids.iter().map(|b| self.digraph.get_by_id(b).expect("Exit block should exist in function digraph"))
