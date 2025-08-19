@@ -25,8 +25,8 @@ impl RealInst {
 }
 
 impl HasLabels for RealInst {
-    fn get_labels(&self) -> &HashSet<String> {
-        &self.labels
+    fn get_labels(&self) -> impl Iterator<Item = &String> {
+        self.labels.iter()
     }
 
     fn has_label(&self, label: &impl ToString) -> bool {
@@ -53,7 +53,7 @@ impl RealInstList {
     }
 
     /// Get the labels of the instruction at `idx`.
-    fn get_label_names(&self, idx: usize) -> &HashSet<String> {
+    fn get_label_names(&self, idx: usize) -> impl Iterator<Item = &String> {
         self.list[idx].get_labels()
     }
 
@@ -240,8 +240,8 @@ impl<'a> RealBasicBlock<'a> {
 
 impl<'a> HasLabels for RealBasicBlock<'a> {
     /// TODO naming may be confusing - only considers first instruction
-    fn get_labels(&self) -> &HashSet<String> {
-        &self.get_first_instruction().get_labels()
+    fn get_labels(&self) -> impl Iterator<Item = &String> {
+        self.get_first_instruction().get_labels()
     }
 
     /// TODO naming may be confusing - only considers first instruction
@@ -423,8 +423,8 @@ impl<'a> ContainsBasicBlocks for RealFunction<'a> {
 
 impl<'a> HasLabels for RealFunction<'a> {
     /// TODO naming may be confusing - only considers first basic block
-    fn get_labels(&self) -> &HashSet<String> {
-        &self.get_entry_block().get_labels()
+    fn get_labels(&self) -> impl Iterator<Item = &String> {
+        self.get_entry_block().get_labels()
     }
 
     /// TODO naming may be confusing - only considers first basic block
