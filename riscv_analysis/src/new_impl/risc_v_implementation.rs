@@ -257,6 +257,12 @@ impl<'a> Iterator for RealBasicBlockIterator<'a> {
     }
 }
 
+impl<'a> ContainsInstructions for RealBasicBlock<'a> {
+    fn get_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
+        self.insts.get(*self.inst_ids_to_indices.get(inst_id)?).map(|v| *v)
+    }
+}
+
 /// FUNCTION
 
 pub struct RealFunction<'a> {
@@ -357,6 +363,36 @@ impl<'a> HasIdentity for RealFunction<'a> {
 }
 
 impl<'a> ContainsInstructions for RealFunction<'a> {
+    /// Given the id of an instruction in this function, get the instruction.
+    ///
+    /// Returns `None` if there is no instruction wuth the given id in this function.
+    fn get_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
+        self.get_basic_block_of_inst_by_id(&inst_id)?.get_inst_by_id(&inst_id)
+    }
+}
+
+impl<'a> ContainsBasicBlocks for RealFunction<'a> {
+    /// Given the id of a basic block in this function, get the basic block.
+    ///
+    /// Returns `None` if there is no block with the given id in this function.
+    fn get_basic_block_by_id(&self, block_id: &Uuid) -> Option<&RealBasicBlock> {
+        self.digraph.get_by_id(block_id)
+    }
+
+    /// Given an instruction in this function, get the basic block that contains it.
+    ///
+    /// Returns `None` if the instruction is not in this function.
+    fn get_basic_block_of_inst(&self, inst: &RealInst) -> Option<&RealBasicBlock> {
+        self.get_basic_block_of_inst_by_id(&inst.id())
+    }
+
+    /// Given the id of an instruction in this function, get the basic block that contains it.
+    ///
+    /// Returns `None` if there is no instruction wuth the given id in this function.
+    fn get_basic_block_of_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealBasicBlock> {
+        self.get_basic_block_by_id(self.inst_ids_to_block_ids.get(&inst_id)?)
+    }
+
     /// Given an instruction `inst` in this function, get the next instructions of `inst`
     /// that are in this function.
     ///
@@ -382,22 +418,6 @@ impl<'a> ContainsInstructions for RealFunction<'a> {
         } else {
             None
         }
-    }
-}
-
-impl<'a> ContainsBasicBlocks for RealFunction<'a> {
-    /// Given the id of a basic block in this function, get the basic block.
-    ///
-    /// Returns `None` if there is no block with the specified id in this function.
-    fn get_basic_block_by_id(&self, block_id: &Uuid) -> Option<&RealBasicBlock> {
-        self.digraph.get_by_id(block_id)
-    }
-
-    /// Given an instruction in this function, get the basic block that contains it.
-    ///
-    /// Returns `None` if the instruction is not in this function.
-    fn get_basic_block_of_inst(&self, inst: &RealInst) -> Option<&RealBasicBlock> {
-        self.get_basic_block_by_id(self.inst_ids_to_block_ids.get(&inst.id())?)
     }
 }
 
@@ -539,6 +559,36 @@ impl<'a> ContainsInstructions for RealCfg<'a> {
     /// Get the next instructions of `inst` that are in the same function as `inst`.
     ///
     /// Returns `None` if `inst` is not in the CFG.
+    fn get_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
+        self.get_function_of_inst_by_id(inst_id)?.get_inst_by_id(inst_id)
+    }
+}
+
+impl<'a> ContainsBasicBlocks for RealCfg<'a> {
+    /// Given the id of a basic block in this CFG, get the basic block.
+    ///
+    /// Returns `None` if there is no block with the given id in this CFG.
+    fn get_basic_block_by_id(&self, block_id: &Uuid) -> Option<&RealBasicBlock> {
+        self.get_function_by_id(self.block_ids_to_func_ids.get(block_id)?)?.get_basic_block_by_id(block_id)
+    }
+
+    /// Given an instruction in this CFG, get the basic block that contains it.
+    ///
+    /// Returns `None` if the instruction is not in this CFG.
+    fn get_basic_block_of_inst(&self, inst: &RealInst) -> Option<&RealBasicBlock> {
+        self.get_basic_block_of_inst_by_id(&inst.id())
+    }
+
+     /// Given a the id of an instruction in this CFG, get the basic block that contains it.
+    ///
+    /// Returns `None` if there is no instruction with the given id in this CFG.
+    fn get_basic_block_of_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealBasicBlock> {
+        self.get_function_of_inst_by_id(inst_id)?.get_basic_block_of_inst_by_id(inst_id)
+    }
+
+    /// Get the next instructions of `inst` that are in the same function as `inst`.
+    ///
+    /// Returns `None` if `inst` is not in the CFG.
     fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<impl Iterator<Item = &RealInst>> {
         if let Some(function) = self.get_function_of_inst(inst) {
             function.get_next_insts_intraprocedural(inst)
@@ -559,42 +609,40 @@ impl<'a> ContainsInstructions for RealCfg<'a> {
     }
 }
 
-impl<'a> ContainsBasicBlocks for RealCfg<'a> {
-    /// Given the id of a basic block in this CFG, get the basic block.
-    ///
-    /// Returns `None` if there is no block with the specified id in this CFG.
-    fn get_basic_block_by_id(&self, block_id: &Uuid) -> Option<&RealBasicBlock> {
-        self.get_function_by_id(self.block_ids_to_func_ids.get(block_id)?)?.get_basic_block_by_id(block_id)
-    }
-
-    /// Given an instruction in this CFG, get the basic block that contains it.
-    ///
-    /// Returns `None` if the instruction is not in this CFG.
-    fn get_basic_block_of_inst(&self, inst: &RealInst) -> Option<&RealBasicBlock> {
-        self.get_function_of_inst(inst)?.get_basic_block_of_inst(inst)
-    }
-}
-
 impl<'a> ContainsFunctions for RealCfg<'a> {
     /// Given the id of a function in this CFG, get the function.
     ///
-    /// Returns `None` if there is no function with the specified id in this CFG.
+    /// Returns `None` if there is no function with the given id in this CFG.
     fn get_function_by_id(&self, function_id: &Uuid) -> Option<&RealFunction> {
         self.functions.get(&function_id)
     }
 
     /// Given an instruction in this CFG, get the function that contains it.
     ///
-    /// Returns `None` if the specified instruction is not in this CFG.
+    /// Returns `None` if the given instruction is not in this CFG.
     fn get_function_of_inst(&self, inst: &RealInst) -> Option<&RealFunction> {
-        self.get_function_by_id(self.inst_ids_to_func_ids.get(&inst.id())?)
+        self.get_function_of_inst_by_id(&inst.id())
+    }
+
+    /// Given the id of an instruction in this CFG, get the function that contains it.
+    ///
+    /// Returns `None` if there is no instruction with the given id in this CFG.
+    fn get_function_of_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealFunction> {
+        self.get_function_by_id(self.inst_ids_to_func_ids.get(&inst_id)?)
     }
 
     /// Given a basic block in this CFG, get the function that contains it.
     ///
-    /// Returns `None` if the specified basic block is not in this CFG.
+    /// Returns `None` if the given basic block is not in this CFG.
     fn get_function_of_basic_block(&self, basic_block: &RealBasicBlock) -> Option<&RealFunction> {
-        self.get_function_by_id(self.block_ids_to_func_ids.get(&basic_block.id())?)
+        self.get_function_of_basic_block_by_id(&basic_block.id())
+    }
+
+    /// Given the id of a basic block in this CFG, get the function that contains it.
+    ///
+    /// Returns `None` if the there is no basic block with the given id in this CFG.
+    fn get_function_of_basic_block_by_id(&self, basic_block_id: &Uuid) -> Option<&RealFunction> {
+        self.get_function_by_id(self.block_ids_to_func_ids.get(&basic_block_id)?)
     }
 }
 
