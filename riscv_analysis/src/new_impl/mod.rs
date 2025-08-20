@@ -26,6 +26,7 @@ mod gen_kill;
 mod has_labels;
 mod instruction_like;
 mod interprocedural_instruction_iterator;
+mod intrablock_instruction_iterator;
 mod intraprocedural_instruction_iterator;
 mod isa;
 mod limited_element_set;

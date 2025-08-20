@@ -5,6 +5,7 @@ use crate::new_impl::contains_instructions::ContainsInstructions;
 use crate::new_impl::digraph::{Digraph, DigraphNodes};
 use crate::new_impl::has_labels::HasLabels;
 use crate::new_impl::interprocedural_instruction_iterator::InterproceduralInstructionIterator;
+use crate::new_impl::intrablock_instruction_iterator::IntrablockInstructionIterator;
 use crate::new_impl::intraprocedural_instruction_iterator::IntraproceduralInstructionIterator;
 use crate::parser::HasIdentity;
 use std::collections::{HashMap, HashSet};
@@ -219,15 +220,6 @@ impl<'a> RealBasicBlock<'a> {
         self.inst_ids_to_indices.get(inst_id).cloned()
     }
 
-    /// Get the next instruction after `inst` in this block.
-    ///
-    /// Returns `None` if `inst` is not in this basic block,
-    /// or if `inst` is the last instruction in the basic block
-    /// and thus has no next instruction in the block.
-    fn get_next(&self, inst: &RealInst) -> Option<&RealInst> {
-        self.get_next_by_id(&inst.id())
-    }
-
     /// Get the next instruction after the instruction with id `inst_id` in this block.
     ///
     /// Returns `None` if there is no instruction with id `inst_id` is not in this basic block,
@@ -235,15 +227,6 @@ impl<'a> RealBasicBlock<'a> {
     /// and thus has no next instruction in the block.
     fn get_next_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
         self.insts.get(self.get_index_of_inst_by_id(inst_id)? + 1).map(|v| *v)
-    }
-
-    /// Get the previous instruction before `inst` in this block.
-    ///
-    /// Returns `None` if `inst` is not in this basic block,
-    /// or if `inst` is the first instruction in the basic block
-    /// and thus has no previous instruction in the block.
-    fn get_prev(&self, inst: &RealInst) -> Option<&RealInst> {
-        self.get_prev_by_id(&inst.id())
     }
 
     /// Get the previous instruction before the instruction with id `inst_id` in this block.
@@ -278,6 +261,26 @@ impl<'a> Iterator for RealBasicBlockIterator<'a> {
 impl<'a> ContainsInstructions for RealBasicBlock<'a> {
     fn get_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
         self.insts.get(*self.inst_ids_to_indices.get(inst_id)?).map(|v| *v)
+    }
+}
+
+impl<'a> IntrablockInstructionIterator for RealBasicBlock<'a> {
+    /// Get the next instruction after `inst` in this block.
+    ///
+    /// Returns `None` if `inst` is not in this basic block,
+    /// or if `inst` is the last instruction in the basic block
+    /// and thus has no next instruction in the block.
+    fn get_next_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
+        self.get_next_by_id(&inst.id())
+    }
+
+    /// Get the previous instruction before `inst` in this block.
+    ///
+    /// Returns `None` if `inst` is not in this basic block,
+    /// or if `inst` is the first instruction in the basic block
+    /// and thus has no previous instruction in the block.
+    fn get_prev_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
+        self.get_prev_by_id(&inst.id())
     }
 }
 
@@ -414,6 +417,26 @@ impl<'a> ContainsBasicBlocks for RealFunction<'a> {
     /// Returns `None` if there is no instruction wuth the given id in this function.
     fn get_basic_block_of_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealBasicBlock> {
         self.get_basic_block_by_id(self.inst_ids_to_block_ids.get(&inst_id)?)
+    }
+}
+
+impl<'a> IntrablockInstructionIterator for RealFunction<'a> {
+    /// Get the next instruction after `inst` within `inst`'s basic block.
+    ///
+    /// Returns `None` if `inst` is not in this function,
+    /// or if `inst` is the last instruction in its basic block
+    /// and thus has no next instruction in its block.
+    fn get_next_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
+        self.get_basic_block_of_inst(inst)?.get_next_inst_intrablock(inst)
+    }
+
+    /// Get the previous instruction before `inst` within `inst`'s basic block.
+    ///
+    /// Returns `None` if `inst` is not in this function,
+    /// or if `inst` is the first instruction in its basic block
+    /// and thus has no previous instruction in its block.
+    fn get_prev_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
+        self.get_basic_block_of_inst(inst)?.get_prev_inst_intrablock(inst)
     }
 }
 
@@ -722,6 +745,26 @@ impl<'a> ContainsFunctions for RealCfg<'a> {
     /// Returns `None` if there is no basic block with the given id in this CFG.
     fn get_function_of_basic_block_by_id(&self, basic_block_id: &Uuid) -> Option<&RealFunction> {
         self.get_function_by_id(self.block_ids_to_func_ids.get(&basic_block_id)?)
+    }
+}
+
+impl<'a> IntrablockInstructionIterator for RealCfg<'a> {
+    /// Get the next instruction after `inst` within `inst`'s basic block.
+    ///
+    /// Returns `None` if `inst` is not in this CFG,
+    /// or if `inst` is the last instruction in its basic block
+    /// and thus has no next instruction in its block.
+    fn get_next_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
+        self.get_basic_block_of_inst(inst)?.get_next_inst_intrablock(inst)
+    }
+
+    /// Get the previous instruction before `inst` within `inst`'s basic block.
+    ///
+    /// Returns `None` if `inst` is not in this CFG,
+    /// or if `inst` is the first instruction in its basic block
+    /// and thus has no previous instruction in its block.
+    fn get_prev_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
+        self.get_basic_block_of_inst(inst)?.get_prev_inst_intrablock(inst)
     }
 }
 
