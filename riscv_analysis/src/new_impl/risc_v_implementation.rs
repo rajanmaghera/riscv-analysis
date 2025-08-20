@@ -420,26 +420,6 @@ impl<'a> ContainsBasicBlocks for RealFunction<'a> {
     }
 }
 
-impl<'a> IntrablockInstructionIterator for RealFunction<'a> {
-    /// Get the next instruction after `inst` within `inst`'s basic block.
-    ///
-    /// Returns `None` if `inst` is not in this function,
-    /// or if `inst` is the last instruction in its basic block
-    /// and thus has no next instruction in its block.
-    fn get_next_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
-        self.get_basic_block_of_inst(inst)?.get_next_inst_intrablock(inst)
-    }
-
-    /// Get the previous instruction before `inst` within `inst`'s basic block.
-    ///
-    /// Returns `None` if `inst` is not in this function,
-    /// or if `inst` is the first instruction in its basic block
-    /// and thus has no previous instruction in its block.
-    fn get_prev_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
-        self.get_basic_block_of_inst(inst)?.get_prev_inst_intrablock(inst)
-    }
-}
-
 impl<'a> IntraproceduralInstructionIterator for RealFunction<'a> {
     /// Given an instruction `inst` in this function, get the next instructions of `inst`
     /// that are in this function.
@@ -745,26 +725,6 @@ impl<'a> ContainsFunctions for RealCfg<'a> {
     /// Returns `None` if there is no basic block with the given id in this CFG.
     fn get_function_of_basic_block_by_id(&self, basic_block_id: &Uuid) -> Option<&RealFunction> {
         self.get_function_by_id(self.block_ids_to_func_ids.get(&basic_block_id)?)
-    }
-}
-
-impl<'a> IntrablockInstructionIterator for RealCfg<'a> {
-    /// Get the next instruction after `inst` within `inst`'s basic block.
-    ///
-    /// Returns `None` if `inst` is not in this CFG,
-    /// or if `inst` is the last instruction in its basic block
-    /// and thus has no next instruction in its block.
-    fn get_next_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
-        self.get_basic_block_of_inst(inst)?.get_next_inst_intrablock(inst)
-    }
-
-    /// Get the previous instruction before `inst` within `inst`'s basic block.
-    ///
-    /// Returns `None` if `inst` is not in this CFG,
-    /// or if `inst` is the first instruction in its basic block
-    /// and thus has no previous instruction in its block.
-    fn get_prev_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
-        self.get_basic_block_of_inst(inst)?.get_prev_inst_intrablock(inst)
     }
 }
 
