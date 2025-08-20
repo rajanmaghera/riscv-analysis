@@ -4,6 +4,8 @@ use crate::new_impl::contains_functions::ContainsFunctions;
 use crate::new_impl::contains_instructions::ContainsInstructions;
 use crate::new_impl::digraph::{Digraph, DigraphNodes};
 use crate::new_impl::has_labels::HasLabels;
+use crate::new_impl::interprocedural_instruction_iterator::InterproceduralInstructionIterator;
+use crate::new_impl::intraprocedural_instruction_iterator::IntraproceduralInstructionIterator;
 use crate::parser::HasIdentity;
 use std::collections::{HashMap, HashSet};
 use std::iter::{Enumerate, Peekable};
@@ -413,16 +415,18 @@ impl<'a> ContainsBasicBlocks for RealFunction<'a> {
     fn get_basic_block_of_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealBasicBlock> {
         self.get_basic_block_by_id(self.inst_ids_to_block_ids.get(&inst_id)?)
     }
+}
 
+impl<'a> IntraproceduralInstructionIterator for RealFunction<'a> {
     /// Given an instruction `inst` in this function, get the next instructions of `inst`
     /// that are in this function.
     ///
     /// Returns `None` if `inst` is not in this function.
     /// Returns an empty iterator if `inst` is a leaf node in the function (ie. if `inst` returns
     /// unconditionally or if `inst` exits the program unconditionally).
-    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<impl Iterator<Item = &RealInst>> {
+    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
         if let Some(block) = self.get_basic_block_of_inst(inst) {
-            Some(self.get_block_nexts_in_function(block).map(|b| b.get_first_instruction()))
+            Some(self.get_block_nexts_in_function(block).map(|b| b.get_first_instruction()).collect())
         } else {
             None
         }
@@ -433,9 +437,9 @@ impl<'a> ContainsBasicBlocks for RealFunction<'a> {
     ///
     /// Returns `None` if `inst` is not in this function.
     /// Returns an empty iterator if `inst` is the entry point of the function.
-    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> Option<impl Iterator<Item = &RealInst>> {
+    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
         if let Some(block) = self.get_basic_block_of_inst(inst) {
-            Some(self.get_block_prevs_in_function(block).map(|b| b.get_last_instruction()))
+            Some(self.get_block_prevs_in_function(block).map(|b| b.get_last_instruction()).collect())
         } else {
             None
         }
@@ -682,28 +686,6 @@ impl<'a> ContainsBasicBlocks for RealCfg<'a> {
     fn get_basic_block_of_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealBasicBlock> {
         self.get_function_of_inst_by_id(inst_id)?.get_basic_block_of_inst_by_id(inst_id)
     }
-
-    /// Get the next instructions of `inst` that are in the same function as `inst`.
-    ///
-    /// Returns `None` if `inst` is not in the CFG.
-    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<impl Iterator<Item = &RealInst>> {
-        if let Some(function) = self.get_function_of_inst(inst) {
-            function.get_next_insts_intraprocedural(inst)
-        } else {
-            None
-        }
-    }
-
-    /// Get the previous instructions of `inst` that are in the same function as `inst`.
-    ///
-    /// Returns `None` if `inst` is not in the CFG.
-    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> Option<impl Iterator<Item = &RealInst>> {
-        if let Some(function) = self.get_function_of_inst(inst) {
-            function.get_prev_insts_intraprocedural(inst)
-        } else {
-            None
-        }
-    }
 }
 
 impl<'a> ContainsFunctions for RealCfg<'a> {
@@ -741,7 +723,33 @@ impl<'a> ContainsFunctions for RealCfg<'a> {
     fn get_function_of_basic_block_by_id(&self, basic_block_id: &Uuid) -> Option<&RealFunction> {
         self.get_function_by_id(self.block_ids_to_func_ids.get(&basic_block_id)?)
     }
+}
 
+impl<'a> IntraproceduralInstructionIterator for RealCfg<'a> {
+    /// Get the next instructions of `inst` that are in the same function as `inst`.
+    ///
+    /// Returns `None` if `inst` is not in the CFG.
+    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
+        if let Some(function) = self.get_function_of_inst(inst) {
+            function.get_next_insts_intraprocedural(inst)
+        } else {
+            None
+        }
+    }
+
+    /// Get the previous instructions of `inst` that are in the same function as `inst`.
+    ///
+    /// Returns `None` if `inst` is not in the CFG.
+    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
+        if let Some(function) = self.get_function_of_inst(inst) {
+            function.get_prev_insts_intraprocedural(inst)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> InterproceduralInstructionIterator for RealCfg<'a> {
     /// Given an instruction in this CFG, get all instructions that follow it
     /// including instructions outside of the function that `inst` is in.
     ///
@@ -749,7 +757,7 @@ impl<'a> ContainsFunctions for RealCfg<'a> {
     fn get_next_insts_interprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
         // get_next_insts_intraprocedural will return None if, and only if, inst is not in function.
         // So, we can exit get_next_insts_interprocedural early in that case.
-        let intraprocedural_nexts: HashSet<&RealInst> = self.get_next_insts_intraprocedural(inst)?.collect();
+        let intraprocedural_nexts: HashSet<&RealInst> = self.get_next_insts_intraprocedural(inst)?;
         let mut all_nexts = intraprocedural_nexts;
         if inst.is_call() {
             let call_target = self.get_target_inst_for_call_inst(inst).expect("Call instruction should have target");
@@ -769,7 +777,7 @@ impl<'a> ContainsFunctions for RealCfg<'a> {
     fn get_prev_insts_interprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
         // get_prev_insts_intraprocedural will return None if, and only if, inst is not in function.
         // So, we can exit get_prev_insts_interprocedural early in that case.
-        let intraprocedural_prevs: HashSet<&RealInst> = self.get_prev_insts_intraprocedural(inst)?.collect();
+        let intraprocedural_prevs: HashSet<&RealInst> = self.get_prev_insts_intraprocedural(inst)?;
         let mut all_prevs = intraprocedural_prevs;
         if inst.is_call_target() {
             let calling_insts = self.get_calling_insts_for_func_entry_inst(inst)?;
