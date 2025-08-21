@@ -6,9 +6,11 @@ use crate::new_impl::digraph::{Digraph, DigraphNodes};
 use crate::new_impl::has_labels::HasLabels;
 use crate::new_impl::interprocedural_instruction_iterator::InterproceduralInstructionIterator;
 use crate::new_impl::intrablock_instruction_iterator::IntrablockInstructionIterator;
+use crate::new_impl::intraprocedural_block_iterator::IntraproceduralBlockIterator;
 use crate::new_impl::intraprocedural_instruction_iterator::IntraproceduralInstructionIterator;
 use crate::parser::HasIdentity;
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::iter::{Enumerate, Peekable};
 use std::ops::Deref;
 use uuid::Uuid;
@@ -251,6 +253,20 @@ impl<'a> HasLabels for RealBasicBlock<'a> {
     }
 }
 
+impl<'a> PartialEq for RealBasicBlock<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl<'a> Hash for RealBasicBlock<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id().hash(state);
+    }
+}
+
+impl<'a> Eq for RealBasicBlock<'a> {}
+
 impl<'a> Iterator for RealBasicBlockIterator<'a> {
     type Item = &'a RealInst;
     fn next(&mut self) -> Option<Self::Item> {
@@ -365,16 +381,6 @@ impl<'a> RealFunction<'a> {
         self.exit_block_ids.contains(&block.id())
     }
 
-    /// Get an iterator over the successor blocks of the provided block that are in this function.
-    pub fn get_block_nexts_in_function(&self, block: &RealBasicBlock<'a>) -> impl Iterator<Item = &RealBasicBlock<'a>> {
-        self.digraph.get_nexts(block)
-    }
-
-    /// Get an iterator over the predecessor blocks of the provided block that are in this function.
-    pub fn get_block_prevs_in_function(&self, block: &RealBasicBlock<'a>) -> impl Iterator<Item = &RealBasicBlock<'a>> {
-        self.digraph.get_prevs(block)
-    }
-
     /// Check if this function contains the given block.
     pub fn contains(&self, block: &RealBasicBlock) -> bool {
         self.digraph.contains(block)
@@ -429,7 +435,12 @@ impl<'a> IntraproceduralInstructionIterator for RealFunction<'a> {
     /// unconditionally or if `inst` exits the program unconditionally).
     fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
         if let Some(block) = self.get_basic_block_of_inst(inst) {
-            Some(self.get_block_nexts_in_function(block).map(|b| b.get_first_instruction()).collect())
+            Some(
+                self.get_next_blocks_intraprocedural(block)?
+                .iter()
+                .map(|b| b.get_first_instruction())
+                .collect()
+            )
         } else {
             None
         }
@@ -442,10 +453,27 @@ impl<'a> IntraproceduralInstructionIterator for RealFunction<'a> {
     /// Returns an empty iterator if `inst` is the entry point of the function.
     fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
         if let Some(block) = self.get_basic_block_of_inst(inst) {
-            Some(self.get_block_prevs_in_function(block).map(|b| b.get_last_instruction()).collect())
+            Some(
+                self.get_prev_blocks_intraprocedural(block)?
+                .iter()
+                .map(|b| b.get_last_instruction())
+                .collect()
+            )
         } else {
             None
         }
+    }
+}
+
+impl<'a> IntraproceduralBlockIterator<'a> for RealFunction<'a> {
+    /// Get an iterator over the successor blocks of the provided block that are in this function.
+    fn get_next_blocks_intraprocedural(&'a self, block: &'a RealBasicBlock<'a>) -> Option<HashSet<&'a RealBasicBlock<'a>>> {
+        Some(self.digraph.get_nexts(block).collect())
+    }
+
+    /// Get an iterator over the predecessor blocks of the provided block that are in this function.
+    fn get_prev_blocks_intraprocedural(&'a self, block: &'a RealBasicBlock<'a>) -> Option<HashSet<&'a RealBasicBlock<'a>>> {
+        Some(self.digraph.get_prevs(block).collect())
     }
 }
 
