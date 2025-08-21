@@ -331,11 +331,16 @@ impl<'a> RealFunction<'a> {
         function
     }
 
-    // TODO add a block, connecting it to successors and predecessors,
-    // and adding its id to exit_block_ids if it may exit the function
+    // Add a block to this function without creating any edges.
     pub fn add_block(&mut self, block: RealBasicBlock<'a>) {
         self.digraph.add_node(block);
-        todo!(); // add edges as appropriate
+    }
+
+    // Add a block to this function, creating edges from prevs to the provided block and from block to the provided nexts.
+    pub fn add_block_with_edges(&mut self, block: RealBasicBlock<'a>, prevs: impl Iterator<Item = &'a RealBasicBlock<'a>>, nexts: impl Iterator<Item = &'a RealBasicBlock<'a>>) {
+        prevs.for_each(|prev| self.digraph.edges.add_edge(prev, &block));
+        nexts.for_each(|next| self.digraph.edges.add_edge(&block, next));
+        self.digraph.add_node(block);
     }
 
     /// Remove a non-entry block from the function.
