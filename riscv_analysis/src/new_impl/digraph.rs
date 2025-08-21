@@ -148,6 +148,18 @@ impl<T: HasIdentity> Digraph<T> {
             .map(|x| self.nodes.items.get(x).unwrap())
     }
 
+    pub fn get_ids_of_nexts(&self, item: &T) -> Option<&HashSet<Uuid>> {
+        self.edges
+            .nexts
+            .get(&item.id())
+    }
+
+    pub fn get_ids_of_prevs(&self, item: &T) -> Option<&HashSet<Uuid>> {
+        self.edges
+            .prevs
+            .get(&item.id())
+    }
+
     pub fn get_nexts_mut(&mut self, item: &T) -> impl Iterator<Item = &mut T> {
         let ids = self.edges.nexts.get(&item.id()).unwrap();
         self.nodes
