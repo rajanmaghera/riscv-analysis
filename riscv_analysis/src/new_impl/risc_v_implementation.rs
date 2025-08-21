@@ -15,7 +15,6 @@ use std::iter::{Enumerate, Peekable};
 use std::ops::Deref;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct RealInst {
     labels: Vec<String>,
     id: Uuid,
@@ -60,6 +59,20 @@ impl HasIdentity for RealInst {
         self.id
     }
 }
+
+impl PartialEq for RealInst {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl Hash for RealInst {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id().hash(state);
+    }
+}
+
+impl Eq for RealInst {}
 
 pub struct RealInstList {
     list: Vec<RealInst>,
@@ -398,6 +411,20 @@ impl<'a> HasIdentity for RealFunction<'a> {
         self.id
     }
 }
+
+impl<'a> PartialEq for RealFunction<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl<'a> Hash for RealFunction<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id().hash(state);
+    }
+}
+
+impl<'a> Eq for RealFunction<'a> {}
 
 impl<'a> ContainsInstructions for RealFunction<'a> {
     /// Given the id of an instruction in this function, get the instruction.
