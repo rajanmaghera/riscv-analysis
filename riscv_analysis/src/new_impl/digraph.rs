@@ -122,12 +122,12 @@ impl<T: HasIdentity> Digraph<T> {
         self.nodes.items.remove(&item.id());
     }
 
-    pub fn get(&self, item: &T) -> Option<&T> {
+    pub fn get(&self, item: &T) -> &T {
         self.get_by_id(&item.id())
     }
 
-    pub fn get_by_id(&self, id: &Uuid) -> Option<&T> {
-        self.nodes.items.get(id)
+    pub fn get_by_id(&self, id: &Uuid) -> &T {
+        self.nodes.items.get(id).expect("Item should be in digraph")
     }
 
     pub fn get_nexts(&self, item: &T) -> impl Iterator<Item = &T> + Clone {

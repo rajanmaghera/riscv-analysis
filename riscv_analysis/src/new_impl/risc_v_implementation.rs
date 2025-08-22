@@ -11,7 +11,7 @@ use crate::new_impl::intraprocedural_instruction_iterator::IntraproceduralInstru
 use crate::parser::HasIdentity;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::iter::{Enumerate, Peekable};
+use std::iter::{self, Enumerate, Peekable};
 use std::ops::Deref;
 use uuid::Uuid;
 
@@ -208,49 +208,59 @@ impl<'a> RealBasicBlock<'a> {
         self.insts.push(inst);
     }
 
+    /// Get the first instruction.
+    fn get_first_instruction(&self) -> &RealInst {
+        self.insts.first().expect("First instructions should exist")
+    }
+
     /// Get the last instruction.
     ///
     /// This instruction will always exist, but it might not always be a
     /// control-flow instruction (ie. final instruction in the program that
     /// falls off the end).
     fn get_last_instruction(&self) -> &RealInst {
-        self.insts.last().unwrap()
+        self.insts.last().expect("Last instructions should exist")
     }
 
-    fn get_first_instruction(&self) -> &RealInst {
-        self.insts.first().unwrap()
+    /// Check if an instruction is the first instruction of this basic block.
+    fn first_instruction_is(&self, inst: &RealInst) -> bool {
+        inst == self.get_first_instruction()
+    }
+
+    /// Check if an instruction is the last instruction of this basic block.
+    fn last_instruction_is(&self, inst: &RealInst) -> bool {
+        inst == self.get_last_instruction()
     }
 
     /// Get the index of an instruction in this block.
     ///
-    /// Returns `None` if the given instruction is not in this block.
-    fn get_index_of_inst(&self, inst: &RealInst) -> Option<usize> {
+    /// Panics if there is no instruction with the given id in this block.
+    fn get_index_of_inst(&self, inst: &RealInst) -> usize {
         self.get_index_of_inst_by_id(&inst.id())
     }
 
     /// Get the index of an instruction in this block, given the instruction's id.
     ///
-    /// Returns `None` if there is no instruction with the given id in this block.
-    fn get_index_of_inst_by_id(&self, inst_id: &Uuid) -> Option<usize> {
-        self.inst_ids_to_indices.get(inst_id).cloned()
+    /// Panics if there is no instruction with the given id in this block.
+    fn get_index_of_inst_by_id(&self, inst_id: &Uuid) -> usize {
+        *self.inst_ids_to_indices.get(inst_id)
+        .expect("Instruction id should be in inst_ids_to_indices map")
     }
 
     /// Get the next instruction after the instruction with id `inst_id` in this block.
     ///
-    /// Returns `None` if there is no instruction with id `inst_id` is not in this basic block,
-    /// or if the instruction with id `inst_id` is the last instruction in the basic block
+    /// Returns `None` if the instruction with id `inst_id` is the last instruction in the basic block
     /// and thus has no next instruction in the block.
     fn get_next_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
-        self.insts.get(self.get_index_of_inst_by_id(inst_id)? + 1).map(|v| *v)
+        self.insts.get(self.get_index_of_inst_by_id(inst_id) + 1).map(|v| *v)
     }
 
     /// Get the previous instruction before the instruction with id `inst_id` in this block.
     ///
-    /// Returns `None` if there is no instruction with id `inst_id` is not in this basic block,
-    /// or if the instruction with id `inst_id` is the first instruction in the basic block
+    /// Returns `None` if the instruction with id `inst_id` is the first instruction in the basic block
     /// and thus has no previous instruction in the block.
     fn get_prev_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
-        self.insts.get(self.get_index_of_inst_by_id(inst_id)? - 1).map(|v| *v)
+        self.insts.get(self.get_index_of_inst_by_id(inst_id) - 1).map(|v| *v)
     }
 }
 
@@ -288,16 +298,18 @@ impl<'a> Iterator for RealBasicBlockIterator<'a> {
 }
 
 impl<'a> ContainsInstructions for RealBasicBlock<'a> {
-    fn get_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
-        self.insts.get(*self.inst_ids_to_indices.get(inst_id)?).map(|v| *v)
+    fn get_inst_by_id(&self, inst_id: &Uuid) -> &RealInst {
+        *self.insts.get(
+            self.get_index_of_inst_by_id(inst_id)
+        )
+        .expect("Instruction index should be within the bounds of the insts vector")
     }
 }
 
 impl<'a> IntrablockInstructionIterator for RealBasicBlock<'a> {
     /// Get the next instruction after `inst` in this block.
     ///
-    /// Returns `None` if `inst` is not in this basic block,
-    /// or if `inst` is the last instruction in the basic block
+    /// Returns `None` if `inst` is the last instruction in the basic block
     /// and thus has no next instruction in the block.
     fn get_next_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
         self.get_next_by_id(&inst.id())
@@ -305,8 +317,7 @@ impl<'a> IntrablockInstructionIterator for RealBasicBlock<'a> {
 
     /// Get the previous instruction before `inst` in this block.
     ///
-    /// Returns `None` if `inst` is not in this basic block,
-    /// or if `inst` is the first instruction in the basic block
+    /// Returns `None` if `inst` is the first instruction in the basic block
     /// and thus has no previous instruction in the block.
     fn get_prev_inst_intrablock(&self, inst: &RealInst) -> Option<&RealInst> {
         self.get_prev_by_id(&inst.id())
@@ -319,7 +330,7 @@ pub struct RealFunction<'a> {
     digraph: Digraph<RealBasicBlock<'a>>,
     inst_ids_to_block_ids: HashMap<Uuid, Uuid>,
     entry_block_id: Uuid,
-    exit_block_ids: HashSet<Uuid>,
+    exit_block_ids: HashSet<Uuid>, // may be empty if function never exits
     id: Uuid,
 }
 
@@ -376,7 +387,7 @@ impl<'a> RealFunction<'a> {
 
     /// Get the entry block of the function.
     pub fn get_entry_block(&self) -> &RealBasicBlock {
-        self.digraph.get_by_id(&self.entry_block_id).expect("Entry block should exist in function digraph")
+        self.digraph.get_by_id(&self.entry_block_id)
     }
 
     /// Get the entry instruction of the function.
@@ -385,13 +396,39 @@ impl<'a> RealFunction<'a> {
     }
 
     /// Get the exit blocks of the function.
+    ///
+    /// The returned iterator will contain no elements if this function never exits (eg. it loops infinitely).
     pub fn get_exit_blocks(&self) -> impl Iterator<Item = &RealBasicBlock> {
-        self.exit_block_ids.iter().map(|b| self.digraph.get_by_id(b).expect("Exit block should exist in function digraph"))
+        self.exit_block_ids.iter().map(|b| self.digraph.get_by_id(b))
+    }
+
+    /// Get the exit instructions of the function.
+    ///
+    /// The returned iterator will contain no elements if this function never exits (eg. it loops infinitely).
+    pub fn get_exit_insts(&self) -> impl Iterator<Item = &RealInst> {
+        self.get_exit_blocks().map(|block| block.get_last_instruction())
+    }
+
+    /// Determine if this function has at least one exit.
+    ///
+    /// This will be false if the function never exits (eg. it loops infinitely).
+    pub fn has_an_exit(&self) -> bool {
+        !self.exit_block_ids.is_empty()
+    }
+
+    /// Check if the instruction is the entry point of this function.
+    pub fn inst_is_entry(&self, inst: &RealInst) -> bool {
+        self.get_entry_inst() == inst
     }
 
     /// Check if the block is the entry block of this function.
     pub fn block_is_entry(&self, block: &RealBasicBlock) -> bool {
         self.entry_block_id == block.id()
+    }
+
+    /// Check if the instruction is an exit point of this function.
+    pub fn inst_is_an_exit(&self, inst: &RealInst) -> bool {
+        self.get_exit_insts().collect::<HashSet<&RealInst>>().contains(inst)
     }
 
     /// Check if the block is an exit block of this function.
@@ -429,32 +466,35 @@ impl<'a> Eq for RealFunction<'a> {}
 impl<'a> ContainsInstructions for RealFunction<'a> {
     /// Given the id of an instruction in this function, get the instruction.
     ///
-    /// Returns `None` if there is no instruction wuth the given id in this function.
-    fn get_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
-        self.get_basic_block_of_inst_by_id(&inst_id)?.get_inst_by_id(&inst_id)
+    /// Panics if there is no instruction with the given id in this function.
+    fn get_inst_by_id(&self, inst_id: &Uuid) -> &RealInst {
+        self.get_basic_block_of_inst_by_id(&inst_id).get_inst_by_id(&inst_id)
     }
 }
 
 impl<'a> ContainsBasicBlocks for RealFunction<'a> {
     /// Given the id of a basic block in this function, get the basic block.
     ///
-    /// Returns `None` if there is no block with the given id in this function.
-    fn get_basic_block_by_id(&self, block_id: &Uuid) -> Option<&RealBasicBlock> {
+    /// Panics if there is no block with the given id in this function.
+    fn get_basic_block_by_id(&self, block_id: &Uuid) -> &RealBasicBlock {
         self.digraph.get_by_id(block_id)
     }
 
     /// Given an instruction in this function, get the basic block that contains it.
     ///
-    /// Returns `None` if the instruction is not in this function.
-    fn get_basic_block_of_inst(&self, inst: &RealInst) -> Option<&RealBasicBlock> {
+    /// Panics if the instruction is not in this function.
+    fn get_basic_block_of_inst(&self, inst: &RealInst) -> &RealBasicBlock {
         self.get_basic_block_of_inst_by_id(&inst.id())
     }
 
     /// Given the id of an instruction in this function, get the basic block that contains it.
     ///
-    /// Returns `None` if there is no instruction wuth the given id in this function.
-    fn get_basic_block_of_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealBasicBlock> {
-        self.get_basic_block_by_id(self.inst_ids_to_block_ids.get(&inst_id)?)
+    /// Panics if there is no instruction with the given id in this function.
+    fn get_basic_block_of_inst_by_id(&self, inst_id: &Uuid) -> &RealBasicBlock {
+        self.get_basic_block_by_id(
+            self.inst_ids_to_block_ids.get(&inst_id)
+            .expect("Instruction id should be in inst_ids_to_block_ids map")
+        )
     }
 }
 
@@ -462,50 +502,46 @@ impl<'a> IntraproceduralInstructionIterator for RealFunction<'a> {
     /// Given an instruction `inst` in this function, get the next instructions of `inst`
     /// that are in this function.
     ///
-    /// Returns `None` if `inst` is not in this function.
     /// Returns an empty iterator if `inst` is a leaf node in the function (ie. if `inst` returns
     /// unconditionally or if `inst` exits the program unconditionally).
-    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
-        if let Some(block) = self.get_basic_block_of_inst(inst) {
-            Some(
-                self.get_next_blocks_intraprocedural(block)?
-                .iter()
-                .map(|b| b.get_first_instruction())
-                .collect()
-            )
+    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> HashSet<&RealInst> {
+        let block = self.get_basic_block_of_inst(inst);
+        if block.last_instruction_is(inst) {
+            self.get_next_blocks_intraprocedural(block)
+            .iter()
+            .map(|b| b.get_first_instruction())
+            .collect()
         } else {
-            None
+            iter::once(block.get_next_inst_intrablock(inst).unwrap()).collect()
         }
     }
 
     /// Given an instruction `inst` in this function, get the previous instructions of `inst`
     /// that are in this function.
     ///
-    /// Returns `None` if `inst` is not in this function.
     /// Returns an empty iterator if `inst` is the entry point of the function.
-    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
-        if let Some(block) = self.get_basic_block_of_inst(inst) {
-            Some(
-                self.get_prev_blocks_intraprocedural(block)?
-                .iter()
-                .map(|b| b.get_last_instruction())
-                .collect()
-            )
+    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> HashSet<&RealInst> {
+        let block = self.get_basic_block_of_inst(inst);
+        if block.first_instruction_is(inst) {
+            self.get_prev_blocks_intraprocedural(block)
+            .iter()
+            .map(|b| b.get_first_instruction())
+            .collect()
         } else {
-            None
+            iter::once(block.get_prev_inst_intrablock(inst).unwrap()).collect()
         }
     }
 }
 
 impl<'a> IntraproceduralBlockIterator<'a> for RealFunction<'a> {
     /// Get an iterator over the successor blocks of the provided block that are in this function.
-    fn get_next_blocks_intraprocedural(&'a self, block: &'a RealBasicBlock<'a>) -> Option<HashSet<&'a RealBasicBlock<'a>>> {
-        Some(self.digraph.get_nexts(block).collect())
+    fn get_next_blocks_intraprocedural(&'a self, block: &'a RealBasicBlock<'a>) -> HashSet<&'a RealBasicBlock<'a>> {
+        self.digraph.get_nexts(block).collect()
     }
 
     /// Get an iterator over the predecessor blocks of the provided block that are in this function.
-    fn get_prev_blocks_intraprocedural(&'a self, block: &'a RealBasicBlock<'a>) -> Option<HashSet<&'a RealBasicBlock<'a>>> {
-        Some(self.digraph.get_prevs(block).collect())
+    fn get_prev_blocks_intraprocedural(&'a self, block: &'a RealBasicBlock<'a>) -> HashSet<&'a RealBasicBlock<'a>> {
+        self.digraph.get_prevs(block).collect()
     }
 }
 
@@ -647,206 +683,187 @@ struct RealCfg<'a> {
 }
 
 impl<'a> RealCfg<'a> {
+    /// Get the id of the return target instruction that the
+    /// call with id `call_inst_id` will return to.
+    fn get_return_target_id_of_call_by_id(&self, call_inst_id: &Uuid) -> &Uuid {
+        self.call_id_to_return_target_id.get(call_inst_id)
+            .expect("Call instruction id should be in call_id_to_return_target_id map")
+    }
+
     /// For a return instruction `ret_inst`, get the ids of all
     /// possible instructions that it could return to.
     ///
     /// Equivalently, for every instruction that calls the function containing `ret_inst`,
     /// this function gets the ids of the instruction at the return address of those calls.
-    fn get_return_target_ids_for_ret_inst(&self, ret_inst: &RealInst) -> Option<HashSet<&Uuid>> {
-        assert!(ret_inst.is_ret(), "Expected ret instruction");
-        let func_id = &self.get_function_of_inst(ret_inst)?.id();
-        let calling_instructions = self.callee_func_id_to_caller_inst_ids.get(func_id)?;
-        let return_targets = calling_instructions.iter().map(
-            |call_inst_id| self.call_id_to_return_target_id.get(call_inst_id)
-            .expect("Call instruction should exist in call_id_to_return_target_id map")
-        ).collect();
-        Some(return_targets)
+    fn get_return_target_ids_for_ret_inst(&self, ret_inst: &RealInst) -> HashSet<&Uuid> {
+        self.get_calling_inst_ids_for_func(self.get_function_of_inst(ret_inst))
+        .iter()
+        .map(|call_inst_id| self.get_return_target_id_of_call_by_id(call_inst_id))
+        .collect()
     }
 
     /// For a return instruction `ret_inst`, get all possible instructions that it could return to.
     ///
     /// Equivalently, for every instruction that calls the function containing `ret_inst`,
     /// this function gets the instruction at the return address of those calls.
-    fn get_return_target_insts_for_ret_inst(&self, ret_inst: &RealInst) -> Option<HashSet<&RealInst>> {
-        Some(
-            self.get_return_target_ids_for_ret_inst(ret_inst)?
-            .iter()
-            .map(
-                |inst_id| self.get_inst_by_id(&inst_id)
-                .expect("Return target instruction should be in the CFG")
-            )
-            .collect()
-        )
+    fn get_return_target_insts_for_ret_inst(&self, ret_inst: &RealInst) -> HashSet<&RealInst> {
+        self.get_return_target_ids_for_ret_inst(ret_inst)
+        .iter()
+        .map(|inst_id| self.get_inst_by_id(&inst_id))
+        .collect()
     }
 
     /// Get the id of the instruction that `call_inst` targets.
-    fn get_target_id_for_call_inst(&self, call_inst: &RealInst) -> Option<&Uuid> {
-        assert!(call_inst.is_call(), "Expected call instruction");
-        self.labels_to_inst_ids.get(&call_inst.get_target_label().expect("Call instruction should have target label"))
+    fn get_target_id_for_call_inst(&self, call_inst: &RealInst) -> &Uuid {
+        self.labels_to_inst_ids.get(
+            &call_inst.get_target_label()
+            .expect("Call instruction should have target label")
+        ).expect("Target label should be in labels_to_inst_ids map")
     }
 
     /// Get the target of the instruction that `call_inst` targets.
-    fn get_target_inst_for_call_inst(&self, call_inst: &RealInst) -> Option<&RealInst> {
-        self.get_inst_by_id(self.get_target_id_for_call_inst(call_inst)?)
+    fn get_target_inst_for_call_inst(&self, call_inst: &RealInst) -> &RealInst {
+        self.get_inst_by_id(self.get_target_id_for_call_inst(call_inst))
     }
 
     /// Get the ids of all instructions that call to the provided function entry instruction.
-    fn get_calling_inst_ids_for_func_entry_inst(&self, func_entry_inst: &RealInst) -> Option<&HashSet<Uuid>> {
-        self.get_calling_inst_ids_for_func(self.get_function_of_inst(func_entry_inst)?)
+    fn get_calling_inst_ids_for_func_entry_inst(&self, func_entry_inst: &RealInst) -> &HashSet<Uuid> {
+        self.get_calling_inst_ids_for_func(self.get_function_of_inst(func_entry_inst))
     }
 
     /// Get all instructions that call to the provided function entry instruction.
-    fn get_calling_insts_for_func_entry_inst(&self, func_entry_inst: &RealInst) -> Option<HashSet<&RealInst>> {
-        self.get_calling_insts_for_func(self.get_function_of_inst(func_entry_inst)?)
+    fn get_calling_insts_for_func_entry_inst(&self, func_entry_inst: &RealInst) -> HashSet<&RealInst> {
+        self.get_calling_insts_for_func(self.get_function_of_inst(func_entry_inst))
     }
 
     /// Get the ids of all instructions that call `func`.
-    fn get_calling_inst_ids_for_func(&self, func: &RealFunction) -> Option<&HashSet<Uuid>> {
-        self.callee_func_id_to_caller_inst_ids.get(&func.id())
+    fn get_calling_inst_ids_for_func(&self, func: &RealFunction) -> &HashSet<Uuid> {
+        self.get_calling_inst_ids_for_func_by_id(&func.id())
+    }
+
+    /// Get the ids of all instructions that call the function with id `func_id`.
+    fn get_calling_inst_ids_for_func_by_id(&self, func_id: &Uuid) -> &HashSet<Uuid> {
+        self.callee_func_id_to_caller_inst_ids.get(func_id)
+            .expect("Function id should be in callee_func_id_to_caller_inst_ids map")
     }
 
     /// Get all instructions that call `func`.
-    fn get_calling_insts_for_func(&self, func: &RealFunction) -> Option<HashSet<&RealInst>> {
-        Some(
-            self.get_calling_inst_ids_for_func(func)?
-            .iter()
-            .map(
-                |inst_id| self.get_inst_by_id(inst_id)
-                .expect("Calling instruction should be in the CFG")
-            )
-            .collect()
-        )
+    fn get_calling_insts_for_func(&self, func: &RealFunction) -> HashSet<&RealInst> {
+        self.get_calling_inst_ids_for_func(func)
+        .iter()
+        .map(|inst_id| self.get_inst_by_id(inst_id))
+        .collect()
+    }
+
+    /// Get all instructions that call the function with id `func_id`.
+    fn get_calling_insts_for_func_by_id(&self, func_id: &Uuid) -> HashSet<&RealInst> {
+        self.get_calling_inst_ids_for_func_by_id(func_id)
+        .iter()
+        .map(|inst_id| self.get_inst_by_id(inst_id))
+        .collect()
     }
 }
 
 impl<'a> ContainsInstructions for RealCfg<'a> {
     /// Get the next instructions of `inst` that are in the same function as `inst`.
-    ///
-    /// Returns `None` if `inst` is not in the CFG.
-    fn get_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealInst> {
-        self.get_function_of_inst_by_id(inst_id)?.get_inst_by_id(inst_id)
+    fn get_inst_by_id(&self, inst_id: &Uuid) -> &RealInst {
+        self.get_function_of_inst_by_id(inst_id).get_inst_by_id(inst_id)
     }
 }
 
 impl<'a> ContainsBasicBlocks for RealCfg<'a> {
     /// Given the id of a basic block in this CFG, get the basic block.
-    ///
-    /// Returns `None` if there is no block with the given id in this CFG.
-    fn get_basic_block_by_id(&self, block_id: &Uuid) -> Option<&RealBasicBlock> {
-        self.get_function_by_id(self.block_ids_to_func_ids.get(block_id)?)?.get_basic_block_by_id(block_id)
+    fn get_basic_block_by_id(&self, block_id: &Uuid) -> &RealBasicBlock {
+        self.get_function_of_basic_block_by_id(block_id).get_basic_block_by_id(block_id)
     }
 
     /// Given an instruction in this CFG, get the basic block that contains it.
-    ///
-    /// Returns `None` if the instruction is not in this CFG.
-    fn get_basic_block_of_inst(&self, inst: &RealInst) -> Option<&RealBasicBlock> {
+    fn get_basic_block_of_inst(&self, inst: &RealInst) -> &RealBasicBlock {
         self.get_basic_block_of_inst_by_id(&inst.id())
     }
 
-     /// Given a the id of an instruction in this CFG, get the basic block that contains it.
-    ///
-    /// Returns `None` if there is no instruction with the given id in this CFG.
-    fn get_basic_block_of_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealBasicBlock> {
-        self.get_function_of_inst_by_id(inst_id)?.get_basic_block_of_inst_by_id(inst_id)
+    /// Given a the id of an instruction in this CFG, get the basic block that contains it.
+    fn get_basic_block_of_inst_by_id(&self, inst_id: &Uuid) -> &RealBasicBlock {
+        self.get_function_of_inst_by_id(inst_id).get_basic_block_of_inst_by_id(inst_id)
     }
 }
 
 impl<'a> ContainsFunctions for RealCfg<'a> {
     /// Given the id of a function in this CFG, get the function.
-    ///
-    /// Returns `None` if there is no function with the given id in this CFG.
-    fn get_function_by_id(&self, function_id: &Uuid) -> Option<&RealFunction> {
-        self.functions.get(&function_id)
+    fn get_function_by_id(&self, function_id: &Uuid) -> &RealFunction {
+        self.functions.get(&function_id).expect("Function id should be in functions map")
     }
 
     /// Given an instruction in this CFG, get the function that contains it.
-    ///
-    /// Returns `None` if the given instruction is not in this CFG.
-    fn get_function_of_inst(&self, inst: &RealInst) -> Option<&RealFunction> {
+    fn get_function_of_inst(&self, inst: &RealInst) -> &RealFunction {
         self.get_function_of_inst_by_id(&inst.id())
     }
 
     /// Given the id of an instruction in this CFG, get the function that contains it.
-    ///
-    /// Returns `None` if there is no instruction with the given id in this CFG.
-    fn get_function_of_inst_by_id(&self, inst_id: &Uuid) -> Option<&RealFunction> {
-        self.get_function_by_id(self.inst_ids_to_func_ids.get(&inst_id)?)
+    fn get_function_of_inst_by_id(&self, inst_id: &Uuid) -> &RealFunction {
+        self.get_function_by_id(
+            self.inst_ids_to_func_ids.get(&inst_id)
+            .expect("Instruction id should be in inst_ids_to_func_ids map")
+        )
     }
 
     /// Given a basic block in this CFG, get the function that contains it.
-    ///
-    /// Returns `None` if the given basic block is not in this CFG.
-    fn get_function_of_basic_block(&self, basic_block: &RealBasicBlock) -> Option<&RealFunction> {
+    fn get_function_of_basic_block(&self, basic_block: &RealBasicBlock) -> &RealFunction {
         self.get_function_of_basic_block_by_id(&basic_block.id())
     }
 
     /// Given the id of a basic block in this CFG, get the function that contains it.
-    ///
-    /// Returns `None` if there is no basic block with the given id in this CFG.
-    fn get_function_of_basic_block_by_id(&self, basic_block_id: &Uuid) -> Option<&RealFunction> {
-        self.get_function_by_id(self.block_ids_to_func_ids.get(&basic_block_id)?)
+    fn get_function_of_basic_block_by_id(&self, basic_block_id: &Uuid) -> &RealFunction {
+        self.get_function_by_id(
+            self.block_ids_to_func_ids.get(&basic_block_id)
+            .expect("Basic block id should be in block_ids_to_func_ids map")
+        )
     }
 }
 
 impl<'a> IntraproceduralInstructionIterator for RealCfg<'a> {
     /// Get the next instructions of `inst` that are in the same function as `inst`.
-    ///
-    /// Returns `None` if `inst` is not in the CFG.
-    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
-        if let Some(function) = self.get_function_of_inst(inst) {
-            function.get_next_insts_intraprocedural(inst)
-        } else {
-            None
-        }
+    fn get_next_insts_intraprocedural(&self, inst: &RealInst) -> HashSet<&RealInst> {
+        self.get_function_of_inst(inst).get_next_insts_intraprocedural(inst)
     }
 
     /// Get the previous instructions of `inst` that are in the same function as `inst`.
-    ///
-    /// Returns `None` if `inst` is not in the CFG.
-    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
-        if let Some(function) = self.get_function_of_inst(inst) {
-            function.get_prev_insts_intraprocedural(inst)
-        } else {
-            None
-        }
+    fn get_prev_insts_intraprocedural(&self, inst: &RealInst) -> HashSet<&RealInst> {
+        self.get_function_of_inst(inst).get_prev_insts_intraprocedural(inst)
     }
 }
 
 impl<'a> InterproceduralInstructionIterator for RealCfg<'a> {
     /// Given an instruction in this CFG, get all instructions that follow it
     /// including instructions outside of the function that `inst` is in.
-    ///
-    /// Returns `None` if `inst` is not in this CFG.
-    fn get_next_insts_interprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
+    fn get_next_insts_interprocedural(&self, inst: &RealInst) -> HashSet<&RealInst> {
         // get_next_insts_intraprocedural will return None if, and only if, inst is not in function.
         // So, we can exit get_next_insts_interprocedural early in that case.
-        let intraprocedural_nexts: HashSet<&RealInst> = self.get_next_insts_intraprocedural(inst)?;
+        let intraprocedural_nexts: HashSet<&RealInst> = self.get_next_insts_intraprocedural(inst);
         let mut all_nexts = intraprocedural_nexts;
         if inst.is_call() {
-            let call_target = self.get_target_inst_for_call_inst(inst).expect("Call instruction should have target");
+            let call_target = self.get_target_inst_for_call_inst(inst);
             all_nexts.insert(call_target);
         }
         if inst.is_ret() {
-            let return_target_insts = self.get_return_target_insts_for_ret_inst(inst).expect("Return instruction should have return addresses");
+            let return_target_insts = self.get_return_target_insts_for_ret_inst(inst);
             all_nexts.extend(return_target_insts);
         }
-        Some(all_nexts)
+        all_nexts
     }
 
     /// Given an instruction in this CFG, get all instructions that precede it
     /// including instructions outside of the function that `inst` is in.
-    ///
-    /// Returns `None` if `inst` is not in this CFG.
-    fn get_prev_insts_interprocedural(&self, inst: &RealInst) -> Option<HashSet<&RealInst>> {
+    fn get_prev_insts_interprocedural(&self, inst: &RealInst) -> HashSet<&RealInst> {
         // get_prev_insts_intraprocedural will return None if, and only if, inst is not in function.
         // So, we can exit get_prev_insts_interprocedural early in that case.
-        let intraprocedural_prevs: HashSet<&RealInst> = self.get_prev_insts_intraprocedural(inst)?;
+        let intraprocedural_prevs: HashSet<&RealInst> = self.get_prev_insts_intraprocedural(inst);
         let mut all_prevs = intraprocedural_prevs;
         if inst.is_call_target() {
-            let calling_insts = self.get_calling_insts_for_func_entry_inst(inst)?;
+            let calling_insts = self.get_calling_insts_for_func_entry_inst(inst);
             all_prevs.extend(calling_insts);
         }
-        Some(all_prevs)
+        all_prevs
     }
 }
 
