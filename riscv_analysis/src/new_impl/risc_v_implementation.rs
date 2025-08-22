@@ -350,7 +350,7 @@ struct RealFunctionIterator<'a> {
 }
 
 impl<'a> RealFunction<'a> {
-    // Create a new function given its entry block.
+    /// Create a new function given its entry block.
     pub fn new(entry_block: RealBasicBlock<'a>) -> Self {
         let entry_block_id = entry_block.id();
         let inst_ids_to_block_ids: HashMap<Uuid, Uuid> = entry_block.iter().map(|inst| (inst.id(), entry_block.id())).collect();
@@ -365,16 +365,17 @@ impl<'a> RealFunction<'a> {
         function
     }
 
-    // Add a block to this function without creating any edges.
+    /// Add a block to this function without creating any edges.
     pub fn add_block(&mut self, block: RealBasicBlock<'a>) {
+        self.inst_ids_to_block_ids.extend(block.iter().map(|inst| (inst.id(), block.id())));
         self.digraph.add_node(block);
     }
 
-    // Add a block to this function, creating edges from prevs to the provided block and from block to the provided nexts.
+    /// Add a block to this function, creating edges from prevs to the provided block and from block to the provided nexts.
     pub fn add_block_with_edges(&mut self, block: RealBasicBlock<'a>, prevs: impl Iterator<Item = &'a RealBasicBlock<'a>>, nexts: impl Iterator<Item = &'a RealBasicBlock<'a>>) {
         prevs.for_each(|prev| self.digraph.edges.add_edge(prev, &block));
         nexts.for_each(|next| self.digraph.edges.add_edge(&block, next));
-        self.digraph.add_node(block);
+        self.add_block(block);
     }
 
     /// Remove a non-entry block from the function.
@@ -391,6 +392,7 @@ impl<'a> RealFunction<'a> {
         if self.block_is_an_exit(block) {
             self.exit_block_ids.remove(&block.id());
         }
+        block.iter().map(|inst| inst.id()).for_each(|inst_id| { self.inst_ids_to_block_ids.remove(&inst_id); } );
         self.digraph.remove_node(block);
         true
     }
