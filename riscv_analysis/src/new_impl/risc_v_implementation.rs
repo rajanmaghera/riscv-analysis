@@ -4,11 +4,15 @@ use crate::new_impl::contains_functions::ContainsFunctions;
 use crate::new_impl::contains_instructions::ContainsInstructions;
 use crate::new_impl::digraph::{Digraph, DigraphNodes};
 use crate::new_impl::has_labels::HasLabels;
+use crate::new_impl::instruction_like::{InstructionLike, InstructionLikeInProg};
 use crate::new_impl::interprocedural_instruction_iterator::InterproceduralInstructionIterator;
 use crate::new_impl::intrablock_instruction_iterator::IntrablockInstructionIterator;
 use crate::new_impl::intraprocedural_block_iterator::IntraproceduralBlockIterator;
 use crate::new_impl::intraprocedural_instruction_iterator::IntraproceduralInstructionIterator;
+use crate::new_impl::limited_element_set::LimitedElementSet;
+use crate::new_impl::liveness::{CanGenerateLiveness, LivenessInfo};
 use crate::parser::HasIdentity;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::iter::{self, Enumerate, Peekable};
@@ -39,10 +43,16 @@ impl RealInst {
         todo!()
     }
 
+    fn is_return_target(&self) -> bool {
+        todo!()
+    }
+
     fn get_target_label(&self) -> Option<String> {
         todo!()
     }
 }
+
+impl InstructionLikeInProg for RealInst {}
 
 impl HasLabels for RealInst {
     fn get_labels(&self) -> impl Iterator<Item = &String> {
@@ -416,6 +426,28 @@ impl<'a> RealFunction<'a> {
         !self.exit_block_ids.is_empty()
     }
 
+    /// Get the blocks of this function that end with a return instruction.
+    ///
+    /// The returned iterator will contain no elements if this function has no blocks that end with a return instruction.
+    pub fn get_return_blocks(&self) -> impl Iterator<Item = &RealBasicBlock> {
+        self.exit_block_ids.iter().map(|b| self.digraph.get_by_id(b)).filter(
+            |block| block.get_last_instruction().is_ret()
+        )
+    }
+
+    /// Get the return instructions of the function.
+    ///
+    /// The returned iterator will contain no elements if this function has no return instructions.
+    pub fn get_return_insts(&self) -> impl Iterator<Item = &RealInst> {
+        self.exit_block_ids.iter().map(|b| self.digraph.get_by_id(b).get_last_instruction())
+        .filter(|last_inst| last_inst.is_ret())
+    }
+
+    /// Determine if this function has at least one return.
+    pub fn has_a_return(&self) -> bool {
+        self.get_return_insts().next().is_some()
+    }
+
     /// Check if the instruction is the entry point of this function.
     pub fn inst_is_entry(&self, inst: &RealInst) -> bool {
         self.get_entry_inst() == inst
@@ -439,6 +471,11 @@ impl<'a> RealFunction<'a> {
     /// Check if this function contains the given block.
     pub fn contains(&self, block: &RealBasicBlock) -> bool {
         self.digraph.contains(block)
+    }
+
+    /// Visits all instructions in the function, in arbitrary order.
+    pub fn intraprocedural_iter(&self) -> impl Iterator<Item = &RealInst> {
+        self.digraph.nodes.iter().flat_map(|block| block.iter())
     }
 }
 
@@ -680,9 +717,15 @@ struct RealCfg<'a> {
     labels_to_inst_ids: HashMap<String, Uuid>,
     callee_func_id_to_caller_inst_ids: HashMap<Uuid, HashSet<Uuid>>,
     call_id_to_return_target_id: HashMap<Uuid, Uuid>,
+    liveness: RefCell<HashMap<Uuid, LivenessInfo<<RealInst as InstructionLike>::Register>>>,
 }
 
 impl<'a> RealCfg<'a> {
+    /// Get the return instruction that returns to `ret_target_inst`.
+    fn get_return_inst_for_return_target_inst(&self, ret_target_inst: &RealInst) -> &RealInst {
+        todo!()
+    }
+
     /// Get the id of the return target instruction that the
     /// call with id `call_inst_id` will return to.
     fn get_return_target_id_of_call_by_id(&self, call_inst_id: &Uuid) -> &Uuid {
@@ -863,7 +906,91 @@ impl<'a> InterproceduralInstructionIterator for RealCfg<'a> {
             let calling_insts = self.get_calling_insts_for_func_entry_inst(inst);
             all_prevs.extend(calling_insts);
         }
+        if inst.is_return_target() {
+            let return_inst = self.get_return_inst_for_return_target_inst(inst);
+            all_prevs.insert(return_inst);
+        }
         all_prevs
+    }
+}
+
+impl<'a> CanGenerateLiveness<RealInst> for RealCfg<'a> {
+    fn initialize_liveness(&self) {
+        let mut liveness = self.liveness.borrow_mut();
+        for inst_id in self.inst_ids_to_func_ids.keys() { // TODO better iterator
+            liveness.insert(*inst_id, LivenessInfo::new());
+        }
+    }
+
+    fn get_live_in(&self, item: &RealInst) -> <<RealInst as InstructionLike>::Register as LimitedElementSet>::ArrayType {
+        self.liveness.borrow()
+        .get(&item.id())
+        .expect("Instruction id should be in liveness map")
+        .get_live_in()
+    }
+
+    fn get_live_out(&self, item: &RealInst) -> <<RealInst as InstructionLike>::Register as LimitedElementSet>::ArrayType {
+        self.liveness.borrow()
+        .get(&item.id())
+        .expect("Instruction id should be in liveness map")
+        .get_live_out()
+    }
+
+    fn set_live_in_out(
+        &self,
+        item: &RealInst,
+        live_in: <<RealInst as InstructionLike>::Register as LimitedElementSet>::ArrayType,
+        live_out: <<RealInst as InstructionLike>::Register as LimitedElementSet>::ArrayType
+    ) -> bool {
+        self.liveness.borrow_mut()
+        .get_mut(&item.id())
+        .expect("Instruction id should be in liveness map")
+        .set_live_in_out(live_in, live_out)
+    }
+
+    fn get_leaf_and_loop_nodes<'b>(&'b self) -> impl Iterator<Item = &'b RealInst> where RealInst: 'b {
+        self.functions.values()
+        .flat_map(|func| {
+            // If function has an exit, return an iterator over all exit (leaf) instructions.
+            // Otherwise, return an iterator over all of the instructions in the function
+            if func.has_an_exit() {
+                itertools::Either::Left(func.get_exit_insts())
+            } else {
+                itertools::Either::Right(func.intraprocedural_iter())
+            }
+        })
+    }
+
+    fn get_return_instructions_for_function_that_this_inst_targets<'b>(
+        &'b self,
+        inst: &RealInst,
+    ) -> impl Iterator<Item = &'b RealInst> where RealInst: 'b {
+        self.get_function_of_inst(
+            self.get_target_inst_for_call_inst(inst)
+        ).get_return_insts()
+    }
+
+    fn get_target_instruction_of_function_call_instruction(&self, inst: &RealInst) -> &RealInst {
+        self.get_target_inst_for_call_inst(inst)
+    }
+
+    fn get_function_call_instructions_that_target_this<'b>(
+        &'b self,
+        inst: &RealInst,
+    ) -> impl Iterator<Item = &'b RealInst> where RealInst: 'b {
+        self.get_calling_insts_for_func_entry_inst(inst).into_iter()
+    }
+
+    fn is_first_instruction_in_function(&self, inst: &RealInst) -> bool {
+        self.get_function_of_inst(inst).inst_is_entry(inst)
+    }
+
+    fn get_prevs<'b>(&'b self, inst: &RealInst) -> impl Iterator<Item = &'b RealInst> where RealInst: 'b {
+        self.get_prev_insts_interprocedural(inst).into_iter()
+    }
+
+     fn get_nexts<'b>(&'b self, inst: &RealInst) -> impl Iterator<Item = &'b RealInst> where RealInst: 'b {
+        self.get_next_insts_interprocedural(inst).into_iter()
     }
 }
 
