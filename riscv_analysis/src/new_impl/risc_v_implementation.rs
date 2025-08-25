@@ -184,6 +184,7 @@ impl RealInstList {
 pub struct RealBasicBlock<'a> {
     insts: Vec<&'a RealInst>,
     inst_ids_to_indices: HashMap<Uuid, usize>,
+    id: Uuid,
 }
 
 struct RealBasicBlockIterator<'a> {
@@ -207,6 +208,7 @@ impl<'a> RealBasicBlock<'a> {
         Self {
             insts: vec![first_inst],
             inst_ids_to_indices,
+            id: Uuid::new_v4(),
         }
     }
 
@@ -283,6 +285,12 @@ impl<'a> HasLabels for RealBasicBlock<'a> {
     /// TODO naming may be confusing - only considers first instruction
     fn has_label(&self, label: &impl ToString) -> bool {
         self.get_first_instruction().has_label(label)
+    }
+}
+
+impl<'a> HasIdentity for RealBasicBlock<'a> {
+    fn id(&self) -> Uuid {
+        self.id
     }
 }
 
@@ -651,12 +659,6 @@ impl RealInstList {
             current_basic_block: None,
             list_iterator: self.list.iter().enumerate().peekable(),
         }
-    }
-}
-
-impl<'a> HasIdentity for RealBasicBlock<'a> {
-    fn id(&self) -> Uuid {
-        self.get_first_instruction().id()
     }
 }
 
