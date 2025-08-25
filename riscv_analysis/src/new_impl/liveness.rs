@@ -94,7 +94,7 @@ impl<T: RegisterLike> LivenessInfo<T> {
 fn generate_liveness_information<CC: CallingConventionISA, CFG: CanGenerateLiveness<<CC as ISA>::Instruction>> (
     cfg: &CFG,
 ) where
-    <CC as ISA>::Instruction: InstructionLikeInProg + HasGenKill,
+    <CC as ISA>::Instruction: InstructionLike + HasGenKill,
 {
     cfg.initialize_liveness();
     let worklist = WorklistIter::new(cfg.get_leaf_and_loop_nodes());
