@@ -25,7 +25,7 @@ riscv_analysis = { path = "../riscv_analysis", version = "0.1.0-alpha.2" }
 clap = { version = "4.5.42", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
-serde_json = "1.0.142"
+serde_json = "1.0.143"
 colored = "3.0.0"
 
 [dev-dependencies]
