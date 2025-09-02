@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::analysis::{symbolically_execute, LocValueMap, Location, Value};
 use crate::gen::FunctionMarkupPass;
-use crate::parser::{HasRegisterSets, InstructionProperties, RegisterProperties};
+use crate::parser::{HasRegisterSets, InstructionProperties, RVInst, RegisterProperties};
 use crate::parser::{RVInstructionNode, RVRegister};
 use crate::passes::{CfgError, GenerationPass};
 
@@ -12,6 +12,8 @@ fn will_maybe_not_halt(node: &RVInstructionNode, map: &LocValueMap) -> bool {
             map.get(&Location::Register(RVRegister::ecall_type())),
             Value::Undefined | Value::Const(10 | 93)
         )
+    } else if node.inst() == RVInst::Ebreak {
+        false
     } else {
         true
     }
@@ -54,7 +56,7 @@ impl GenerationPass for AvailableValuePass {
                     })
                     .unwrap_or_default();
 
-                if node.is_function_entry() {
+                if node.is_function_entry() || node.is_program_entry() {
                     val_in.join(&func_entry_map);
                 }
 
@@ -65,13 +67,15 @@ impl GenerationPass for AvailableValuePass {
                     val_out.join_registers(
                         RVRegister::caller_saved_set()
                             .into_iter()
-                            .map(|r| (r, Value::UnknownConst)),
+                            .map(|r| (r, Value::Unknown)),
                     );
                     match val_in.get(&Location::Register(RVRegister::stack_pointer())) {
-                        Value::Unknown => val_out
-                            .join_memory_range_into_stack(i32::MIN..i32::MAX, Value::UnknownConst),
-                        Value::InitialStackPointer(x) => val_out
-                            .join_memory_range_into_stack(i32::MIN..x - 4, Value::UnknownConst),
+                        Value::Unknown => {
+                            val_out.join_memory_range_into_stack(i32::MIN..i32::MAX, Value::Unknown)
+                        }
+                        Value::InitialStackPointer(x) => {
+                            val_out.join_memory_range_into_stack(i32::MIN..x - 4, Value::Unknown)
+                        }
                         _ => {}
                     }
                 }
@@ -86,7 +90,7 @@ impl GenerationPass for AvailableValuePass {
             }
             for node in nodes_to_promote {
                 changed |= cfg.promote_provisional_nexts_to_real(&node);
-                FunctionMarkupPass::run(cfg)?;
+                FunctionMarkupPass::update_function_mappings(cfg)?;
             }
         }
         Ok(())

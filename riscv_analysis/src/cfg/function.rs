@@ -1,4 +1,5 @@
 use super::RefCellReplacement;
+use std::collections::BTreeSet;
 use std::{
     cell::{Ref, RefCell},
     collections::HashSet,
@@ -16,7 +17,7 @@ pub struct Function {
     id: Uuid,
 
     /// Labels for the entry point of this function
-    labels: HashSet<LabelStringToken>,
+    labels: BTreeSet<LabelStringToken>,
 
     /// List of all nodes in the function. May not be in any particular order.
     nodes: RefCell<Vec<Rc<CfgNode>>>,
@@ -27,9 +28,6 @@ pub struct Function {
     /// Exit node of the function. Multiple exit points will be converted to a
     /// single exit point.
     exits: RefCell<HashSet<Rc<CfgNode>>>,
-
-    /// The registers that are set ever in the function
-    defs: RefCell<RegisterSet>,
 
     /// Call sites. These are the function call instructions in the rest of the program
     /// that call this function
@@ -57,12 +55,11 @@ impl Function {
     pub fn new(labels: Vec<LabelStringToken>, nodes: Vec<Rc<CfgNode>>, entry: Rc<CfgNode>) -> Self {
         Function {
             id: Uuid::new_v4(),
-            labels: labels.into_iter().collect::<HashSet<_>>(),
+            labels: labels.into_iter().collect::<BTreeSet<_>>(),
             nodes: RefCell::new(nodes),
             entry,
             call_sites: HashSet::new(),
             exits: RefCell::new(HashSet::new()),
-            defs: RefCell::new(RegisterSet::new()),
         }
     }
 
@@ -85,21 +82,11 @@ impl Function {
             .unwrap_or_default()
     }
 
-    /// Set the registers used by this function.
-    #[must_use]
-    pub fn set_defs(&self, defs: RegisterSet) -> bool {
-        self.defs.replace_if_changed(defs)
-    }
-
-    /// Return the set of written registers.
-    pub fn defs(&self) -> Ref<RegisterSet> {
-        self.defs.borrow()
-    }
-
     #[must_use]
     pub fn to_save(&self) -> RegisterSet {
         // Remove the stack pointer()
-        (*self.defs() & RVRegister::callee_saved_set()) - RVRegister::stack_pointer()
+        // TODO: Scan function to see which lines are defined
+        (RVRegister::callee_saved_set()) - RVRegister::stack_pointer()
     }
 
     /// Set the instructions composing this function.

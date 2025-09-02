@@ -1,5 +1,5 @@
 use super::HasGenKillInfo;
-use crate::cfg::{Cfg, RegisterSet};
+use crate::cfg::{CallTarget, Cfg, RegisterSet};
 use crate::parser::LabelStringToken;
 use crate::{
     parser::{HasRegisterSets, InstructionProperties, RVRegister},
@@ -16,7 +16,7 @@ impl GenerationPass for LivenessPass {
             for node in cfg.iter_source().rev() {
                 if node.is_return() {
                     // live_out[F_exit] = live_out[F_exit] & return-registers
-                    let live_out = if let Some(func) = node.functions().iter().next() {
+                    let live_out = if let Some(func) = node.function().as_ref() {
                         (node.live_out()
                             | cfg
                                 .get_call_sites(func)
@@ -38,27 +38,41 @@ impl GenerationPass for LivenessPass {
                     changed |= node.set_live_out(live_out);
                 }
 
-                if let Some((func, _)) = node.calls_to_from_cfg(cfg) {
-                    for exit in func.exits().iter() {
-                        // live_out[F_exit] = live_out[F_exit] U (live_out[n] & return-registers)
-                        let func_exit_live_out =
-                            (node.live_out() & RVRegister::return_set()) | exit.live_out();
-                        changed |= exit.set_live_out(func_exit_live_out);
-                    }
+                if let Some(call) = node.calls_to_from_cfg(cfg) {
+                    match call {
+                        CallTarget::LabelFunc(func, _) => {
+                            for exit in func.exits().iter() {
+                                // live_out[F_exit] = live_out[F_exit] U (live_out[n] & return-registers)
+                                let func_exit_live_out =
+                                    (node.live_out() & RVRegister::return_set()) | exit.live_out();
+                                changed |= exit.set_live_out(func_exit_live_out);
+                            }
 
-                    // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - caller-saved registers)
-                    let live_in = (func.entry().live_in() & RVRegister::argument_set())
-                        | (node.live_out() - RVRegister::caller_saved_set() - node.kill_reg())
-                        | node.gen_reg();
-                    changed |= node.set_live_in(live_in);
-                } else if let Some((ext_func, _)) =
-                    node.calls_to_some_external_function_from_cfg(cfg)
-                {
-                    // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - caller-saved registers)
-                    let live_in = (ext_func.arguments() & RVRegister::argument_set())
-                        | (node.live_out() - RVRegister::caller_saved_set() - node.kill_reg())
-                        | node.gen_reg();
-                    changed |= node.set_live_in(live_in);
+                            // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - caller-saved registers)
+                            let live_in = (func.entry().live_in() & RVRegister::argument_set())
+                                | (node.live_out()
+                                    - RVRegister::caller_saved_set()
+                                    - node.kill_reg())
+                                | node.gen_reg();
+                            changed |= node.set_live_in(live_in);
+                        }
+                        CallTarget::ExternalFunc(ext_func, _) => {
+                            // live_in[n] = (live_in[F_entry] & argument-registers) U (live_out[n] - caller-saved registers)
+                            let live_in = (ext_func.arguments() & RVRegister::argument_set())
+                                | (node.live_out()
+                                    - RVRegister::caller_saved_set()
+                                    - node.kill_reg())
+                                | node.gen_reg();
+                            changed |= node.set_live_in(live_in);
+                        }
+                        CallTarget::Register(_) => {
+                            let live_in = (node.live_out()
+                                - RVRegister::caller_saved_set()
+                                - node.kill_reg())
+                                | node.gen_reg();
+                            changed |= node.set_live_in(live_in);
+                        }
+                    }
                 } else if node.is_ecall() {
                     let (args, _) = node.known_ecall_signature().unwrap_or_default();
 
@@ -67,6 +81,12 @@ impl GenerationPass for LivenessPass {
                     let live_in = (node.live_out() - RVRegister::caller_saved_set())
                         | RVRegister::ecall_always_argument_set()
                         | args;
+                    changed |= node.set_live_in(live_in);
+                } else if node.is_return() {
+                    // live_in[n] = gen[n] U (live_out[n] - kill[n]) U callee-saved
+                    let live_in = (node.live_out() - node.kill_reg())
+                        | node.gen_reg()
+                        | RVRegister::callee_saved_set();
                     changed |= node.set_live_in(live_in);
                 } else {
                     // live_in[n] = gen[n] U (live_out[n] - kill[n])

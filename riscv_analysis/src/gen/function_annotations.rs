@@ -1,54 +1,18 @@
+use crate::cfg::CallTarget;
 use crate::{
-    cfg::{Cfg, CfgNode, Function, RegisterSet},
+    cfg::{Cfg, Function, RegisterSet},
     parser::InstructionProperties,
     passes::{CfgError, GenerationPass},
 };
 use std::collections::HashSet;
 use std::{rc::Rc, vec};
 
-struct MarkData {
-    pub found: RegisterSet,
-    pub instructions: Vec<Rc<CfgNode>>,
-    pub returns: HashSet<Rc<CfgNode>>,
-}
-
 pub struct FunctionMarkupPass;
 
 impl FunctionMarkupPass {
-    fn mark_reachable(cfg: &Cfg, entry: &Rc<CfgNode>, func: &Rc<Function>) -> MarkData {
-        let mut defs = RegisterSet::new(); // Registers this function writes to
-        let mut returns = HashSet::new(); // Return instructions in this function
-        let mut instructions = Vec::new();
-
-        // Traverse the CFG for all nodes reachable from the entry point
-        for node in cfg.iter_breadth_first(entry) {
-            // Mark the node as being a part of the given function
-            instructions.push(Rc::clone(node));
-            node.insert_function(Rc::clone(func));
-
-            // Collect any registers written to by the node
-            for dest in node.writes_to() {
-                defs |= dest.get_cloned();
-            }
-
-            // Collect return instructions
-            if node.is_return() {
-                returns.insert(Rc::clone(node));
-            }
-        }
-
-        MarkData {
-            found: defs,
-            instructions,
-            returns,
-        }
-    }
-}
-
-impl GenerationPass for FunctionMarkupPass {
-    fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
+    fn initialize(cfg: &mut Cfg) {
         let mut functions_to_insert = Vec::new();
-        for entry in cfg.clone().iter_source() {
+        for entry in cfg.iter_source() {
             // Skip all nodes that are not entry points
             if !entry.is_function_entry() {
                 continue;
@@ -63,27 +27,17 @@ impl GenerationPass for FunctionMarkupPass {
             for label in &labels {
                 functions_to_insert.push((label.clone(), Rc::clone(&func)));
             }
-
-            // Mark all CFG nodes that are reachable from this entry point
-            let data = Self::mark_reachable(cfg, entry, &func);
-            #[allow(unused_must_use)]
-            func.set_defs(data.found);
-            #[allow(unused_must_use)]
-            func.set_nodes(data.instructions);
-            #[allow(unused_must_use)]
-            func.set_exits(data.returns);
         }
-
         for (label, func) in functions_to_insert {
             cfg.insert_function(label, func);
         }
 
-        // Pass 2: on each function, mark up the function call instructions that call
+        // On each function, mark up the function call instructions that call
         // that function.
 
         let mut functions_to_call_sites = Vec::new();
         for node in cfg.iter_source() {
-            if let Some((func, _)) = node.calls_to_from_cfg(cfg) {
+            if let Some(CallTarget::LabelFunc(func, _)) = node.calls_to_from_cfg(cfg) {
                 functions_to_call_sites.push((func, Rc::clone(node)));
             }
         }
@@ -91,7 +45,53 @@ impl GenerationPass for FunctionMarkupPass {
         for (func, call_site) in functions_to_call_sites {
             cfg.insert_call_site(&func, call_site);
         }
+    }
 
+    pub fn update_function_mappings(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
+        for func in cfg.clone().get_all_functions() {
+            // Mark all CFG nodes that are reachable from this entry point
+            let mut defs = RegisterSet::new(); // Registers this function writes to
+            let mut returns = HashSet::new(); // Return instructions in this function
+            let mut instructions = Vec::new();
+
+            // Traverse the CFG for all nodes reachable from the entry point
+            for node in cfg.iter_breadth_first(&func.entry()) {
+                // Mark the node as being a part of the given function
+                instructions.push(Rc::clone(node));
+                if let Some(old) = node.replace_function_if_different(Rc::clone(&func)) {
+                    // There was some older function that didn't match, meaning that
+                    // this node belongs to two functions
+                    return Err(Box::new(CfgError::NodeInTwoFunctions(
+                        node.node(),
+                        old,
+                        Rc::clone(func),
+                    )));
+                }
+
+                // Collect any registers written to by the node
+                for dest in node.writes_to() {
+                    defs |= dest.get_cloned();
+                }
+
+                // Collect return instructions
+                if node.is_return() {
+                    returns.insert(Rc::clone(node));
+                }
+            }
+
+            #[allow(unused_must_use)]
+            func.set_nodes(instructions);
+            #[allow(unused_must_use)]
+            func.set_exits(returns);
+        }
+        Ok(())
+    }
+}
+
+impl GenerationPass for FunctionMarkupPass {
+    fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
+        Self::initialize(cfg);
+        Self::update_function_mappings(cfg)?;
         Ok(())
     }
 }
@@ -152,7 +152,7 @@ mod tests {
 
         // All nodes should have no function annotations
         for node in cfg.iter_source() {
-            assert_eq!(node.functions().len(), 0);
+            assert!(node.function().is_none());
         }
     }
 
@@ -178,7 +178,7 @@ mod tests {
 
         // All nodes in the function have the function annotation
         for node in funcs["fn_a"].nodes().iter() {
-            assert_eq!(node.functions().len(), 1);
+            assert!(node.function().is_some());
         }
 
         // The body of the function matches
@@ -240,55 +240,6 @@ mod tests {
     }
 
     #[test]
-    fn overlapping_functions() {
-        let input = "\
-            main:                       \n\
-                jal     fn_a            \n\
-                jal     fn_b            \n\
-                addi    a7, zero, 10    \n\
-                ecall                   \n\
-            fn_a:                       \n\
-                addi    a1, a0, 0       \n\
-                addi    a1, a0, 1       \n\
-            fn_b:                       \n\
-                addi    a1, a0, 2       \n\
-                ret                     \n";
-
-        let cfg = gen_cfg(input);
-        let funcs = function_map(&cfg);
-
-        // There should be 2 functions with labels `fn_a`, `fn_b`
-        assert_eq!(funcs.len(), 2);
-        let fn_a = function_tokens(&funcs["fn_a"]);
-        let fn_b = function_tokens(&funcs["fn_b"]);
-
-        // Check that the function bodies match
-        assert_eq!(
-            fn_a,
-            HashSet::from([
-                // Insructions after label `fn_a` & `fn_b`
-                "addi    a1, a0, 0".to_string(),
-                "addi    a1, a0, 1".to_string(),
-                "addi    a1, a0, 2".to_string(),
-                "ret".to_string(),
-            ])
-        );
-        assert_eq!(
-            fn_b,
-            HashSet::from([
-                // Only insructions after label `fn_b`
-                "addi    a1, a0, 2".to_string(),
-                "ret".to_string(),
-            ])
-        );
-
-        // All nodes in `fn_b` should have 2 function annotations
-        for nodes in funcs["fn_b"].nodes().iter() {
-            assert_eq!(nodes.functions().len(), 2);
-        }
-    }
-
-    #[test]
     fn interleaved_source() {
         // Two functions have interleaved sources, but share no code
         let input = "\
@@ -332,10 +283,10 @@ mod tests {
 
         // Instructions in both functions should only have a single annotation
         for node in funcs["fn_a"].nodes().iter() {
-            assert_eq!(node.functions().len(), 1);
+            assert!(node.function().is_some());
         }
         for node in funcs["fn_b"].nodes().iter() {
-            assert_eq!(node.functions().len(), 1);
+            assert!(node.function().is_some());
         }
     }
 }

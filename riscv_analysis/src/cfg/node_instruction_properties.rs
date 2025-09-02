@@ -1,4 +1,6 @@
-use crate::parser::{Imm, InstructionProperties, LabelStringToken, RVRegister, RegisterToken};
+use crate::parser::{
+    Imm, InstructionProperties, JumpTarget, LabelStringToken, RVRegister, RegisterToken,
+};
 use std::collections::HashSet;
 
 use super::CfgNode;
@@ -28,7 +30,7 @@ impl InstructionProperties for CfgNode {
         self.node().can_skip_save_checks()
     }
 
-    fn calls_to(&self) -> Option<LabelStringToken> {
+    fn calls_to(&self) -> Option<JumpTarget> {
         self.node().calls_to()
     }
 
@@ -36,7 +38,7 @@ impl InstructionProperties for CfgNode {
         self.node().is_ecall()
     }
 
-    fn jumps_to(&self) -> Option<LabelStringToken> {
+    fn jumps_to(&self) -> Option<JumpTarget> {
         self.node().jumps_to()
     }
 
@@ -52,10 +54,6 @@ impl InstructionProperties for CfgNode {
         self.node().is_unconditional_jump()
     }
 
-    fn is_some_jump_to_label(&self) -> Option<LabelStringToken> {
-        self.node().is_some_jump_to_label()
-    }
-
     fn writes_to(&self) -> HashSet<RegisterToken> {
         self.node().writes_to()
     }
@@ -66,5 +64,17 @@ impl InstructionProperties for CfgNode {
 
     fn reads_address_of(&self) -> Option<LabelStringToken> {
         self.node().reads_address_of()
+    }
+
+    fn is_indirect_uncond_jump(&self) -> bool {
+        self.node().is_indirect_uncond_jump()
+    }
+
+    fn is_direct_uncond_jump(&self) -> bool {
+        self.node().is_direct_uncond_jump()
+    }
+
+    fn is_cond_branch(&self) -> bool {
+        self.node().is_cond_branch()
     }
 }

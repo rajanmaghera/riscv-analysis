@@ -4,8 +4,8 @@ use super::{CfgBreadthFirstIterator, ExternalFunction};
 use super::{CfgNode, RegisterSet};
 use crate::analysis::HasGenKillInfo;
 use crate::parser;
-use crate::parser::RVInstructionNode;
-use crate::parser::{HasIdentity, InstructionProperties};
+use crate::parser::{HasIdentity, InstructionProperties, JumpTarget};
+use crate::parser::{LabelString, Position, RVInstructionNode, RVToken, Range, TokenType};
 use crate::parser::{LabelStringToken, ProgramEntryType, RVParserOutput};
 use crate::parser::{RVRegister, RegisterToken};
 use crate::passes::CfgError;
@@ -80,16 +80,25 @@ trait BaseCfgGen {
     fn load_names(&self) -> HashSet<LabelStringToken>;
 }
 
+fn eliminate_register_jump_target(x: JumpTarget) -> Option<LabelStringToken> {
+    match x {
+        JumpTarget::Label(label) => Some(label),
+        JumpTarget::Register(_) => None,
+    }
+}
+
 impl BaseCfgGen for Vec<RVInstructionNode> {
     fn call_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
             .filter_map(parser::RVInstructionNode::calls_to)
+            .filter_map(eliminate_register_jump_target)
             .collect()
     }
 
     fn jump_names(&self) -> HashSet<LabelStringToken> {
         self.iter()
             .filter_map(parser::RVInstructionNode::jumps_to)
+            .filter_map(eliminate_register_jump_target)
             .collect()
     }
 
@@ -109,17 +118,26 @@ impl Cfg {
         let mut labels = HashMap::new();
         let mut nodes = Vec::new();
 
+        // Get list of all defined labels (labels that can safely be jump targets)
         let mut defined_labels = parser_output.all_defined_labels;
         if let Some(new_set) = &external_functions {
             defined_labels.extend(new_set.iter().map(|(name, _, _)| name.clone()));
         }
+
+        // Get list of all labels that are called to as a functions
         let call_names = {
             let mut set = parser_output.nodes.call_names();
+            // If they exist, treat these labels as the start of a function
             if let Some(new_set) = predefined_call_names {
                 set.extend(new_set.clone());
             }
+            if let Some(new_set) = external_functions {
+                set.extend(new_set.iter().map(|(name, _, _)| name.clone()));
+            }
             set
         };
+        // External functions can contain functions that are also defined in the code
+        // When that happens, don't treat it as an external function
         let jump_names = parser_output.nodes.jump_names();
         let load_names = parser_output.nodes.load_names();
 
@@ -163,22 +181,13 @@ impl Cfg {
             }
 
             // If any of the labels are a function call, add a function entry node
-            let is_function_call = node
-                .label_names()
-                .cloned()
-                .collect::<HashSet<_>>()
-                .intersection(&call_names)
-                .next()
-                .is_some();
-
-            // Get a copy of the node's labels
-            let current_labels = node.label_names().cloned().collect::<HashSet<_>>();
+            let is_function_entry = node.label_names().any(|x| call_names.contains(&x));
 
             // Create the new node
-            let new_node = Rc::new(CfgNode::new(node, is_function_call, is_program_entry));
+            let new_node = Rc::new(CfgNode::new(node, is_function_entry, is_program_entry));
 
             // Add the node to the labels map
-            for label in current_labels {
+            for label in new_node.node().label_names() {
                 labels.insert(label.to_string(), Rc::clone(&new_node));
             }
 
@@ -191,6 +200,8 @@ impl Cfg {
         let label_external_function_map: HashMap<_, _> = external_functions
             .iter()
             .flat_map(|x| x.iter())
+            // Remove external functions where the label is defined in the input code
+            .filter(|x| !labels.keys().any(|y| x.0.get().as_str() == y.as_str()))
             .map(|(name, args, rets)| {
                 (
                     name.clone(),

@@ -110,6 +110,10 @@ impl LocValueMap {
         // Join memory map
         self.memory_range_map.join(&other.memory_range_map);
     }
+
+    pub fn join_all_inner_memory_values(&self) -> Value {
+        self.memory_range_map.join_all_inner_values()
+    }
 }
 
 #[cfg(test)]

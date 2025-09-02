@@ -68,7 +68,7 @@ impl LintPass for StackPass {
                     x => errors.push(
                         DiagnosticBuilder::new("stack-pointer-invalid", "Stack pointer is invalid")
                             .description(format!(
-                                "The stack pointer should be sp - x, but it is {x}"
+                                "The stack pointer should be sp - x (some constant), but it is {x}"
                             ))
                             .with_certainty(DiagnosticCertainty::IsTrueIfAssumptionsAreMet)
                             .is_error_on(node.as_ref()),

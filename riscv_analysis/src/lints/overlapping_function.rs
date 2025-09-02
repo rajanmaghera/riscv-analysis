@@ -30,18 +30,19 @@ impl LintPass for OverlappingFunctionPass {
         "overlapping-function"
     }
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
-        for node in cfg.iter_source() {
-            // Capture entry points that are part of more than one function
-            // NOTE: We only give an error for the first line of a function,
-            //       even though there may be many overlapping instructions.
-            //       This is done to not overwhelm the user with errors.
-            if node.functions().len() > 1 && node.is_function_entry_with_func().is_some() {
-                errors.push(LintError::NodeInManyFunctions(
-                    node.node(),
-                    node.functions().clone().into_iter().collect::<Vec<_>>(),
-                ));
-            }
-        }
+        // Functions no longer generate if overlapping
+        // for node in cfg.iter_source() {
+        //     // Capture entry points that are part of more than one function
+        //     // NOTE: We only give an error for the first line of a function,
+        //     //       even though there may be many overlapping instructions.
+        //     //       This is done to not overwhelm the user with errors.
+        //     if node.functions().len() > 1 && node.is_function_entry_with_func().is_some() {
+        //         errors.push(LintError::NodeInManyFunctions(
+        //             node.node(),
+        //             node.functions().clone().into_iter().collect::<Vec<_>>(),
+        //         ));
+        //     }
+        // }
     }
 }
 

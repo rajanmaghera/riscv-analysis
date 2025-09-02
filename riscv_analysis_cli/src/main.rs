@@ -26,6 +26,7 @@ use riscv_analysis::parser::{
     LabelString, Position, ProgramEntryType, RVRegister, RVToken, Range, TokenType, With,
 };
 use riscv_analysis::reader::{FileReader, FileReaderError};
+use riscv_analysis::stats::determine_instruction_counts;
 
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -120,6 +121,9 @@ struct Lint {
     /// Use a specific label as the program entry
     #[clap(long)]
     program_entry_label: Option<String>,
+    /// Statistics mode
+    #[clap(long)]
+    stats: bool,
 }
 
 #[cfg(feature = "fixes")]
@@ -368,7 +372,6 @@ fn main() {
                     (true, None) => ProgramEntryType::None,
                 };
             let mut parser = RVFileParser::new(reader);
-
             let mut diags = Vec::new();
             let parsed = parser
                 .parse_from_file(
@@ -407,6 +410,125 @@ fn main() {
                 &program_entry_type,
             ) {
                 Ok(full_cfg) => {
+                    // if stats, output only the stats
+                    if lint.stats {
+                        let stats = determine_instruction_counts(&full_cfg);
+                        serde_json::to_writer_pretty(std::io::stdout(), &stats).unwrap();
+                        println!();
+                        println!("\\toprule");
+                        println!("& 505.mcf\\_r \\\\");
+                        println!("\\midrule");
+                        println!("Instructions & \\textbf{{{}}} \\\\", stats.total_insts);
+                        println!("\\midrule");
+                        println!(
+                            "Direct jumps & \\textbf{{{}}} \\\\",
+                            stats.total_direct_jumps
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Function calls & {}\\\\",
+                            stats.total_function_call_insts_direct
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Other & {}\\\\",
+                            stats.total_direct_jumps - stats.total_function_call_insts_direct
+                        );
+                        println!(
+                            "Indirect jumps & \\textbf{{{}}} \\\\",
+                            stats.total_indirect_jumps
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Function calls & {}\\\\",
+                            stats.total_function_call_insts_indirect
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Function returns& {}\\\\",
+                            stats.total_function_return_insts
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Other & {}\\\\",
+                            stats.total_indirect_jumps
+                                - stats.total_function_call_insts_indirect
+                                - stats.total_function_return_insts
+                        );
+                        println!(
+                            "Conditional branches & \\textbf{{{}}} \\\\",
+                            stats.total_cond_branches
+                        );
+                        println!("\\midrule");
+                        println!(
+                            "Function return instructions & \\textbf{{{}}} \\\\",
+                            stats.total_function_return_insts
+                        );
+                        println!(
+                            "\\hspace{{5mm}}All registers valid & {}\\\\",
+                            stats.total_function_return_insts_verified_perfect
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Uncertain & {}\\\\",
+                            stats.total_function_return_insts
+                                - stats.total_function_return_insts_verified_perfect
+                                - stats.total_function_return_insts_verified_error
+                        );
+                        println!(
+                            "\\hspace{{5mm}}At least one register invalid & {}\\\\",
+                            stats.total_function_return_insts_verified_error
+                        );
+                        println!("\\midrule");
+                        println!(
+                            "Function call instructions & \\textbf{{{}}} \\\\",
+                            stats.total_function_call_insts
+                        );
+                        println!(
+                            "\\hspace{{5mm}}All registers valid & {}\\\\",
+                            stats.total_function_call_insts_verified_perfect
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Uncertain & {}\\\\",
+                            stats.total_function_call_insts
+                                - stats.total_function_call_insts_verified_perfect
+                                - stats.total_function_call_insts_verified_error
+                        );
+                        println!(
+                            "\\hspace{{5mm}}At least one register invalid & {}\\\\",
+                            stats.total_function_call_insts_verified_error
+                        );
+                        println!("\\midrule");
+                        println!(
+                            "Store instructions & \\textbf{{{}}} \\\\",
+                            stats.total_store_insts
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Non-caller stack frame clobbering & {}\\\\",
+                            stats.total_store_insts_verified_perfect
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Uncertain & {}\\\\",
+                            stats.total_store_insts
+                                - stats.total_store_insts_verified_perfect
+                                - stats.total_store_insts_verified_stack_frame_clobber
+                        );
+                        println!(
+                            "\\hspace{{5mm}}Caller stack frame clobbering & {}\\\\",
+                            stats.total_store_insts_verified_stack_frame_clobber
+                        );
+                        println!("\\midrule");
+                        println!(
+                            "Function entry nodes & \\textbf{{{}}}\\\\",
+                            stats.total_function_entry_nodes
+                        );
+                        println!(
+                            "\\hspace{{5mm}}All registers valid & {}\\\\",
+                            stats.total_function_entry_nodes_verified_perfect
+                        );
+                        println!(
+                            "\\hspace{{5mm}}At least one register invalid & {}\\\\",
+                            stats.total_function_entry_nodes
+                                - stats.total_function_entry_nodes_verified_perfect
+                        );
+                        println!("\\bottomrule");
+
+                        return;
+                    }
                     // if debug, print out the cfg
                     if lint.yaml {
                         let wrapped = riscv_analysis::cfg::CfgWrapper::from(&full_cfg);

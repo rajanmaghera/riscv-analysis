@@ -40,3 +40,6 @@ mod node_diagnostic_location;
 mod node_gen_kill;
 mod node_has_identity;
 mod node_instruction_properties;
+
+mod worklist_visited;
+pub use worklist_visited::*;

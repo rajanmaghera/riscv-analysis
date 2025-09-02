@@ -42,13 +42,9 @@ where
 
 impl Display for CfgNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fn_label = match self.functions().len() {
-            0 => "N/A".to_string(),
-            _ => self
-                .functions()
-                .iter()
-                .map(|func| func.name().to_string())
-                .join(" | "),
+        let fn_label = match self.function().as_ref() {
+            None => "N/A".to_string(),
+            Some(x) => x.name().to_string(),
         };
 
         f.write_fmt(format_args!(
@@ -60,7 +56,6 @@ impl Display for CfgNode {
         f.write_fmt(format_args!("  | LIVI | {}\n", self.live_in()))?;
         f.write_fmt(format_args!("  | LIVO | {}\n", self.live_out()))?;
         f.write_fmt(format_args!("  | VALO | {}\n", self.real_val_out()))?;
-        f.write_fmt(format_args!("  | UDEF | {}\n", self.u_def()))?;
         f.write_fmt(format_args!("  | FN   | {fn_label}\n"))?;
 
         Ok(())

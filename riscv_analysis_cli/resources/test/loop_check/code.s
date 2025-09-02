@@ -14,6 +14,7 @@ func1:
 	addi sp, sp, -4
 	sw s0, (sp)
 	li s0, 32
+	li s2, 39 # BAD --> overwriting
 
 	L1:
 	beq zero, s0, L2
@@ -21,7 +22,6 @@ func1:
 	addi sp, sp, -4
 	sw s1, (sp)
 	li s1, 64
-	li s2, 39 # BAD --> overwriting
 	add s1, s1, s0
 	add s1, s1, a0 # Unused value
 	lw s1, (sp)

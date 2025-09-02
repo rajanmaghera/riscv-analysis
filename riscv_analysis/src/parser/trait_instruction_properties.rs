@@ -1,6 +1,12 @@
 use std::collections::HashSet;
 
-use super::{Imm, LabelStringToken, RVRegister, RegisterToken};
+use super::{Imm, LabelStringToken, RVInstructionNode, RVRegister, RegisterToken};
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum JumpTarget {
+    Label(LabelStringToken),
+    Register(RegisterToken),
+}
 
 pub trait InstructionProperties {
     fn is_return(&self) -> bool;
@@ -31,7 +37,7 @@ pub trait InstructionProperties {
 
     /// Checks if a instruction is a function call
     #[must_use]
-    fn calls_to(&self) -> Option<LabelStringToken>;
+    fn calls_to(&self) -> Option<JumpTarget>;
 
     /// Checks if a instruction is an environment call
     #[must_use]
@@ -39,7 +45,7 @@ pub trait InstructionProperties {
 
     /// Checks if a instruction is a potential jump
     #[must_use]
-    fn jumps_to(&self) -> Option<LabelStringToken>;
+    fn jumps_to(&self) -> Option<JumpTarget>;
 
     /// Check if a node is an instruction.
     #[must_use]
@@ -57,10 +63,6 @@ pub trait InstructionProperties {
     #[must_use]
     fn is_unconditional_jump(&self) -> bool;
 
-    /// Checks whether this is some jump to a known label with no side effects.
-    #[must_use]
-    fn is_some_jump_to_label(&self) -> Option<LabelStringToken>;
-
     /// Checks whether this instruction writes to a register, and which register it writes to.
     #[must_use]
     fn writes_to(&self) -> HashSet<RegisterToken>;
@@ -70,4 +72,10 @@ pub trait InstructionProperties {
     fn reads_from(&self) -> HashSet<RegisterToken>;
 
     fn reads_address_of(&self) -> Option<LabelStringToken>;
+
+    fn is_indirect_uncond_jump(&self) -> bool;
+
+    fn is_direct_uncond_jump(&self) -> bool;
+
+    fn is_cond_branch(&self) -> bool;
 }

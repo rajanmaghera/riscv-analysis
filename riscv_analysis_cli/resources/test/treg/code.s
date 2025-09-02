@@ -3,12 +3,14 @@
 #     dj
     li a0, 1
     li a1, 2
-    li t2, 2
+    li t2, 2                    # Unused t2
     jal foo
     li a0, 2321
-    add    t3 , ,,,  t2,    t4
-    add t0, a0, a1
+    add    t3 , ,,,  t2,    t4  # Invalid use of t2 & t4, unused t3
+    add t0, a0, a1              # Unused t0
     jal bar
+    li a7, 1
+    ecall
     li a7, 10
     ecall
 
@@ -16,7 +18,7 @@ bar:
     addi sp, sp, -4
     sw ra, (sp)
     sw s0, 4(sp)
-    li s0, 2
+    li s0, 2                    # Unused s0
     jal foo
     lw ra, (sp)
     lw s0, 4(sp)

@@ -1,6 +1,7 @@
-use std::{collections::HashSet, fmt::Display};
-
+use crate::cfg::Function;
 use crate::parser::{LabelStringToken, RVInstructionNode};
+use std::rc::Rc;
+use std::{collections::HashSet, fmt::Display};
 
 use super::{DiagnosticLocation, DiagnosticMessage, SeverityLevel};
 
@@ -17,12 +18,8 @@ pub enum CfgError {
     LabelsNotDefined(HashSet<LabelStringToken>),
     /// This error occurs when a label is defined more than once.
     DuplicateLabel(LabelStringToken),
-    /// This error occurs when a return statement is used but can be reached by
-    /// multiple labels.
-    MultipleLabelsForReturn(RVInstructionNode, HashSet<LabelStringToken>),
-    /// This error occurs when a return statement is used but can be reached by
-    /// no labels.
-    NoLabelForReturn(RVInstructionNode),
+    /// Node in two functions
+    NodeInTwoFunctions(RVInstructionNode, Rc<Function>, Rc<Function>),
 }
 
 trait SetListString {
@@ -52,11 +49,8 @@ impl Display for CfgError {
             CfgError::DuplicateLabel(label) => {
                 write!(f, "Duplicate label: {label}")
             }
-            CfgError::MultipleLabelsForReturn(_, labels) => {
-                write!(f, "Multiple labels for return: {}", labels.as_str_list())
-            }
-            CfgError::NoLabelForReturn(_) => {
-                write!(f, "No label for return")
+            CfgError::NodeInTwoFunctions(_, _, _) => {
+                write!(f, "Node in two functions")
             }
         }
     }
@@ -67,8 +61,7 @@ impl From<&CfgError> for SeverityLevel {
         match value {
             CfgError::LabelsNotDefined(_)
             | CfgError::DuplicateLabel(_)
-            | CfgError::MultipleLabelsForReturn(_, _)
-            | CfgError::NoLabelForReturn(_) => SeverityLevel::Error,
+            | CfgError::NodeInTwoFunctions(_, _, _) => SeverityLevel::Error,
         }
     }
 }
@@ -76,9 +69,7 @@ impl From<&CfgError> for SeverityLevel {
 impl DiagnosticLocation for CfgError {
     fn file(&self) -> uuid::Uuid {
         match self {
-            CfgError::MultipleLabelsForReturn(node, _) | CfgError::NoLabelForReturn(node) => {
-                node.file()
-            }
+            CfgError::NodeInTwoFunctions(node, _, _) => node.file(),
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().file(),
             CfgError::DuplicateLabel(label) => label.file(),
         }
@@ -86,9 +77,7 @@ impl DiagnosticLocation for CfgError {
 
     fn range(&self) -> crate::parser::Range {
         match self {
-            CfgError::MultipleLabelsForReturn(node, _) | CfgError::NoLabelForReturn(node) => {
-                node.range()
-            }
+            CfgError::NodeInTwoFunctions(node, _, _) => node.range(),
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().range(),
             CfgError::DuplicateLabel(label) => label.range(),
         }
@@ -96,9 +85,7 @@ impl DiagnosticLocation for CfgError {
 
     fn raw_text(&self) -> String {
         match self {
-            CfgError::MultipleLabelsForReturn(node, _) | CfgError::NoLabelForReturn(node) => {
-                node.raw_text()
-            }
+            CfgError::NodeInTwoFunctions(node, _, _) => node.raw_text(),
             CfgError::LabelsNotDefined(labels) => labels.iter().next().unwrap().raw_text(),
             CfgError::DuplicateLabel(label) => label.raw_text(),
         }
@@ -121,6 +108,11 @@ impl DiagnosticMessage for CfgError {
     }
     fn long_description(&self) -> String {
         match self {
+            CfgError::NodeInTwoFunctions(_, f1, f2) => format!(
+                "The instruction was found to be part of two functions: one that begins on line {} and one that begins on line {}. Each instruction must be part of only one function",
+                f1.entry().range().start().one_idx_line(),
+                f2.entry().range().start().one_idx_line()
+            ),
             CfgError::DuplicateLabel(label) => format!(
                 "The label {label} is defined more than once. Labels must be unique."
             ),
@@ -128,25 +120,6 @@ impl DiagnosticMessage for CfgError {
                 "The labels {} are used but not defined. Labels must be defined within your file.",
                 labels.as_str_list()
             ),
-            CfgError::MultipleLabelsForReturn(_, labels) => format!(
-                "The return statement can be reached by multiple function labels: {}.\n\n\
-                Every return statement should only be reachable by one label. This also ensures\
-                that every instruction is reachable by only one label and is ever only part of a single function.\n\n\
-                Your code might contain instructions that allow two functions to reach this return statement.\
-                You might also jump from one function to another. You can fix this by ensuring all code for a function\
-                is only reachable by one label. For example, replace this return statement with two or more return statements\
-                for each function.",
-                labels.as_str_list()
-            ),
-            CfgError::NoLabelForReturn(_) => "The return statement can be reached by no function labels.\n\n\
-                Every return statement should be reachable by one label. This also ensures\
-                that every instruction is reachable by only one label and is ever only part of a single function.\n\n\
-                This return statement might be placed in code that isn't in a function. For example, you might have a
-                return statement that is in the 'main' segment of your code. To fix this, remove the return statement or
-                place it in a function.\n\n\
-                A label is considered a function if it has been called by a [jal] instruction. This code might also be\
-                missing from your file or imports.
-                ".to_string(),
         }
     }
 }

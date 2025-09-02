@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::cfg::CallTarget;
 use crate::{
     cfg::Cfg,
     parser::{HasRegisterSets, InstructionProperties, RVRegister},
@@ -30,7 +31,7 @@ impl LintPass for DeadValuePass {
             // check the out of the node for any uses that
             // should not be there (temporaries)
             // TODO merge with Callee saved register check
-            if let Some((function, call_site)) = node.calls_to_from_cfg(cfg) {
+            if let Some(CallTarget::LabelFunc(function, call_site)) = node.calls_to_from_cfg(cfg) {
                 // TODO fix for external function calls
                 // check the expected return values of the function:
 

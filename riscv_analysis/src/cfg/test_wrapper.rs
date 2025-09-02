@@ -55,7 +55,7 @@ impl NodeWrapper {
                 .map(std::string::ToString::to_string)
                 .collect(),
             func_entry: node
-                .functions()
+                .function()
                 .iter()
                 .map(|func| {
                     cfg.iter_source()
@@ -64,7 +64,7 @@ impl NodeWrapper {
                 })
                 .collect::<Vec<_>>(),
             func_exits: node
-                .functions()
+                .function()
                 .iter()
                 .flat_map(|func| {
                     func.exits()

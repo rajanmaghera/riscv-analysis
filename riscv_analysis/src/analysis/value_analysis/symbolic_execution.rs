@@ -142,10 +142,11 @@ pub fn symbolically_execute(map: &mut LocValueMap, instruction: &RVInstructionNo
         RVInstructionNode::Load(load) => {
             let address = map.get(&Location::Register(*load.rs1.get()));
             let value = match (address, load.imm.value()) {
-                (Value::Unknown, _) | (_, None) => Value::Unknown,
+                (Value::Unknown, _) => Value::Unknown,
                 (Value::InitialStackPointer(x), Some(imm)) => {
                     map.get(&Location::StackPointerOffset32(x + imm))
                 }
+                (Value::InitialStackPointer(_), None) => map.join_all_inner_memory_values(),
                 (Value::Initial(_) | Value::Const(_) | Value::UnknownConst, _) => {
                     Value::UnknownConst
                 }

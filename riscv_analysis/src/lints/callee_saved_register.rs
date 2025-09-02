@@ -39,7 +39,7 @@ impl LintPass for CalleeSavedRegisterPass {
                             // Registers match the expected
                         }
                         Value::InitialStackPointer(x) if reg.is_stack_pointer() && x == 0 => {
-                            // Register matche the expected
+                            // Register matches the expected
                         }
                         Value::UnknownConst | Value::Unknown => {
                             // Registers are a less precise version of what we expected
@@ -60,7 +60,10 @@ impl LintPass for CalleeSavedRegisterPass {
                         .description(format!(
                             "Registers {} is/are not restored",
                             itertools::Itertools::intersperse(
-                                invalid_registers.iter().sorted().map(std::string::ToString::to_string),
+                                invalid_registers
+                                    .iter()
+                                    .sorted()
+                                    .map(std::string::ToString::to_string),
                                 ", ".to_string()
                             )
                             .collect::<String>(),

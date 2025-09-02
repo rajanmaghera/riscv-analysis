@@ -35,6 +35,7 @@ pub mod lints;
 pub mod parser;
 pub mod passes;
 pub mod reader;
+pub mod stats;
 
 // #[test]
 // fn parse_int_from_symbol() {

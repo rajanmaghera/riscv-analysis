@@ -1233,6 +1233,14 @@ impl TryFrom<&mut RVParser> for RVInstructionNode {
                             Err(LexError::IgnoredWithWarning(Box::new(next_node)))
                         }
                         DirectiveToken::Section => {
+                            // Special case for .text.startup section
+                            let next = parser.peek_any()?;
+                            if let TokenType::Symbol(dir) = next.token_type() {
+                                if dir == ".text.startup" {
+                                    parser.current_segment = Segment::Text;
+                                    return Err(LexError::IgnoredWithoutWarning);
+                                }
+                            }
                             // We have jumped to an unknown section.
                             // For our purposes, we will skip until we reach a directive token
                             // we care about.

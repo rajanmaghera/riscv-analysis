@@ -5,10 +5,11 @@ use super::RegisterSet;
 use super::Segment;
 use super::{environment_in_outs, ExternalFunction};
 use crate::analysis::{LocValueMap, Location, Value};
-use crate::parser::InstructionProperties;
-use crate::parser::LabelStringToken;
-use crate::parser::RVInstructionNode;
 use crate::parser::RVRegister;
+use crate::parser::{HasIdentity, InstructionProperties};
+use crate::parser::{JumpTarget, RVInstructionNode};
+use crate::parser::{LabelStringToken, RegisterToken};
+use crate::passes::DiagnosticLocation;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -25,8 +26,8 @@ pub struct CfgNode {
     is_program_entry: bool,
     /// Which functions, if any, is this node a part of.
     ///
-    /// Note that a node could be a part of 0, 1 or more functions.
-    function: RefCell<HashSet<Rc<Function>>>,
+    /// Note that a node could be a part of 0 or 1 function.
+    function: RefCell<Option<Rc<Function>>>,
     real_val_in: RefCell<LocValueMap>,
     real_val_out: RefCell<LocValueMap>,
     /// The set of registers that are live before the instruction
@@ -54,6 +55,12 @@ pub struct CfgNode {
     u_def: RefCell<RegisterSet>,
 }
 
+pub enum CallTarget {
+    LabelFunc(Rc<Function>, LabelStringToken),
+    ExternalFunc(ExternalFunction, LabelStringToken),
+    Register(RegisterToken),
+}
+
 impl CfgNode {
     #[must_use]
     pub fn new(node: RVInstructionNode, is_function_entry: bool, is_program_entry: bool) -> Self {
@@ -61,7 +68,7 @@ impl CfgNode {
             node: RefCell::new(node),
             is_function_entry,
             is_program_entry,
-            function: RefCell::new(HashSet::new()),
+            function: RefCell::new(None),
             real_val_in: RefCell::new(LocValueMap::new()),
             real_val_out: RefCell::new(LocValueMap::new()),
             live_in: RefCell::new(RegisterSet::new()),
@@ -95,14 +102,25 @@ impl CfgNode {
     }
 
     /// Return the functions that this node belongs to.
-    pub fn functions(&self) -> Ref<HashSet<Rc<Function>>> {
+    pub fn function(&self) -> Ref<Option<Rc<Function>>> {
         self.function.borrow()
     }
 
     /// Mark this node as belonging to a given function. Each node can belong to
-    /// more than one function.
-    pub fn insert_function(&self, function: Rc<Function>) {
-        (*self.function.borrow_mut()).insert(function);
+    /// only one function. Returns the old function if a function ended up being replaced
+    #[must_use]
+    pub fn replace_function_if_different(&self, function: Rc<Function>) -> Option<Rc<Function>> {
+        let new_id = function.id();
+        let old = self.function.borrow_mut().replace(function);
+        if let Some(old) = old {
+            if old.id() == new_id {
+                None
+            } else {
+                Some(old)
+            }
+        } else {
+            None
+        }
     }
 
     #[must_use]
@@ -150,23 +168,21 @@ impl CfgNode {
         self.u_def.replace_if_changed(u_def)
     }
 
-    pub fn calls_to_from_cfg(&self, cfg: &Cfg) -> Option<(Rc<Function>, LabelStringToken)> {
+    pub fn calls_to_from_cfg(&self, cfg: &Cfg) -> Option<CallTarget> {
+        // cfg.get_external_function(&name).map(|x| (x.clone(), name))
         if let Some(name) = self.calls_to() {
-            cfg.get_function(&name).cloned().map(|x| (x, name))
-        } else if let Some(name) = self.is_some_jump_to_label() {
-            // In some cases, functions may be called by jumping to them indirectly
-            cfg.get_function(&name).cloned().map(|x| (x, name))
-        } else {
-            None
-        }
-    }
-
-    pub fn calls_to_some_external_function_from_cfg(
-        &self,
-        cfg: &Cfg,
-    ) -> Option<(ExternalFunction, LabelStringToken)> {
-        if let Some(name) = self.calls_to() {
-            cfg.get_external_function(&name).map(|x| (x.clone(), name))
+            match name {
+                JumpTarget::Register(r) => Some(CallTarget::Register(r)),
+                JumpTarget::Label(l) => {
+                    if let Some(func) = cfg.get_function(&l) {
+                        Some(CallTarget::LabelFunc(func.clone(), l))
+                    } else if let Some(func) = cfg.get_external_function(&l) {
+                        Some(CallTarget::ExternalFunc(func.clone(), l))
+                    } else {
+                        None
+                    }
+                }
+            }
         } else {
             None
         }
@@ -202,19 +218,13 @@ impl CfgNode {
 
     /// If this node is an entry point, return the corresponding function.
     pub fn is_function_entry_with_func(&self) -> Option<Rc<Function>> {
-        for func in self.functions().iter() {
+        if let Some(func) = self.function().as_ref() {
             let func = Rc::clone(func);
-            if &*func.entry() == self {
+            if func.entry().as_ref() == self {
                 return Some(func);
             }
         }
         None
-    }
-
-    /// Return true if this node is part of a function.
-    #[deprecated]
-    pub fn is_part_of_some_function(&self) -> bool {
-        !self.functions().is_empty()
     }
 
     pub fn labels(&self) -> HashSet<LabelStringToken> {

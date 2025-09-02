@@ -157,7 +157,7 @@ impl MemoryRangeMap {
                 "{}R+[{:#010X}] +{:#0X} => {}",
                 if idx == 0 { "" } else { " ; " },
                 start,
-                end - start,
+                end as i64 - start as i64,
                 val
             )?;
         }
@@ -192,6 +192,14 @@ impl MemoryRangeMap {
             let new_val = self_val.join(other_val);
             self.insert_range(start..end, new_val);
         }
+    }
+
+    pub fn join_all_inner_values(&self) -> Value {
+        self.ranges
+            .iter()
+            .map(|(_, (_, val))| *val)
+            .reduce(Value::join)
+            .unwrap_or(Value::Undefined)
     }
 }
 

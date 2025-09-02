@@ -10,14 +10,81 @@
   val_in:
     register_map:
       0: !Const 0
+      1: !Initial 1
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
+      7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
+      10: UnknownConst
+      11: UnknownConst
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
+      1: !Initial 1
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
+      7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 1
+      11: UnknownConst
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_out:
   - 10
 - node: !IArith
@@ -34,16 +101,81 @@
   val_in:
     register_map:
       0: !Const 0
+      1: !Initial 1
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
+      7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 1
+      11: UnknownConst
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
+      1: !Initial 1
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
+      7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 1
       11: !Const 2
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_in:
   - 10
   live_out:
@@ -63,18 +195,81 @@
   val_in:
     register_map:
       0: !Const 0
+      1: !Initial 1
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
+      7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 1
       11: !Const 2
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
+      1: !Initial 1
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
       7: !Const 2
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 1
       11: !Const 2
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_in:
   - 10
   - 11
@@ -94,18 +289,54 @@
   val_in:
     register_map:
       0: !Const 0
+      1: !Initial 1
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
       7: !Const 2
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 1
       11: !Const 2
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: UnknownConst
       11: UnknownConst
       12: UnknownConst
@@ -114,12 +345,25 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_in:
   - 10
   - 11
@@ -142,9 +386,14 @@
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: UnknownConst
       11: UnknownConst
       12: UnknownConst
@@ -153,19 +402,37 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 2321
       11: UnknownConst
       12: UnknownConst
@@ -174,12 +441,25 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_in:
   - 7
   - 11
@@ -204,9 +484,14 @@
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 2321
       11: UnknownConst
       12: UnknownConst
@@ -215,19 +500,37 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 2321
       11: UnknownConst
       12: UnknownConst
@@ -236,12 +539,25 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_in:
   - 7
   - 10
@@ -265,9 +581,14 @@
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 2321
       11: UnknownConst
       12: UnknownConst
@@ -276,19 +597,37 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 2321
       11: UnknownConst
       12: UnknownConst
@@ -297,12 +636,25 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_in:
   - 10
   - 11
@@ -323,9 +675,14 @@
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: !Const 2321
       11: UnknownConst
       12: UnknownConst
@@ -334,19 +691,37 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: UnknownConst
       11: UnknownConst
       12: UnknownConst
@@ -355,20 +730,35 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_in:
   - 10
   - 11
+  live_out:
+  - 10
 - node: !IArith
     inst: Addi
     rd: 17
     rs1: 0
-    imm: !Constant 10
+    imm: !Constant 1
     segment: Text
     labels: []
   nexts:
@@ -379,9 +769,14 @@
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: UnknownConst
       11: UnknownConst
       12: UnknownConst
@@ -390,19 +785,220 @@
       15: UnknownConst
       16: UnknownConst
       17: UnknownConst
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
+      10: UnknownConst
+      11: UnknownConst
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: !Const 1
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
+    memory_range_map:
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
+  live_in:
+  - 10
+  live_out:
+  - 10
+  - 17
+- node: !Basic
+    inst: Ecall
+    segment: Text
+    labels: []
+  nexts:
+  - 10
+  prevs:
+  - 8
+  val_in:
+    register_map:
+      0: !Const 0
+      1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
+      7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
+      10: UnknownConst
+      11: UnknownConst
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: !Const 1
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
+    memory_range_map:
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
+  val_out:
+    register_map:
+      0: !Const 0
+      1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
+      7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
+      10: UnknownConst
+      11: UnknownConst
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: !Const 1
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
+    memory_range_map:
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
+  live_in:
+  - 10
+  - 17
+- node: !IArith
+    inst: Addi
+    rd: 17
+    rs1: 0
+    imm: !Constant 10
+    segment: Text
+    labels: []
+  nexts:
+  - 11
+  prevs:
+  - 9
+  val_in:
+    register_map:
+      0: !Const 0
+      1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
+      7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
+      10: UnknownConst
+      11: UnknownConst
+      12: UnknownConst
+      13: UnknownConst
+      14: UnknownConst
+      15: UnknownConst
+      16: UnknownConst
+      17: !Const 1
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
+      28: UnknownConst
+      29: UnknownConst
+      30: UnknownConst
+      31: UnknownConst
+    memory_range_map:
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
+  val_out:
+    register_map:
+      0: !Const 0
+      1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
+      5: UnknownConst
+      6: UnknownConst
+      7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: UnknownConst
       11: UnknownConst
       12: UnknownConst
@@ -411,12 +1007,25 @@
       15: UnknownConst
       16: UnknownConst
       17: !Const 10
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_out:
   - 17
 - node: !Basic
@@ -424,14 +1033,19 @@
     segment: Text
     labels: []
   prevs:
-  - 8
+  - 10
   val_in:
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: UnknownConst
       11: UnknownConst
       12: UnknownConst
@@ -440,19 +1054,37 @@
       15: UnknownConst
       16: UnknownConst
       17: !Const 10
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   val_out:
     register_map:
       0: !Const 0
       1: UnknownConst
+      2: !InitialStackPointer 0
+      3: UnknownConst
+      4: UnknownConst
       5: UnknownConst
       6: UnknownConst
       7: UnknownConst
+      8: !Initial 8
+      9: !Initial 9
       10: UnknownConst
       11: UnknownConst
       12: UnknownConst
@@ -461,12 +1093,25 @@
       15: UnknownConst
       16: UnknownConst
       17: !Const 10
+      18: !Initial 18
+      19: !Initial 19
+      20: !Initial 20
+      21: !Initial 21
+      22: !Initial 22
+      23: !Initial 23
+      24: !Initial 24
+      25: !Initial 25
+      26: !Initial 26
+      27: !Initial 27
       28: UnknownConst
       29: UnknownConst
       30: UnknownConst
       31: UnknownConst
     memory_range_map:
-      ranges: {}
+      ranges:
+        -2147483648:
+        - 2147483647
+        - UnknownConst
   live_in:
   - 17
 - node: !IArith
@@ -480,11 +1125,11 @@
   labels:
   - bar
   func_entry:
-  - 10
+  - 12
   func_exits:
-  - 18
+  - 20
   nexts:
-  - 11
+  - 13
   val_in:
     register_map:
       0: !Const 0
@@ -567,14 +1212,36 @@
   - 1
   - 2
   - 8
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
   - 1
   - 2
   - 8
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
 - node: !Store
     inst: Sw
     rs1: 2
@@ -583,13 +1250,13 @@
     segment: Text
     labels: []
   func_entry:
-  - 10
-  func_exits:
-  - 18
-  nexts:
   - 12
+  func_exits:
+  - 20
+  nexts:
+  - 14
   prevs:
-  - 10
+  - 12
   val_in:
     register_map:
       0: !Const 0
@@ -678,13 +1345,35 @@
   - 1
   - 2
   - 8
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
   - 2
   - 8
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
 - node: !Store
     inst: Sw
     rs1: 2
@@ -693,13 +1382,13 @@
     segment: Text
     labels: []
   func_entry:
-  - 10
+  - 12
   func_exits:
-  - 18
+  - 20
   nexts:
-  - 13
+  - 15
   prevs:
-  - 11
+  - 13
   val_in:
     register_map:
       0: !Const 0
@@ -796,12 +1485,34 @@
   live_in:
   - 2
   - 8
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
   - 2
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
 - node: !IArith
     inst: Addi
     rd: 8
@@ -810,13 +1521,13 @@
     segment: Text
     labels: []
   func_entry:
-  - 10
-  func_exits:
-  - 18
-  nexts:
-  - 14
-  prevs:
   - 12
+  func_exits:
+  - 20
+  nexts:
+  - 16
+  prevs:
+  - 14
   val_in:
     register_map:
       0: !Const 0
@@ -915,12 +1626,34 @@
         - UnknownConst
   live_in:
   - 2
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
   - 2
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
 - node: !JumpLink
     inst: Jal
     rd: 1
@@ -928,13 +1661,13 @@
     segment: Text
     labels: []
   func_entry:
-  - 10
+  - 12
   func_exits:
-  - 18
+  - 20
   nexts:
-  - 15
+  - 17
   prevs:
-  - 13
+  - 15
   val_in:
     register_map:
       0: !Const 0
@@ -1033,10 +1766,33 @@
         - UnknownConst
   live_in:
   - 2
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
   - 2
+  - 9
+  - 10
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
 - node: !Load
     inst: Lw
     rd: 1
@@ -1045,13 +1801,13 @@
     segment: Text
     labels: []
   func_entry:
-  - 10
+  - 12
   func_exits:
-  - 18
+  - 20
   nexts:
-  - 16
+  - 18
   prevs:
-  - 14
+  - 16
   val_in:
     register_map:
       0: !Const 0
@@ -1150,9 +1906,33 @@
         - UnknownConst
   live_in:
   - 2
+  - 9
+  - 10
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
   - 1
   - 2
+  - 9
+  - 10
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
 - node: !Load
     inst: Lw
     rd: 8
@@ -1161,13 +1941,13 @@
     segment: Text
     labels: []
   func_entry:
-  - 10
+  - 12
   func_exits:
-  - 18
+  - 20
   nexts:
-  - 17
+  - 19
   prevs:
-  - 15
+  - 17
   val_in:
     register_map:
       0: !Const 0
@@ -1267,9 +2047,34 @@
   live_in:
   - 1
   - 2
+  - 9
+  - 10
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
   - 1
   - 2
+  - 8
+  - 9
+  - 10
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
 - node: !IArith
     inst: Addi
     rd: 2
@@ -1278,13 +2083,13 @@
     segment: Text
     labels: []
   func_entry:
-  - 10
+  - 12
   func_exits:
-  - 18
+  - 20
   nexts:
-  - 18
+  - 20
   prevs:
-  - 16
+  - 18
   val_in:
     register_map:
       0: !Const 0
@@ -1384,8 +2189,35 @@
   live_in:
   - 1
   - 2
+  - 8
+  - 9
+  - 10
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
   - 1
+  - 2
+  - 8
+  - 9
+  - 10
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
 - node: !JumpLinkR
     inst: Jalr
     rd: 0
@@ -1394,11 +2226,11 @@
     segment: Text
     labels: []
   func_entry:
-  - 10
+  - 12
   func_exits:
-  - 18
+  - 20
   prevs:
-  - 17
+  - 19
   val_in:
     register_map:
       0: !Const 0
@@ -1497,6 +2329,22 @@
         - UnknownConst
   live_in:
   - 1
+  - 2
+  - 8
+  - 9
+  - 10
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
+  live_out:
+  - 10
 - node: !Arith
     inst: Add
     rd: 10
@@ -1508,11 +2356,11 @@
   labels:
   - foo
   func_entry:
-  - 19
+  - 21
   func_exits:
-  - 20
+  - 22
   nexts:
-  - 20
+  - 22
   val_in:
     register_map:
       0: !Const 0
@@ -1593,11 +2441,38 @@
         - UnknownConst
   live_in:
   - 1
+  - 2
+  - 8
+  - 9
   - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
   - 1
+  - 2
+  - 8
+  - 9
+  - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
 - node: !JumpLinkR
     inst: Jalr
     rd: 0
@@ -1606,11 +2481,11 @@
     segment: Text
     labels: []
   func_entry:
-  - 19
+  - 21
   func_exits:
-  - 20
+  - 22
   prevs:
-  - 19
+  - 21
   val_in:
     register_map:
       0: !Const 0
@@ -1691,7 +2566,22 @@
         - UnknownConst
   live_in:
   - 1
+  - 2
+  - 8
+  - 9
+  - 10
   - 11
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
   live_out:
+  - 10
   - 11
 

@@ -21,14 +21,6 @@ impl RVToken {
     }
 
     #[must_use]
-    pub fn new_without_text(token: TokenType, pos: Range, file: Uuid) -> Self {
-        RVToken {
-            token_type: token,
-            raw_token: RawToken::new(String::new(), pos, file),
-        }
-    }
-
-    #[must_use]
     pub fn token_type(&self) -> &TokenType {
         &self.token_type
     }

@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
 use crate::cfg::{CfgNode, Segment};
+use crate::parser::JumpTarget;
+use crate::passes::DiagnosticLocation;
 use crate::{
     cfg::Cfg,
     parser::InstructionProperties,
@@ -23,9 +25,8 @@ impl GenerationPass for NodeDirectionPass {
                 continue;
             }
             // If node jumps to another node, add it to the nexts of the current node and the prevs of the node it jumps to.
-            if let Some(label) = node.jumps_to() {
-                if let Some(jump_to_node) = cfg.iter_source().find(|n| n.labels().contains(&label))
-                {
+            if let Some(JumpTarget::Label(label)) = node.jumps_to() {
+                if let Some(jump_to_node) = cfg.label_node_map.get(label.as_str()) {
                     edges_to_insert.push((Rc::clone(node), Rc::clone(jump_to_node)));
                 }
             }

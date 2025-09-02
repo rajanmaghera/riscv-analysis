@@ -3,7 +3,7 @@ use crate::parser::node::RVInstructionNode;
 use std::collections::HashSet;
 
 use super::{
-    BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, JumpLinkType,
+    BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, JumpLinkType, JumpTarget,
     LabelStringToken, RVRegister, RegisterToken, With,
 };
 impl InstructionProperties for RVInstructionNode {
@@ -23,8 +23,10 @@ impl InstructionProperties for RVInstructionNode {
     fn might_terminate(&self) -> bool {
         match self {
             RVInstructionNode::Basic(x) => match x.inst.get() {
-                BasicType::Ecall => true,
-                BasicType::Uret | BasicType::Ebreak => false,
+                // Compiled code uses Ebreak for debugging purposes (e.g. undefined behaviour)
+                // For our purposes, we treat it as terminating
+                BasicType::Ecall | BasicType::Ebreak => true,
+                BasicType::Uret => false,
             },
             _ => false,
         }
@@ -65,9 +67,14 @@ impl InstructionProperties for RVInstructionNode {
         ) || self.segment() != Segment::Text
     }
 
-    fn calls_to(&self) -> Option<LabelStringToken> {
+    fn calls_to(&self) -> Option<JumpTarget> {
         match self {
-            RVInstructionNode::JumpLink(x) if x.rd == RVRegister::X1 => Some(x.name.clone()),
+            RVInstructionNode::JumpLink(x) if x.rd == RVRegister::X1 => {
+                Some(JumpTarget::Label(x.name.clone()))
+            }
+            RVInstructionNode::JumpLinkR(x) if x.rd == RVRegister::X1 => {
+                Some(JumpTarget::Register(x.rs1.clone()))
+            }
             _ => None,
         }
     }
@@ -79,11 +86,37 @@ impl InstructionProperties for RVInstructionNode {
         }
     }
 
-    fn jumps_to(&self) -> Option<LabelStringToken> {
+    fn jumps_to(&self) -> Option<JumpTarget> {
         match self {
-            RVInstructionNode::JumpLink(x) if x.rd != RVRegister::X1 => Some(x.name.clone()),
-            RVInstructionNode::Branch(x) => Some(x.name.clone()),
+            RVInstructionNode::JumpLink(x) if x.rd != RVRegister::X1 => {
+                Some(JumpTarget::Label(x.name.clone()))
+            }
+            RVInstructionNode::JumpLinkR(x) if x.rd != RVRegister::X1 => {
+                Some(JumpTarget::Register(x.rs1.clone()))
+            }
+            RVInstructionNode::Branch(x) => Some(JumpTarget::Label(x.name.clone())),
             _ => None,
+        }
+    }
+
+    fn is_indirect_uncond_jump(&self) -> bool {
+        match self {
+            RVInstructionNode::JumpLinkR(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_direct_uncond_jump(&self) -> bool {
+        match self {
+            RVInstructionNode::JumpLink(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_cond_branch(&self) -> bool {
+        match self {
+            RVInstructionNode::Branch(_) => true,
+            _ => false,
         }
     }
 
@@ -131,14 +164,6 @@ impl InstructionProperties for RVInstructionNode {
                         || x.inst == BranchType::Bgeu)
             }
             _ => false,
-        }
-    }
-
-    fn is_some_jump_to_label(&self) -> Option<LabelStringToken> {
-        match self {
-            RVInstructionNode::JumpLink(x) if x.rd == RVRegister::X0 => Some(x.name.clone()),
-            RVInstructionNode::Branch(x) => Some(x.name.clone()),
-            _ => None,
         }
     }
 

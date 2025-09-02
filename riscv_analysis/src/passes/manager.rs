@@ -42,19 +42,27 @@ impl Manager {
         }
     }
 
+    pub fn gen_empty_cfg(
+        parser_output: &RVParserOutput,
+        external_functions: &Option<HashSet<(With<LabelString>, RegisterSet, RegisterSet)>>,
+        program_entry: &ProgramEntryType,
+    ) -> Result<Cfg, Box<CfgError>> {
+        // Combine interrupt call names and input function call names
+        let predefined = parser_output.extra_labels.clone();
+        Cfg::new(
+            parser_output.clone(),
+            Some(&predefined),
+            &external_functions,
+            program_entry,
+        )
+    }
+
     pub fn gen_full_cfg(
         parser_output: &RVParserOutput,
         external_functions: Option<HashSet<(With<LabelString>, RegisterSet, RegisterSet)>>,
         program_entry: &ProgramEntryType,
     ) -> Result<Cfg, Box<CfgError>> {
-        // Combine interrupt call names and input function call names
-        let predefined = parser_output.extra_labels.clone();
-        let mut cfg = Cfg::new(
-            parser_output.clone(),
-            Some(&predefined),
-            &external_functions,
-            program_entry,
-        )?;
+        let mut cfg = Self::gen_empty_cfg(parser_output, &external_functions, program_entry)?;
         NodeDirectionPass::run(&mut cfg)?;
         FunctionMarkupPass::run(&mut cfg)?;
         AvailableValuePass::run(&mut cfg)?;

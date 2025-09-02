@@ -33,7 +33,7 @@ impl LintPass for ControlFlowPass {
     fn run(&self, cfg: &Cfg, errors: &mut DiagnosticManager) {
         for node in cfg.iter_source() {
             if node.is_function_entry() {
-                for function in node.functions().iter() {
+                if let Some(function) = node.function().as_ref() {
                     // If the previous nodes set is not empty
                     // Note: this also accounts for functions being at the beginning
                     // of a program, as the ProgEntry node will be the previous node
