@@ -33,6 +33,12 @@ pub trait InstructionProperties {
     #[must_use]
     fn calls_to(&self) -> Option<LabelStringToken>;
 
+    /// Checks if an instruction is a call through a register (`jalr ra, imm(rs1)`)
+    /// whose target is not resolved. Such calls are modelled conservatively
+    /// using the calling convention.
+    #[must_use]
+    fn is_indirect_call(&self) -> bool;
+
     /// Checks if a instruction is an environment call
     #[must_use]
     fn is_ecall(&self) -> bool;

@@ -1,0 +1,94 @@
+{
+  "diagnostics": [
+    {
+      "file": "sample/indirect-call.s",
+      "title": "Stack pointer is invalid",
+      "description": "The stack pointer should be sp - x, but it is B",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 1,
+          "column": 4,
+          "raw": 10
+        },
+        "end": {
+          "line": 1,
+          "column": 10,
+          "raw": 16
+        }
+      }
+    },
+    {
+      "file": "sample/indirect-call.s",
+      "title": "Stack pointer is invalid",
+      "description": "The stack pointer should be sp - x, but it is B",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 2,
+          "column": 4,
+          "raw": 21
+        },
+        "end": {
+          "line": 2,
+          "column": 12,
+          "raw": 29
+        }
+      }
+    },
+    {
+      "file": "sample/indirect-call.s",
+      "title": "Unused value",
+      "description": "",
+      "level": "Warning",
+      "range": {
+        "start": {
+          "line": 9,
+          "column": 7,
+          "raw": 103
+        },
+        "end": {
+          "line": 9,
+          "column": 9,
+          "raw": 105
+        }
+      }
+    },
+    {
+      "file": "sample/indirect-call.s",
+      "title": "Invalid use after indirect call",
+      "description": "t1 is caller-saved and may be overwritten by the indirect call",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 13,
+          "column": 16,
+          "raw": 173
+        },
+        "end": {
+          "line": 13,
+          "column": 18,
+          "raw": 175
+        }
+      }
+    },
+    {
+      "file": "sample/indirect-call.s",
+      "title": "Unused value",
+      "description": "",
+      "level": "Warning",
+      "range": {
+        "start": {
+          "line": 19,
+          "column": 9,
+          "raw": 236
+        },
+        "end": {
+          "line": 19,
+          "column": 11,
+          "raw": 238
+        }
+      }
+    }
+  ]
+}
