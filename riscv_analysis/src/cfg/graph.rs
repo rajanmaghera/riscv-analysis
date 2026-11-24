@@ -256,17 +256,46 @@ impl Cfg {
         ranges
     }
 
+    /// Find the first reads of `item` after `node`, searching forward from
+    /// the successors of `node`. `node` itself is not searched: use this
+    /// after a call, whose own reads happen before the clobber.
     // TODO move to a more appropriate place
-    // TODO make better, what even is this?
     pub fn error_ranges_for_first_usage(
         &self,
         node: &Rc<CfgNode>,
         item: RVRegister,
     ) -> Vec<RegisterToken> {
+        self.first_usage_ranges(node, item, false)
+    }
+
+    /// Find the first reads of `item` starting at `node` itself. Use this
+    /// at a function or program entry, where the entry instruction can be
+    /// the first read.
+    pub fn error_ranges_for_first_usage_from(
+        &self,
+        node: &Rc<CfgNode>,
+        item: RVRegister,
+    ) -> Vec<RegisterToken> {
+        self.first_usage_ranges(node, item, true)
+    }
+
+    fn first_usage_ranges(
+        &self,
+        node: &Rc<CfgNode>,
+        item: RVRegister,
+        include_start: bool,
+    ) -> Vec<RegisterToken> {
         let mut queue = VecDeque::new();
         let mut ranges = Vec::new();
-        // push the next nodes onto the queue
 
+        if include_start && node.gen_reg().contains(&item) {
+            if let Some(reg) = node.reads_from().into_iter().find(|reg| *reg == item) {
+                ranges.push(reg);
+            }
+            return ranges;
+        }
+
+        // push the next nodes onto the queue
         queue.extend(self.get_nexts(node.as_ref()).cloned());
 
         // keep track of visited nodes

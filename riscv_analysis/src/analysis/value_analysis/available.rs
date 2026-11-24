@@ -70,8 +70,11 @@ impl GenerationPass for AvailableValuePass {
                     match val_in.get(&Location::Register(RVRegister::stack_pointer())) {
                         Value::Unknown => val_out
                             .join_memory_range_into_stack(i32::MIN..i32::MAX, Value::UnknownConst),
-                        Value::InitialStackPointer(x) => val_out
-                            .join_memory_range_into_stack(i32::MIN..x - 4, Value::UnknownConst),
+                        // The callee may write anything below the caller's sp,
+                        // including the word at x - 4 (where it typically saves ra).
+                        Value::InitialStackPointer(x) if x > i32::MIN => {
+                            val_out.join_memory_range_into_stack(i32::MIN..x, Value::UnknownConst)
+                        }
                         _ => {}
                     }
                 }
