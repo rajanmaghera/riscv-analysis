@@ -80,3 +80,20 @@ fn sample() {
     let out = PathBuf::from("./sample/unused-value.json");
     run_test(asm, out);
 }
+
+#[test]
+fn use_before_assignment_in_entry_instruction() {
+    // The function's first instruction reads t0, which nothing defined.
+    let asm = PathBuf::from("./sample/use-before-assignment-entry.s");
+    let out = PathBuf::from("./sample/use-before-assignment-entry.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn spill_one_word_below_sp_is_clobbered_by_call() {
+    // ra is spilled to -4(sp) without a frame; the callee may overwrite
+    // that word, so the reload does not restore ra.
+    let asm = PathBuf::from("./sample/spill-below-sp-call.s");
+    let out = PathBuf::from("./sample/spill-below-sp-call.json");
+    run_test(asm, out);
+}

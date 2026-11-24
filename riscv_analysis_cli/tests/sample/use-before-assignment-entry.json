@@ -1,0 +1,58 @@
+{
+  "diagnostics": [
+    {
+      "file": "sample/use-before-assignment-entry.s",
+      "title": "Stack pointer is invalid",
+      "description": "The stack pointer should be sp - x, but it is B",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 1,
+          "column": 4,
+          "raw": 10
+        },
+        "end": {
+          "line": 1,
+          "column": 10,
+          "raw": 16
+        }
+      }
+    },
+    {
+      "file": "sample/use-before-assignment-entry.s",
+      "title": "Unused value",
+      "description": "",
+      "level": "Warning",
+      "range": {
+        "start": {
+          "line": 6,
+          "column": 8,
+          "raw": 54
+        },
+        "end": {
+          "line": 6,
+          "column": 10,
+          "raw": 56
+        }
+      }
+    },
+    {
+      "file": "sample/use-before-assignment-entry.s",
+      "title": "Invalid use before assignment",
+      "description": "",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 6,
+          "column": 16,
+          "raw": 62
+        },
+        "end": {
+          "line": 6,
+          "column": 18,
+          "raw": 64
+        }
+      }
+    }
+  ]
+}
