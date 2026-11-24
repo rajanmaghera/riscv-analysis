@@ -61,6 +61,17 @@ impl Cfg {
         self.label_function_map.insert(label, func);
     }
 
+    /// Remove every function and every node's function annotations, so that
+    /// functions can be marked again from scratch.
+    pub fn clear_functions(&mut self) {
+        for node in &self.nodes {
+            node.clear_functions();
+        }
+        self.functions.clear();
+        self.label_function_map.clear();
+        self.function_to_call_sites_map.clear();
+    }
+
     /// Get the external functions of the CFG.
     #[must_use]
     pub fn get_external_function(&self, name: &LabelStringToken) -> Option<&ExternalFunction> {

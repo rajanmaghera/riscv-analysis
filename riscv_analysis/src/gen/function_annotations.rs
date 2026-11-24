@@ -47,6 +47,10 @@ impl FunctionMarkupPass {
 
 impl GenerationPass for FunctionMarkupPass {
     fn run(cfg: &mut Cfg) -> Result<(), Box<CfgError>> {
+        // This pass is run again whenever new edges are found. Each run creates
+        // new functions, so remove the ones from a previous run first.
+        cfg.clear_functions();
+
         let mut functions_to_insert = Vec::new();
         for entry in cfg.clone().iter_source() {
             // Skip all nodes that are not entry points
@@ -336,6 +340,34 @@ mod tests {
         }
         for node in funcs["fn_b"].nodes().iter() {
             assert_eq!(node.functions().len(), 1);
+        }
+    }
+
+    #[test]
+    fn marking_again_after_edge_promotion_keeps_one_function() {
+        // The print ecall does not exit, so its provisional edge is promoted
+        // and this pass runs again.
+        let input = "\
+            main:                       \n\
+                jal     fn_a            \n\
+                li      a7, 1           \n\
+                ecall                   \n\
+                li      a7, 10          \n\
+                ecall                   \n\
+            fn_a:                       \n\
+                li      a0, 5           \n\
+                ret                     \n";
+
+        let cfg = gen_cfg(input);
+
+        assert_eq!(cfg.get_all_functions().count(), 1);
+        let funcs = function_map(&cfg);
+        for node in funcs["fn_a"].nodes().iter() {
+            assert_eq!(node.functions().len(), 1);
+            assert!(Rc::ptr_eq(
+                node.functions().iter().next().unwrap(),
+                &funcs["fn_a"]
+            ));
         }
     }
 }
