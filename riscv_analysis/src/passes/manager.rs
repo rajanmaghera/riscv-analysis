@@ -58,6 +58,7 @@ impl Manager {
         NodeDirectionPass::run(&mut cfg)?;
         FunctionMarkupPass::run(&mut cfg)?;
         AvailableValuePass::run(&mut cfg)?;
+        FunctionMarkupPass::update_exits(&cfg);
         LivenessPass::inject_return_registers_into_function(
             &mut cfg,
             external_functions

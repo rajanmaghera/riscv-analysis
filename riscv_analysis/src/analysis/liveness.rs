@@ -14,7 +14,7 @@ impl GenerationPass for LivenessPass {
         while changed {
             changed = false;
             for node in cfg.iter_source().rev() {
-                if node.is_return() {
+                if node.is_function_return() {
                     // live_out[F_exit] = live_out[F_exit] & return-registers
                     let live_out = if let Some(func) = node.functions().iter().next() {
                         (node.live_out()

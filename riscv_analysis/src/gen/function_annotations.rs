@@ -32,7 +32,7 @@ impl FunctionMarkupPass {
             }
 
             // Collect return instructions
-            if node.is_return() {
+            if node.is_function_return() {
                 returns.insert(Rc::clone(node));
             }
         }
@@ -41,6 +41,25 @@ impl FunctionMarkupPass {
             found: defs,
             instructions,
             returns,
+        }
+    }
+
+    /// Recollect the exits of every function from the available values.
+    ///
+    /// A `jr` through a copy of the entry `ra` is only known to be a return
+    /// after the available value analysis has run, so this must be called
+    /// after it. The nodes of each function do not change, since such a jump
+    /// has no successors either way.
+    pub fn update_exits(cfg: &Cfg) {
+        for func in cfg.get_all_functions() {
+            let exits = func
+                .nodes()
+                .iter()
+                .filter(|node| node.is_function_return())
+                .cloned()
+                .collect();
+            #[allow(unused_must_use)]
+            func.set_exits(exits);
         }
     }
 }
@@ -337,5 +356,67 @@ mod tests {
         for node in funcs["fn_b"].nodes().iter() {
             assert_eq!(node.functions().len(), 1);
         }
+    }
+
+    /// Get the textual representation of the exits of a function.
+    fn exit_tokens(func: &Rc<Function>) -> HashSet<String> {
+        func.exits().iter().map(|node| node.raw_text()).collect()
+    }
+
+    #[test]
+    fn jump_through_copy_of_ra_is_exit() {
+        let input = "\
+            main:                       \n\
+                jal     fn_a            \n\
+                jal     fn_b            \n\
+                addi    a7, zero, 10    \n\
+                ecall                   \n\
+            fn_a:                       \n\
+                mv      t0, ra          \n\
+                jr      t0              \n\
+            fn_b:                       \n\
+                mv      s1, ra          \n\
+                jal     fn_a            \n\
+                jalr    zero, 0(s1)     \n";
+
+        let cfg = gen_cfg(input);
+        let funcs = function_map(&cfg);
+
+        assert_eq!(
+            exit_tokens(&funcs["fn_a"]),
+            HashSet::from(["jr      t0".to_string()])
+        );
+        // s1 is callee saved, so it still holds the entry ra after the call
+        assert_eq!(
+            exit_tokens(&funcs["fn_b"]),
+            HashSet::from(["jalr    zero, 0(s1)".to_string()])
+        );
+    }
+
+    #[test]
+    fn jump_through_other_value_is_not_exit() {
+        let input = "\
+            main:                       \n\
+                jal     fn_a            \n\
+                jal     fn_b            \n\
+                addi    a7, zero, 10    \n\
+                ecall                   \n\
+            fn_a:                       \n\
+                la      t0, fn_a_rest   \n\
+                jr      t0              \n\
+            fn_a_rest:                  \n\
+                ret                     \n\
+            fn_b:                       \n\
+                mv      t0, ra          \n\
+                jal     fn_a            \n\
+                jr      t0              \n";
+
+        let cfg = gen_cfg(input);
+        let funcs = function_map(&cfg);
+
+        // A jump to an address is not a return
+        assert!(exit_tokens(&funcs["fn_a"]).is_empty());
+        // t0 is caller saved, so the call clobbers the copy of ra
+        assert!(exit_tokens(&funcs["fn_b"]).is_empty());
     }
 }

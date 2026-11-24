@@ -97,3 +97,35 @@ fn spill_one_word_below_sp_is_clobbered_by_call() {
     let out = PathBuf::from("./sample/spill-below-sp-call.json");
     run_test(asm, out);
 }
+
+#[test]
+fn return_through_copy_of_ra_checks_callee_saved_registers() {
+    // `jr t0` with t0 = entry ra returns to the caller, so s0 must be restored.
+    let asm = PathBuf::from("./sample/return-via-copy-of-ra-s0-not-restored.s");
+    let out = PathBuf::from("./sample/return-via-copy-of-ra-s0-not-restored.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn return_through_copy_of_ra_returns_value_to_caller() {
+    // a0 set before `jr t0` is live in the caller, and no callee saved
+    // register is modified.
+    let asm = PathBuf::from("./sample/return-via-copy-of-ra.s");
+    let out = PathBuf::from("./sample/return-via-copy-of-ra.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn jump_through_register_to_address_is_not_return() {
+    // `jr t0` with t0 = the address of a label is an indirect jump, not a return.
+    let asm = PathBuf::from("./sample/jr-to-address-not-return.s");
+    let out = PathBuf::from("./sample/jr-to-address-not-return.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn plain_ret_checks_callee_saved_registers() {
+    let asm = PathBuf::from("./sample/ret-s0-not-restored.s");
+    let out = PathBuf::from("./sample/ret-s0-not-restored.json");
+    run_test(asm, out);
+}
