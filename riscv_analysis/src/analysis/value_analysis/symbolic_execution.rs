@@ -1,6 +1,6 @@
-use crate::analysis::{LocValueMap, Location, Value};
+use crate::analysis::{LocValueMap, Location, MemoryRangeMap, Value};
 use crate::cfg::MathOp;
-use crate::parser::{RVInst, RVInstructionNode};
+use crate::parser::{RVInst, RVInstructionNode, StoreType};
 
 fn is_identity_on_right_side(op: &MathOp, y: i32) -> bool {
     match op {
@@ -131,7 +131,25 @@ pub fn symbolically_execute(map: &mut LocValueMap, instruction: &RVInstructionNo
                     map.join_memory_range_into_stack(i32::MIN..i32::MAX, value);
                 }
                 (Value::InitialStackPointer(x), Some(imm)) => {
-                    map.insert(&Location::StackPointerOffset32(x + imm), value);
+                    let offset = x + imm;
+                    if offset % 4 == 0 {
+                        map.insert(&Location::StackPointerOffset32(offset), value);
+                    } else {
+                        // The stack is tracked in 4-byte words. A store that is not
+                        // word-aligned (e.g. `sb` to an odd offset, or any store once
+                        // sp is misaligned) partially overwrites every word it
+                        // touches, so those words become unknown.
+                        let width = match store.inst.get() {
+                            StoreType::Sb => 1,
+                            StoreType::Sh => 2,
+                            StoreType::Sw => 4,
+                        };
+                        map.insert_memory_range_into_stack(
+                            MemoryRangeMap::align_down(offset)
+                                ..MemoryRangeMap::align_up(offset + width),
+                            Value::UnknownConst,
+                        );
+                    }
                 }
                 (Value::Undefined, _) => {
                     map.insert_memory_range_into_stack(i32::MIN..i32::MAX, Value::Undefined);
