@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::analysis::{symbolically_execute, LocValueMap, Location, Value};
+use crate::analysis::{symbolically_execute, LocValueMap, Location, MemoryRangeMap, Value};
 use crate::gen::FunctionMarkupPass;
 use crate::parser::{HasRegisterSets, InstructionProperties, RegisterProperties};
 use crate::parser::{RVInstructionNode, RVRegister};
@@ -72,8 +72,13 @@ impl GenerationPass for AvailableValuePass {
                             .join_memory_range_into_stack(i32::MIN..i32::MAX, Value::UnknownConst),
                         // The callee may write anything below the caller's sp,
                         // including the word at x - 4 (where it typically saves ra).
-                        Value::InitialStackPointer(x) if x > i32::MIN => {
-                            val_out.join_memory_range_into_stack(i32::MIN..x, Value::UnknownConst)
+                        // A misaligned sp is rounded up, so every word that
+                        // overlaps the callee's area is clobbered.
+                        Value::InitialStackPointer(x) if MemoryRangeMap::align_up(x) > i32::MIN => {
+                            val_out.join_memory_range_into_stack(
+                                i32::MIN..MemoryRangeMap::align_up(x),
+                                Value::UnknownConst,
+                            );
                         }
                         _ => {}
                     }
