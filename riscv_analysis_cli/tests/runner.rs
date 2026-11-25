@@ -180,3 +180,12 @@ fn section_directive_switches_segment_by_name() {
     let out = PathBuf::from("./sample/section-directive.json");
     run_test(asm, out);
 }
+
+#[test]
+fn float_instructions_affect_integer_registers() {
+    // fcvt.d.w reads an integer register and fcvt.w.d writes one; the other
+    // floating-point instructions only touch floating-point registers.
+    let asm = PathBuf::from("./sample/float-instructions.s");
+    let out = PathBuf::from("./sample/float-instructions.json");
+    run_test(asm, out);
+}

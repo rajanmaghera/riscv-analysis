@@ -33,6 +33,9 @@ pub use data_eq_wrapper::*;
 mod details;
 pub use details::*;
 
+mod float;
+pub use float::*;
+
 mod directive;
 pub use directive::*;
 

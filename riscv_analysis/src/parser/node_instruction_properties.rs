@@ -3,8 +3,8 @@ use crate::parser::node::RVInstructionNode;
 use std::collections::HashSet;
 
 use super::{
-    BasicType, BranchType, Imm, InstructionProperties, JumpLinkRType, JumpLinkType,
-    LabelStringToken, RVRegister, RegisterToken, With,
+    BasicType, BranchType, Float, FloatKind, Imm, InstructionProperties, JumpLinkRType,
+    JumpLinkType, LabelStringToken, RVRegister, RegisterToken, With,
 };
 impl InstructionProperties for RVInstructionNode {
     fn is_return(&self) -> bool {
@@ -108,6 +108,7 @@ impl InstructionProperties for RVInstructionNode {
                 | RVInstructionNode::LoadAddr(_)
                 | RVInstructionNode::Csr(_)
                 | RVInstructionNode::CsrI(_)
+                | RVInstructionNode::Float(_)
         )
     }
 
@@ -115,6 +116,12 @@ impl InstructionProperties for RVInstructionNode {
         match self {
             RVInstructionNode::Store(s) => Some((s.rs1.get_cloned(), s.imm.get_cloned())),
             RVInstructionNode::Load(l) => Some((l.rs1.get_cloned(), l.imm.get_cloned())),
+            RVInstructionNode::Float(Float {
+                kind: FloatKind::Load | FloatKind::Store,
+                rs1: Some(rs1),
+                imm: Some(imm),
+                ..
+            }) => Some((rs1.get_cloned(), imm.get_cloned())),
             _ => None,
         }
     }
@@ -159,6 +166,7 @@ impl InstructionProperties for RVInstructionNode {
             RVInstructionNode::JumpLinkR(jump_link_r) => [jump_link_r.rd.clone()].into(),
             RVInstructionNode::Csr(csr) => [csr.rd.clone()].into(),
             RVInstructionNode::CsrI(csri) => [csri.rd.clone()].into(),
+            RVInstructionNode::Float(float) => float.rd.iter().cloned().collect(),
             RVInstructionNode::Basic(_)
             | RVInstructionNode::Branch(_)
             | RVInstructionNode::Store(_) => HashSet::new(),
@@ -174,6 +182,7 @@ impl InstructionProperties for RVInstructionNode {
             RVInstructionNode::Store(x) => vec![x.rs1.clone(), x.rs2.clone()],
             RVInstructionNode::Load(x) => vec![x.rs1.clone()],
             RVInstructionNode::Csr(x) => vec![x.rs1.clone()],
+            RVInstructionNode::Float(x) => x.rs1.iter().cloned().collect(),
             RVInstructionNode::JumpLink(_)
             | RVInstructionNode::Basic(_)
             | RVInstructionNode::LoadAddr(_)

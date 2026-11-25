@@ -1,6 +1,6 @@
 use crate::analysis::{LocValueMap, Location, MemoryRangeMap, Value};
 use crate::cfg::MathOp;
-use crate::parser::{RVInst, RVInstructionNode, StoreType};
+use crate::parser::{FloatKind, RVInst, RVInstructionNode, StoreType};
 
 fn is_identity_on_right_side(op: &MathOp, y: i32) -> bool {
     match op {
@@ -177,6 +177,39 @@ pub fn symbolically_execute(map: &mut LocValueMap, instruction: &RVInstructionNo
                 Value::UnknownConst,
             );
         }
+        RVInstructionNode::Float(float) => match float.kind {
+            FloatKind::ToInt => {
+                if let Some(rd) = &float.rd {
+                    map.insert(&Location::Register(*rd.get()), Value::UnknownConst);
+                }
+            }
+            FloatKind::Store => {
+                // The stored floating-point value is not tracked, but it is a
+                // defined value that replaces whatever was in that memory.
+                let (Some(rs1), Some(imm)) = (&float.rs1, &float.imm) else {
+                    return;
+                };
+                let address = map.get(&Location::Register(*rs1.get()));
+                match (address, imm.value()) {
+                    (Value::Unknown, _) | (_, None) => {
+                        map.join_memory_range_into_stack(i32::MIN..i32::MAX, Value::UnknownConst);
+                    }
+                    (Value::InitialStackPointer(x), Some(imm)) => {
+                        let offset = x + imm;
+                        map.insert_memory_range_into_stack(
+                            MemoryRangeMap::align_down(offset)
+                                ..MemoryRangeMap::align_up(offset + float.width),
+                            Value::UnknownConst,
+                        );
+                    }
+                    (Value::Undefined, _) => {
+                        map.insert_memory_range_into_stack(i32::MIN..i32::MAX, Value::Undefined);
+                    }
+                    (Value::Const(_) | Value::Initial(_) | Value::UnknownConst, _) => {}
+                }
+            }
+            FloatKind::Load | FloatKind::FromInt | FloatKind::Compute => {}
+        },
         RVInstructionNode::Csr(_) => {
             panic!()
         }

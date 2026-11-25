@@ -9,8 +9,8 @@ use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
 use super::{
-    Arith, Basic, Branch, Csr, CsrI, HasIdentity, IArith, JumpLink, JumpLinkR, LabelStringToken,
-    Load, LoadAddr, RawToken, RegisterToken, Store, With,
+    Arith, Basic, Branch, Csr, CsrI, Float, FloatKind, HasIdentity, IArith, JumpLink, JumpLinkR,
+    LabelStringToken, Load, LoadAddr, RawToken, RegisterToken, Store, With,
 };
 use crate::cfg::Segment;
 use serde::{Deserialize, Serialize};
@@ -29,6 +29,8 @@ pub enum RVInstructionNode {
     LoadAddr(LoadAddr), // Load address
     Csr(Csr),
     CsrI(CsrI),
+    /// A floating-point instruction, kept only for its effect on integer registers and memory.
+    Float(Float),
 }
 
 impl RVInstructionNode {
@@ -46,6 +48,7 @@ impl RVInstructionNode {
             RVInstructionNode::Csr(x) => x.labels.iter(),
             RVInstructionNode::CsrI(x) => x.labels.iter(),
             RVInstructionNode::LoadAddr(x) => x.labels.iter(),
+            RVInstructionNode::Float(x) => x.labels.iter(),
         }
     }
 
@@ -63,6 +66,7 @@ impl RVInstructionNode {
             RVInstructionNode::Csr(x) => x.segment,
             RVInstructionNode::CsrI(x) => x.segment,
             RVInstructionNode::LoadAddr(x) => x.segment,
+            RVInstructionNode::Float(x) => x.segment,
         }
     }
 
@@ -80,6 +84,7 @@ impl RVInstructionNode {
             RVInstructionNode::Csr(x) => &x.token,
             RVInstructionNode::CsrI(x) => &x.token,
             RVInstructionNode::LoadAddr(x) => &x.token,
+            RVInstructionNode::Float(x) => &x.token,
         }
     }
 }
@@ -111,6 +116,7 @@ impl RVInstructionNode {
             RVInstructionNode::Csr(x) => (x.inst.get()).into(),
             RVInstructionNode::CsrI(x) => (x.inst.get()).into(),
             RVInstructionNode::LoadAddr(_) => RVInst::La,
+            RVInstructionNode::Float(_) => RVInst::Float,
         }
     }
 
@@ -339,6 +345,33 @@ impl RVInstructionNode {
             inst,
             rd,
             name,
+            key: Uuid::new_v4(),
+            token,
+            segment,
+            labels,
+        })
+    }
+
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_float(
+        inst: With<String>,
+        kind: FloatKind,
+        rd: Option<RegisterToken>,
+        rs1: Option<RegisterToken>,
+        imm: Option<With<Imm>>,
+        width: i32,
+        token: RawToken,
+        segment: Segment,
+        labels: HashSet<LabelStringToken>,
+    ) -> RVInstructionNode {
+        RVInstructionNode::Float(Float {
+            inst,
+            kind,
+            rd,
+            rs1,
+            imm,
+            width,
             key: Uuid::new_v4(),
             token,
             segment,

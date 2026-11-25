@@ -10,7 +10,10 @@ use crate::parser::inst::{
     RVInst, RVInstType,
 };
 use crate::parser::RVInstructionNode;
-use crate::parser::{DirectiveToken, LexError};
+use crate::parser::{
+    float_kind, float_memory_kind, is_float_register, is_rounding_mode, DirectiveToken, FloatKind,
+    LexError,
+};
 use crate::parser::{RVLexer, TokenType};
 use crate::parser::{RVRegister, RawToken};
 use crate::passes::{DiagnosticItem, DiagnosticLocation, Manager};
@@ -271,7 +274,7 @@ impl RVToken {
 }
 
 impl RVParser {
-    fn _expect_lparen(&mut self) -> Result<(), LexError> {
+    fn expect_lparen(&mut self) -> Result<(), LexError> {
         self.get_any()?.as_lparen()
     }
 
@@ -301,6 +304,102 @@ impl RVParser {
 
     fn get_string(&mut self) -> Result<With<String>, LexError> {
         self.get_any()?.as_string()
+    }
+
+    /// Get a floating-point register. Floating-point registers are not
+    /// modelled, so only its presence is checked.
+    fn get_float_reg(&mut self) -> Result<(), LexError> {
+        let token = self.get_any()?;
+        match token.token_type() {
+            TokenType::Symbol(s) if is_float_register(s) => Ok(()),
+            _ => Err(LexError::Expected(
+                vec![ExpectedType::Register],
+                Box::new(token),
+            )),
+        }
+    }
+
+    /// Returns if the next token is a floating-point register.
+    fn peek_is_float_reg(&mut self) -> bool {
+        matches!(
+            self.peek_any().as_ref().map(RVToken::token_type),
+            Ok(TokenType::Symbol(s)) if is_float_register(s)
+        )
+    }
+
+    /// Skip an optional rounding mode operand, such as `rtz`.
+    fn skip_rounding_mode(&mut self) -> Result<(), LexError> {
+        if matches!(
+            self.peek_any().as_ref().map(RVToken::token_type),
+            Ok(TokenType::Symbol(s)) if is_rounding_mode(s)
+        ) {
+            self.get_any()?;
+        }
+        Ok(())
+    }
+
+    /// Parse the operands of a floating-point instruction.
+    fn parse_float(
+        &mut self,
+        mnemonic: &RVToken,
+        name: &str,
+    ) -> Option<Result<RVInstructionNode, LexError>> {
+        let (kind, width) =
+            float_memory_kind(name).or_else(|| float_kind(name).map(|kind| (kind, 0)))?;
+        Some(self.parse_float_operands(mnemonic, name, kind, width))
+    }
+
+    fn parse_float_operands(
+        &mut self,
+        mnemonic: &RVToken,
+        name: &str,
+        kind: FloatKind,
+        width: i32,
+    ) -> Result<RVInstructionNode, LexError> {
+        let mut rd = None;
+        let mut rs1 = None;
+        let mut imm = None;
+        match kind {
+            FloatKind::Load | FloatKind::Store => {
+                self.get_float_reg()?;
+                imm = Some(self.get_imm()?);
+                self.expect_lparen()?;
+                rs1 = Some(self.get_reg()?);
+                self.expect_rparen()?;
+            }
+            FloatKind::FromInt => {
+                self.get_float_reg()?;
+                rs1 = Some(self.get_reg()?);
+                self.skip_rounding_mode()?;
+            }
+            FloatKind::ToInt => {
+                rd = Some(self.get_reg()?);
+                self.get_float_reg()?;
+                while self.peek_is_float_reg() {
+                    self.get_float_reg()?;
+                }
+                self.skip_rounding_mode()?;
+            }
+            FloatKind::Compute => {
+                self.get_float_reg()?;
+                while self.peek_is_float_reg() {
+                    self.get_float_reg()?;
+                }
+                self.skip_rounding_mode()?;
+            }
+        }
+        let raw_token = self.take_raw_token()?;
+        Ok(RVInstructionNode::new_float(
+            With::new(name.to_lowercase(), mnemonic.clone()),
+            kind,
+            rd,
+            rs1,
+            imm,
+            width,
+            raw_token,
+            self.current_segment,
+            mem::take(&mut self.current_labels),
+        ))
     }
 
     fn lex_next(&mut self) -> Result<RVToken, LexError> {
@@ -387,6 +486,10 @@ impl TryFrom<&mut RVParser> for RVInstructionNode {
         let next_node = parser.get_any()?;
         match next_node.token_type() {
             TokenType::Symbol(s) => {
+                if let Some(node) = parser.parse_float(&next_node, s) {
+                    return node;
+                }
+
                 if let Ok(inst) = RVInst::from_str(s) {
                     let node = match RVInstType::from(&inst) {
                         RVInstType::CsrI(inst) => {
@@ -764,6 +867,10 @@ impl TryFrom<&mut RVParser> for RVInstructionNode {
                                 parser.current_segment,
                                 mem::take(&mut parser.current_labels),
                             ))
+                        }
+                        RVInstType::Float => {
+                            // Floating-point instructions are parsed above.
+                            Err(LexError::UnexpectedError(Box::new(next_node)))
                         }
                         RVInstType::Ignore(_) => {
                             Err(LexError::IgnoredWithWarning(Box::new(next_node)))

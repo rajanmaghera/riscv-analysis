@@ -16,6 +16,7 @@ impl HasIdentity for RVInstructionNode {
             RVInstructionNode::Csr(a) => a.key,
             RVInstructionNode::CsrI(a) => a.key,
             RVInstructionNode::LoadAddr(a) => a.key,
+            RVInstructionNode::Float(a) => a.key,
         }
     }
 }

@@ -117,6 +117,8 @@ pub enum JumpLinkRType {
 
 #[derive(Debug, Clone, PartialEq, Copy, Eq)]
 pub enum RVInst {
+    /// A floating-point instruction. See [`crate::parser::Float`].
+    Float,
     Ret,
     Ebreak,
     Ecall,
@@ -441,6 +443,7 @@ impl Display for RVInst {
             RVInst::Csrsi => write!(f, "csrsi"),
             RVInst::Csrwi => write!(f, "csrwi"),
             RVInst::Uret => write!(f, "uret"),
+            RVInst::Float => write!(f, "<float>"),
         }
     }
 }
@@ -459,6 +462,8 @@ pub enum RVInstType {
     Branch(BranchType),
     Pseudo(PseudoType),
     UpperArith(IArithType),
+    /// Floating-point instructions are parsed by mnemonic, see [`crate::parser::float_kind`].
+    Float,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
@@ -686,6 +691,7 @@ impl From<&RVInst> for RVInstType {
             RVInst::Csrrsi => RVInstType::CsrI(CsrIType::Csrrsi),
             RVInst::Csrrci => RVInstType::CsrI(CsrIType::Csrrci),
             RVInst::Nop => RVInstType::Pseudo(PseudoType::Nop),
+            RVInst::Float => RVInstType::Float,
             RVInst::Auipc => RVInstType::IArith(IArithType::Auipc),
             RVInst::Beqz => RVInstType::Pseudo(PseudoType::Beqz),
             RVInst::Bnez => RVInstType::Pseudo(PseudoType::Bnez),
