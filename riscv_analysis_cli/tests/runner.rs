@@ -201,3 +201,12 @@ fn undefined_calls_can_be_external() {
     let out = PathBuf::from("./sample/undefined-call-external.json");
     run_test_with_args(asm, out, &["--undefined-calls-are-external"]);
 }
+
+#[test]
+fn callee_saved_restore_before_return_is_used() {
+    // The restores of s0 and sp before ret are required by the calling
+    // convention, so neither is an unused value.
+    let asm = PathBuf::from("./sample/callee-saved-restore-is-used.s");
+    let out = PathBuf::from("./sample/callee-saved-restore-is-used.json");
+    run_test(asm, out);
+}

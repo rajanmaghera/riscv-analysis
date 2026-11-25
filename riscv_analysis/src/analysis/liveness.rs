@@ -17,15 +17,17 @@ impl GenerationPass for LivenessPass {
                 if node.is_function_return() {
                     // live_out[F_exit] = live_out[F_exit] & return-registers
                     let live_out = if let Some(func) = node.functions().iter().next() {
-                        (node.live_out()
+                        ((node.live_out()
                             | cfg
                                 .get_call_sites(func)
                                 .map(|x| x.live_out())
                                 .reduce(|acc, x| acc | x)
                                 .unwrap_or_default())
-                            & RVRegister::return_set()
+                            & RVRegister::return_set())
+                            | RVRegister::callee_saved_set()
                     } else {
-                        node.live_out() & RVRegister::return_set()
+                        (node.live_out() & RVRegister::return_set())
+                            | RVRegister::callee_saved_set()
                     };
                     changed |= node.set_live_out(live_out);
                 } else {

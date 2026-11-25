@@ -1,0 +1,22 @@
+{
+  "diagnostics": [
+    {
+      "file": "sample/callee-saved-restore-is-used.s",
+      "title": "Stack pointer is invalid",
+      "description": "The stack pointer should be sp - x, but it is B",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 4,
+          "column": 1,
+          "raw": 137
+        },
+        "end": {
+          "line": 4,
+          "column": 9,
+          "raw": 145
+        }
+      }
+    }
+  ]
+}
