@@ -6,6 +6,7 @@ use super::Segment;
 use super::{environment_in_outs, ExternalFunction};
 use crate::analysis::{LocValueMap, Location, Value};
 use crate::parser::InstructionProperties;
+use crate::parser::JumpLinkRType;
 use crate::parser::LabelStringToken;
 use crate::parser::RVInstructionNode;
 use crate::parser::RVRegister;
@@ -203,6 +204,29 @@ impl CfgNode {
     #[deprecated]
     pub fn is_program_exit(&self) -> bool {
         self.known_ecall() == Some(10) || self.known_ecall() == Some(93)
+    }
+
+    /// Return true if this node returns to the caller of its function.
+    ///
+    /// This is a `ret`, or a `jr rs` (`jalr x0, 0(rs)`) where `rs` still holds
+    /// the value that `ra` had on entry to the function. The second case is
+    /// only recognised once the available value analysis has run.
+    pub fn is_function_return(&self) -> bool {
+        if self.is_return() {
+            return true;
+        }
+        match self.node() {
+            RVInstructionNode::JumpLinkR(x) => {
+                x.inst == JumpLinkRType::Jalr
+                    && x.rd == RVRegister::X0
+                    && x.imm.get().value() == Some(0)
+                    && self
+                        .real_val_in()
+                        .get(&Location::Register(x.rs1.get_cloned()))
+                        == Value::Initial(RVRegister::X1)
+            }
+            _ => false,
+        }
     }
 
     /// If this node is an entry point, return the corresponding function.

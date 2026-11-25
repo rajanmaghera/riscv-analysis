@@ -108,3 +108,61 @@ fn function_before_print_ecall_is_marked_once() {
     let out = PathBuf::from("./sample/function-before-print-ecall.json");
     run_test(asm, out);
 }
+
+#[test]
+fn return_through_copy_of_ra_checks_callee_saved_registers() {
+    // `jr t0` with t0 = entry ra returns to the caller, so s0 must be restored.
+    let asm = PathBuf::from("./sample/return-via-copy-of-ra-s0-not-restored.s");
+    let out = PathBuf::from("./sample/return-via-copy-of-ra-s0-not-restored.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn return_through_copy_of_ra_returns_value_to_caller() {
+    // a0 set before `jr t0` is live in the caller, and no callee saved
+    // register is modified.
+    let asm = PathBuf::from("./sample/return-via-copy-of-ra.s");
+    let out = PathBuf::from("./sample/return-via-copy-of-ra.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn jump_through_register_to_address_is_not_return() {
+    // `jr t0` with t0 = the address of a label is an indirect jump, not a return.
+    let asm = PathBuf::from("./sample/jr-to-address-not-return.s");
+    let out = PathBuf::from("./sample/jr-to-address-not-return.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn plain_ret_checks_callee_saved_registers() {
+    let asm = PathBuf::from("./sample/ret-s0-not-restored.s");
+    let out = PathBuf::from("./sample/ret-s0-not-restored.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn misaligned_sp_at_call_is_reported_without_panicking() {
+    // sp is 18 bytes below its entry value at the call. The call's stack
+    // clobber used to end at a misaligned offset and trip the alignment
+    // assertion in the memory range map.
+    let asm = PathBuf::from("./sample/misaligned-sp-at-call.s");
+    let out = PathBuf::from("./sample/misaligned-sp-at-call.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn byte_and_half_stores_at_unaligned_offsets() {
+    // `sb` to 1(sp) and `sh` to 6(sp) are ordinary code, but used to panic.
+    let asm = PathBuf::from("./sample/byte-store-odd-offset.s");
+    let out = PathBuf::from("./sample/byte-store-odd-offset.json");
+    run_test(asm, out);
+}
+
+#[test]
+fn unaligned_store_into_saved_slot_invalidates_it() {
+    // `sb` overwrites one byte of the saved ra, so ra may not be restored.
+    let asm = PathBuf::from("./sample/byte-store-over-saved-ra.s");
+    let out = PathBuf::from("./sample/byte-store-over-saved-ra.json");
+    run_test(asm, out);
+}
