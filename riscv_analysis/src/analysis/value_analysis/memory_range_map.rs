@@ -44,6 +44,19 @@ impl MemoryRangeMap {
         }
         Value::Undefined
     }
+    /// Round `offset` down to a multiple of 4.
+    #[must_use]
+    pub fn align_down(offset: i32) -> i32 {
+        offset & !3
+    }
+
+    /// Round `offset` up to a multiple of 4, saturating at `i32::MAX`
+    /// (which the map treats as an open upper bound).
+    #[must_use]
+    pub fn align_up(offset: i32) -> i32 {
+        offset.checked_add(3).map_or(i32::MAX, Self::align_down)
+    }
+
     /// Ensure offset is aligned to 4 bytes
     fn assert_aligned(offset: i32) {
         assert!(
@@ -331,6 +344,18 @@ mod tests {
             mem.insert(i * 4, Value::Undefined);
         }
         assert_eq!(dump(&mem), "");
+    }
+
+    #[test]
+    fn align_down_and_up() {
+        assert_eq!(MemoryRangeMap::align_down(-18), -20);
+        assert_eq!(MemoryRangeMap::align_up(-18), -16);
+        assert_eq!(MemoryRangeMap::align_down(-16), -16);
+        assert_eq!(MemoryRangeMap::align_up(-16), -16);
+        assert_eq!(MemoryRangeMap::align_down(13), 12);
+        assert_eq!(MemoryRangeMap::align_up(13), 16);
+        assert_eq!(MemoryRangeMap::align_up(i32::MAX - 1), i32::MAX);
+        assert_eq!(MemoryRangeMap::align_down(i32::MIN), i32::MIN);
     }
 
     #[test]
