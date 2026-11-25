@@ -15,7 +15,7 @@ use uuid::Uuid;
 /// This is ONLY to be used for testing. We should
 /// NEVER generate empty tokens. Tokens should always
 /// be valid.
-fn empty_token() -> RawToken {
+pub(super) fn empty_token() -> RawToken {
     RawToken::new(
         "\n",
         Range::new(Position::new(0, 0, 0), Position::new(0, 1, 1)),

@@ -49,6 +49,17 @@ impl Display for RVInstructionNode {
                 let inst: RVInst = RVInst::from(x.inst.get());
                 write!(f, "{inst} {} <- {} <- {}", x.rd, x.csr.get().value(), x.rs1)
             }
+            RVInstructionNode::Float(x) => {
+                write!(f, "{}", x.inst.get())?;
+                if let Some(rd) = &x.rd {
+                    write!(f, " {rd} <-")?;
+                }
+                match (&x.rs1, &x.imm) {
+                    (Some(rs1), Some(imm)) => write!(f, " {}({rs1})", imm.get()),
+                    (Some(rs1), None) => write!(f, " {rs1}"),
+                    _ => Ok(()),
+                }
+            }
             RVInstructionNode::CsrI(x) => {
                 let inst: RVInst = RVInst::from(x.inst.get());
                 write!(

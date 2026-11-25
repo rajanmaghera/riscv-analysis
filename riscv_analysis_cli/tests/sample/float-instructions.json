@@ -1,0 +1,22 @@
+{
+  "diagnostics": [
+    {
+      "file": "sample/float-instructions.s",
+      "title": "Invalid use before assignment",
+      "description": "",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 11,
+          "column": 15,
+          "raw": 324
+        },
+        "end": {
+          "line": 11,
+          "column": 17,
+          "raw": 326
+        }
+      }
+    }
+  ]
+}
