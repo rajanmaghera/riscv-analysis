@@ -20,24 +20,6 @@
     },
     {
       "file": "sample/function-before-print-ecall.s",
-      "title": "Unused value",
-      "description": "",
-      "level": "Warning",
-      "range": {
-        "start": {
-          "line": 8,
-          "column": 7,
-          "raw": 76
-        },
-        "end": {
-          "line": 8,
-          "column": 9,
-          "raw": 78
-        }
-      }
-    },
-    {
-      "file": "sample/function-before-print-ecall.s",
       "title": "Callee saved register is not restored",
       "description": "Registers s0 is/are not restored",
       "level": "Error",

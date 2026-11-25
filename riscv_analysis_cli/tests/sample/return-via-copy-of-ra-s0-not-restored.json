@@ -20,24 +20,6 @@
     },
     {
       "file": "sample/return-via-copy-of-ra-s0-not-restored.s",
-      "title": "Unused value",
-      "description": "",
-      "level": "Warning",
-      "range": {
-        "start": {
-          "line": 7,
-          "column": 7,
-          "raw": 67
-        },
-        "end": {
-          "line": 7,
-          "column": 9,
-          "raw": 69
-        }
-      }
-    },
-    {
-      "file": "sample/return-via-copy-of-ra-s0-not-restored.s",
       "title": "Callee saved register is not restored",
       "description": "Registers s0 is/are not restored",
       "level": "Error",

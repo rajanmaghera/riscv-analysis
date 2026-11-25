@@ -20,24 +20,6 @@
     },
     {
       "file": "sample/byte-store-over-saved-ra.s",
-      "title": "Unused value",
-      "description": "",
-      "level": "Warning",
-      "range": {
-        "start": {
-          "line": 10,
-          "column": 9,
-          "raw": 132
-        },
-        "end": {
-          "line": 10,
-          "column": 11,
-          "raw": 134
-        }
-      }
-    },
-    {
-      "file": "sample/byte-store-over-saved-ra.s",
       "title": "Callee saved register is maybe not restored",
       "description": "Registers ra is/are potentially not restored",
       "level": "Warning",

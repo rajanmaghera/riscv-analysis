@@ -35,24 +35,6 @@
           "raw": 128
         }
       }
-    },
-    {
-      "file": "sample/byte-store-odd-offset.s",
-      "title": "Unused value",
-      "description": "",
-      "level": "Warning",
-      "range": {
-        "start": {
-          "line": 12,
-          "column": 9,
-          "raw": 163
-        },
-        "end": {
-          "line": 12,
-          "column": 11,
-          "raw": 165
-        }
-      }
     }
   ]
 }
