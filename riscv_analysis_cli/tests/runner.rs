@@ -99,6 +99,17 @@ fn spill_one_word_below_sp_is_clobbered_by_call() {
 }
 
 #[test]
+fn function_before_print_ecall_is_marked_once() {
+    // The print ecall in main does not exit, so its edge is promoted and
+    // functions are marked again. That used to leave the old copy of `fn`
+    // behind, giving a "Node in many functions" diagnostic and a duplicate
+    // callee saved register diagnostic for each copy.
+    let asm = PathBuf::from("./sample/function-before-print-ecall.s");
+    let out = PathBuf::from("./sample/function-before-print-ecall.json");
+    run_test(asm, out);
+}
+
+#[test]
 fn return_through_copy_of_ra_checks_callee_saved_registers() {
     // `jr t0` with t0 = entry ra returns to the caller, so s0 must be restored.
     let asm = PathBuf::from("./sample/return-via-copy-of-ra-s0-not-restored.s");

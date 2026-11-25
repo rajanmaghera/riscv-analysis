@@ -1,0 +1,58 @@
+{
+  "diagnostics": [
+    {
+      "file": "sample/function-before-print-ecall.s",
+      "title": "Stack pointer is invalid",
+      "description": "The stack pointer should be sp - x, but it is B",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 1,
+          "column": 4,
+          "raw": 10
+        },
+        "end": {
+          "line": 1,
+          "column": 10,
+          "raw": 16
+        }
+      }
+    },
+    {
+      "file": "sample/function-before-print-ecall.s",
+      "title": "Unused value",
+      "description": "",
+      "level": "Warning",
+      "range": {
+        "start": {
+          "line": 8,
+          "column": 7,
+          "raw": 76
+        },
+        "end": {
+          "line": 8,
+          "column": 9,
+          "raw": 78
+        }
+      }
+    },
+    {
+      "file": "sample/function-before-print-ecall.s",
+      "title": "Callee saved register is not restored",
+      "description": "Registers s0 is/are not restored",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 10,
+          "column": 4,
+          "raw": 99
+        },
+        "end": {
+          "line": 10,
+          "column": 7,
+          "raw": 102
+        }
+      }
+    }
+  ]
+}

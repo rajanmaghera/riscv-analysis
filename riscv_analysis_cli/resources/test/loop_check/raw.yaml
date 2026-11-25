@@ -352,13 +352,7 @@
   - func1
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 9
@@ -461,13 +455,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 10
@@ -577,13 +565,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 11
@@ -702,13 +684,7 @@
   - L1
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 12
@@ -827,13 +803,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 13
@@ -950,13 +920,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 14
@@ -1075,13 +1039,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 15
@@ -1203,13 +1161,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 16
@@ -1332,13 +1284,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 17
@@ -1461,13 +1407,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 18
@@ -1589,13 +1529,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 19
@@ -1717,13 +1651,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 20
@@ -1846,13 +1774,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 21
@@ -1974,13 +1896,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 11
@@ -2106,13 +2022,7 @@
   - L2
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 23
@@ -2225,13 +2135,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 24
@@ -2344,13 +2248,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   nexts:
   - 25
@@ -2462,13 +2360,7 @@
     labels: []
   func_entry:
   - 8
-  - 8
-  - 8
-  - 8
   func_exits:
-  - 25
-  - 25
-  - 25
   - 25
   prevs:
   - 24

@@ -106,6 +106,11 @@ impl CfgNode {
         (*self.function.borrow_mut()).insert(function);
     }
 
+    /// Remove all function annotations from this node.
+    pub fn clear_functions(&self) {
+        self.function.borrow_mut().clear();
+    }
+
     #[must_use]
     pub fn set_real_val_in(&self, val_in: LocValueMap) -> bool {
         self.real_val_in.replace_if_changed(val_in)
