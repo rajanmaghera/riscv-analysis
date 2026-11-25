@@ -180,6 +180,7 @@ impl<T: FileReader> RVFileParser<T> {
                         }
                     }
                     LexError::IgnoredWithoutWarning | LexError::IsNewline(_) => (),
+                    LexError::IgnoredLineWithoutWarning => self.recover_from_parse_error(),
                 },
             }
         }
@@ -1238,6 +1239,21 @@ impl TryFrom<&mut RVParser> for RVInstructionNode {
                             // we care about.
                             parser.current_segment = Segment::Unknown;
                             Err(LexError::IgnoredWithoutWarning)
+                        }
+                        DirectiveToken::Zero | DirectiveToken::Quad => {
+                            // Data, not code; skip the operands.
+                            Err(LexError::IgnoredLineWithoutWarning)
+                        }
+                        DirectiveToken::Attribute
+                        | DirectiveToken::File
+                        | DirectiveToken::P2align
+                        | DirectiveToken::Size
+                        | DirectiveToken::Ident
+                        | DirectiveToken::Addrsig
+                        | DirectiveToken::AddrsigSym => {
+                            // Assembler and object-file metadata. It has no effect on
+                            // the analysis, so skip the operands.
+                            Err(LexError::IgnoredLineWithoutWarning)
                         }
                         DirectiveToken::Extern | DirectiveToken::Eqv => {
                             Err(LexError::UnsupportedDirective(Box::new(next_node)))

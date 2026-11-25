@@ -29,6 +29,15 @@ pub enum DirectiveToken {
     Text,
     Word,
     Type,
+    Attribute,
+    File,
+    P2align,
+    Size,
+    Ident,
+    Addrsig,
+    AddrsigSym,
+    Zero,
+    Quad,
 }
 
 impl Display for DirectiveToken {
@@ -56,6 +65,15 @@ impl Display for DirectiveToken {
             DirectiveToken::Text => write!(f, ".text"),
             DirectiveToken::Word => write!(f, ".word"),
             DirectiveToken::Type => write!(f, ".type"),
+            DirectiveToken::Attribute => write!(f, ".attribute"),
+            DirectiveToken::File => write!(f, ".file"),
+            DirectiveToken::P2align => write!(f, ".p2align"),
+            DirectiveToken::Size => write!(f, ".size"),
+            DirectiveToken::Ident => write!(f, ".ident"),
+            DirectiveToken::Addrsig => write!(f, ".addrsig"),
+            DirectiveToken::AddrsigSym => write!(f, ".addrsig_sym"),
+            DirectiveToken::Zero => write!(f, ".zero"),
+            DirectiveToken::Quad => write!(f, ".quad"),
         }
     }
 }
@@ -88,6 +106,15 @@ impl FromStr for DirectiveToken {
             ".text" => Ok(DirectiveToken::Text),
             ".word" => Ok(DirectiveToken::Word),
             ".type" => Ok(DirectiveToken::Type),
+            ".attribute" => Ok(DirectiveToken::Attribute),
+            ".file" => Ok(DirectiveToken::File),
+            ".p2align" => Ok(DirectiveToken::P2align),
+            ".size" => Ok(DirectiveToken::Size),
+            ".ident" => Ok(DirectiveToken::Ident),
+            ".addrsig" => Ok(DirectiveToken::Addrsig),
+            ".addrsig_sym" => Ok(DirectiveToken::AddrsigSym),
+            ".zero" => Ok(DirectiveToken::Zero),
+            ".quad" => Ok(DirectiveToken::Quad),
             _ => Err(()),
         }
     }
