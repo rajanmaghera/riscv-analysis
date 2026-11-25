@@ -35,24 +35,6 @@
           "raw": 95
         }
       }
-    },
-    {
-      "file": "sample/jr-to-address-not-return.s",
-      "title": "Unused value",
-      "description": "",
-      "level": "Warning",
-      "range": {
-        "start": {
-          "line": 10,
-          "column": 7,
-          "raw": 90
-        },
-        "end": {
-          "line": 10,
-          "column": 9,
-          "raw": 92
-        }
-      }
     }
   ]
 }

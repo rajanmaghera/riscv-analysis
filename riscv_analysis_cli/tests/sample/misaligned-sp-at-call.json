@@ -43,24 +43,6 @@
       "level": "Warning",
       "range": {
         "start": {
-          "line": 12,
-          "column": 9,
-          "raw": 164
-        },
-        "end": {
-          "line": 12,
-          "column": 11,
-          "raw": 166
-        }
-      }
-    },
-    {
-      "file": "sample/misaligned-sp-at-call.s",
-      "title": "Unused value",
-      "description": "",
-      "level": "Warning",
-      "range": {
-        "start": {
           "line": 16,
           "column": 9,
           "raw": 199
