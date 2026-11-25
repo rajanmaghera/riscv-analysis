@@ -23,7 +23,8 @@ use riscv_analysis::passes::Manager;
 
 use clap::{Args, Parser, Subcommand};
 use riscv_analysis::parser::{
-    LabelString, Position, ProgramEntryType, RVRegister, RVToken, Range, TokenType, With,
+    HasRegisterSets, InstructionProperties, LabelString, Position, ProgramEntryType, RVRegister,
+    RVToken, Range, TokenType, With,
 };
 use riscv_analysis::reader::{FileReader, FileReaderError};
 
@@ -120,6 +121,12 @@ struct Lint {
     /// Use a specific label as the program entry
     #[clap(long)]
     program_entry_label: Option<String>,
+    /// Treat calls to labels that are not defined as calls to external
+    /// functions that follow the standard calling convention (arguments in
+    /// a0-a7, return values in a0-a1). Use --function-names to give an
+    /// external function a more precise signature.
+    #[clap(long)]
+    undefined_calls_are_external: bool,
 }
 
 #[cfg(feature = "fixes")]
@@ -380,9 +387,42 @@ fn main() {
                 .expect("unable to read file");
             diags.extend(parsed.errors.iter().cloned().map(DiagnosticItem::from));
 
+            let named_functions: HashSet<String> = lint
+                .function_names
+                .iter()
+                .flatten()
+                .map(|item| item.name.clone())
+                .collect();
+            let mut seen_call_targets = HashSet::new();
+            let undefined_call_targets: Vec<_> = if lint.undefined_calls_are_external {
+                parsed
+                    .nodes
+                    .iter()
+                    .filter_map(InstructionProperties::calls_to)
+                    .filter(|label| {
+                        !parsed.all_defined_labels.contains(label)
+                            && !named_functions.contains(label.get().as_str())
+                    })
+                    .filter(|label| seen_call_targets.insert(label.get().as_str().to_string()))
+                    .map(|label| {
+                        (
+                            label,
+                            RVRegister::argument_set(),
+                            [RVRegister::X10, RVRegister::X11].into_iter().collect(),
+                        )
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            let function_names = match (lint.function_names, undefined_call_targets.is_empty()) {
+                (None, true) => None,
+                (names, _) => Some(names.unwrap_or_default()),
+            };
+
             match Manager::gen_full_cfg(
                 &parsed,
-                lint.function_names.map(|x| {
+                function_names.map(|x| {
                     x.into_iter()
                         .map(|item| {
                             (
@@ -402,6 +442,7 @@ fn main() {
                                 item.ret_registers.into_iter().collect(),
                             )
                         })
+                        .chain(undefined_call_targets)
                         .collect()
                 }),
                 &program_entry_type,

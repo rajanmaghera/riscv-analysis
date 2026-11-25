@@ -50,13 +50,17 @@ fn output_eq(actual: TestCase, expected: TestCase) -> bool {
 }
 
 fn run_test(asm: PathBuf, results: PathBuf) {
+    run_test_with_args(asm, results, &[]);
+}
+
+fn run_test_with_args(asm: PathBuf, results: PathBuf, args: &[&str]) {
     // Change the CWD to the directory of this file
     let dir = PathBuf::from("tests/");
     let _ = env::set_current_dir(dir);
 
     // Run RVA on the input assembly
     let mut bin = rva_bin();
-    let cmd = bin.arg("lint").arg("--json").arg(asm);
+    let cmd = bin.arg("lint").arg("--json").arg(asm).args(args);
 
     // Compare outputs
     let out = String::from_utf8(cmd.output().unwrap().stdout).unwrap();
@@ -188,4 +192,12 @@ fn float_instructions_affect_integer_registers() {
     let asm = PathBuf::from("./sample/float-instructions.s");
     let out = PathBuf::from("./sample/float-instructions.json");
     run_test(asm, out);
+}
+
+#[test]
+fn undefined_calls_can_be_external() {
+    // Without the flag, the call to puts_line is a "Labels not defined" error.
+    let asm = PathBuf::from("./sample/undefined-call-external.s");
+    let out = PathBuf::from("./sample/undefined-call-external.json");
+    run_test_with_args(asm, out, &["--undefined-calls-are-external"]);
 }
