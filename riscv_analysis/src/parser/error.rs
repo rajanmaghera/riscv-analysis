@@ -20,6 +20,8 @@ pub enum LexError {
     IsNewline(Box<RVToken>),
     IgnoredWithWarning(Box<RVToken>),
     IgnoredWithoutWarning,
+    /// Ignore the rest of the current line without a warning.
+    IgnoredLineWithoutWarning,
     UnexpectedToken(Box<RVToken>),
     UnexpectedEOF,
     UnexpectedError(Box<RVToken>),

@@ -166,3 +166,10 @@ fn unaligned_store_into_saved_slot_invalidates_it() {
     let out = PathBuf::from("./sample/byte-store-over-saved-ra.json");
     run_test(asm, out);
 }
+
+#[test]
+fn metadata_directives_are_skipped() {
+    let asm = PathBuf::from("./sample/metadata-directives.s");
+    let out = PathBuf::from("./sample/metadata-directives.json");
+    run_test(asm, out);
+}
