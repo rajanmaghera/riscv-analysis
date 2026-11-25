@@ -1234,11 +1234,27 @@ impl TryFrom<&mut RVParser> for RVInstructionNode {
                             Err(LexError::IgnoredWithWarning(Box::new(next_node)))
                         }
                         DirectiveToken::Section => {
-                            // We have jumped to an unknown section.
-                            // For our purposes, we will skip until we reach a directive token
-                            // we care about.
-                            parser.current_segment = Segment::Unknown;
-                            Err(LexError::IgnoredWithoutWarning)
+                            // Sections named like the text or data segments (for example,
+                            // `.text.startup` or `.rodata.str`) switch to that segment.
+                            // Any other section is one we do not care about. The flags and
+                            // type that follow the name are skipped.
+                            let name = parser.get_string()?;
+                            let name = name.get();
+                            parser.current_segment = if name == ".text"
+                                || name.starts_with(".text.")
+                            {
+                                Segment::Text
+                            } else if [".data", ".rodata", ".bss", ".sdata", ".sbss", ".srodata"]
+                                .iter()
+                                .any(|prefix| {
+                                    name == *prefix || name.starts_with(&format!("{prefix}."))
+                                })
+                            {
+                                Segment::Data
+                            } else {
+                                Segment::Unknown
+                            };
+                            Err(LexError::IgnoredLineWithoutWarning)
                         }
                         DirectiveToken::Zero | DirectiveToken::Quad => {
                             // Data, not code; skip the operands.

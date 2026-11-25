@@ -173,3 +173,10 @@ fn metadata_directives_are_skipped() {
     let out = PathBuf::from("./sample/metadata-directives.json");
     run_test(asm, out);
 }
+
+#[test]
+fn section_directive_switches_segment_by_name() {
+    let asm = PathBuf::from("./sample/section-directive.s");
+    let out = PathBuf::from("./sample/section-directive.json");
+    run_test(asm, out);
+}
