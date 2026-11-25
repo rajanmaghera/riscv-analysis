@@ -1,0 +1,58 @@
+{
+  "diagnostics": [
+    {
+      "file": "sample/jr-to-address-not-return.s",
+      "title": "Stack pointer is invalid",
+      "description": "The stack pointer should be sp - x, but it is B",
+      "level": "Error",
+      "range": {
+        "start": {
+          "line": 1,
+          "column": 4,
+          "raw": 10
+        },
+        "end": {
+          "line": 1,
+          "column": 10,
+          "raw": 16
+        }
+      }
+    },
+    {
+      "file": "sample/jr-to-address-not-return.s",
+      "title": "Unreachable line of code",
+      "description": "There is no path to this instruction.",
+      "level": "Warning",
+      "range": {
+        "start": {
+          "line": 10,
+          "column": 4,
+          "raw": 87
+        },
+        "end": {
+          "line": 10,
+          "column": 12,
+          "raw": 95
+        }
+      }
+    },
+    {
+      "file": "sample/jr-to-address-not-return.s",
+      "title": "Unused value",
+      "description": "",
+      "level": "Warning",
+      "range": {
+        "start": {
+          "line": 10,
+          "column": 7,
+          "raw": 90
+        },
+        "end": {
+          "line": 10,
+          "column": 9,
+          "raw": 92
+        }
+      }
+    }
+  ]
+}
