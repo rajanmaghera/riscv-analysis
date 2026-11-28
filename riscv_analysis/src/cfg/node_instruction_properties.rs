@@ -36,6 +36,10 @@ impl InstructionProperties for CfgNode {
         self.node().is_indirect_call()
     }
 
+    fn is_indirect_jump(&self) -> bool {
+        self.node().is_indirect_jump()
+    }
+
     fn is_ecall(&self) -> bool {
         self.node().is_ecall()
     }

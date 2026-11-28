@@ -69,6 +69,13 @@ impl GenerationPass for LivenessPass {
                         | (node.live_out() - RVRegister::caller_saved_set() - node.kill_reg())
                         | node.gen_reg();
                     changed |= node.set_live_in(live_in);
+                } else if node.is_indirect_jump() {
+                    // Unknown target (e.g. indirect tail call): assume the argument
+                    // registers are read there.
+                    let live_in = RVRegister::argument_set()
+                        | (node.live_out() - node.kill_reg())
+                        | node.gen_reg();
+                    changed |= node.set_live_in(live_in);
                 } else if node.is_ecall() {
                     let (args, _) = node.known_ecall_signature().unwrap_or_default();
 

@@ -219,3 +219,12 @@ fn indirect_call_clobbers_temporaries() {
     let out = PathBuf::from("./sample/indirect-call.json");
     run_test(asm, out);
 }
+
+#[test]
+fn indirect_tail_call_reads_argument_registers() {
+    // jr t0 jumps to an unknown target, which may read a0, so setting a0
+    // before the jump is not an unused value.
+    let asm = PathBuf::from("./sample/indirect-tail-call.s");
+    let out = PathBuf::from("./sample/indirect-tail-call.json");
+    run_test(asm, out);
+}

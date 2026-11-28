@@ -39,6 +39,11 @@ pub trait InstructionProperties {
     #[must_use]
     fn is_indirect_call(&self) -> bool;
 
+    /// Checks if an instruction is a jump through a register that does not
+    /// link and is not a return (`jr rs1` with rs1 != ra), e.g. an indirect tail call.
+    #[must_use]
+    fn is_indirect_jump(&self) -> bool;
+
     /// Checks if a instruction is an environment call
     #[must_use]
     fn is_ecall(&self) -> bool;

@@ -79,6 +79,13 @@ impl InstructionProperties for RVInstructionNode {
         }
     }
 
+    fn is_indirect_jump(&self) -> bool {
+        match self {
+            RVInstructionNode::JumpLinkR(x) => x.rd == RVRegister::X0 && !self.is_return(),
+            _ => false,
+        }
+    }
+
     fn is_ecall(&self) -> bool {
         match self {
             RVInstructionNode::Basic(x) => x.inst == BasicType::Ecall,
