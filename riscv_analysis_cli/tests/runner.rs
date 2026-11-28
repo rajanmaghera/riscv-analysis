@@ -210,3 +210,12 @@ fn callee_saved_restore_before_return_is_used() {
     let out = PathBuf::from("./sample/callee-saved-restore-is-used.json");
     run_test(asm, out);
 }
+
+#[test]
+fn indirect_call_clobbers_temporaries() {
+    // jalr ra, 0(t0) calls an unknown function, so t1 may be overwritten
+    // by the time it is read after the call.
+    let asm = PathBuf::from("./sample/indirect-call.s");
+    let out = PathBuf::from("./sample/indirect-call.json");
+    run_test(asm, out);
+}

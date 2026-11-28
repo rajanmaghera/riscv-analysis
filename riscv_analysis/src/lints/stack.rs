@@ -28,7 +28,7 @@ impl LintPass for StackPass {
             if node.segment() != Segment::Text {
                 continue;
             }
-            if node.calls_to().is_some() {
+            if node.calls_to().is_some() || node.is_indirect_call() {
                 // At each function call instruction,
                 // check that the stack pointer is a negative multiple of 4
                 match node

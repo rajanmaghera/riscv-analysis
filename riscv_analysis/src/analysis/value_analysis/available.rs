@@ -61,7 +61,7 @@ impl GenerationPass for AvailableValuePass {
                 let mut val_out = val_in.clone();
                 symbolically_execute(&mut val_out, &node.node());
 
-                if node.calls_to().is_some() {
+                if node.calls_to().is_some() || node.is_indirect_call() {
                     val_out.join_registers(
                         RVRegister::caller_saved_set()
                             .into_iter()

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     cfg::Cfg,
     parser::{HasRegisterSets, InstructionProperties, RVRegister},
-    passes::{DiagnosticManager, LintError, LintPass},
+    passes::{DiagnosticBuilder, DiagnosticCertainty, DiagnosticManager, LintError, LintPass},
 };
 
 #[non_exhaustive]
@@ -49,6 +49,26 @@ impl LintPass for DeadValuePass {
                         Rc::clone(&function),
                         call_site.clone(),
                     ));
+                }
+            } else if node.is_indirect_call() {
+                // Unknown callee: any a-register may hold a return value, but
+                // temporaries are clobbered under the calling convention.
+                let out =
+                    (RVRegister::caller_saved_set() - RVRegister::return_set()) & node.live_out();
+                for item in &out {
+                    for range in cfg.error_ranges_for_first_usage(node, item) {
+                        errors.push(
+                            DiagnosticBuilder::new(
+                                "invalid-use-after-indirect-call",
+                                "Invalid use after indirect call",
+                            )
+                            .description(format!(
+                                "{item} is caller-saved and may be overwritten by the indirect call"
+                            ))
+                            .with_certainty(DiagnosticCertainty::IsTrueIfAssumptionsAreMet)
+                            .is_error_on(&range),
+                        );
+                    }
                 }
             }
             // Check for any assignments that don't make it
